@@ -341,7 +341,7 @@ function moveAxis(ax,amt){const n=Math.ceil(Math.abs(amt)/.2)||1,d=amt/n;
 let bumped=false;
 
 // ---------- entrées ----------
-const keys=new Set();let playing=false,mining=false,locked=false,noLock=false,dragging=false,jumpHeld=false,sprint=false,regView=false;
+const keys=new Set();let playing=false,mining=false,locked=false,noLock=false,dragging=false,jumpHeld=false,sneakHeld=false,sprintOn=false,sprintMv=false,sprint=false,regView=false;
 addEventListener('keydown',e=>{if(chatOpen||document.activeElement&&document.activeElement.tagName==='INPUT')return;if(e.code==='Enter'&&playing){e.preventDefault();openChat();return}if(e.code==='KeyE'&&(playing||!$('panel').hidden)){togglePanel();return}if(!playing)return;keys.add(e.code);
  if(/^Digit[1-9]$/.test(e.code))select(+e.code.slice(5)-1);if(e.code==='KeyM')toggleSnd();if(e.code==='KeyT'){regView=!regView;$('modeTag').hidden=!regView;buildRegView()}if(e.code==='Space')e.preventDefault()});
 addEventListener('keyup',e=>keys.delete(e.code));
@@ -360,8 +360,14 @@ const stick=$('stick'),knob=$('knob'),move={x:0,y:0};let joyId=null,joyO=null,lo
 const HOLD_MS=300,SLOP=12,ring=$('press');let aim=null,press=null;
 const ndcOf=(x,y)=>({x:x/innerWidth*2-1,y:-(y/innerHeight)*2+1});
 function ringAt(x,y,cls){ring.style.left=x+'px';ring.style.top=y+'px';ring.className=cls;ring.hidden=false}
+const stickHome=()=>[Math.max(24,(innerWidth*.13))+64,innerHeight*.56];
+function placeStick(x,y){stick.style.left=x+'px';stick.style.top=y+'px'}
+function resetStick(){const[x,y]=stickHome();placeStick(x,y);knob.style.transform='';stick.classList.remove('on')}
+if(touch){resetStick();addEventListener('resize',()=>{if(joyId===null)resetStick()})}
 cv.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'||!playing)return;
- if(e.clientX<innerWidth*.42&&e.clientY>innerHeight*.35&&joyId===null){joyId=e.pointerId;joyO=[e.clientX,e.clientY];stick.style.display='block';stick.style.left=e.clientX+'px';stick.style.top=e.clientY+'px';knob.style.transform=''}
+ if(e.clientX<innerWidth*.4&&e.clientY>innerHeight*.25&&joyId===null){joyId=e.pointerId;const[hx,hy]=stickHome();
+  joyO=Math.hypot(e.clientX-hx,e.clientY-hy)<90?[hx,hy]:[e.clientX,e.clientY];placeStick(joyO[0],joyO[1]);stick.classList.add('on');
+  let dx=e.clientX-joyO[0],dy=e.clientY-joyO[1];const l=Math.hypot(dx,dy),m=46;if(l>m){dx*=m/l;dy*=m/l}knob.style.transform=`translate(${dx}px,${dy}px)`;move.x=dx/m;move.y=-dy/m}
  else if(lookId===null){lookId=e.pointerId;lookL=[e.clientX,e.clientY];aim=ndcOf(e.clientX,e.clientY);ringAt(e.clientX,e.clientY,'charge');
   const pr=press={x0:e.clientX,y0:e.clientY,drag:false,mine:false};
   pr.timer=setTimeout(()=>{if(press!==pr||pr.drag)return;pr.mine=true;mining=true;ring.className='mine';try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}} ,HOLD_MS)}});
@@ -370,12 +376,14 @@ cv.addEventListener('pointermove',e=>{if(e.pointerId===joyId){let dx=e.clientX-j
   if(pr&&!pr.drag&&!pr.mine&&Math.hypot(e.clientX-pr.x0,e.clientY-pr.y0)>SLOP){pr.drag=true;aim=null;ring.hidden=true}
   if(pr&&pr.mine){aim=ndcOf(e.clientX,e.clientY);ring.style.left=e.clientX+'px';ring.style.top=e.clientY+'px';return} // en minant, le doigt vise
   if(pr&&!pr.drag)return;look(e.clientX-lookL[0],e.clientY-lookL[1],.005);lookL=[e.clientX,e.clientY]}});
-function endP(e){if(e.pointerId===joyId){joyId=null;move.x=move.y=0;stick.style.display='none'}
+function endP(e){if(e.pointerId===joyId){joyId=null;move.x=move.y=0;resetStick()}
  if(e.pointerId===lookId){lookId=null;const pr=press;press=null;ring.hidden=true;
   if(pr){clearTimeout(pr.timer);if(pr.mine)mining=false;else if(!pr.drag&&e.type==='pointerup'){target=raycast(5.2,aim);place()}}aim=null}}
 cv.addEventListener('pointerup',endP);cv.addEventListener('pointercancel',endP);
 function hold(el,on,off){el.addEventListener('pointerdown',e=>{e.preventDefault();el.classList.add('on');on()});['pointerup','pointercancel','pointerleave'].forEach(t=>el.addEventListener(t,()=>{el.classList.remove('on');off()}))}
-hold($('tJump'),()=>jumpHeld=true,()=>jumpHeld=false);
+hold($('tJump'),()=>jumpHeld=true,()=>jumpHeld=false);hold($('tSneak'),()=>sneakHeld=true,()=>sneakHeld=false);
+$('tSprint').addEventListener('pointerdown',e=>{e.preventDefault();sprintOn=!sprintOn;$('tSprint').classList.toggle('on',sprintOn)});
+$('menuBtn').onclick=()=>{if(!$('panel').hidden)togglePanel();if(chatOpen)closeChat();pause()};
 $('invBtn').onclick=()=>togglePanel();
 
 // ---------- visée, minage, pose ----------
@@ -468,7 +476,8 @@ function buildRegView(){if(regLines){scene.remove(regLines);regLines.geometry.di
 function select(i){S.sel=i;ui();const it=S.bar[i];const n=$('selname');n.textContent=it?nameOf(it.startsWith?.('nft')?201:+it):'Main nue';n.style.opacity=1;clearTimeout(select.t);select.t=setTimeout(()=>n.style.opacity=0,1600)}
 function ui(){
  const bar=$('bar');if(!bar.children.length)for(let i=0;i<9;i++){const b=document.createElement('button');b.className='slot';b.innerHTML=`<i>${i+1}</i><b></b>`;b.onclick=()=>select(i);bar.appendChild(b)}
- [...bar.children].forEach((b,i)=>{const it=S.bar[i];b.classList.toggle('sel',i===S.sel);const old=b.querySelector('canvas');if(old)old.remove();b.querySelector('b').textContent='';
+ if(!bar.querySelector('.more')){const m=document.createElement('button');m.className='slot more';m.textContent='…';m.setAttribute('aria-label','Coffre');m.onclick=()=>togglePanel();bar.appendChild(m)}
+ [...bar.querySelectorAll('.slot:not(.more)')].forEach((b,i)=>{const it=S.bar[i];b.classList.toggle('sel',i===S.sel);const old=b.querySelector('canvas');if(old)old.remove();b.querySelector('b').textContent='';
   if(it){const isN=String(it).startsWith('nft');b.prepend(cloneIcon(isN?201:+it));if(!isN)b.querySelector('b').textContent=S.inv[it]||0}});
  setHand();if(!$('panel').hidden)renderPanel()}
 let tab='inv',selItem=null;
@@ -544,21 +553,25 @@ function drawSunIcon(day){if(day===lastIconDay)return;lastIconDay=day;const c=$(
 
 // ---------- boucle ----------
 const GENESIS=1606824023;let lastSlot=Math.floor((Date.now()/1000-GENESIS)/12);
-let last=performance.now(),bob=0,stepT=0,hitT=0;
+let last=performance.now(),bob=0,crouch=0,stepT=0,hitT=0;
 function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
  if(playing&&$('panel').hidden&&!chatOpen){
   let fx=0,fz=0;if(keys.has('KeyW')||keys.has('ArrowUp'))fz++;if(keys.has('KeyS')||keys.has('ArrowDown'))fz--;if(keys.has('KeyD')||keys.has('ArrowRight'))fx++;if(keys.has('KeyA')||keys.has('ArrowLeft'))fx--;
   fx+=move.x;fz+=move.y;const l=Math.hypot(fx,fz);if(l>1){fx/=l;fz/=l}
   const inW=get(Math.floor(P.x),Math.floor(P.y+.5),Math.floor(P.z))===11;P.inWater=inW;
-  const run=keys.has('ShiftLeft')||keys.has('ShiftRight');const sp=(run?6.6:4.4)*(inW?.55:1),sn=Math.sin(yaw),cs=Math.cos(yaw);
-  const vx=(-sn*fz+cs*fx)*sp,vz=(-cs*fz-sn*fx)*sp;const was=P.on;bumped=false;moveAxis('x',vx*dt);moveAxis('z',vz*dt);
+  const sneak=sneakHeld||keys.has('KeyC')||keys.has('ControlLeft');if(sprintOn){if(l>.1)sprintMv=true;else if(sprintMv){sprintOn=sprintMv=false;$('tSprint').classList.remove('on')}}
+  const run=!sneak&&(keys.has('ShiftLeft')||keys.has('ShiftRight')||sprintOn);const sp=(run?6.6:4.4)*(inW?.55:1)*(sneak&&!inW?.35:1),sn=Math.sin(yaw),cs=Math.cos(yaw);
+  const vx=(-sn*fz+cs*fx)*sp,vz=(-cs*fz-sn*fx)*sp;const was=P.on;bumped=false;const guard=sneak&&was&&!inW;
+  {const ox=P.x,oy=P.y;moveAxis('x',vx*dt);if(guard&&!collides(P.x,P.y-.1,P.z)){P.x=ox;P.y=oy}}
+  {const oz=P.z,oy=P.y;moveAxis('z',vz*dt);if(guard&&!collides(P.x,P.y-.1,P.z)){P.z=oz;P.y=oy}}
   const jump=keys.has('Space')||jumpHeld;
-  if(inW){P.vy=jump?2.6:Math.max(P.vy-9*dt,-2.2)}else{if(jump&&was)P.vy=8.2;else if(touch&&bumped&&was&&l>.3)P.vy=8.2;P.vy=Math.max(P.vy-24*dt,-30)}
+  if(inW){P.vy=jump?2.6:sneak?-3:Math.max(P.vy-9*dt,-2.2)}else{if(jump&&was)P.vy=8.2;else if(touch&&bumped&&was&&l>.3)P.vy=8.2;P.vy=Math.max(P.vy-24*dt,-30)}
   const fallV=P.vy;P.on=false;moveAxis('y',P.vy*dt);if(P.y<-10){P.x=SPAWN.x+.5;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5;P.vy=0}
   if(l>.1||!P.on)dirty=true;if(l>.1&&P.on)bob+=dt*(run?13:9);
   const under=()=>MAT_OF(get(Math.floor(P.x),Math.floor(P.y-.1),Math.floor(P.z)));
   if(l>.1&&P.on&&!inW){stepT-=dt;if(stepT<=0){stepT=run?.28:.38;Sound.step(under())}}else stepT=.12;
   if(!was&&P.on&&fallV<-7)Sound.step(under());
+  crouch+=((sneak&&!inW?.22:0)-crouch)*Math.min(1,dt*12);
   S.day+=dt/480;if(S.day>=1){S.day-=1;S.dayN++}
   // minage
   if(mining&&target&&B[target.id].h!==Infinity&&inBorder(target.x,target.z)){const k=coordKey(target.x,target.y,target.z);if(k!==mineKey){mineKey=k;mineT=0}mineT+=dt*heldTool()*(B[target.id].stone?1:1);hitT-=dt;if(hitT<=0){hitT=.25;Sound.hit(MAT_OF(target.id))}const h=B[target.id].h/(B[target.id].stone?1:Math.max(1,heldTool()*.5));const pr=mineT/(B[target.id].h/ (B[target.id].stone?1:1)/(1));
@@ -567,7 +580,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
   // validateurs
   const slot=Math.floor((Date.now()/1000-GENESIS)/12);if(slot>lastSlot){let own=0;for(const k of vals.keys())if(OWN.get(k)?.by===ME.id)own++;const n=own*Math.min(3,slot-lastSlot);lastSlot=slot;if(n){give(101,n,`récompense du slot ${slot.toLocaleString('fr-FR')}`)}}
  }
- camera.rotation.set(pitch,yaw,0);stepUp=Math.max(0,stepUp-dt*5);camera.position.set(P.x,P.y+EYE-stepUp+Math.sin(bob)*.04,P.z);camera.updateMatrixWorld();
+ camera.rotation.set(pitch,yaw,0);stepUp=Math.max(0,stepUp-dt*5);camera.position.set(P.x,P.y+EYE-stepUp-crouch+Math.sin(bob)*.04,P.z);camera.updateMatrixWorld();
  sky.position.copy(camera.position);stars.position.copy(camera.position);clouds.position.x=camera.position.x;clouds.position.z=camera.position.z;cloudTex.offset.x+=dt*.0015;waterTex.offset.x+=dt*.03;waterTex.offset.y+=dt*.012;
  applyDay();
  if(playing){target=raycast(5.2,aim);if(target){sel.visible=true;sel.position.set(target.x+.5,target.y+.5,target.z+.5);const k=coordKey(target.x,target.y,target.z),ow=OWN.get(k),own=ow?ow.serial:0;const tg=$('target');tg.hidden=false;tg.classList.toggle('own',!!(ow&&ow.by===ME.id));

@@ -106,4 +106,5 @@ Ouvrir `index.html#debug` expose `window.mines` dans la console : `get(x, y, z)`
 - Clic gauche maintenu : miner · clic droit : poser
 - Clic droit sur une porte ou un levier : l'actionner
 - 1 à 9, molette : barre d'objets · E : coffre et atelier · T : vue registre · M : son · Entrée : chat (`/rejoindre pseudo`, `/sanctuaire`)
-- Mobile : pouce en bas à gauche pour marcher, glisser pour regarder, toucher long pour miner (là où touche le doigt), toucher bref pour poser, ouvrir une porte ou actionner un levier, bouton Saut à gauche, boutons Coffre et Chat à droite
+- Mobile (disposition de Minecraft mobile) : croix à gauche pour marcher, glisser pour regarder, toucher long pour miner, toucher bref pour poser ou actionner ; à droite, sauter (↑), courir (», reste actif jusqu'à l'arrêt) et s'accroupir (↓ : plus lent, ne tombe pas des bords, descend dans l'eau) ; en haut, coffre, chat et menu ; « … » au bout de la barre ouvre le coffre
+- Clavier : C ou Ctrl pour s'accroupir

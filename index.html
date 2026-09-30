@@ -26,8 +26,16 @@
   <div id="bar" class="chip"></div>
   <div class="touch">
     <div class="stick" id="stick"><i id="knob"></i></div>
-    <button id="invBtn">Coffre</button><button id="chatBtn">Chat</button>
-    <button id="tJump">Saut</button>
+    <div id="topBtns">
+      <button id="invBtn" class="tbtn" aria-label="Coffre et atelier"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h12v8H2zM3 2h10v4H3z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 7h2v3H7z" fill="currentColor"/></svg></button>
+      <button id="chatBtn" class="tbtn" aria-label="Chat"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12v8H7l-3 3v-3H2z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 7h1v1H5zm2.5 0h1v1h-1zM10 7h1v1h-1z" fill="currentColor"/></svg></button>
+      <button id="menuBtn" class="tbtn" aria-label="Menu"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h10" stroke="currentColor" stroke-width="1.8"/></svg></button>
+    </div>
+    <div id="actBtns">
+      <button id="tJump" class="abtn" aria-label="Sauter"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2 3 7h3v4h4V7h3z M4 13h8v1.5H4z" fill="currentColor"/></svg></button>
+      <button id="tSprint" class="abtn" aria-label="Courir"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3l5 5-5 5V3zm6 0l5 5-5 5V3z" fill="currentColor"/></svg></button>
+      <button id="tSneak" class="abtn" aria-label="S'accroupir, descendre dans l'eau"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14l5-5h-3V5H6v4H3z M4 2h8v1.5H4z" fill="currentColor"/></svg></button>
+    </div>
     <div id="press" hidden></div>
   </div>
 </div>
@@ -62,7 +70,7 @@
       <dt>E · T · Entrée</dt><dd>Coffre et atelier · vue registre · chat</dd>
     </dl>
     <dl class="keys k-touch">
-      <dt>Pouce en bas à gauche</dt><dd>Marcher</dd><dt>Glisser</dt><dd>Regarder</dd><dt>Toucher long</dt><dd>Miner</dd><dt>Toucher bref</dt><dd>Poser, ouvrir, actionner</dd><dt>Saut</dt><dd>Bouton à gauche</dd>
+      <dt>Croix à gauche</dt><dd>Marcher</dd><dt>Glisser</dt><dd>Regarder</dd><dt>Toucher long</dt><dd>Miner</dd><dt>Toucher bref</dt><dd>Poser, ouvrir, actionner</dd><dt>Flèches à droite</dt><dd>Sauter · courir · s'accroupir</dd><dt>En haut · « … »</dt><dd>Coffre, chat, menu</dd>
     </dl>
     <div class="go"><button id="play">Entrer dans le monde</button></div>
     <div class="share" id="shareRow" hidden><span>Invite tes amis :</span><code id="shareUrl"></code><button class="b" id="copyUrl">Copier le lien</button></div>
