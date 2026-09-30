@@ -153,9 +153,9 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .rcat:first-child{margin-top:0}
 #sndBtn{pointer-events:auto;background:none;border:0;border-left:1px solid var(--line);color:var(--ink,#f4f1ff);font-size:14px;padding:0 0 0 8px;margin-left:2px;cursor:pointer;line-height:1}
 #sndBtn.off{opacity:.4;text-decoration:line-through}
-#press{position:absolute;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;pointer-events:none;border:2px solid rgba(255,255,255,.8)}
+#press{position:absolute;width:104px;height:104px;margin:-52px 0 0 -52px;border-radius:50%;pointer-events:none;border:3px solid rgba(255,255,255,.85)}
 #press.charge{animation:pressIn .3s linear forwards;opacity:.0}
-#press.mine{border-color:var(--cyan,#7fe8ff);box-shadow:0 0 12px var(--cyan,#7fe8ff);animation:pressPulse .5s ease-in-out infinite alternate}
+#press.mine{border-color:var(--cyan,#7fe8ff);border-width:4px;box-shadow:0 0 16px var(--cyan,#7fe8ff),inset 0 0 12px rgba(127,232,255,.5);animation:pressPulse .5s ease-in-out infinite alternate}
 @keyframes pressIn{0%{transform:scale(1.6);opacity:0}30%{opacity:.2}100%{transform:scale(1);opacity:.9}}
 @keyframes pressPulse{from{transform:scale(.9)}to{transform:scale(1.05)}}
 #game canvas{-webkit-touch-callout:none}
