@@ -148,3 +148,11 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 #chatBtn{position:absolute;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 290px);width:52px;height:52px;border-radius:12px;border:1px solid var(--line);background:var(--glass);font-size:12px;pointer-events:auto}
 @media (pointer:coarse){#chat{bottom:calc(env(safe-area-inset-bottom,0px) + 240px);width:min(300px,calc(100% - 120px))}}
 @media (max-width:520px){.fields{grid-template-columns:1fr}}
+
+/* frontière */
+#border{position:absolute;left:16px;top:calc(env(safe-area-inset-top,0px) + 54px);padding:6px 10px;display:grid;gap:4px;font-size:12px;font-family:var(--mono);max-width:calc(100% - 32px)}
+#border .bbar{display:block;height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
+#border .bbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--violet),var(--cyan));transition:width .4s}
+#online{top:calc(env(safe-area-inset-top,0px) + 100px)}
+#modeTag{top:calc(env(safe-area-inset-top,0px) + 138px)}
+@media (pointer:coarse){#feed{top:calc(env(safe-area-inset-top,0px) + 140px)}}

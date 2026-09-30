@@ -3,17 +3,18 @@
 window.Net = (() => {
   const cfg = window.CONFIG || {};
   const enabled = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
-  const handlers = { block: [], pos: [], chat: [], peers: [], status: [] };
+  const handlers = { block: [], pos: [], chat: [], peers: [], status: [], world: [] };
   let sb = null, ch = null, world = 'principal', me = null, online = false;
 
   const on = (ev, fn) => handlers[ev].push(fn);
   const emit = (ev, ...a) => { for (const f of handlers[ev]) { try { f(...a); } catch (e) { console.error(e); } } };
 
   // Lit une table entière par pages de 1000 lignes.
-  async function readAll(table, cols, w, order) {
+  async function readAll(table, cols, w, order, filter) {
     const rows = [];
     for (let from = 0; ; from += 1000) {
       let q = sb.from(table).select(cols).eq('world', w);
+      if (filter) q = filter(q);
       for (const o of order) q = q.order(o);
       const { data, error } = await q.range(from, from + 999);
       if (error) throw error;
@@ -27,14 +28,13 @@ window.Net = (() => {
     if (!enabled) return { edits: [] };
     world = w; me = profile;
     sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, { realtime: { params: { eventsPerSecond: 40 } } });
-    const [edits, chunks] = await Promise.all([
-      readAll('blocks', 'x,y,z,id,placed_by,placed_name,serial', w, ['x', 'y', 'z']),
-      readAll('chunks', 'cx,cz,gen,sy,data', w, ['cx', 'cz']),
-    ]);
+    const { data: info, error: werr } = await sb.from('worlds').select('world,radius,placed_total').eq('world', w).maybeSingle();
+    if (werr) throw werr;
     ch = sb.channel('monde:' + w, { config: { broadcast: { self: false }, presence: { key: me.id } } });
     ch.on('broadcast', { event: 'pos' }, ({ payload }) => emit('pos', payload));
     ch.on('broadcast', { event: 'block' }, ({ payload }) => emit('block', payload));
     ch.on('broadcast', { event: 'chat' }, ({ payload }) => emit('chat', payload));
+    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'worlds', filter: 'world=eq.' + w }, (p) => emit('world', p.new));
     ch.on('presence', { event: 'sync' }, () => {
       const st = ch.presenceState(), list = [];
       for (const k in st) { const p = st[k][0]; if (p) list.push({ id: k, name: p.name, color: p.color }); }
@@ -48,7 +48,17 @@ window.Net = (() => {
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { if (!online) { clearTimeout(t); reject(new Error('connexion au salon refusée')); } }
       });
     });
-    return { edits, chunks };
+    return { world: info || { world: w, radius: 3, placed_total: 0 } };
+  }
+
+  // Terrain figé et blocs modifiés d'une zone rectangulaire de tronçons (bornes incluses).
+  async function loadArea(cx0, cz0, cx1, cz1, size = 16) {
+    const [chunks, edits] = await Promise.all([
+      readAll('chunks', 'cx,cz,gen,sy,data', world, ['cx', 'cz'], (q) => q.gte('cx', cx0).lte('cx', cx1).gte('cz', cz0).lte('cz', cz1)),
+      readAll('blocks', 'x,y,z,id,placed_by,placed_name,serial', world, ['x', 'y', 'z'],
+        (q) => q.gte('x', cx0 * size).lt('x', (cx1 + 1) * size).gte('z', cz0 * size).lt('z', (cz1 + 1) * size)),
+    ]);
+    return { chunks, edits };
   }
 
   const sendPos = (p) => { if (ch && online) ch.send({ type: 'broadcast', event: 'pos', payload: p }); };
@@ -79,5 +89,5 @@ window.Net = (() => {
     return fetchChunk(c.cx, c.cz);
   }
 
-  return { enabled, join, on, sendPos, chat, setBlock, freezeChunk, fetchChunk, get online() { return online; }, get world() { return world; } };
+  return { enabled, join, on, sendPos, chat, setBlock, freezeChunk, fetchChunk, loadArea, get online() { return online; }, get world() { return world; } };
 })();

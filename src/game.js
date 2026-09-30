@@ -64,55 +64,61 @@ const isTransp=id=>id===0||id===11||isCross(id)||(B[id]&&(B[id].leaf||B[id].glas
 const isSolid=id=>id&&id!==11&&!isCross(id);
 const isOpaque=id=>id&&!isTransp(id);
 
-// ---------- monde ----------
-const SX=96,SZ=96,SY=48,SEA=15,CH=16,NC=SX/CH;
-const W=new Uint8Array(SX*SY*SZ);
-const I=(x,y,z)=>x+z*SX+y*SX*SZ;
-const get=(x,y,z)=>(x<0||y<0||z<0||x>=SX||y>=SY||z>=SZ)?0:W[I(x,y,z)];
-const hmap=new Int16Array(SX*SZ);
-const SPAWN={x:48,z:48,y:0};
+// ---------- monde par tronçons (16 × 16 colonnes, chargés autour des joueurs) ----------
+const SY=48,SEA=15,CH=16,CV=CH*CH*SY;
+const GEN=1; // version du générateur : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
+const SPAWN={x:8,z:8,y:0};
+const CHK=new Map(); // "cx,cz" -> Uint8Array des blocs du tronçon
+const ckey=(cx,cz)=>cx+','+cz,coordKey=(x,y,z)=>x+','+y+','+z,cOf=v=>Math.floor(v/CH);
+const li=(lx,y,lz)=>lx+lz*CH+y*CH*CH;
+function get(x,y,z){if(y<0||y>=SY)return 0;const cx=cOf(x),cz=cOf(z),c=CHK.get(cx+','+cz);return c?c[li(x-cx*CH,y,z-cz*CH)]:0}
+function setW(x,y,z,id){if(y<0||y>=SY)return;const cx=cOf(x),cz=cOf(z),c=CHK.get(cx+','+cz);if(c)c[li(x-cx*CH,y,z-cz*CH)]=id}
+const loaded=(x,z)=>CHK.has(cOf(x)+','+cOf(z));
+let R=3; // rayon de la frontière, en tronçons autour du tronçon 0,0
+const inBorder=(x,z)=>{const cx=cOf(x),cz=cOf(z);return cx>=-R&&cx<=R&&cz>=-R&&cz<=R};
+const ringFor=total=>Math.floor((Math.sqrt(1+4*total/150)-1)/2); // anneau n à 150 × n × (n + 1) blocs posés
+const radiusFor=total=>Math.min(60,3+ringFor(total));
 function heightAt(x,z){const c=vn2(x/40,z/40,1)*.6+vn2(x/17,z/17,2)*.3+vn2(x/7,z/7,3)*.1;const m=sm(clamp((vn2(x/64+10,z/64+10,4)-.52)/.25,0,1));
  const d=Math.hypot(x-SPAWN.x,z-SPAWN.z),flat=sm(clamp((d-5)/10,0,1));return Math.floor(lerp(20,12+c*14+m*18*vn2(x/16,z/16,5),flat))}
 function biome(x,z){const b=vn2(x/50+30,z/50-20,6);return b<.42?'plaine':b<.66?'foret':'dunes'}
-function setB(x,y,z,id){if(x>=0&&y>=0&&z>=0&&x<SX&&y<SY&&z<SZ)W[I(x,y,z)]=id}
-function generate(){
- W.fill(0);
- for(let z=0;z<SZ;z++)for(let x=0;x<SX;x++){
-  const h=heightAt(x,z),bi=biome(x,z);hmap[x+z*SX]=h;
+const topAt=(h,bi)=>h<=SEA+1?4:bi==='dunes'?4:h>=36?16:h>=31?3:1;
+SPAWN.y=heightAt(SPAWN.x,SPAWN.z)+1;
+function genChunk(cx,cz){
+ const a=new Uint8Array(CV),x0=cx*CH,z0=cz*CH;
+ const put=(x,y,z,id,onlyAir)=>{const lx=x-x0,lz=z-z0;if(lx<0||lz<0||lx>=CH||lz>=CH||y<0||y>=SY)return;const i=li(lx,y,lz);if(onlyAir&&a[i])return;a[i]=id};
+ const at=(x,y,z)=>{const lx=x-x0,lz=z-z0;if(lx<0||lz<0||lx>=CH||lz>=CH||y<0||y>=SY)return -1;return a[li(lx,y,lz)]};
+ for(let lz=0;lz<CH;lz++)for(let lx=0;lx<CH;lx++){const x=x0+lx,z=z0+lz,h=heightAt(x,z),bi=biome(x,z);
   for(let y=0;y<SY;y++){let id=0;
-   if(y===0)id=12;else if(y<h-3)id=3;else if(y<h)id=(bi==='dunes'||h<=SEA+1)?4:2;
-   else if(y===h){id=h<=SEA+1?4:bi==='dunes'?4:h>=36?16:h>=31?3:1}
-   else if(y<=SEA)id=11;
+   if(y===0)id=12;else if(y<h-3)id=3;else if(y<h)id=(bi==='dunes'||h<=SEA+1)?4:2;else if(y===h)id=topAt(h,bi);else if(y<=SEA)id=11;
    if(id===3&&y>1&&y<h-4&&vn3(x/11,y/7,z/11,7)>.7)id=0;
    if(id===3&&vn3(x/3.2,y/3.2,z/3.2,8)>.8-Math.min(.1,(h-y)*.004))id=8;
-   if(id)W[I(x,y,z)]=id}}
- // flèches de cristal, arbres, plantes
- for(let z=3;z<SZ-3;z++)for(let x=3;x<SX-3;x++){const h=hmap[x+z*SX],top=get(x,h,z),bi=biome(x,z),d=Math.hypot(x-SPAWN.x,z-SPAWN.z);
-  if(top!==1||d<8)continue;const r=hash(x,z,40);
-  if(bi==='foret'&&r<.004){const t=2+Math.floor(hash(x,z,41)*3);for(let k=1;k<=t;k++)setB(x,h+k,z,8);continue}
-  if(r<(bi==='foret'?.028:.01)){const th=4+Math.floor(hash(x,z,42)*3),leaf=bi==='foret'?7:6;
-   for(let k=1;k<=th;k++)setB(x,h+k,z,5);
-   for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){const rr=Math.hypot(dx,dy*1.2,dz);if(rr<=2.5-(hash(x+dx,z+dz,dy+50)<.3?.6:0)&&get(x+dx,h+th+dy,z+dz)===0)setB(x+dx,h+th+dy,z+dz,leaf)}
-   setB(x,h+th+2,z,leaf);continue}
-  if(get(x,h+1,z)===0){if(r<.09)setB(x,h+1,z,20);else if(r<.11)setB(x,h+1,z,17+Math.floor(hash(x,z,43)*3))}}
+   if(id)a[li(lx,y,lz)]=id}}
+ // décor : racines prises dans une marge de 3 colonnes, pour qu'un arbre à cheval sur deux tronçons soit identique des deux côtés
+ for(let z=z0-3;z<z0+CH+3;z++)for(let x=x0-3;x<x0+CH+3;x++){const h=heightAt(x,z),bi=biome(x,z);if(topAt(h,bi)!==1||Math.hypot(x-SPAWN.x,z-SPAWN.z)<8)continue;const r=hash(x,z,40);
+  if(bi==='foret'&&r<.004){const t=2+Math.floor(hash(x,z,41)*3);for(let k=1;k<=t;k++)put(x,h+k,z,8);continue}
+  if(r<(bi==='foret'?.028:.01)){const th=4+Math.floor(hash(x,z,42)*3),leaf=bi==='foret'?7:6;for(let k=1;k<=th;k++)put(x,h+k,z,5);
+   for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){const rr=Math.hypot(dx,dy*1.2,dz);if(rr<=2.5-(hash(x+dx,z+dz,dy+50)<.3?.6:0))put(x+dx,h+th+dy,z+dz,leaf,true)}
+   put(x,h+th+2,z,leaf,true);continue}
+  if(at(x,h+1,z)===0){if(r<.09)put(x,h+1,z,20);else if(r<.11)put(x,h+1,z,17+Math.floor(hash(x,z,43)*3))}}
  // le sanctuaire du validateur, au point d'apparition
- const sy=hmap[SPAWN.x+SPAWN.z*SX];
- for(let dx=-3;dx<=3;dx++)for(let dz=-3;dz<=3;dz++){setB(SPAWN.x+dx,sy,SPAWN.z+dz,15);for(let k=1;k<7;k++)setB(SPAWN.x+dx,sy+k,SPAWN.z+dz,0)}
- for(const[dx,dz]of[[-3,-3],[3,-3],[-3,3],[3,3]])for(let k=1;k<=4;k++)setB(SPAWN.x+dx,sy+k,SPAWN.z+dz,15);
- for(let dx=-3;dx<=3;dx++)for(let dz=-3;dz<=3;dz++)if(Math.abs(dx)===3||Math.abs(dz)===3)setB(SPAWN.x+dx,sy+5,SPAWN.z+dz,15);
- setB(SPAWN.x,sy+1,SPAWN.z,13);for(const[dx,dz]of[[-2,-2],[2,-2],[-2,2],[2,2]])setB(SPAWN.x+dx,sy+4,SPAWN.z+dz,14);
- SPAWN.y=sy+1}
+ const sx=SPAWN.x,sz=SPAWN.z,sy=SPAWN.y-1;
+ if(x0<=sx+3&&x0+CH>sx-3&&z0<=sz+3&&z0+CH>sz-3){
+  for(let dx=-3;dx<=3;dx++)for(let dz=-3;dz<=3;dz++){put(sx+dx,sy,sz+dz,15);for(let k=1;k<7;k++)put(sx+dx,sy+k,sz+dz,0)}
+  for(const[dx,dz]of[[-3,-3],[3,-3],[-3,3],[3,3]])for(let k=1;k<=4;k++)put(sx+dx,sy+k,sz+dz,15);
+  for(let dx=-3;dx<=3;dx++)for(let dz=-3;dz<=3;dz++)if(Math.abs(dx)===3||Math.abs(dz)===3)put(sx+dx,sy+5,sz+dz,15);
+  put(sx,sy+1,sz,13);for(const[dx,dz]of[[-2,-2],[2,-2],[-2,2],[2,2]])put(sx+dx,sy+4,sz+dz,14)}
+ return a}
 
 // ---------- état, sauvegarde ----------
-let KEY='mines-ether:solo';
-const SAVE_V=2;
-const S0=()=>({v:SAVE_V,chunks:{},edits:{},inv:{},bar:[null,null,null,null,null,null,null,null,null],sel:0,pos:null,placed:{},serial:0,nfts:[],log:[],supply:{},day:.3,dayN:1,seen:{},totalMint:0,totalBurn:0});
+let KEY='ether-mines:solo';
+const SAVE_V=1;
+const S0=()=>({v:SAVE_V,chunks:{},edits:{},placedTotal:0,inv:{},bar:[null,null,null,null,null,null,null,null,null],sel:0,pos:null,placed:{},serial:0,nfts:[],log:[],supply:{},day:.3,dayN:1,seen:{},totalMint:0,totalBurn:0});
 let S=S0(),ME={id:'moi',name:'moi',color:'#8a7bef'};const OWN=new Map();
 function loadState(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}S=Object.assign(S0(),s||{});if(s&&!s.v)S.v=1;migrateSave(S)}
 // Migrations de la sauvegarde locale : chaque version sait convertir la précédente. Ne jamais renommer KEY.
 function migrateSave(s){
- if(!s.v||s.v<2){const conv=o=>{const r={};for(const k in o){const i=+k;if(!Number.isInteger(i)){r[k]=o[k];continue}r[`${i%96},${Math.floor(i/(96*96))},${Math.floor(i/96)%96}`]=o[k]}return r};
-  s.edits=conv(s.edits||{});s.placed=conv(s.placed||{});s.chunks=s.chunks||{};s.v=2;dirty=true}
+ // v1 : première version. Pour une v2 : if(s.v<2){ …convertir… ; s.v=2 } — ne jamais supprimer une étape.
+ if(!s.v)s.v=1;
 }
 let dirty=false;function save(){if(!dirty)return;dirty=false;S.pos=[P.x,P.y,P.z,yaw,pitch];try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 setInterval(save,4000);addEventListener('pagehide',save);
@@ -144,7 +150,7 @@ function ethGeo(r,ht,hb,gap,cols){const pos=[],col=[],e=[[r,0,0],[0,0,r],[-r,0,0
  for(let i=0;i<4;i++){const a=e[i],c=e[(i+1)%4];pos.push(0,ht,0,a[0],gap/2,a[2],c[0],gap/2,c[2],0,-hb,0,a[0],-gap/2,a[2],c[0],-gap/2,c[2]);const t=hx(cols[i%2]),b=hx(cols[2+i%2]);for(let j=0;j<3;j++)col.push(...t);for(let j=0;j<3;j++)col.push(...b)}
  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));return g}
 const ethMat=new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide,fog:false});
-const bigEth=new THREE.Mesh(ethGeo(9,15,10,2.5,['#9a8cf5','#c2b8ff','#6a58e0','#8a7bef']),ethMat);bigEth.position.set(SX/2,SY+40,-60);scene.add(bigEth);
+const bigEth=new THREE.Mesh(ethGeo(9,15,10,2.5,['#9a8cf5','#c2b8ff','#6a58e0','#8a7bef']),ethMat);bigEth.position.set(SPAWN.x,SY+40,SPAWN.z-110);scene.add(bigEth);
 
 // ---------- maillage par tronçons ----------
 const FACES=[
@@ -157,12 +163,14 @@ const glMat=new THREE.MeshLambertMaterial({map:atlasTex,emissiveMap:emisTex,emis
 const waMat=new THREE.MeshLambertMaterial({map:waterTex,transparent:true,opacity:.78,depthWrite:false,color:0xdcefff});
 const plMat=new THREE.MeshLambertMaterial({map:atlasTex,alphaTest:.5,side:THREE.DoubleSide});
 function uvRect(ti){const tx=ti%AN,ty=Math.floor(ti/AN),e=.0008;return[tx/AN+e,(tx+1)/AN-e,1-(ty+1)/AN+e,1-ty/AN-e]}
-const chunks=[];
+const MESH=new Map();
+function dropMesh(k){const ch=MESH.get(k);if(!ch)return;for(const m of ch.meshes){scene.remove(m);m.geometry.dispose()}MESH.delete(k)}
 function buildChunk(cx,cz){
+ const arr=CHK.get(ckey(cx,cz));if(!arr)return;
  const A={op:[[],[],[],[],[]],gl:[[],[],[],[],[]],wa:[[],[],[],[]],pl:[[],[],[],[]]};// pos,nor,uv,col,idx
  const pushQ=(G,pts,nor,uvs,cols,flipTri)=>{const base=G[0].length/3;for(let k=0;k<4;k++){G[0].push(...pts[k]);G[1].push(...nor);G[2].push(...uvs[k]);if(cols)G[3].push(cols[k],cols[k],cols[k])}const ix=cols?G[4]:G[3];if(flipTri)ix.push(base+1,base+2,base+3,base+1,base+3,base);else ix.push(base,base+1,base+2,base,base+2,base+3)};
  for(let y=0;y<SY;y++)for(let z=cz*CH;z<cz*CH+CH;z++)for(let x=cx*CH;x<cx*CH+CH;x++){
-  const id=W[I(x,y,z)];if(!id)continue;const b=B[id];
+  const id=arr[li(x-cx*CH,y,z-cz*CH)];if(!id)continue;const b=B[id];
   if(b.x!=null){const[u0,u1,v0,v1]=uvRect(b.x),o=.15;for(const[p,q]of[[[x+o,z+o],[x+1-o,z+1-o]],[[x+1-o,z+o],[x+o,z+1-o]]])pushQ(A.pl,[[p[0],y,p[1]],[p[0],y+1,p[1]],[q[0],y+1,q[1]],[q[0],y,q[1]]],[0,1,0],[[u0,v0],[u0,v1],[u1,v1],[u1,v0]],null,false);continue}
   if(b.water){for(const f of FACES){const nb=get(x+f.n[0],y+f.n[1],z+f.n[2]);if(nb===11||isSolid(nb)&&!B[nb].leaf&&!B[nb].glass)continue;if(f.n[1]<0)continue;
     const top=get(x,y+1,z)!==11?.86:1;const pts=f.c.map(c=>[x+c[0],y+(c[1]?top:0),z+c[2]]);const uvs=pts.map(p=>f.a===1?[p[0]*.25,p[2]*.25]:f.a===0?[p[2]*.25,p[1]*.25]:[p[0]*.25,p[1]*.25]);pushQ(A.wa,pts,f.n,uvs,null,false)}continue}
@@ -178,17 +186,17 @@ function buildChunk(cx,cz){
     uvs.push([lerp(u0,u1,uu),lerp(v0,v1,vv)])}
    pushQ(G,pts,f.n,uvs,ao.map(a=>AOF[a]),ao[0]+ao[2]<ao[1]+ao[3])}}
  const mkG=(G,col)=>{if(!G[0].length)return null;const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(G[0],3));g.setAttribute('normal',new THREE.Float32BufferAttribute(G[1],3));g.setAttribute('uv',new THREE.Float32BufferAttribute(G[2],2));if(col)g.setAttribute('color',new THREE.Float32BufferAttribute(G[3],3));g.setIndex(new THREE.Uint32BufferAttribute(col?G[4]:G[3],1));g.computeBoundingSphere();return g};
- const ch=chunks[cx+cz*NC]||(chunks[cx+cz*NC]={meshes:[]});for(const m of ch.meshes){scene.remove(m);m.geometry.dispose()}ch.meshes=[];
+ const mk=ckey(cx,cz);let ch=MESH.get(mk);if(!ch)MESH.set(mk,ch={meshes:[]});for(const m of ch.meshes){scene.remove(m);m.geometry.dispose()}ch.meshes=[];
  const add=(g,mat,cast)=>{if(!g)return;const m=new THREE.Mesh(g,mat);m.castShadow=cast;m.receiveShadow=true;scene.add(m);ch.meshes.push(m)};
  add(mkG(A.op,true),opMat,true);add(mkG(A.gl,true),glMat,false);add(mkG(A.wa,false),waMat,false);add(mkG(A.pl,false),plMat,false)}
 function rebuildAt(x,z){const cx=Math.floor(x/CH),cz=Math.floor(z/CH);const set=new Set([cx+','+cz]);if(x%CH===0)set.add((cx-1)+','+cz);if(x%CH===CH-1)set.add((cx+1)+','+cz);if(z%CH===0)set.add(cx+','+(cz-1));if(z%CH===CH-1)set.add(cx+','+(cz+1));
- for(const k of set){const[a,b]=k.split(',').map(Number);if(a>=0&&b>=0&&a<NC&&b<NC)buildChunk(a,b)}}
+ for(const k of set){const[a,b]=k.split(',').map(Number);if(MESH.has(k))buildChunk(a,b)}}
 
 // ---------- validateurs : faisceaux ----------
 const beamMat=new THREE.MeshBasicMaterial({color:0xffe68a,transparent:true,opacity:.4,depthWrite:false,blending:THREE.AdditiveBlending,fog:false});
 const beamGeo=new THREE.CylinderGeometry(.12,.12,40,10,1,true),gemGeo=ethGeo(.22,.4,.26,.06,['#fff2b0','#ffd95e','#8a7bef','#6a58e0']);
 const vals=new Map();
-function addVal(x,y,z){if(vals.has(I(x,y,z)))return;const g=new THREE.Group();const b=new THREE.Mesh(beamGeo,beamMat);b.position.y=21;g.add(b);const d=new THREE.Mesh(gemGeo,ethMat);d.position.y=1.7;g.add(d);g.userData.d=d;g.position.set(x+.5,y,z+.5);scene.add(g);vals.set(I(x,y,z),g)}
+function addVal(x,y,z){if(vals.has(coordKey(x,y,z)))return;const g=new THREE.Group();const b=new THREE.Mesh(beamGeo,beamMat);b.position.y=21;g.add(b);const d=new THREE.Mesh(gemGeo,ethMat);d.position.y=1.7;g.add(d);g.userData.d=d;g.position.set(x+.5,y,z+.5);scene.add(g);vals.set(coordKey(x,y,z),g)}
 function delVal(i){const g=vals.get(i);if(g){scene.remove(g);vals.delete(i)}}
 
 // ---------- main (objet tenu) ----------
@@ -227,7 +235,7 @@ function take(it,n){S.inv[it]-=n;S.supply[it]=Math.max(0,(S.supply[it]||0)-n);S.
 const P={x:SPAWN.x+.5,y:0,z:SPAWN.z+2.5,vy:0,on:false,inWater:false};
 let yaw=0,pitch=-.12;
 const PW=.3,PH=1.75,EYE=1.6;
-function collides(x,y,z){for(let bx=Math.floor(x-PW);bx<=Math.floor(x+PW-1e-4);bx++)for(let by=Math.floor(y);by<=Math.floor(y+PH-1e-4);by++)for(let bz=Math.floor(z-PW);bz<=Math.floor(z+PW-1e-4);bz++){if(bx<0||bz<0||bx>=SX||bz>=SZ||by<0)return true;if(isSolid(get(bx,by,bz)))return true}return false}
+function collides(x,y,z){for(let bx=Math.floor(x-PW);bx<=Math.floor(x+PW-1e-4);bx++)for(let by=Math.floor(y);by<=Math.floor(y+PH-1e-4);by++)for(let bz=Math.floor(z-PW);bz<=Math.floor(z+PW-1e-4);bz++){if(by<0||!loaded(bx,bz)||!inBorder(bx,bz))return true;if(isSolid(get(bx,by,bz)))return true}return false}
 function moveAxis(ax,amt){const n=Math.ceil(Math.abs(amt)/.2)||1,d=amt/n;for(let i=0;i<n;i++){P[ax]+=d;if(collides(P.x,P.y,P.z)){if(ax==='y'){if(d<0){P.y=Math.floor(P.y)+1;P.on=true}else P.y=Math.floor(P.y+PH)-PH-1e-3;P.vy=0}else{P[ax]-=d;bumped=true}return}}}
 let bumped=false;
 
@@ -272,9 +280,9 @@ function avgColor(ti){const[sx,sy]=[(ti%AN)*AT,Math.floor(ti/AN)*AT];const d=ag.
 function burst(x,y,z,id){const ti=B[id].x!=null?B[id].x:B[id].t[1];const c=pMats[ti]||(pMats[ti]=new THREE.MeshLambertMaterial({color:avgColor(ti)}));
  for(let i=0;i<10;i++){const m=new THREE.Mesh(pGeo,c);m.position.set(x+.2+Math.random()*.6,y+.2+Math.random()*.6,z+.2+Math.random()*.6);scene.add(m);parts.push({m,v:[(Math.random()-.5)*3,Math.random()*3+1,(Math.random()-.5)*3],t:.7})}}
 function breakBlock(t){
- const id=get(t.x,t.y,t.z);if(!id||id===12)return;const k=I(t.x,t.y,t.z);
+ const id=get(t.x,t.y,t.z);if(!id||id===12||!inBorder(t.x,t.z))return;const k=coordKey(t.x,t.y,t.z);
  const owned=OWN.get(k)?.serial;commit(k,0,null);burst(t.x,t.y,t.z,id);
- const above=get(t.x,t.y+1,t.z);if(isCross(above)){commit(I(t.x,t.y+1,t.z),0,null)}
+ const above=get(t.x,t.y+1,t.z);if(isCross(above)){commit(coordKey(t.x,t.y+1,t.z),0,null)}
  const drop=B[id].drop!==undefined?B[id].drop:id;
  if(drop===101){const n=1+(hash(t.x*7+t.y,t.z,5)<.4?1:0);give(101,n,'extrait du minerai');if(!S.seen.cry){S.seen.cry=1}}
  else if(drop)give(drop,1,owned?`bloc #${owned} repris`:`jeton #${drop}`);
@@ -283,10 +291,10 @@ function breakBlock(t){
  dirty=true;rebuildAt(t.x,t.z);if(regView)buildRegView()}
 function place(){
  if(!playing||!target||!target.prev)return;const it=S.bar[S.sel];if(!it||!B[it]||!(S.inv[it]>0))return;const id=+it;
- const[x,y,z]=target.prev;if(x<0||y<0||z<0||x>=SX||y>=SY||z>=SZ)return;const cur=get(x,y,z);if(cur&&cur!==11&&!isCross(cur))return;
+ const[x,y,z]=target.prev;if(y<0||y>=SY||!loaded(x,z))return;if(!inBorder(x,z)){logEv('nft','Au-delà de la frontière','construisez ensemble pour la faire reculer');return}const cur=get(x,y,z);if(cur&&cur!==11&&!isCross(cur))return;
  if(isSolid(id)&&x+1>P.x-PW&&x<P.x+PW&&y+1>P.y&&y<P.y+PH&&z+1>P.z-PW&&z<P.z+PW)return;
  if(isCross(id)&&![1,2].includes(get(x,y-1,z)))return;
- const k=I(x,y,z);take(it,1);S.serial++;commit(k,id,{by:ME.id,name:ME.name,serial:S.serial});swing=1;
+ const k=coordKey(x,y,z);take(it,1);S.serial++;if(!Net.online){S.placedTotal=(S.placedTotal||0)+1;setWorld(S.placedTotal)}commit(k,id,{by:ME.id,name:ME.name,serial:S.serial});swing=1;
  logEv('burn',`1 ${B[id].n}`,`→ bloc posé #${S.serial}`);
  if(id===13){addVal(x,y,z);if(!S.seen.val){S.seen.val=1;toastInfo('Validateur actif : il frappe un cristal à chaque slot de 12 secondes.')}}
  dirty=true;rebuildAt(x,z);ui();if(regView)buildRegView()}
@@ -296,7 +304,7 @@ function toastInfo(t){logEv('nft',t,'')}
 let regLines=null;
 function buildRegView(){if(regLines){scene.remove(regLines);regLines.geometry.dispose();regLines=null}if(!regView)return;
  const pos=[];const E=[[0,0,0,1,0,0],[1,0,0,1,0,1],[1,0,1,0,0,1],[0,0,1,0,0,0],[0,1,0,1,1,0],[1,1,0,1,1,1],[1,1,1,0,1,1],[0,1,1,0,1,0],[0,0,0,0,1,0],[1,0,0,1,1,0],[1,0,1,1,1,1],[0,0,1,0,1,1]];
- let n=0;for(const[i,o]of OWN){if(o.by!==ME.id)continue;const x=i%SX,z=Math.floor(i/SX)%SZ,y=Math.floor(i/(SX*SZ));if(Math.hypot(x-P.x,y-P.y,z-P.z)>40)continue;if(++n>600)break;for(const e of E)pos.push(x+e[0]*1.01-.005,y+e[1]*1.01-.005,z+e[2]*1.01-.005,x+e[3]*1.01-.005,y+e[4]*1.01-.005,z+e[5]*1.01-.005)}
+ let n=0;for(const[i,o]of OWN){if(o.by!==ME.id)continue;const[x,y,z]=i.split(',').map(Number);if(Math.hypot(x-P.x,y-P.y,z-P.z)>40)continue;if(++n>600)break;for(const e of E)pos.push(x+e[0]*1.01-.005,y+e[1]*1.01-.005,z+e[2]*1.01-.005,x+e[3]*1.01-.005,y+e[4]*1.01-.005,z+e[5]*1.01-.005)}
  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));regLines=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0xb4a8ff,fog:false,transparent:true,opacity:.9,depthTest:false}));regLines.renderOrder=5;scene.add(regLines)}
 
 // ---------- barre et panneau ----------
@@ -382,7 +390,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
   if(l>.1||!P.on)dirty=true;if(l>.1&&P.on)bob+=dt*(run?13:9);
   S.day+=dt/480;if(S.day>=1){S.day-=1;S.dayN++}
   // minage
-  if(mining&&target&&B[target.id].h!==Infinity){const k=I(target.x,target.y,target.z);if(k!==mineKey){mineKey=k;mineT=0}mineT+=dt*heldTool()*(B[target.id].stone?1:1);const h=B[target.id].h/(B[target.id].stone?1:Math.max(1,heldTool()*.5));const pr=mineT/(B[target.id].h/ (B[target.id].stone?1:1)/(1));
+  if(mining&&target&&B[target.id].h!==Infinity&&inBorder(target.x,target.z)){const k=coordKey(target.x,target.y,target.z);if(k!==mineKey){mineKey=k;mineT=0}mineT+=dt*heldTool()*(B[target.id].stone?1:1);const h=B[target.id].h/(B[target.id].stone?1:Math.max(1,heldTool()*.5));const pr=mineT/(B[target.id].h/ (B[target.id].stone?1:1)/(1));
    const need=B[target.id].h;const prog=Math.min(1,mineT/need);crack.visible=true;crack.position.set(target.x+.5,target.y+.5,target.z+.5);crack.material.map=crackTex[Math.min(7,Math.floor(prog*8))];swing=Math.max(swing,.6);
    if(prog>=1){breakBlock(target);mineKey=-1;mineT=0;crack.visible=false}}else{mineKey=-1;mineT=0;crack.visible=false}
   // validateurs
@@ -391,45 +399,89 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
  camera.rotation.set(pitch,yaw,0);camera.position.set(P.x,P.y+EYE+Math.sin(bob)*.04,P.z);camera.updateMatrixWorld();
  sky.position.copy(camera.position);stars.position.copy(camera.position);clouds.position.x=camera.position.x;clouds.position.z=camera.position.z;cloudTex.offset.x+=dt*.0015;waterTex.offset.x+=dt*.03;waterTex.offset.y+=dt*.012;
  applyDay();
- if(playing){target=raycast(5.2);if(target){sel.visible=true;sel.position.set(target.x+.5,target.y+.5,target.z+.5);const k=I(target.x,target.y,target.z),ow=OWN.get(k),own=ow?ow.serial:0;const tg=$('target');tg.hidden=false;tg.classList.toggle('own',!!(ow&&ow.by===ME.id));
-   const tid=B[target.id].drop!==undefined&&B[target.id].drop?B[target.id].drop:target.id;tg.innerHTML=`${B[target.id].n}<span>${own?`posé par ${ow&&ow.by!==ME.id?ow.name:'toi'} · bloc #${own}`:`naturel · donne le jeton #${tid===0?'—':tid}`}</span>`}else{sel.visible=false;$('target').hidden=true}}
+ if(playing){target=raycast(5.2);if(target){sel.visible=true;sel.position.set(target.x+.5,target.y+.5,target.z+.5);const k=coordKey(target.x,target.y,target.z),ow=OWN.get(k),own=ow?ow.serial:0;const tg=$('target');tg.hidden=false;tg.classList.toggle('own',!!(ow&&ow.by===ME.id));
+   const tid=B[target.id].drop!==undefined&&B[target.id].drop?B[target.id].drop:target.id;tg.innerHTML=`${B[target.id].n}<span>${!inBorder(target.x,target.z)?'au-delà de la frontière':own?`posé par ${ow&&ow.by!==ME.id?ow.name:'toi'} · bloc #${own}`:`naturel · donne le jeton #${tid===0?'—':tid}`}</span>`}else{sel.visible=false;$('target').hidden=true}}
  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.t-=dt;p.v[1]-=14*dt;p.m.position.x+=p.v[0]*dt;p.m.position.y+=p.v[1]*dt;p.m.position.z+=p.v[2]*dt;p.m.scale.setScalar(Math.max(.05,p.t/.7));if(p.t<=0){scene.remove(p.m);parts.splice(i,1)}}
  for(const g of vals.values()){g.userData.d.rotation.y+=dt*1.5;g.userData.d.position.y=1.7+Math.sin(now/500)*.08}
  bigEth.rotation.y+=dt*.12;
  swing=Math.max(0,swing-dt*3);if(handMesh){const s=Math.sin((1-swing)*Math.PI)*swing;hand.rotation.set(-s*.9,0,0);hand.position.set(Math.sin(bob*.5)*.015,Math.abs(Math.cos(bob*.5))*.012-s*.08,0)}
- updateOthers(dt);renderer.clear();renderer.render(scene,camera);renderer.clearDepth();if(playing)renderer.render(handScene,handCam);
+ if(booted)stream(dt);borderU.t.value=now/1000;borderU.pl.value.set(P.x,P.y,P.z);updateOthers(dt);renderer.clear();renderer.render(scene,camera);renderer.clearDepth();if(playing)renderer.render(handScene,handCam);
  requestAnimationFrame(frame)}
 
 // ---------- joueurs en ligne, chat ----------
-const GEN=1; // version du générateur : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
-const frozen=new Set(),EDITS=new Map();
-const ckey=(cx,cz)=>cx+','+cz,coordKey=(x,y,z)=>x+','+y+','+z;
-const idxOf=(x,y,z)=>(x<0||y<0||z<0||x>=SX||y>=SY||z>=SZ)?-1:I(x,y,z);
-const xyzOf=i=>[i%SX,Math.floor(i/(SX*SZ)),Math.floor(i/SX)%SZ];
-function encodeChunk(cx,cz){const out=[];let last=-1,run=0;const push=()=>{if(run)out.push(run,last)};
- for(let y=0;y<SY;y++)for(let z=cz*CH;z<cz*CH+CH;z++)for(let x=cx*CH;x<cx*CH+CH;x++){const v=W[I(x,y,z)];if(v===last&&run<255)run++;else{push();last=v;run=1}}push();
+const frozen=new Set(),EDC=new Map(); // tronçons figés ; modifications connues, rangées par tronçon
+function editSet(x,y,z,id){const k=ckey(cOf(x),cOf(z));let m=EDC.get(k);if(!m)EDC.set(k,m=new Map());m.set(coordKey(x,y,z),id)}
+function encodeChunk(cx,cz){const arr=CHK.get(ckey(cx,cz));const out=[];let last=-1,run=0;const push=()=>{if(run)out.push(run,last)};
+ for(let i=0;i<CV;i++){const v=arr[i];if(v===last&&run<255)run++;else{push();last=v;run=1}}push();
  let b='';for(let i=0;i<out.length;i+=8192)b+=String.fromCharCode.apply(null,out.slice(i,i+8192));return btoa(b)}
-function decodeChunk(cx,cz,data,sy){const bin=atob(data);let n=0;const total=CH*CH*sy;const vals=new Uint8Array(total);
- for(let i=0;i+1<bin.length&&n<total;i+=2){const r=bin.charCodeAt(i),v=bin.charCodeAt(i+1);for(let k=0;k<r&&n<total;k++)vals[n++]=v}
- n=0;for(let y=0;y<sy;y++)for(let z=cz*CH;z<cz*CH+CH;z++)for(let x=cx*CH;x<cx*CH+CH;x++){const v=vals[n++];if(y<SY)W[I(x,y,z)]=v}
- for(let y=sy;y<SY;y++)for(let z=cz*CH;z<cz*CH+CH;z++)for(let x=cx*CH;x<cx*CH+CH;x++)W[I(x,y,z)]=0}
-function reapplyEdits(cx,cz){for(const[i,id]of EDITS){const[x,,z]=xyzOf(i);if(Math.floor(x/CH)===cx&&Math.floor(z/CH)===cz)W[i]=id}}
-function refreshVals(cx,cz){for(const k of[...vals.keys()]){const[x,,z]=xyzOf(k);if(Math.floor(x/CH)===cx&&Math.floor(z/CH)===cz)delVal(k)}
- for(let y=0;y<SY;y++)for(let z=cz*CH;z<cz*CH+CH;z++)for(let x=cx*CH;x<cx*CH+CH;x++)if(W[I(x,y,z)]===13)addVal(x,y,z)}
+function decodeChunk(data,sy){const bin=atob(data),a=new Uint8Array(CV),max=CH*CH*Math.min(sy,SY);let n=0;
+ for(let i=0;i+1<bin.length&&n<max;i+=2){const r=bin.charCodeAt(i),v=bin.charCodeAt(i+1);for(let k=0;k<r&&n<max;k++)a[n++]=v}return a}
+function applyEditsTo(cx,cz){const arr=CHK.get(ckey(cx,cz)),m=EDC.get(ckey(cx,cz));if(!arr||!m)return;
+ for(const[k,id]of m){const[x,y,z]=k.split(',').map(Number);if(y>=0&&y<SY)arr[li(x-cx*CH,y,z-cz*CH)]=id}}
+function refreshVals(cx,cz){for(const k of[...vals.keys()]){const[x,,z]=k.split(',').map(Number);if(cOf(x)===cx&&cOf(z)===cz)delVal(k)}
+ const arr=CHK.get(ckey(cx,cz));if(!arr)return;for(let i=0;i<CV;i++)if(arr[i]===13){const lx=i%CH,lz=Math.floor(i/CH)%CH,y=Math.floor(i/(CH*CH));addVal(cx*CH+lx,y,cz*CH+lz)}}
 // Fige le terrain d'origine d'un tronçon au premier contact : il ne dépendra plus jamais du générateur.
-function freeze(cx,cz){const k=ckey(cx,cz);if(frozen.has(k))return;frozen.add(k);const data=encodeChunk(cx,cz);
- if(Net.online){Net.freezeChunk({cx,cz,gen:GEN,sy:SY,data}).then(row=>{if(row&&row.data!==data){decodeChunk(cx,cz,row.data,row.sy);reapplyEdits(cx,cz);refreshVals(cx,cz);buildChunk(cx,cz)}}).catch(e=>console.error(e))}
+function freeze(cx,cz){const k=ckey(cx,cz);if(frozen.has(k)||!CHK.has(k))return;frozen.add(k);const data=encodeChunk(cx,cz);
+ if(Net.online){Net.freezeChunk({cx,cz,gen:GEN,sy:SY,data}).then(row=>{if(row&&row.data!==data&&CHK.has(k)){CHK.set(k,decodeChunk(row.data,row.sy));applyEditsTo(cx,cz);refreshVals(cx,cz);buildChunk(cx,cz)}}).catch(e=>console.error(e))}
  else{S.chunks[k]=data;dirty=true}}
-function commit(idx,id,own){const[x,y,z]=xyzOf(idx);freeze(Math.floor(x/CH),Math.floor(z/CH));
- W[idx]=id;EDITS.set(idx,id);if(own)OWN.set(idx,own);else OWN.delete(idx);
+function commit(k,id,own){const[x,y,z]=k.split(',').map(Number);freeze(cOf(x),cOf(z));
+ setW(x,y,z,id);editSet(x,y,z,id);if(own)OWN.set(k,own);else OWN.delete(k);
  if(Net.online)Net.setBlock({x,y,z,id,by:own?own.by:null,name:own?own.name:null,serial:own?own.serial:null});
- else{const k=coordKey(x,y,z);S.edits[k]=id;if(own)S.placed[k]=own.serial;else delete S.placed[k]}dirty=true}
+ else{S.edits[k]=id;if(own)S.placed[k]=own.serial;else delete S.placed[k]}dirty=true}
 function myBlocks(){let n=0;for(const o of OWN.values())if(o.by===ME.id)n++;return n}
-function applyBlock(b){const i=idxOf(b.x,b.y,b.z);if(i<0)return;const cx=Math.floor(b.x/CH),cz=Math.floor(b.z/CH),k=ckey(cx,cz);
- EDITS.set(i,b.id);if(b.id&&b.by)OWN.set(i,{by:b.by,name:b.name,serial:b.serial});else OWN.delete(i);
- if(!frozen.has(k)){frozen.add(k);Net.fetchChunk(cx,cz).then(row=>{if(row){decodeChunk(cx,cz,row.data,row.sy);reapplyEdits(cx,cz);refreshVals(cx,cz);rebuildAt(b.x,b.z)}}).catch(e=>console.error(e))}
- W[i]=b.id;if(b.id===13)addVal(b.x,b.y,b.z);else delVal(i);rebuildAt(b.x,b.z);if(regView)buildRegView();
+function applyBlock(b){if(![b.x,b.y,b.z].every(Number.isInteger)||b.y<0||b.y>=SY)return;const cx=cOf(b.x),cz=cOf(b.z),k=ckey(cx,cz),key=coordKey(b.x,b.y,b.z);
+ editSet(b.x,b.y,b.z,b.id);if(b.id&&b.by)OWN.set(key,{by:b.by,name:b.name,serial:b.serial});else OWN.delete(key);
+ if(!CHK.has(k))return; // pas chargé ici : il arrivera avec la base au chargement du tronçon
+ if(!frozen.has(k)){frozen.add(k);Net.fetchChunk(cx,cz).then(row=>{if(row&&CHK.has(k)){CHK.set(k,decodeChunk(row.data,row.sy));applyEditsTo(cx,cz);refreshVals(cx,cz);rebuildAt(b.x,b.z)}}).catch(e=>console.error(e))}
+ setW(b.x,b.y,b.z,b.id);if(b.id===13)addVal(b.x,b.y,b.z);else delVal(key);rebuildAt(b.x,b.z);if(regView)buildRegView();
  if(isSolid(b.id)&&collides(P.x,P.y,P.z)){for(let q=0;q<4&&collides(P.x,P.y,P.z);q++)P.y+=1}}
+
+// ---------- chargement des tronçons autour du joueur ----------
+const VR=touch?4:5; // distance de vue, en tronçons
+const pending=new Set(),meshQ=new Set();let loading=false,streamT=0;
+function wanted(){const pcx=cOf(P.x),pcz=cOf(P.z),out=[];
+ for(let dz=-VR;dz<=VR;dz++)for(let dx=-VR;dx<=VR;dx++){if(dx*dx+dz*dz>VR*VR+1)continue;const cx=pcx+dx,cz=pcz+dz;if(Math.abs(cx)>R+1||Math.abs(cz)>R+1)continue;out.push([cx,cz,dx*dx+dz*dz])}
+ return out.sort((a,b)=>a[2]-b[2])}
+async function loadChunks(list){
+ list=list.filter(([cx,cz])=>!CHK.has(ckey(cx,cz))&&!pending.has(ckey(cx,cz)));if(!list.length)return;
+ for(const[cx,cz]of list)pending.add(ckey(cx,cz));
+ let rows=[],edits=[];
+ try{
+  if(Net.online){const xs=list.map(c=>c[0]),zs=list.map(c=>c[1]);({chunks:rows,edits}=await Net.loadArea(Math.min(...xs),Math.min(...zs),Math.max(...xs),Math.max(...zs)))}
+  else{const want=new Set(list.map(([cx,cz])=>ckey(cx,cz)));for(const k of want)if(S.chunks[k]){const[cx,cz]=k.split(',').map(Number);rows.push({cx,cz,sy:SY,data:S.chunks[k]})}
+   for(const k in S.edits){const[x,y,z]=k.split(',').map(Number);if(!want.has(ckey(cOf(x),cOf(z))))continue;const ser=S.placed[k];edits.push({x,y,z,id:S.edits[k],placed_by:ser?ME.id:null,placed_name:ser?ME.name:null,serial:ser||null})}}
+ }finally{for(const[cx,cz]of list)pending.delete(ckey(cx,cz))}
+ for(const e of edits){editSet(e.x,e.y,e.z,e.id);const key=coordKey(e.x,e.y,e.z);if(e.id&&e.placed_by)OWN.set(key,{by:e.placed_by,name:e.placed_name,serial:e.serial});else OWN.delete(key)}
+ const byKey=new Map(rows.map(r=>[ckey(r.cx,r.cz),r]));
+ for(const[cx,cz]of list){const k=ckey(cx,cz);if(CHK.has(k))continue;const row=byKey.get(k);
+  CHK.set(k,row?decodeChunk(row.data,row.sy):genChunk(cx,cz));if(row)frozen.add(k);
+  const m=EDC.get(k);if(!row&&m&&m.size)freeze(cx,cz); // modifié sans terrain figé : on fige le terrain actuel
+  applyEditsTo(cx,cz);refreshVals(cx,cz);
+  meshQ.add(k);for(const[dx,dz]of[[1,0],[-1,0],[0,1],[0,-1]]){const n=ckey(cx+dx,cz+dz);if(MESH.has(n))meshQ.add(n)}}}
+function unloadFar(){const pcx=cOf(P.x),pcz=cOf(P.z),lim=(VR+2)*(VR+2);
+ for(const k of[...CHK.keys()]){const[cx,cz]=k.split(',').map(Number);if((cx-pcx)**2+(cz-pcz)**2<=lim)continue;
+  dropMesh(k);CHK.delete(k);meshQ.delete(k);for(const v of[...vals.keys()]){const[x,,z]=v.split(',').map(Number);if(cOf(x)===cx&&cOf(z)===cz)delVal(v)}}}
+function stream(dt){streamT-=dt;
+ if(streamT<=0){streamT=.35;if(!loading){const miss=wanted().filter(([cx,cz])=>!CHK.has(ckey(cx,cz))&&!pending.has(ckey(cx,cz))).slice(0,12);
+   if(miss.length){loading=true;loadChunks(miss).catch(e=>console.error(e)).finally(()=>loading=false)}}unloadFar()}
+ let n=0;for(const k of meshQ){meshQ.delete(k);const[cx,cz]=k.split(',').map(Number);if(CHK.has(k))buildChunk(cx,cz);if(++n>=2)break}}
+
+// ---------- frontière ----------
+let borderMesh=null,worldTotal=0;
+const borderU={t:{value:0},pl:{value:new THREE.Vector3()},col:{value:new THREE.Color(0xb4a8ff)}};
+const borderMat=new THREE.ShaderMaterial({uniforms:borderU,transparent:true,depthWrite:false,side:THREE.DoubleSide,
+ vertexShader:'varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}',
+ fragmentShader:'uniform float t;uniform vec3 pl,col;varying vec3 vW;void main(){float d=distance(vW.xz,pl.xz)+abs(vW.y-pl.y)*.3;float fade=smoothstep(26.,3.,d);vec2 g=fract(vec2(vW.x+vW.z,vW.y)*.5+vec2(0.,t*.15));float line=max(step(.955,g.x),step(.955,g.y));float a=fade*(.1+line*.45);if(a<.01)discard;gl_FragColor=vec4(col+line*.25,a);}'});
+function buildBorder(){if(borderMesh){scene.remove(borderMesh);borderMesh.geometry.dispose()}
+ const a=-R*CH,b=(R+1)*CH,h=SY+16,pos=[];const quad=(x0,z0,x1,z1)=>pos.push(x0,0,z0,x1,0,z1,x1,h,z1,x0,0,z0,x1,h,z1,x0,h,z0);
+ quad(a,a,b,a);quad(b,a,b,b);quad(b,b,a,b);quad(a,b,a,a);
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));borderMesh=new THREE.Mesh(g,borderMat);borderMesh.renderOrder=3;scene.add(borderMesh);updateBorderHud()}
+function updateBorderHud(){const n=R-3,next=150*(n+1)*(n+2),side=2*R+1;
+ $('borderTxt').textContent=R>=60?`Frontière ${side} × ${side} tronçons · taille maximale`:`Frontière ${side} × ${side} · ${worldTotal.toLocaleString('fr-FR')} / ${next.toLocaleString('fr-FR')} blocs posés`;
+ $('borderBar').style.width=R>=60?'100%':Math.min(100,(worldTotal-150*n*(n+1))/(next-150*n*(n+1))*100)+'%'}
+function setWorld(total,radius){worldTotal=total||0;const r=Math.max(3,Math.min(60,radius||radiusFor(worldTotal)));const grew=r>R;R=r;
+ if(grew){buildBorder();logEv('nft','La frontière recule !',`le monde fait maintenant ${2*R+1} × ${2*R+1} tronçons`)}else updateBorderHud()}
+Net.on('world',w=>{if(w&&w.world===Net.world)setWorld(w.placed_total,w.radius)});
 const others=new Map();
 function faceTex(hair){const c=document.createElement('canvas');c.width=c.height=8;const x=c.getContext('2d');x.fillStyle='#f6d3b8';x.fillRect(0,0,8,8);x.fillStyle=hair;x.fillRect(0,0,8,2);x.fillRect(0,2,1,2);x.fillRect(7,2,1,2);
  x.fillStyle='#1c163a';x.fillRect(2,4,1,1);x.fillRect(5,4,1,1);x.fillStyle='#ffb3cf';x.fillRect(1,5,1,1);x.fillRect(6,5,1,1);x.fillStyle='#c98a74';x.fillRect(3,6,2,1);
@@ -469,7 +521,7 @@ $('chatIn').addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault
 $('chatBtn').onclick=()=>chatOpen?closeChat():openChat();
 
 // ---------- démarrage ----------
-const PKEY='mines-ether:profil',COLORS=['#8a7bef','#ff9ab8','#7fe8ff','#9fe3c4','#ffd95e','#ffb37a','#b6a4ff'];
+const PKEY='ether-mines:profil',COLORS=['#8a7bef','#ff9ab8','#7fe8ff','#9fe3c4','#ffd95e','#ffb37a','#b6a4ff'];
 let profile;try{profile=JSON.parse(localStorage.getItem(PKEY)||'null')}catch(e){}
 if(!profile||!profile.id)profile={id:(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)),name:'',color:COLORS[Math.floor(Math.random()*COLORS.length)]};
 const qs=new URLSearchParams(location.search);$('pseudo').value=profile.name||'';$('monde').value=qs.get('monde')||'principal';
@@ -480,7 +532,7 @@ $('play').onclick=async()=>{
  if(!booted){const name=$('pseudo').value.trim().slice(0,16);if(!name){$('pseudo').focus();$('netStatus').textContent='Choisis un pseudo pour que tes amis te reconnaissent.';return}
   const world=($('monde').value.trim()||'principal').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9-]+/g,'-').slice(0,32)||'principal';
   profile.name=name;try{localStorage.setItem(PKEY,JSON.stringify(profile))}catch(e){}ME={id:profile.id,name,color:profile.color};
-  KEY='mines-ether:'+world;loadState();$('play').disabled=true;$('play').textContent=Net.enabled?'Connexion…':'Génération du monde…';$('pseudo').disabled=$('monde').disabled=true;
+  KEY='ether-mines:'+world;loadState();$('play').disabled=true;$('play').textContent=Net.enabled?'Connexion…':'Génération du monde…';$('pseudo').disabled=$('monde').disabled=true;
   try{history.replaceState(null,'','?monde='+world)}catch(e){}
   try{await boot(world)}catch(e){console.error(e);$('netStatus').textContent='Connexion impossible : '+(e.message||e)+'. Vérifie src/config.js et le schéma.';$('play').disabled=false;$('play').textContent='Réessayer';$('pseudo').disabled=$('monde').disabled=false;return}
   booted=true;$('play').disabled=false;$('shareRow').hidden=!Net.online;$('shareUrl').textContent=location.href}
@@ -489,25 +541,19 @@ $('play').onclick=async()=>{
 $('copyUrl').onclick=async()=>{try{await navigator.clipboard.writeText(location.href);$('copyUrl').textContent='Lien copié'}catch(e){const r=document.createRange();r.selectNodeContents($('shareUrl'));const s=getSelection();s.removeAllRanges();s.addRange(r)}};
 let arm=false;$('reset').onclick=()=>{if(!arm){arm=true;$('reset').textContent='Effacer ta progression locale ? Clique pour confirmer';return}try{localStorage.removeItem(KEY)}catch(e){}location.reload()};
 async function boot(world){
- generate();
- let edits=[],rows=[];
- if(Net.enabled){({edits,chunks:rows}=await Net.join(world,ME))}
- else{rows=Object.entries(S.chunks||{}).map(([k,data])=>{const[cx,cz]=k.split(',').map(Number);return{cx,cz,sy:SY,data}});
-  edits=Object.entries(S.edits).map(([k,id])=>{const[x,y,z]=k.split(',').map(Number),ser=S.placed[k];return{x,y,z,id,placed_by:ser?ME.id:null,placed_name:ser?ME.name:null,serial:ser||null}})}
- // 1. terrain figé  2. figer ce qui a des modifications sans terrain figé (anciens mondes)  3. modifications par-dessus
- for(const c of rows){if(c.cx<0||c.cz<0||c.cx>=NC||c.cz>=NC)continue;decodeChunk(c.cx,c.cz,c.data,c.sy);frozen.add(ckey(c.cx,c.cz))}
- const need=new Set();for(const e of edits)if(idxOf(e.x,e.y,e.z)>=0)need.add(ckey(Math.floor(e.x/CH),Math.floor(e.z/CH)));
- for(const k of need)if(!frozen.has(k)){const[cx,cz]=k.split(',').map(Number);frozen.add(k);const data=encodeChunk(cx,cz);
-  if(Net.enabled){const row=await Net.freezeChunk({cx,cz,gen:GEN,sy:SY,data});if(row&&row.data!==data)decodeChunk(cx,cz,row.data,row.sy)}else S.chunks[k]=data}
- for(const e of edits){const i=idxOf(e.x,e.y,e.z);if(i<0)continue;W[i]=e.id;EDITS.set(i,e.id);if(e.id&&e.placed_by)OWN.set(i,{by:e.placed_by,name:e.placed_name,serial:e.serial})}
+ let info={placed_total:0,radius:3};
+ if(Net.enabled){const r=await Net.join(world,ME);info=r.world||info}else info={placed_total:S.placedTotal||0,radius:radiusFor(S.placedTotal||0)};
+ worldTotal=info.placed_total||0;R=Math.max(3,Math.min(60,info.radius||3));
  if(S.pos){[P.x,P.y,P.z,yaw,pitch]=S.pos}else{P.x=SPAWN.x+.5+(Math.random()-.5)*2;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5}
- const total=NC*NC;let n=0;const order=[];for(let cz=0;cz<NC;cz++)for(let cx=0;cx<NC;cx++)order.push([cx,cz]);
- const pcx=Math.floor(P.x/CH),pcz=Math.floor(P.z/CH);order.sort((a,b)=>Math.hypot(a[0]-pcx,a[1]-pcz)-Math.hypot(b[0]-pcx,b[1]-pcz));
- for(const[cx,cz]of order){buildChunk(cx,cz);n++;$('progBar').style.width=(n/total*100)+'%';if(n%3===0)await new Promise(r=>setTimeout(r,0))}
- for(let i=0;i<W.length;i++)if(W[i]===13){const x=i%SX,z=Math.floor(i/SX)%SZ,y=Math.floor(i/(SX*SZ));addVal(x,y,z)}
+ if(!inBorder(P.x,P.z)){P.x=SPAWN.x+.5;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5}
+ const list=wanted(),total=list.length;
+ for(let i=0;i<total;i+=12){await loadChunks(list.slice(i,i+12));$('progBar').style.width=(Math.min(total,i+12)/total*60)+'%'}
+ const q=[...meshQ];meshQ.clear();let m=0;
+ for(const k of q){const[cx,cz]=k.split(',').map(Number);if(CHK.has(k))buildChunk(cx,cz);m++;$('progBar').style.width=(60+m/q.length*40)+'%';if(m%3===0)await new Promise(r=>setTimeout(r,0))}
+ buildBorder();
  if(collides(P.x,P.y,P.z)){P.x=SPAWN.x+.5;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5}
  ui()}
 requestAnimationFrame(frame);
 // Outils de test : ouvrir index.html#debug expose window.mines dans la console.
-if(location.hash==='#debug')window.mines={get,W,frozen,EDITS,encodeChunk,decodeChunk,get P(){return P},GEN};
+if(location.hash==='#debug')window.mines={get,CHK,frozen,EDC,commit,encodeChunk,decodeChunk,genChunk,loadChunks,get P(){return P},get R(){return R},GEN};
 })();
