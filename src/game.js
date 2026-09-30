@@ -105,9 +105,15 @@ function generate(){
 
 // ---------- état, sauvegarde ----------
 let KEY='mines-ether:solo';
-const S0=()=>({edits:{},inv:{},bar:[null,null,null,null,null,null,null,null,null],sel:0,pos:null,placed:{},serial:0,nfts:[],log:[],supply:{},day:.3,dayN:1,seen:{},totalMint:0,totalBurn:0});
+const SAVE_V=2;
+const S0=()=>({v:SAVE_V,chunks:{},edits:{},inv:{},bar:[null,null,null,null,null,null,null,null,null],sel:0,pos:null,placed:{},serial:0,nfts:[],log:[],supply:{},day:.3,dayN:1,seen:{},totalMint:0,totalBurn:0});
 let S=S0(),ME={id:'moi',name:'moi',color:'#8a7bef'};const OWN=new Map();
-function loadState(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}S=Object.assign(S0(),s||{})}
+function loadState(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}S=Object.assign(S0(),s||{});if(s&&!s.v)S.v=1;migrateSave(S)}
+// Migrations de la sauvegarde locale : chaque version sait convertir la précédente. Ne jamais renommer KEY.
+function migrateSave(s){
+ if(!s.v||s.v<2){const conv=o=>{const r={};for(const k in o){const i=+k;if(!Number.isInteger(i)){r[k]=o[k];continue}r[`${i%96},${Math.floor(i/(96*96))},${Math.floor(i/96)%96}`]=o[k]}return r};
+  s.edits=conv(s.edits||{});s.placed=conv(s.placed||{});s.chunks=s.chunks||{};s.v=2;dirty=true}
+}
 let dirty=false;function save(){if(!dirty)return;dirty=false;S.pos=[P.x,P.y,P.z,yaw,pitch];try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 setInterval(save,4000);addEventListener('pagehide',save);
 
@@ -395,13 +401,35 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
  requestAnimationFrame(frame)}
 
 // ---------- joueurs en ligne, chat ----------
-function commit(idx,id,own){W[idx]=id;if(own)OWN.set(idx,own);else OWN.delete(idx);
- if(Net.online)Net.setBlock({idx,id,by:own?own.by:null,name:own?own.name:null,serial:own?own.serial:null});
- else{S.edits[idx]=id;if(own)S.placed[idx]=own.serial;else delete S.placed[idx]}dirty=true}
+const GEN=1; // version du générateur : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
+const frozen=new Set(),EDITS=new Map();
+const ckey=(cx,cz)=>cx+','+cz,coordKey=(x,y,z)=>x+','+y+','+z;
+const idxOf=(x,y,z)=>(x<0||y<0||z<0||x>=SX||y>=SY||z>=SZ)?-1:I(x,y,z);
+const xyzOf=i=>[i%SX,Math.floor(i/(SX*SZ)),Math.floor(i/SX)%SZ];
+function encodeChunk(cx,cz){const out=[];let last=-1,run=0;const push=()=>{if(run)out.push(run,last)};
+ for(let y=0;y<SY;y++)for(let z=cz*CH;z<cz*CH+CH;z++)for(let x=cx*CH;x<cx*CH+CH;x++){const v=W[I(x,y,z)];if(v===last&&run<255)run++;else{push();last=v;run=1}}push();
+ let b='';for(let i=0;i<out.length;i+=8192)b+=String.fromCharCode.apply(null,out.slice(i,i+8192));return btoa(b)}
+function decodeChunk(cx,cz,data,sy){const bin=atob(data);let n=0;const total=CH*CH*sy;const vals=new Uint8Array(total);
+ for(let i=0;i+1<bin.length&&n<total;i+=2){const r=bin.charCodeAt(i),v=bin.charCodeAt(i+1);for(let k=0;k<r&&n<total;k++)vals[n++]=v}
+ n=0;for(let y=0;y<sy;y++)for(let z=cz*CH;z<cz*CH+CH;z++)for(let x=cx*CH;x<cx*CH+CH;x++){const v=vals[n++];if(y<SY)W[I(x,y,z)]=v}
+ for(let y=sy;y<SY;y++)for(let z=cz*CH;z<cz*CH+CH;z++)for(let x=cx*CH;x<cx*CH+CH;x++)W[I(x,y,z)]=0}
+function reapplyEdits(cx,cz){for(const[i,id]of EDITS){const[x,,z]=xyzOf(i);if(Math.floor(x/CH)===cx&&Math.floor(z/CH)===cz)W[i]=id}}
+function refreshVals(cx,cz){for(const k of[...vals.keys()]){const[x,,z]=xyzOf(k);if(Math.floor(x/CH)===cx&&Math.floor(z/CH)===cz)delVal(k)}
+ for(let y=0;y<SY;y++)for(let z=cz*CH;z<cz*CH+CH;z++)for(let x=cx*CH;x<cx*CH+CH;x++)if(W[I(x,y,z)]===13)addVal(x,y,z)}
+// Fige le terrain d'origine d'un tronçon au premier contact : il ne dépendra plus jamais du générateur.
+function freeze(cx,cz){const k=ckey(cx,cz);if(frozen.has(k))return;frozen.add(k);const data=encodeChunk(cx,cz);
+ if(Net.online){Net.freezeChunk({cx,cz,gen:GEN,sy:SY,data}).then(row=>{if(row&&row.data!==data){decodeChunk(cx,cz,row.data,row.sy);reapplyEdits(cx,cz);refreshVals(cx,cz);buildChunk(cx,cz)}}).catch(e=>console.error(e))}
+ else{S.chunks[k]=data;dirty=true}}
+function commit(idx,id,own){const[x,y,z]=xyzOf(idx);freeze(Math.floor(x/CH),Math.floor(z/CH));
+ W[idx]=id;EDITS.set(idx,id);if(own)OWN.set(idx,own);else OWN.delete(idx);
+ if(Net.online)Net.setBlock({x,y,z,id,by:own?own.by:null,name:own?own.name:null,serial:own?own.serial:null});
+ else{const k=coordKey(x,y,z);S.edits[k]=id;if(own)S.placed[k]=own.serial;else delete S.placed[k]}dirty=true}
 function myBlocks(){let n=0;for(const o of OWN.values())if(o.by===ME.id)n++;return n}
-function applyBlock(b){if(b.idx<0||b.idx>=W.length)return;W[b.idx]=b.id;if(b.id&&b.by)OWN.set(b.idx,{by:b.by,name:b.name,serial:b.serial});else OWN.delete(b.idx);
- const x=b.idx%SX,z=Math.floor(b.idx/SX)%SZ,y=Math.floor(b.idx/(SX*SZ));if(b.id===13)addVal(x,y,z);else delVal(b.idx);rebuildAt(x,z);if(regView)buildRegView();
- if(isSolid(b.id)&&collides(P.x,P.y,P.z)){for(let k=0;k<4&&collides(P.x,P.y,P.z);k++)P.y+=1}}
+function applyBlock(b){const i=idxOf(b.x,b.y,b.z);if(i<0)return;const cx=Math.floor(b.x/CH),cz=Math.floor(b.z/CH),k=ckey(cx,cz);
+ EDITS.set(i,b.id);if(b.id&&b.by)OWN.set(i,{by:b.by,name:b.name,serial:b.serial});else OWN.delete(i);
+ if(!frozen.has(k)){frozen.add(k);Net.fetchChunk(cx,cz).then(row=>{if(row){decodeChunk(cx,cz,row.data,row.sy);reapplyEdits(cx,cz);refreshVals(cx,cz);rebuildAt(b.x,b.z)}}).catch(e=>console.error(e))}
+ W[i]=b.id;if(b.id===13)addVal(b.x,b.y,b.z);else delVal(i);rebuildAt(b.x,b.z);if(regView)buildRegView();
+ if(isSolid(b.id)&&collides(P.x,P.y,P.z)){for(let q=0;q<4&&collides(P.x,P.y,P.z);q++)P.y+=1}}
 const others=new Map();
 function faceTex(hair){const c=document.createElement('canvas');c.width=c.height=8;const x=c.getContext('2d');x.fillStyle='#f6d3b8';x.fillRect(0,0,8,8);x.fillStyle=hair;x.fillRect(0,0,8,2);x.fillRect(0,2,1,2);x.fillRect(7,2,1,2);
  x.fillStyle='#1c163a';x.fillRect(2,4,1,1);x.fillRect(5,4,1,1);x.fillStyle='#ffb3cf';x.fillRect(1,5,1,1);x.fillRect(6,5,1,1);x.fillStyle='#c98a74';x.fillRect(3,6,2,1);
@@ -462,8 +490,16 @@ $('copyUrl').onclick=async()=>{try{await navigator.clipboard.writeText(location.
 let arm=false;$('reset').onclick=()=>{if(!arm){arm=true;$('reset').textContent='Effacer ta progression locale ? Clique pour confirmer';return}try{localStorage.removeItem(KEY)}catch(e){}location.reload()};
 async function boot(world){
  generate();
- if(Net.enabled){const{edits}=await Net.join(world,ME);for(const e of edits){W[e.idx]=e.id;if(e.id&&e.placed_by)OWN.set(e.idx,{by:e.placed_by,name:e.placed_name,serial:e.serial})}}
- else{for(const k in S.edits)W[+k]=S.edits[k];for(const k in S.placed)OWN.set(+k,{by:ME.id,name:ME.name,serial:S.placed[k]})}
+ let edits=[],rows=[];
+ if(Net.enabled){({edits,chunks:rows}=await Net.join(world,ME))}
+ else{rows=Object.entries(S.chunks||{}).map(([k,data])=>{const[cx,cz]=k.split(',').map(Number);return{cx,cz,sy:SY,data}});
+  edits=Object.entries(S.edits).map(([k,id])=>{const[x,y,z]=k.split(',').map(Number),ser=S.placed[k];return{x,y,z,id,placed_by:ser?ME.id:null,placed_name:ser?ME.name:null,serial:ser||null}})}
+ // 1. terrain figé  2. figer ce qui a des modifications sans terrain figé (anciens mondes)  3. modifications par-dessus
+ for(const c of rows){if(c.cx<0||c.cz<0||c.cx>=NC||c.cz>=NC)continue;decodeChunk(c.cx,c.cz,c.data,c.sy);frozen.add(ckey(c.cx,c.cz))}
+ const need=new Set();for(const e of edits)if(idxOf(e.x,e.y,e.z)>=0)need.add(ckey(Math.floor(e.x/CH),Math.floor(e.z/CH)));
+ for(const k of need)if(!frozen.has(k)){const[cx,cz]=k.split(',').map(Number);frozen.add(k);const data=encodeChunk(cx,cz);
+  if(Net.enabled){const row=await Net.freezeChunk({cx,cz,gen:GEN,sy:SY,data});if(row&&row.data!==data)decodeChunk(cx,cz,row.data,row.sy)}else S.chunks[k]=data}
+ for(const e of edits){const i=idxOf(e.x,e.y,e.z);if(i<0)continue;W[i]=e.id;EDITS.set(i,e.id);if(e.id&&e.placed_by)OWN.set(i,{by:e.placed_by,name:e.placed_name,serial:e.serial})}
  if(S.pos){[P.x,P.y,P.z,yaw,pitch]=S.pos}else{P.x=SPAWN.x+.5+(Math.random()-.5)*2;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5}
  const total=NC*NC;let n=0;const order=[];for(let cz=0;cz<NC;cz++)for(let cx=0;cx<NC;cx++)order.push([cx,cz]);
  const pcx=Math.floor(P.x/CH),pcz=Math.floor(P.z/CH);order.sort((a,b)=>Math.hypot(a[0]-pcx,a[1]-pcz)-Math.hypot(b[0]-pcx,b[1]-pcz));
@@ -472,4 +508,6 @@ async function boot(world){
  if(collides(P.x,P.y,P.z)){P.x=SPAWN.x+.5;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5}
  ui()}
 requestAnimationFrame(frame);
+// Outils de test : ouvrir index.html#debug expose window.mines dans la console.
+if(location.hash==='#debug')window.mines={get,W,frozen,EDITS,encodeChunk,decodeChunk,get P(){return P},GEN};
 })();

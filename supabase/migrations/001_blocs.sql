@@ -1,6 +1,5 @@
--- Mines d'Éther : le monde partagé.
--- À coller dans Supabase → SQL Editor → Run.
--- Chaque ligne = un bloc modifié par rapport au monde généré (la graine est la même pour tous).
+-- 001 : le monde partagé (première version, déjà appliquée sur le projet en ligne).
+-- Chaque ligne = un bloc modifié par rapport au monde généré.
 
 create table if not exists public.blocks (
   world        text        not null,

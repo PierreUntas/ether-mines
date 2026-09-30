@@ -9,24 +9,28 @@ window.Net = (() => {
   const on = (ev, fn) => handlers[ev].push(fn);
   const emit = (ev, ...a) => { for (const f of handlers[ev]) { try { f(...a); } catch (e) { console.error(e); } } };
 
-  async function loadEdits(w) {
-    const edits = [];
+  // Lit une table entière par pages de 1000 lignes.
+  async function readAll(table, cols, w, order) {
+    const rows = [];
     for (let from = 0; ; from += 1000) {
-      const { data, error } = await sb.from('blocks')
-        .select('idx,id,placed_by,placed_name,serial')
-        .eq('world', w).order('idx').range(from, from + 999);
+      let q = sb.from(table).select(cols).eq('world', w);
+      for (const o of order) q = q.order(o);
+      const { data, error } = await q.range(from, from + 999);
       if (error) throw error;
-      edits.push(...data);
+      rows.push(...data);
       if (data.length < 1000) break;
     }
-    return edits;
+    return rows;
   }
 
   async function join(w, profile) {
     if (!enabled) return { edits: [] };
     world = w; me = profile;
     sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, { realtime: { params: { eventsPerSecond: 40 } } });
-    const edits = await loadEdits(w);
+    const [edits, chunks] = await Promise.all([
+      readAll('blocks', 'x,y,z,id,placed_by,placed_name,serial', w, ['x', 'y', 'z']),
+      readAll('chunks', 'cx,cz,gen,sy,data', w, ['cx', 'cz']),
+    ]);
     ch = sb.channel('monde:' + w, { config: { broadcast: { self: false }, presence: { key: me.id } } });
     ch.on('broadcast', { event: 'pos' }, ({ payload }) => emit('pos', payload));
     ch.on('broadcast', { event: 'block' }, ({ payload }) => emit('block', payload));
@@ -44,7 +48,7 @@ window.Net = (() => {
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { if (!online) { clearTimeout(t); reject(new Error('connexion au salon refusée')); } }
       });
     });
-    return { edits };
+    return { edits, chunks };
   }
 
   const sendPos = (p) => { if (ch && online) ch.send({ type: 'broadcast', event: 'pos', payload: p }); };
@@ -54,12 +58,26 @@ window.Net = (() => {
     if (!ch || !online) return;
     ch.send({ type: 'broadcast', event: 'block', payload: b });
     const { error } = await sb.from('blocks').upsert({
-      world, idx: b.idx, id: b.id,
+      world, x: b.x, y: b.y, z: b.z, id: b.id,
       placed_by: b.by || null, placed_name: b.name || null, serial: b.serial || null,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'world,idx' });
+    }, { onConflict: 'world,x,y,z' });
     if (error) { console.error(error); emit('status', 'SAVE_ERROR'); }
   }
 
-  return { enabled, join, on, sendPos, chat, setBlock, get online() { return online; }, get world() { return world; } };
+  // Terrain d'origine d'un tronçon : écrit une seule fois (le premier arrivé gagne), jamais modifié ensuite.
+  async function fetchChunk(cx, cz) {
+    if (!sb) return null;
+    const { data, error } = await sb.from('chunks').select('gen,sy,data').eq('world', world).eq('cx', cx).eq('cz', cz).maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+  async function freezeChunk(c) {
+    if (!sb) return null;
+    const { error } = await sb.from('chunks').upsert({ world, ...c }, { onConflict: 'world,cx,cz', ignoreDuplicates: true });
+    if (error) { console.error(error); emit('status', 'SAVE_ERROR'); }
+    return fetchChunk(c.cx, c.cz);
+  }
+
+  return { enabled, join, on, sendPos, chat, setBlock, freezeChunk, fetchChunk, get online() { return online; }, get world() { return world; } };
 })();
