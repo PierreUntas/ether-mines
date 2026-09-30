@@ -71,6 +71,14 @@ tile(50,P=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++)P(x,y,null);for(let x=4;x<
  for(let k=0;k<8;k++){P(7+Math.floor(k/3),11-k,'#b98a5a');P(8+Math.floor(k/3),11-k,'#d7ae84')}P(10,3,'#7fe8ff');P(11,3,'#7fe8ff');P(10,2,'#c9f7ff')});
 tile(51,P=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++)P(x,y,null);for(let x=2;x<14;x++){P(x,11,'#ffffff');P(x,12,'#ebe8fb');P(x,13,'#dcd6f5')}});
 tile(52,P=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++)P(x,y,null);for(let y=1;y<16;y++)for(let x=4;x<12;x++){let c=x%3===0?'#d7ae84':'#f2cfa6';if(x===4||x===11||y===1||y===15)c='#b98a5a';if(y>=3&&y<7&&x>5&&x<10)c='rgba(200,240,255,.6)';P(x,y,c)}P(10,10,'#ffd95e')});
+// progression : validateur éteint, roche de genèse, nouveaux objets
+tile(54,(P,E,i)=>{noise(P,i,'#4a4466',[['#403a5c',.25],['#554f73',.2]]);for(let k=0;k<16;k++){P(k,0,'#332e4d');P(k,15,'#332e4d');P(0,k,'#332e4d');P(15,k,'#332e4d')}for(const[x,y]of DIAM)P(x,y+2,x<8?'#6b6488':'#7d7799')});
+tile(55,(P,E,i)=>{noise(P,i,'#8d88a8',[['#7c7799',.3],['#a09bb8',.15]]);for(let k=0;k<16;k++){P(k,0,'#5f5a7d');P(k,15,'#5f5a7d');P(0,k,'#5f5a7d');P(15,k,'#5f5a7d')}});
+tile(56,(P,E)=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++)P(x,y,null);for(let y=3;y<14;y++)for(let x=4;x<12;x++){const d=Math.abs(x-7.5)+Math.abs(y-8.5)*.7;if(d<4.6){const c=d<1.6?'#ffe9a8':(x+y)%3?'#2b2244':'#ffb347';P(x,y,c);if(d<1.6||c==='#ffb347')E(x,y,c)}}});
+tile(57,(P,E)=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++)P(x,y,null);for(const[x,y]of DIAM){const c=y>6?'#ff6fae':x<8?'#ffd24d':'#fff2b8';P(x,y+2,c);E(x,y+2,c)}P(7,7,'#ffffff');P(8,7,'#ffffff')});
+tile(58,(P,E)=>{pick(P,'#c9a6ff','#9ff3ff');for(const[x,y]of[[6,2],[7,2],[8,2],[9,3],[10,3],[11,4],[12,5],[12,6],[13,7],[13,8],[8,3],[9,4],[10,4],[11,5],[12,7],[12,8]])E(x,y,'#c9a6ff')});
+tile(59,(P,E)=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++){const d=Math.hypot(x-7.5,y-7.5);P(x,y,d<6.5?(d<5?'#ffd24d':'#e8b93c'):null)}for(const[x,y]of DIAM.filter(([,y])=>y<9)){P(x,y+3,'#6a58e0');E(x,y+3,'#8a7bef')}});
+tile(60,(P,E,i)=>{noise(P,i,'#2b2244',[['#1f1833',.3],['#3a2f5c',.18]]);for(let k=0;k<7;k++){const x=Math.floor(hash(k,60,2)*14)+1,y=Math.floor(hash(k,61,2)*14)+1;P(x,y,'#ffb347');E(x,y,'#ff9a3c');P(x+1,y,'#ffe9a8');E(x+1,y,'#ffd27a')}});
 const atlasTex=new THREE.CanvasTexture(atlas),emisTex=new THREE.CanvasTexture(emis);
 for(const t of[atlasTex,emisTex]){t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestFilter;t.generateMipmaps=false}
 const waterC=document.createElement('canvas');waterC.width=waterC.height=32;{const w=waterC.getContext('2d');for(let y=0;y<32;y++)for(let x=0;x<32;x++){const r=hash(x,y,77);w.fillStyle=r<.18?'#a9dcf7':r<.3?'#6fb6e8':'#86c7ee';w.fillRect(x,y,1,1)}for(let k=0;k<10;k++){const x=Math.floor(hash(k,1,78)*28),y=Math.floor(hash(k,2,78)*30);w.fillStyle='#d7f1ff';w.fillRect(x,y,4,1)}}
@@ -100,7 +108,17 @@ B[69]={n:'Géode',t:[47,47,47],h:3,stone:1,drop:103};
 B[70]={n:"Bloc d'éther pur",t:[49,49,49],h:2.4,stone:1};
 B[71]={n:"Laine d'éther",t:[53,53,53],h:.5};
 ITEM[103]={n:'Éclat pur',icon:48};
-const MAT_OF=id=>[1,2,6,7,17,18,19,20].includes(id)?'herbe':id===4?'sable':id===16||id===71?'neige':[5,9,33,36,37,38,39].includes(id)||(id>=48&&id<=63)?'bois':[10,14,68].includes(id)||(id>=29&&id<=32)?'verre':'pierre';
+// v3 : progression par paliers d'outils (0 main nue, 1 bois, 2 cristal, 3 éther pur)
+B[72]={n:'Roche de genèse',t:[60,60,60],h:5,stone:1,tier:3,drop:104};
+B[73]={n:'Validateur éteint',t:[55,54,55],h:Infinity};
+B[74]={n:'Validateur ancien',t:[14,13,14],h:Infinity};
+B[69].tier=2;B[70].tier=2;
+ITEM[104]={n:'Fragment de genèse',icon:56};ITEM[105]={n:'Cœur de validateur',icon:57};
+ITEM[102].tier=1;ITEM[201].tier=2;
+ITEM[202]={n:"Pioche d'éther pur",icon:58,tool:8,tier:3,nft:1};ITEM[203]={n:'Sceau de validateur',icon:59,nft:1};
+const TIER_NAME=['la main','une pioche en bois','la pioche de cristal',"la pioche d'éther pur"];
+const reqTier=id=>B[id]?(B[id].tier??(B[id].stone?1:0)):0;
+const MAT_OF=id=>id===72||id===73||id===74?'pierre':[1,2,6,7,17,18,19,20].includes(id)?'herbe':id===4?'sable':id===16||id===71?'neige':[5,9,33,36,37,38,39].includes(id)||(id>=48&&id<=63)?'bois':[10,14,68].includes(id)||(id>=29&&id<=32)?'verre':'pierre';
 const nameOf=id=>B[id]?B[id].n:ITEM[id]?ITEM[id].n:'Objet inconnu';
 const isCross=id=>B[id]&&B[id].x!=null;
 const isTransp=id=>id===0||id===11||isCross(id)||!B[id]||!!(B[id].leaf||B[id].glass||B[id].shape);
@@ -125,7 +143,7 @@ function collBoxes(id,key){if(!isSolid(id))return[];return isShaped(id)?shapeBox
 
 // ---------- monde par tronçons (16 × 16 colonnes, chargés autour des joueurs) ----------
 const SY=48,SEA=15,CH=16,CV=CH*CH*SY;
-const GEN=2; // version du générateur (2 : océans, îles flottantes, grottes profondes) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
+const GEN=3; // version du générateur (2 : océans, îles flottantes, grottes profondes) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
 const SPAWN={x:8,z:8,y:0};
 const CHK=new Map(); // "cx,cz" -> Uint8Array des blocs du tronçon
 const ckey=(cx,cz)=>cx+','+cz,coordKey=(x,y,z)=>x+','+y+','+z,cOf=v=>Math.floor(v/CH);
@@ -139,6 +157,11 @@ let R=FRONTIERE?3:Infinity; // rayon de la frontière, en tronçons autour du tr
 const inBorder=(x,z)=>{if(Math.abs(x)>=LIMITE||Math.abs(z)>=LIMITE)return false;const cx=cOf(x),cz=cOf(z);return cx>=-R&&cx<=R&&cz>=-R&&cz<=R};
 const ringFor=total=>Math.floor((Math.sqrt(1+4*total/150)-1)/2); // anneau n à 150 × n × (n + 1) blocs posés
 const radiusFor=total=>Math.min(60,3+ringFor(total));
+const RUIN=80;
+// position de la ruine d'une région (ou null : océan, sommet) ; la région du sanctuaire en a une à portée de vue
+function ruinAt(rx,rz){for(let k=0;k<4;k++){let x,z;if(rx===0&&rz===0&&k===0){x=SPAWN.x+38;z=SPAWN.z-22}else{x=rx*RUIN+10+Math.floor(hash(rx,rz,120+k)*60);z=rz*RUIN+10+Math.floor(hash(rz,rx,130+k)*60)}
+ if(Math.hypot(x-SPAWN.x,z-SPAWN.z)<(rx||rz?50:20)||(rx||rz)&&Math.hypot(x-SPAWN.x-38,z-SPAWN.z+22)<40)continue;let lo=99,hi=0;for(let dx=-2;dx<=2;dx+=2)for(let dz=-2;dz<=2;dz+=2){const h=heightAt(x+dx,z+dz);lo=Math.min(lo,h);hi=Math.max(hi,h)}
+ if(lo<=SEA+1||hi>34||hi-lo>4)continue;return{x,z,y:heightAt(x,z)}}return null}
 const contAt=(x,z)=>vn2(x/170+50,z/170-40,9)*.7+vn2(x/60,z/60,10)*.3; // bas = océan
 function heightAt(x,z){const c=vn2(x/40,z/40,1)*.6+vn2(x/17,z/17,2)*.3+vn2(x/7,z/7,3)*.1;const m=sm(clamp((vn2(x/64+10,z/64+10,4)-.52)/.25,0,1));
  const d=Math.hypot(x-SPAWN.x,z-SPAWN.z),flat=sm(clamp((d-5)/10,0,1)),oc=sm(clamp((.4-contAt(x,z))/.1,0,1));
@@ -161,6 +184,7 @@ function genChunk(cx,cz){
    if(id===3&&y>1&&y<13&&vn3(x/18,y/6,z/18,15)>.66)id=0; // grandes grottes profondes
    if(id===3&&vn3(x/3.2,y/3.2,z/3.2,8)>.8-Math.min(.1,(h-y)*.004))id=8;
    if(id===3&&y<14&&vn3(x/2.4,y/2.4,z/2.4,16)>.885)id=69; // géodes d'éther pur
+   if(id===3&&(y<=2||y<=4&&vn3(x/5,y/3,z/5,17)>.5))id=72; // roche de genèse, tout au fond
    if(id)a[li(lx,y,lz)]=id}
   if(islandZone(x,z)){let depth=0;for(let y=45;y>=31;y--){if(isIsland(x,y,z)){depth++;let id=depth===1?1:depth<=3?2:3;if(id===3&&hash(x*3+y,z,17)<.07)id=8;a[li(lx,y,lz)]=id}else depth=0}}}
  // décor : racines prises dans une marge de 3 colonnes, pour qu'un arbre à cheval sur deux tronçons soit identique des deux côtés
@@ -176,6 +200,12 @@ function genChunk(cx,cz){
   if(r<.05&&t<=40){const th=3+Math.floor(hash(x,z,47)*2);for(let k=1;k<=th;k++)put(x,t+k,z,5,true);
    for(let dy=-1;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++)if(Math.hypot(dx,dy*1.3,dz)<=2.3)put(x+dx,t+th+dy,z+dz,7,true);continue}
   if(at(x,t+1,z)===0&&r<.16)put(x,t+1,z,r<.1?20:17+Math.floor(hash(x,z,48)*3))}
+ // ruines : un validateur éteint par région de 80 × 80
+ for(let rz=Math.floor((z0-4)/RUIN);rz<=Math.floor((z0+CH+4)/RUIN);rz++)for(let rx=Math.floor((x0-4)/RUIN);rx<=Math.floor((x0+CH+4)/RUIN);rx++){const r=ruinAt(rx,rz);if(!r)continue;
+  const{x:rx0,z:rz0,y:ry}=r;
+  for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){const hh=hash(rx0+dx,rz0+dz,121);put(rx0+dx,ry,rz0+dz,hh<.2?3:15);for(let k=1;k<=6;k++)put(rx0+dx,ry+k,rz0+dz,0);put(rx0+dx,ry-1,rz0+dz,3)}
+  for(const[dx,dz]of[[-2,-2],[2,-2],[-2,2],[2,2]]){const hp=1+Math.floor(hash(rx0+dx,rz0+dz,122)*3);for(let k=1;k<=hp;k++)put(rx0+dx,ry+k,rz0+dz,hash(rx0+dx,k,123)<.25?3:15);if(hp===3)put(rx0+dx,ry+4,rz0+dz,14)}
+  put(rx0,ry+1,rz0,73)}
  // le sanctuaire du validateur, au point d'apparition
  const sx=SPAWN.x,sz=SPAWN.z,sy=SPAWN.y-1;
  if(x0<=sx+3&&x0+CH>sx-3&&z0<=sz+3&&z0+CH>sz-3){
@@ -188,9 +218,10 @@ function genChunk(cx,cz){
 // ---------- état, sauvegarde ----------
 let KEY='ether-mines:solo';
 const SAVE_V=1;
-const S0=()=>({v:SAVE_V,chunks:{},edits:{},placedTotal:0,inv:{},bar:[null,null,null,null,null,null,null,null,null],sel:0,pos:null,placed:{},serial:0,nfts:[],log:[],supply:{},day:.3,dayN:1,seen:{},totalMint:0,totalBurn:0});
+const S0=()=>({v:SAVE_V,chunks:{},edits:{},placedTotal:0,inv:{},bar:[null,null,null,null,null,null,null,null,null],sel:0,pos:null,placed:{},serial:0,nfts:[],log:[],supply:{},day:.3,dayN:1,seen:{},got:{},relit:0,totalMint:0,totalBurn:0});
 let S=S0(),ME={id:'moi',name:'moi',color:'#8a7bef'};const OWN=new Map();
-function loadState(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}S=Object.assign(S0(),s||{});if(s&&!s.v)S.v=1;migrateSave(S)}
+function loadState(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}S=Object.assign(S0(),s||{});if(s&&!s.v)S.v=1;migrateSave(S);
+ for(const k of Object.keys(S.inv))S.got[k]=1;for(const n of S.nfts)S.got[n.id||201]=1}
 // Migrations de la sauvegarde locale : chaque version sait convertir la précédente. Ne jamais renommer KEY.
 function migrateSave(s){
  // v1 : première version. Pour une v2 : if(s.v<2){ …convertir… ; s.v=2 } — ne jamais supprimer une étape.
@@ -297,7 +328,7 @@ const hand=new THREE.Group();handScene.add(hand);let handMesh=null,handKey=null;
 function blockBox(id,s){const g=new THREE.BoxGeometry(s,s,s),uv=g.attributes.uv,b=B[id];const map=[b.t[1],b.t[1],b.t[0],b.t[2],b.t[1],b.t[1]];
  for(let f=0;f<6;f++){const[u0,u1,v0,v1]=uvRect(map[f]);for(let k=0;k<4;k++){const i=f*4+k;uv.setXY(i,lerp(u0,u1,uv.getX(i)),lerp(v0,v1,uv.getY(i)))}}uv.needsUpdate=true;return g}
 function flatSprite(ti,s){const g=new THREE.PlaneGeometry(s,s),uv=g.attributes.uv,[u0,u1,v0,v1]=uvRect(ti);for(let i=0;i<4;i++)uv.setXY(i,lerp(u0,u1,uv.getX(i)),lerp(v0,v1,uv.getY(i)));uv.needsUpdate=true;return g}
-function setHand(){const it=S.bar[S.sel];const key=it||'main';if(key===handKey)return;handKey=key;if(handMesh){hand.remove(handMesh);handMesh.geometry.dispose()}
+function setHand(){const key=S.bar[S.sel]||'main',it=S.bar[S.sel]?itemId(S.bar[S.sel]):null;if(key===handKey)return;handKey=key;if(handMesh){hand.remove(handMesh);handMesh.geometry.dispose()}
  if(!it){handMesh=new THREE.Mesh(new THREE.BoxGeometry(.16,.16,.5),new THREE.MeshLambertMaterial({color:0xf6d3b8}));handMesh.position.set(.34,-.32,-.55);handMesh.rotation.set(.2,-.2,0)}
  else if(B[it]&&!isCross(+it)&&!B[it].icon){handMesh=new THREE.Mesh(blockBox(+it,.3),new THREE.MeshLambertMaterial({map:atlasTex,emissiveMap:emisTex,emissive:0xffffff,transparent:!!B[it].glass,alphaTest:B[it].leaf?.5:0}));handMesh.position.set(.4,-.36,-.62);handMesh.rotation.set(.25,.6,0);if(B[it].shape==='slab'||B[it].shape==='stairs')handMesh.scale.y=.5}
  else{const ti=B[it]?(B[it].icon??B[it].x):ITEM[it].icon;handMesh=new THREE.Mesh(flatSprite(ti,.5),new THREE.MeshLambertMaterial({map:atlasTex,emissiveMap:emisTex,emissive:0xffffff,alphaTest:.5,side:THREE.DoubleSide}));handMesh.position.set(.42,-.28,-.62);handMesh.rotation.set(0,-.5,.2)}
@@ -322,7 +353,7 @@ function cloneIcon(it){const c=document.createElement('canvas');c.width=c.height
 function logEv(kind,text,detail){const t=new Date();S.log.unshift({k:kind,t:t.toTimeString().slice(0,5),x:text,d:detail||''});if(S.log.length>200)S.log.length=200;dirty=true;
  const ev=document.createElement('div');ev.className='ev chip';ev.innerHTML=`<b class="${kind}">${{mint:'MINT',burn:'BURN',craft:'CRAFT',nft:'NFT'}[kind]}</b>${text}${detail?` <span>${detail}</span>`:''}`;$('feed').prepend(ev);
  while($('feed').children.length>4)$('feed').lastChild.remove();setTimeout(()=>{ev.style.opacity=0;setTimeout(()=>ev.remove(),600)},4200)}
-function give(it,n,why){S.inv[it]=(S.inv[it]||0)+n;S.supply[it]=(S.supply[it]||0)+n;S.totalMint+=n;if(!S.bar.includes(String(it))&&!S.bar.includes(it)){const e=S.bar.indexOf(null);if(e>=0)S.bar[e]=String(it)}logEv('mint',`${n} ${nameOf(+it)}`,why||`jeton #${it}`);dirty=true;ui()}
+function give(it,n,why){S.inv[it]=(S.inv[it]||0)+n;S.got[it]=1;S.supply[it]=(S.supply[it]||0)+n;S.totalMint+=n;if(!S.bar.includes(String(it))&&!S.bar.includes(it)){const e=S.bar.indexOf(null);if(e>=0)S.bar[e]=String(it)}logEv('mint',`${n} ${nameOf(+it)}`,why||`jeton #${it}`);dirty=true;ui()}
 function take(it,n){S.inv[it]-=n;S.supply[it]=Math.max(0,(S.supply[it]||0)-n);S.totalBurn+=n;if(S.inv[it]<=0){delete S.inv[it];if(!ITEM[it]?.nft){const k=S.bar.indexOf(String(it));if(k>=0)S.bar[k]=null}}dirty=true}
 
 // ---------- joueur ----------
@@ -345,7 +376,7 @@ let bumped=false;
 // ---------- entrées ----------
 const keys=new Set();let playing=false,mining=false,locked=false,noLock=false,dragging=false,jumpHeld=false,sneakHeld=false,sprintOn=false,sprintMv=false,sprint=false,regView=false;
 addEventListener('keydown',e=>{if(chatOpen||document.activeElement&&document.activeElement.tagName==='INPUT')return;if(e.code==='Enter'&&playing){e.preventDefault();openChat();return}if(e.code==='KeyE'&&(playing||!$('panel').hidden)){togglePanel();return}if(!playing)return;keys.add(e.code);
- if(/^Digit[1-9]$/.test(e.code))select(+e.code.slice(5)-1);if(e.code==='KeyM')toggleSnd();if(e.code==='KeyT'){regView=!regView;$('modeTag').hidden=!regView;buildRegView()}if(e.code==='Space')e.preventDefault()});
+ if(/^Digit[1-9]$/.test(e.code))select(+e.code.slice(5)-1);if(e.code==='KeyM')toggleSnd();if(e.code==='KeyO')openTab('quest');if(e.code==='KeyT'){regView=!regView;$('modeTag').hidden=!regView;buildRegView()}if(e.code==='Space')e.preventDefault()});
 addEventListener('keyup',e=>keys.delete(e.code));
 const cv=renderer.domElement;
 function tryLock(){if(touch)return;try{const r=cv.requestPointerLock();if(r&&r.catch)r.catch(()=>{noLock=true})}catch(e){noLock=true}}
@@ -447,6 +478,7 @@ function breakBlock(t){
  const drop=B[id].drop!==undefined?B[id].drop:id;
  if(drop===101){const n=1+(hash(t.x*7+t.y,t.z,5)<.4?1:0);give(101,n,'extrait du minerai');Sound.chime();if(!S.seen.cry){S.seen.cry=1}}
  else if(drop===103){give(103,1,'extrait de la géode');Sound.chime()}
+ else if(drop===104){if(hash(t.x*3+t.y,t.z*5,124)<.4){give(104,1,'arraché à la roche de genèse');Sound.chime()}else logEv('burn','La roche de genèse s\'effrite','pas de fragment cette fois')}
  else if(drop)give(drop,1,owned?`bloc #${owned} repris`:`jeton #${drop}`);
  if(id===13)delVal(k);
  for(const nft of S.nfts)if(S.bar[S.sel]==='nft'+nft.serial)nft.mined=(nft.mined||0)+1;
@@ -455,6 +487,7 @@ function place(){
  if(playing){const an=pickAnimal(aim,target);if(an){petAnimal(an);swing=.6;return}}
  if(!playing||!target)return;
  const tb=B[target.id],tk=coordKey(target.x,target.y,target.z);
+ if(target.id===73){relight(target);return}
  if(tb&&tb.shape==='door'&&inBorder(target.x,target.z)){toggleDoor(target);return}
  if(tb&&tb.shape==='lever'&&inBorder(target.x,target.z)){commit(tk,tb.on?64:65,OWN.get(tk)||null);Sound.click();swing=.6;rebuildAt(target.x,target.z);return}
  if(!target.prev)return;const it=S.bar[S.sel];if(!it||!B[it]||!(S.inv[it]>0))return;let id=+it;
@@ -471,6 +504,11 @@ function place(){
  if(id===13){addVal(x,y,z);if(!S.seen.val){S.seen.val=1;toastInfo('Validateur actif : il frappe un cristal à chaque slot de 12 secondes.')}}
  dirty=true;rebuildAt(x,z);ui();if(regView)buildRegView()}
 function toastInfo(t){logEv('nft',t,'')}
+function relight(t){if(!(S.inv[105]>0)){logEv('burn','Validateur éteint','il faut un cœur de validateur : regarde tes objectifs');Sound.hit('pierre');return}
+ take(105,1);S.serial++;const k=coordKey(t.x,t.y,t.z),own={by:ME.id,name:ME.name,serial:S.serial};commit(k,74,own);addVal(t.x,t.y,t.z);
+ S.relit=(S.relit||0)+1;S.relitAt=S.relitAt||{};S.relitAt[k]=1;mintNft(203,`${t.x}, ${t.y}, ${t.z}`);
+ logEv('burn','1 Cœur de validateur',`→ validateur ancien rallumé (${S.relit})`);toastInfo('Validateur ancien rallumé : 3 cristaux par slot, à ton nom.');
+ Sound.chime();popAt(t.x,t.y,t.z,1);swing=1;dirty=true;rebuildAt(t.x,t.z);ui();if(regView)buildRegView()}
 function toggleDoor(t){const b=B[t.id],by=b.top?t.y-1:t.y,bot=get(t.x,by,t.z);if(B[bot]?.shape!=='door')return;const nb=B[bot],open=nb.open?0:1,nid=48+nb.f*4+open*2;
  const kb=coordKey(t.x,by,t.z),kt=coordKey(t.x,by+1,t.z);commit(kb,nid,OWN.get(kb)||null);if(B[get(t.x,by+1,t.z)]?.shape==='door')commit(kt,nid+1,OWN.get(kt)||null);
  Sound.door();swing=.6;rebuildAt(t.x,t.z)}
@@ -483,22 +521,26 @@ function buildRegView(){if(regLines){scene.remove(regLines);regLines.geometry.di
  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));regLines=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0xb4a8ff,fog:false,transparent:true,opacity:.9,depthTest:false}));regLines.renderOrder=5;scene.add(regLines)}
 
 // ---------- barre et panneau ----------
-function select(i){S.sel=i;ui();const it=S.bar[i];const n=$('selname');n.textContent=it?nameOf(it.startsWith?.('nft')?201:+it):'Main nue';n.style.opacity=1;clearTimeout(select.t);select.t=setTimeout(()=>n.style.opacity=0,1600)}
+function select(i){S.sel=i;ui();const it=S.bar[i];const n=$('selname');n.textContent=it?nameOf(itemId(it)):'Main nue';n.style.opacity=1;clearTimeout(select.t);select.t=setTimeout(()=>n.style.opacity=0,1600)}
 function ui(){
  const bar=$('bar');if(!bar.children.length)for(let i=0;i<9;i++){const b=document.createElement('button');b.className='slot';b.innerHTML=`<i>${i+1}</i><b></b>`;b.onclick=()=>select(i);bar.appendChild(b)}
  if(!bar.querySelector('.more')){const m=document.createElement('button');m.className='slot more';m.textContent='…';m.setAttribute('aria-label','Coffre');m.onclick=()=>togglePanel();bar.appendChild(m)}
  [...bar.querySelectorAll('.slot:not(.more)')].forEach((b,i)=>{const it=S.bar[i];b.classList.toggle('sel',i===S.sel);const old=b.querySelector('canvas');if(old)old.remove();b.querySelector('b').textContent='';
-  if(it){const isN=String(it).startsWith('nft');b.prepend(cloneIcon(isN?201:+it));if(!isN)b.querySelector('b').textContent=S.inv[it]||0}});
+  if(it){const isN=String(it).startsWith('nft');b.prepend(cloneIcon(itemId(it)));if(!isN)b.querySelector('b').textContent=S.inv[it]||0}});
  setHand();if(!$('panel').hidden)renderPanel()}
 let tab='inv',selItem=null;
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{tab=t.dataset.tab;document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===t));renderPanel()});
 $('closeP').onclick=togglePanel;
+function openTab(t){tab=t;document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x.dataset.tab===t));if($('panel').hidden)togglePanel();else renderPanel()}
+$('quest').onclick=e=>{e.stopPropagation();if(playing)openTab('quest')};
 function togglePanel(){const p=$('panel');p.hidden=!p.hidden;if(!p.hidden){if(document.pointerLockElement)document.exitPointerLock();mining=false;renderPanel()}else if(playing)tryLock()}
 const RECIPES=[
- {out:9,n:4,need:{5:1},d:'Débiter une bûche'},{out:102,n:1,need:{9:3},d:'Outil fongible · minage ×2'},{out:15,n:1,need:{3:2},d:'Tailler le granite'},
+ {out:9,n:4,need:{5:1},d:'Débiter une bûche'},{out:102,n:1,need:{9:3},d:'Outil fongible · minage ×2 · taille la pierre'},{out:15,n:1,need:{3:2},d:'Tailler le granite'},
  {out:10,n:1,need:{4:2},d:'Fondre le sable'},{out:14,n:1,need:{10:1,101:1},d:'Lumière pour les galeries'},
- {out:201,n:1,need:{9:2,101:3},d:'Objet unique (ERC-721) · minage ×5',nft:1},{out:13,n:1,need:{101:8,15:4},d:'Frappe un cristal par slot'},
- {out:70,n:1,need:{103:4},d:'Éther pur des profondeurs, lumineux'}];
+ {out:201,n:1,need:{9:2,101:3},d:'Objet unique (ERC-721) · minage ×5 · ouvre les géodes',nft:1},{out:13,n:1,need:{101:8,15:4},d:'Frappe un cristal par slot'},
+ {out:70,n:1,need:{103:4},d:'Éther pur des profondeurs, lumineux'},
+ {out:202,n:1,need:{103:4,101:4,9:2},d:'Objet unique (ERC-721) · minage ×8 · taille la roche de genèse',nft:1},
+ {out:105,n:1,need:{104:1,103:2,101:4},d:'Rallume un validateur ancien (clic droit dessus)'}];
 RECIPES.forEach(r=>r.cat='Ressources et outils');
 // construction
 [[9,'planches'],[15,'marbre'],[3,'granite']].forEach(([m],i)=>{RECIPES.push({out:33+i,n:4,need:{[m]:2},d:'Demi-bloc',cat:'Construction'},{out:36+i*4,n:4,need:{[m]:3},d:"S'oriente selon ton regard",cat:'Construction'})});
@@ -509,6 +551,42 @@ RECIPES.push({out:48,n:1,need:{9:4},d:'Clic droit pour ouvrir',cat:'Construction
 // contrats
 RECIPES.push({out:64,n:1,need:{9:1,3:1},d:'Source : clic droit pour basculer',cat:'Contrats'},{out:66,n:2,need:{15:2},d:'Source : active quand on marche dessus',cat:'Contrats'},
  {out:67,n:8,need:{101:1},d:'Transmet le signal, bloc après bloc',cat:'Contrats'},{out:68,n:1,need:{10:1,101:2},d:"S'allume quand elle est alimentée",cat:'Contrats'});
+// ---------- objectifs : la progression ----------
+const hasNft=id=>S.nfts.some(n=>(n.id||201)===id);
+const QUESTS=[
+ {t:'Récolte du bois',h:"Mine un tronc d'arbre, à la main.",ok:()=>S.got[5]},
+ {t:'Fabrique une pioche en bois',h:'Atelier (E) : 3 planches. Une bûche donne 4 planches.',ok:()=>S.got[102]},
+ {t:"Extrais un cristal d'éther",h:'Le minerai bleu dans la roche. La pierre se taille avec une pioche.',ok:()=>S.got[101]},
+ {t:'Forge la pioche de cristal',h:'2 planches + 3 cristaux. Objet unique, minage ×5.',ok:()=>hasNft(201)},
+ {t:'Ouvre une géode',h:'Sous la couche 14, dans les grandes grottes. Seule la pioche de cristal les ouvre.',ok:()=>S.got[103]},
+ {t:"Forge la pioche d'éther pur",h:'4 éclats purs + 4 cristaux + 2 planches.',ok:()=>hasNft(202)},
+ {t:'Atteins la roche de genèse',h:'Tout au fond du monde, juste au-dessus du socle. Elle ne cède qu\'à la pioche d\'éther pur.',ok:()=>S.got[104]},
+ {t:'Fabrique un cœur de validateur',h:'1 fragment de genèse + 2 éclats purs + 4 cristaux.',ok:()=>S.got[105]},
+ {t:'Rallume un validateur ancien',h:'Suis la boussole jusqu\'aux ruines, puis clic droit (ou toucher) sur le validateur éteint.',ok:()=>(S.relit||0)>=1}];
+const RELIT_GOALS=[3,7,12,20,30,50,75,100];
+function questIndex(){for(let i=0;i<QUESTS.length;i++)if(!QUESTS[i].ok())return i;return QUESTS.length}
+function nearestRuin(){const rx=Math.floor(P.x/RUIN),rz=Math.floor(P.z/RUIN);let best=null,bd=1e9;
+ for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){const r=ruinAt(rx+dx,rz+dz);if(!r)continue;const k=coordKey(r.x,r.y+1,r.z);if(S.relitAt?.[k])continue;
+  if(CHK.has(ckey(cOf(r.x),cOf(r.z)))&&get(r.x,r.y+1,r.z)!==73)continue;const d=Math.hypot(r.x+.5-P.x,r.z+.5-P.z);if(d<bd){bd=d;best={...r,d}}}return best}
+const ARROWS=['↑','↗','→','↘','↓','↙','←','↖'];
+function arrowTo(x,z){const dx=x-P.x,dz=z-P.z,f=dx*-Math.sin(yaw)+dz*-Math.cos(yaw),r=dx*Math.cos(yaw)+dz*-Math.sin(yaw);return ARROWS[((Math.round(Math.atan2(r,f)/(Math.PI/4))%8)+8)%8]}
+let questT=0;
+function updateQuest(dt){questT-=dt;if(questT>0)return;questT=.4;const i=questIndex();
+ if(S.qi===undefined)S.qi=i;
+ while(S.qi<i){const q=QUESTS[S.qi];S.qi++;logEv('nft',`Objectif atteint : ${q.t}`,S.qi<QUESTS.length?`suivant : ${QUESTS[S.qi].t}`:'la suite : rallumer d\'autres validateurs');Sound.chime();dirty=true;flashQuest()}
+ const el=$('quest');let html;
+ if(i<QUESTS.length){const q=QUESTS[i];html=`<b>${i+1}/${QUESTS.length}</b> ${q.t}`}
+ else{const goal=RELIT_GOALS.find(g=>g>(S.relit||0))||(S.relit+10);html=`<b>${S.relit}/${goal}</b> Validateurs rallumés`}
+ if(i>=QUESTS.length-2){const r=nearestRuin();if(r)html+=`<span class="compass">${arrowTo(r.x+.5,r.z+.5)} ruine à ${Math.round(r.d)} m</span>`}
+ if(el.innerHTML!==html)el.innerHTML=html}
+function flashQuest(){const el=$('quest');el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash')}
+function renderQuests(body){const i=questIndex();
+ body.insertAdjacentHTML('beforeend',`<p class="qintro">Les anciens validateurs de ce monde se sont éteints. Deviens assez fort pour descendre jusqu'à la roche de genèse, forge un cœur de validateur et rallume-les, un par un.</p>`);
+ const ol=document.createElement('ol');ol.className='quests';
+ QUESTS.forEach((q,k)=>{ol.insertAdjacentHTML('beforeend',`<li class="${k<i?'done':k===i?'now':''}"><strong>${q.t}</strong><span>${k<=i?q.h:'…'}</span></li>`)});
+ body.appendChild(ol);
+ if(i>=QUESTS.length-2){const r=nearestRuin();body.insertAdjacentHTML('beforeend',`<p class="qintro">${r?`Ruine la plus proche : ${Math.round(r.d)} m, direction ${arrowTo(r.x+.5,r.z+.5)} (x ${r.x}, z ${r.z}).`:'Aucune ruine éteinte dans les environs.'} Chaque validateur rallumé te rapporte 3 cristaux par slot et un sceau unique.</p>`)}
+ body.insertAdjacentHTML('beforeend',`<div class="stats"><div><b>${S.relit||0}</b><span>validateurs rallumés</span></div><div><b>${TIER_NAME[Math.max(0,...S.nfts.map(n=>ITEM[n.id||201]?.tier||0),S.got[102]?1:0)].replace(/^(la |une )/,'')}</b><span>meilleur outil</span></div></div>`)}
 function renderPanel(){
  const body=$('pbody');body.innerHTML='';
  if(tab==='inv'){
@@ -516,18 +594,19 @@ function renderPanel(){
   const wrap=document.createElement('div');wrap.className='inv';const grid=document.createElement('div');grid.className='grid';
   if(!all.length)grid.innerHTML='<p style="color:var(--muted);font-size:14px">Ton coffre est vide. Mine quelques blocs.</p>';
   if(!selItem||!all.find(a=>a.k===selItem))selItem=all[0]?.k||null;
-  for(const a of all){const b=document.createElement('button');b.className='it'+(a.k===selItem?' sel':'')+(a.nft?' nftc':'');b.appendChild(cloneIcon(a.nft?201:+a.k));if(!a.nft)b.insertAdjacentHTML('beforeend',`<b>${a.n}</b>`);b.onclick=()=>{selItem=a.k;renderPanel()};grid.appendChild(b)}
+  for(const a of all){const b=document.createElement('button');b.className='it'+(a.k===selItem?' sel':'')+(a.nft?' nftc':'');b.appendChild(cloneIcon(a.nft?(a.nft.id||201):+a.k));if(!a.nft)b.insertAdjacentHTML('beforeend',`<b>${a.n}</b>`);b.onclick=()=>{selItem=a.k;renderPanel()};grid.appendChild(b)}
   wrap.appendChild(grid);const card=document.createElement('div');card.className='card';
-  if(selItem){const a=all.find(x=>x.k===selItem);const id=a.nft?201:+a.k;const isBlock=!!B[id];
+  if(selItem){const a=all.find(x=>x.k===selItem);const id=a.nft?(a.nft.id||201):+a.k;const isBlock=!!B[id];
    card.innerHTML=`<div class="top"></div><dl></dl><div class="btnrow"></div><p></p>`;const top=card.querySelector('.top');top.appendChild(cloneIcon(id));
    top.insertAdjacentHTML('beforeend',`<div><h3>${nameOf(id)}${a.nft?` #${a.nft.serial}`:''}</h3><span class="std">${a.nft?'ERC-721 · unique':'ERC-1155 · fongible'}</span></div>`);
    const dl=card.querySelector('dl');const row=(k,v)=>dl.insertAdjacentHTML('beforeend',`<div><dt>${k}</dt><dd>${v}</dd></div>`);
-   if(a.nft){row('Jeton',`#201-${String(a.nft.serial).padStart(4,'0')}`);row('Forgée le',a.nft.date);row('Lieu de forge',a.nft.where);row('Blocs minés avec',a.nft.mined||0);row('Propriétaire','toi')}
+   if(a.nft){row('Jeton',`#${id}-${String(a.nft.serial).padStart(4,'0')}`);row(id===203?'Scellé le':'Forgée le',a.nft.date);row(id===203?'Validateur':'Lieu de forge',a.nft.where);if(ITEM[id].tool)row('Blocs minés avec',a.nft.mined||0);row('Propriétaire','toi')}
    else{row('Identifiant',`#${id}`);row('Dans ton coffre',a.n);row('En circulation',S.supply[id]||a.n);if(isBlock){row('Blocs posés à ton nom',myBlocks())}}
    const br=card.querySelector('.btnrow');const put=document.createElement('button');put.className='b primary';put.textContent=`Placer dans l'emplacement ${S.sel+1}`;put.onclick=()=>{const key=a.nft?a.k:String(id);const ex=S.bar.indexOf(key);if(ex>=0)S.bar[ex]=null;S.bar[S.sel]=key;dirty=true;ui()};br.appendChild(put);
    card.querySelector('p').textContent=a.nft?'Un objet unique a son propre numéro et garde son histoire : qui l\'a forgé, où, et ce qu\'il a accompli.':isBlock?'Miner ce bloc frappe un jeton. Le poser le brûle, et le bloc posé porte ton numéro de série dans le registre.':'Une ressource fongible : chaque unité vaut exactement la même chose qu\'une autre.'}
   else card.innerHTML='<p>Choisis un objet pour voir sa fiche de jeton.</p>';
   wrap.appendChild(card);body.appendChild(wrap);body.insertAdjacentHTML('beforeend','<p class="note">Simulation locale : rien n\'est inscrit sur une vraie blockchain. C\'est une maquette de ce que donneraient des blocs tokenisés.</p>')}
+ else if(tab==='quest')renderQuests(body);
  else if(tab==='craft'){let cat='';for(const r of RECIPES){if(r.cat!==cat){cat=r.cat;body.insertAdjacentHTML('beforeend',`<h3 class="rcat">${cat}</h3>`)}const ok=Object.entries(r.need).every(([k,n])=>(S.inv[k]||0)>=n);const d=document.createElement('div');d.className='rec';d.appendChild(cloneIcon(r.out));
   d.insertAdjacentHTML('beforeend',`<div><strong>${r.n>1?r.n+' × ':''}${nameOf(r.out)}</strong><span>${r.d}</span><div class="need">${Object.entries(r.need).map(([k,n])=>`<em class="${(S.inv[k]||0)>=n?'':'ko'}">${n} ${nameOf(+k)} (${S.inv[k]||0})</em>`).join('')}</div></div><button class="b ${ok?'primary':''}" ${ok?'':'disabled'}>Fabriquer</button>`);
   d.querySelector('button').onclick=()=>craft(r);body.appendChild(d)}}
@@ -535,12 +614,15 @@ function renderPanel(){
   const log=document.createElement('div');log.className='log';const col={mint:'var(--mint)',burn:'var(--burn)',craft:'var(--gold)',nft:'var(--cyan)'};
   log.innerHTML=S.log.map(l=>`<div><time>${l.t}</time><b style="background:${col[l.k]}">${l.k.toUpperCase()}</b><span>${l.x} <span style="color:var(--muted)">${l.d}</span></span></div>`).join('')||'<p style="color:var(--muted)">Rien d\'inscrit pour l\'instant.</p>';body.appendChild(log)}
 }
+function mintNft(id,where){const serial=S.nfts.length+1;const n={serial,id,date:new Date().toLocaleDateString('fr-FR'),where,mined:0};S.nfts.push(n);S.supply[id]=(S.supply[id]||0)+1;S.got[id]=1;logEv('nft',`${nameOf(id)} #${serial}`,'frappé, unique');return n}
 function craft(r){for(const[k,n]of Object.entries(r.need))take(+k,n);logEv('craft',`${Object.entries(r.need).map(([k,n])=>n+' '+nameOf(+k)).join(' + ')}`,`→ ${r.n} ${nameOf(r.out)}`);
- if(r.nft){const serial=S.nfts.length+1;const n={serial,date:new Date().toLocaleDateString('fr-FR'),where:`${Math.floor(P.x)}, ${Math.floor(P.y)}, ${Math.floor(P.z)}`,mined:0};S.nfts.push(n);S.supply[201]=(S.supply[201]||0)+1;logEv('nft',`Pioche de cristal #${serial}`,'frappée, unique');const e=S.bar.indexOf(null);S.bar[e>=0?e:S.sel]='nft'+serial;dirty=true;ui()}
+ if(r.nft){const n=mintNft(r.out,`${Math.floor(P.x)}, ${Math.floor(P.y)}, ${Math.floor(P.z)}`);const serial=n.serial;const e=S.bar.indexOf(null);S.bar[e>=0?e:S.sel]='nft'+serial;dirty=true;ui()}
  else give(r.out,r.n,'fabriqué')}
 // objets tenus : outils
 const origToolMult=toolMult;
-function heldTool(){const it=S.bar[S.sel];if(!it)return 1;if(String(it).startsWith('nft'))return 5;if(ITEM[it]&&ITEM[it].tool)return ITEM[it].tool;return 1}
+function heldTool(){const id=itemId(S.bar[S.sel]);return ITEM[id]?.tool||1}
+function heldTier(){const id=itemId(S.bar[S.sel]);return ITEM[id]?.tier||0}
+const canMine=id=>heldTier()>=reqTier(id);
 
 // ---------- cycle jour et nuit ----------
 const KF=[[0,'#0f1030','#2a2458','#000000',.0,.16,'#1d1a40'],[.22,'#3a3f8f','#ff9fb8','#ff9a7a',.15,.3,'#6a5a9e'],[.28,'#8fa8ff','#ffd6e8','#ffcfa6',.7,.52,'#e8d6f2'],[.5,'#86aaff','#e6e6ff','#fff4e0',1,.66,'#e6e2ff'],[.72,'#8fa0f0','#f3dcff','#ffe0c0',.8,.55,'#eadcf6'],[.78,'#6a5fc8','#ffa98a','#ff8a6a',.25,.34,'#9a7ab8'],[.85,'#1a1a48','#3a2f70','#000000',0,.18,'#26214e'],[1,'#0f1030','#2a2458','#000000',0,.16,'#1d1a40']];
@@ -668,6 +750,7 @@ function petAnimal(a){const K=AK[a.type],p=a.g.position;a.pet=.6;Sound.animal(a.
 
 // ---------- boucle ----------
 const GENESIS=1606824023;let lastSlot=Math.floor((Date.now()/1000-GENESIS)/12);
+let tierHintT=0;
 let last=performance.now(),bob=0,crouch=0,stepT=0,hitT=0;
 function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
  if(playing&&$('panel').hidden&&!chatOpen){
@@ -687,19 +770,20 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
   if(l>.1&&P.on&&!inW){stepT-=dt;if(stepT<=0){stepT=run?.28:.38;Sound.step(under())}}else stepT=.12;
   if(!was&&P.on&&fallV<-7)Sound.step(under());
   crouch+=((sneak&&!inW?.22:0)-crouch)*Math.min(1,dt*12);
-  S.day+=dt/480;if(S.day>=1){S.day-=1;S.dayN++}
+  tierHintT=Math.max(0,tierHintT-dt);S.day+=dt/480;if(S.day>=1){S.day-=1;S.dayN++}
   // minage
-  if(mining&&target&&B[target.id].h!==Infinity&&inBorder(target.x,target.z)){const k=coordKey(target.x,target.y,target.z);if(k!==mineKey){mineKey=k;mineT=0}mineT+=dt*heldTool()*(B[target.id].stone?1:1);hitT-=dt;if(hitT<=0){hitT=.25;Sound.hit(MAT_OF(target.id))}const h=B[target.id].h/(B[target.id].stone?1:Math.max(1,heldTool()*.5));const pr=mineT/(B[target.id].h/ (B[target.id].stone?1:1)/(1));
+  if(mining&&target&&B[target.id].h!==Infinity&&!canMine(target.id)){hitT-=dt;if(hitT<=0){hitT=.4;Sound.hit('pierre');swing=.5;if(!tierHintT){tierHintT=6;logEv('burn',`Trop dur pour ${TIER_NAME[heldTier()]}`,`il faut ${TIER_NAME[reqTier(target.id)]}`)}}crack.visible=false}
+  else if(mining&&target&&B[target.id].h!==Infinity&&inBorder(target.x,target.z)){const k=coordKey(target.x,target.y,target.z);if(k!==mineKey){mineKey=k;mineT=0}mineT+=dt*heldTool()*(B[target.id].stone?1:1);hitT-=dt;if(hitT<=0){hitT=.25;Sound.hit(MAT_OF(target.id))}const h=B[target.id].h/(B[target.id].stone?1:Math.max(1,heldTool()*.5));const pr=mineT/(B[target.id].h/ (B[target.id].stone?1:1)/(1));
    const need=B[target.id].h;const prog=Math.min(1,mineT/need);crack.visible=true;crack.position.set(target.x+.5,target.y+.5,target.z+.5);crack.material.map=crackTex[Math.min(7,Math.floor(prog*8))];swing=Math.max(swing,.6);
    if(prog>=1){breakBlock(target);mineKey=-1;mineT=0;crack.visible=false}}else{mineKey=-1;mineT=0;crack.visible=false}
   // validateurs
-  const slot=Math.floor((Date.now()/1000-GENESIS)/12);if(slot>lastSlot){let own=0;for(const k of vals.keys())if(OWN.get(k)?.by===ME.id)own++;const n=own*Math.min(3,slot-lastSlot);lastSlot=slot;if(n){give(101,n,`récompense du slot ${slot.toLocaleString('fr-FR')}`)}}
+  const slot=Math.floor((Date.now()/1000-GENESIS)/12);if(slot>lastSlot){let own=0;for(const k of vals.keys())if(OWN.get(k)?.by===ME.id){const[x,y,z]=k.split(',').map(Number);own+=get(x,y,z)===74?3:1}const n=own*Math.min(3,slot-lastSlot);lastSlot=slot;if(n){give(101,n,`récompense du slot ${slot.toLocaleString('fr-FR')}`)}}
  }
  camera.rotation.set(pitch,yaw,0);stepUp=Math.max(0,stepUp-dt*5);camera.position.set(P.x,P.y+EYE-stepUp-crouch+Math.sin(bob)*.04,P.z);camera.updateMatrixWorld();
  sky.position.copy(camera.position);stars.position.copy(camera.position);clouds.position.x=camera.position.x;clouds.position.z=camera.position.z;cloudTex.offset.x+=dt*.0015;waterTex.offset.x+=dt*.03;waterTex.offset.y+=dt*.012;
  applyDay();
  if(playing){target=raycast(5.2,aim);if(target){sel.visible=true;sel.position.set(target.x+.5,target.y+.5,target.z+.5);const k=coordKey(target.x,target.y,target.z),ow=OWN.get(k),own=ow?ow.serial:0;const tg=$('target');tg.hidden=false;tg.classList.toggle('own',!!(ow&&ow.by===ME.id));
-   const tid=B[target.id].drop!==undefined&&B[target.id].drop?B[target.id].drop:target.id;tg.innerHTML=`${B[target.id].n}<span>${!inBorder(target.x,target.z)?'au-delà de la frontière':own?`posé par ${ow&&ow.by!==ME.id?ow.name:'toi'} · bloc #${own}`:`naturel · donne le jeton #${tid===0?'—':tid}`}</span>`}else{sel.visible=false;$('target').hidden=true}
+   const tid=B[target.id].drop!==undefined&&B[target.id].drop?B[target.id].drop:target.id;tg.innerHTML=`${B[target.id].n}<span>${target.id===73?`${touch?'toucher':'clic droit'} avec un cœur de validateur pour le rallumer`:target.id===74?'rallumé · frappe 3 cristaux par slot pour qui l\'a rallumé':!canMine(target.id)&&B[target.id].h!==Infinity?`⛏ il faut ${TIER_NAME[reqTier(target.id)]}`:!inBorder(target.x,target.z)?'au-delà de la frontière':own?`posé par ${ow&&ow.by!==ME.id?ow.name:'toi'} · bloc #${own}`:`naturel · donne le jeton #${tid===0?'—':tid}`}</span>`}else{sel.visible=false;$('target').hidden=true}
   const an=pickAnimal(aim,target);if(an){target=null;sel.visible=false;crack.visible=false;const K=AK[an.type],tg=$('target');tg.hidden=false;tg.classList.remove('own');
    const g=K.gift&&(S.pets||{})[an.k+':'+an.i]!==S.dayN;tg.innerHTML=`${K.n}<span>${touch?'toucher':'clic droit'} : caresser${g?' · a un cadeau pour toi':''}</span>`}}
  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.t-=dt;p.v[1]-=14*dt;p.m.position.x+=p.v[0]*dt;p.m.position.y+=p.v[1]*dt;p.m.position.z+=p.v[2]*dt;p.m.scale.setScalar(Math.max(.05,p.t/.7));if(p.t<=0){scene.remove(p.m);parts.splice(i,1)}}
@@ -707,7 +791,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
  bigEth.rotation.y+=dt*.12;waterU.value=now/1000;updatePops(dt);
  {const nt=skyU.night.value;if(booted)updateFireflies(dt,nt,now/1000);if(playing){const cx=Math.floor(P.x),cz=Math.floor(P.z);Sound.tick(dt,nt,P.y+1<heightAt(cx,cz)-3,!!P.inWater)}}
  swing=Math.max(0,swing-dt*3);if(handMesh){const s=Math.sin((1-swing)*Math.PI)*swing;hand.rotation.set(-s*.9,0,0);hand.position.set(Math.sin(bob*.5)*.015,Math.abs(Math.cos(bob*.5))*.012-s*.08,0)}
- if(booted){stream(dt);computePower(dt);updateAnimals(dt)}borderU.t.value=now/1000;borderU.pl.value.set(P.x,P.y,P.z);updateOthers(dt);renderer.clear();renderer.render(scene,camera);renderer.clearDepth();if(playing)renderer.render(handScene,handCam);
+ if(booted){stream(dt);computePower(dt);updateAnimals(dt);if(playing)updateQuest(dt)}borderU.t.value=now/1000;borderU.pl.value.set(P.x,P.y,P.z);updateOthers(dt);renderer.clear();renderer.render(scene,camera);renderer.clearDepth();if(playing)renderer.render(handScene,handCam);
  requestAnimationFrame(frame)}
 
 // ---------- joueurs en ligne, chat ----------
@@ -721,7 +805,7 @@ function decodeChunk(data,sy){const bin=atob(data),a=new Uint8Array(CV),max=CH*C
 function applyEditsTo(cx,cz){const arr=CHK.get(ckey(cx,cz)),m=EDC.get(ckey(cx,cz));if(!arr||!m)return;
  for(const[k,id]of m){const[x,y,z]=k.split(',').map(Number);if(y>=0&&y<SY)arr[li(x-cx*CH,y,z-cz*CH)]=id}}
 function refreshVals(cx,cz){for(const k of[...vals.keys()]){const[x,,z]=k.split(',').map(Number);if(cOf(x)===cx&&cOf(z)===cz)delVal(k)}
- const arr=CHK.get(ckey(cx,cz));if(!arr)return;for(let i=0;i<CV;i++)if(arr[i]===13){const lx=i%CH,lz=Math.floor(i/CH)%CH,y=Math.floor(i/(CH*CH));addVal(cx*CH+lx,y,cz*CH+lz)}}
+ const arr=CHK.get(ckey(cx,cz));if(!arr)return;for(let i=0;i<CV;i++)if(arr[i]===13||arr[i]===74){const lx=i%CH,lz=Math.floor(i/CH)%CH,y=Math.floor(i/(CH*CH));addVal(cx*CH+lx,y,cz*CH+lz)}}
 // Fige le terrain d'origine d'un tronçon au premier contact : il ne dépendra plus jamais du générateur.
 function freeze(cx,cz){const k=ckey(cx,cz);if(frozen.has(k)||!CHK.has(k))return;frozen.add(k);const data=encodeChunk(cx,cz);
  if(Net.online){Net.freezeChunk({cx,cz,gen:GEN,sy:SY,data}).then(row=>{if(row&&row.data!==data&&CHK.has(k)){CHK.set(k,decodeChunk(row.data,row.sy));applyEditsTo(cx,cz);refreshVals(cx,cz);indexChunk(cx,cz);buildChunk(cx,cz)}}).catch(e=>console.error(e))}
@@ -735,7 +819,7 @@ function applyBlock(b){if(![b.x,b.y,b.z].every(Number.isInteger)||b.y<0||b.y>=SY
  editSet(b.x,b.y,b.z,b.id);if(b.id&&b.by)OWN.set(key,{by:b.by,name:b.name,serial:b.serial});else OWN.delete(key);
  if(!CHK.has(k))return; // pas chargé ici : il arrivera avec la base au chargement du tronçon
  if(!frozen.has(k)){frozen.add(k);Net.fetchChunk(cx,cz).then(row=>{if(row&&CHK.has(k)){CHK.set(k,decodeChunk(row.data,row.sy));applyEditsTo(cx,cz);refreshVals(cx,cz);indexChunk(cx,cz);rebuildAt(b.x,b.z)}}).catch(e=>console.error(e))}
- setW(b.x,b.y,b.z,b.id);if(b.id===13)addVal(b.x,b.y,b.z);else delVal(key);rebuildAt(b.x,b.z);if(regView)buildRegView();
+ setW(b.x,b.y,b.z,b.id);if(b.id===13||b.id===74)addVal(b.x,b.y,b.z);else delVal(key);rebuildAt(b.x,b.z);if(regView)buildRegView();
  if(isSolid(b.id)&&collides(P.x,P.y,P.z)){for(let q=0;q<4&&collides(P.x,P.y,P.z);q++)P.y+=1}}
 
 // ---------- contrats en blocs : leviers, plaques, câbles, lampes, portes ----------
@@ -854,6 +938,8 @@ $('chatIn').addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault
 $('chatBtn').onclick=()=>chatOpen?closeChat():openChat();
 
 // ---------- démarrage ----------
+function nftOf(key){return S.nfts.find(n=>'nft'+n.serial===key)}
+function itemId(key){if(!key)return 0;if(String(key).startsWith('nft'))return nftOf(key)?.id||201;return +key}
 const PKEY='ether-mines:profil',COLORS=['#8a7bef','#ff9ab8','#7fe8ff','#9fe3c4','#ffd95e','#ffb37a','#b6a4ff'];
 let profile;try{profile=JSON.parse(localStorage.getItem(PKEY)||'null')}catch(e){}
 if(!profile||!profile.id)profile={id:(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)),name:'',color:COLORS[Math.floor(Math.random()*COLORS.length)]};
@@ -890,5 +976,5 @@ async function boot(world){
  ui()}
 requestAnimationFrame(frame);
 // Outils de test : ouvrir index.html#debug expose window.mines dans la console.
-if(location.hash==='#debug')window.mines={get,CHK,frozen,EDC,commit,encodeChunk,decodeChunk,genChunk,loadChunks,get P(){return P},get R(){return R},GEN,POWERED,SPEC,ANIMALS,petAnimal,spawnChunk,despawnChunk,popAt,B,get S(){return S},heightAt,islandTop,set yaw(v){yaw=v},set pitch(v){pitch=v}};
+if(location.hash==='#debug')window.mines={get,CHK,frozen,EDC,commit,encodeChunk,decodeChunk,genChunk,loadChunks,get P(){return P},get R(){return R},GEN,QUESTS,questIndex,ruinAt,nearestRuin,give,canMine,relight,openTab,POWERED,SPEC,ANIMALS,petAnimal,spawnChunk,despawnChunk,popAt,B,get S(){return S},heightAt,islandTop,set yaw(v){yaw=v},set pitch(v){pitch=v}};
 })();
