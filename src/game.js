@@ -48,6 +48,7 @@ tile(25,P=>pick(P,'#f2cfa6','#d7ae84'));tile(26,(P,E)=>{pick(P,'#7fe8ff','#3fc6f
 const rgbaOf=(hex,a)=>{const n=parseInt(hex.slice(1),16);return`rgba(${n>>16&255},${n>>8&255},${n&255},${a})`};
 const shadeOf=(hex,k)=>{const n=parseInt(hex.slice(1),16),f=v=>Math.max(0,Math.min(255,Math.round(v*k)));return`rgb(${f(n>>16&255)},${f(n>>8&255)},${f(n&255)})`};
 const PASTELS=[['rose','#ffb8d9'],['lavande','#c9b8ff'],['menthe','#aeeccb'],['ciel','#b3dcff'],['pêche','#ffcfae'],['citron','#fff0a0'],['corail','#ff9f9a'],['blanc','#f4f2fa']];
+tile(53,(P,E,t)=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++){const r=hash(x*7+y,y*3+x,53),curl=((x+(y>>1))%4===0)!==((y+(x>>2))%3===0);P(x,y,curl?'#cdbff7':r<.2?'#f2edff':'#e3dbff')}});
 PASTELS.forEach(([,c],i)=>tile(27+i,(P,E,t)=>noise(P,t,c,[[shadeOf(c,.95),.22],[shadeOf(c,1.03),.18],[shadeOf(c,.9),.04]])));
 const VITRAUX=[['rose','#ffb8d9'],['ciel','#b3dcff'],['menthe','#aeeccb'],['lavande','#c9b8ff']];
 VITRAUX.forEach(([,c],i)=>tile(35+i,P=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++){const b=x===0||y===0||x===15||y===15||x===7||y===7;P(x,y,b?shadeOf(c,.82):rgbaOf(c,.42))}
@@ -97,8 +98,9 @@ B[67]={n:"Câble d'éther",t:[43,43,43],h:.1,shape:'cable',icon:43,pass:1};
 B[68]={n:'Lampe',t:[45,45,45],h:.5};
 B[69]={n:'Géode',t:[47,47,47],h:3,stone:1,drop:103};
 B[70]={n:"Bloc d'éther pur",t:[49,49,49],h:2.4,stone:1};
+B[71]={n:"Laine d'éther",t:[53,53,53],h:.5};
 ITEM[103]={n:'Éclat pur',icon:48};
-const MAT_OF=id=>[1,2,6,7,17,18,19,20].includes(id)?'herbe':id===4?'sable':id===16?'neige':[5,9,33,36,37,38,39].includes(id)||(id>=48&&id<=63)?'bois':[10,14,68].includes(id)||(id>=29&&id<=32)?'verre':'pierre';
+const MAT_OF=id=>[1,2,6,7,17,18,19,20].includes(id)?'herbe':id===4?'sable':id===16||id===71?'neige':[5,9,33,36,37,38,39].includes(id)||(id>=48&&id<=63)?'bois':[10,14,68].includes(id)||(id>=29&&id<=32)?'verre':'pierre';
 const nameOf=id=>B[id]?B[id].n:ITEM[id]?ITEM[id].n:'Objet inconnu';
 const isCross=id=>B[id]&&B[id].x!=null;
 const isTransp=id=>id===0||id===11||isCross(id)||!B[id]||!!(B[id].leaf||B[id].glass||B[id].shape);
@@ -450,6 +452,7 @@ function breakBlock(t){
  for(const nft of S.nfts)if(S.bar[S.sel]==='nft'+nft.serial)nft.mined=(nft.mined||0)+1;
  dirty=true;rebuildAt(t.x,t.z);if(regView)buildRegView()}
 function place(){
+ if(playing){const an=pickAnimal(aim,target);if(an){petAnimal(an);swing=.6;return}}
  if(!playing||!target)return;
  const tb=B[target.id],tk=coordKey(target.x,target.y,target.z);
  if(tb&&tb.shape==='door'&&inBorder(target.x,target.z)){toggleDoor(target);return}
@@ -558,6 +561,111 @@ function applyDay(){const t=S.day%1;let i=0;while(t>KF[i+1][0])i++;const a=KF[i]
 let emisBoost=1,lastIconDay=null;
 function drawSunIcon(day){if(day===lastIconDay)return;lastIconDay=day;const c=$('sunIcon').getContext('2d');c.clearRect(0,0,9,9);c.fillStyle=day?'#ffd95e':'#e6e8ff';if(day){c.fillRect(2,2,5,5);c.fillRect(4,0,1,9);c.fillRect(0,4,9,1)}else{c.fillRect(2,1,4,7);c.fillStyle='#1c163a';c.fillRect(4,1,3,5)}}
 
+// ---------- animaux ----------
+// Placés par tronçon à partir de la graine, et déplacés en fonction de l'heure réelle :
+// tous les joueurs voient les mêmes animaux au même endroit, sans rien envoyer sur le réseau.
+const ANIMALS=new Map(),ANI_R=3; // rayon, en tronçons, autour du joueur
+const AK={
+ mouton:{n:"Mouton d'éther",D:9,walk:.42,R:6,sp:1,hit:[.9,1.1,1.25],gift:[71,1,'laine offerte par un mouton']},
+ lapin:{n:'Lapin des dunes',D:5,walk:.38,R:5,sp:1,hit:[.45,.55,.55]},
+ renard:{n:'Renard rose',D:6.5,walk:.5,R:8,sp:1,hit:[.55,.75,1],gift:'fleur'},
+ poisson:{n:'Poisson prisme',D:6,walk:.85,R:5,sp:1,hit:[.3,.35,.55]},
+ meduse:{n:'Méduse céleste',D:12,walk:1,R:6,sp:1,hit:[.8,1.2,.8],gift:[103,1,'éclat laissé par une méduse céleste']}
+};
+const aniMat={};const AM=(c,basic,op)=>{const k=c+(basic?'b':'')+(op||'');return aniMat[k]||(aniMat[k]=basic?new THREE.MeshBasicMaterial({color:c,transparent:!!op,opacity:op||1,depthWrite:!op}):new THREE.MeshLambertMaterial({color:c}))};
+const aniGeo={};const AG=(w,h,d)=>{const k=w+','+h+','+d;return aniGeo[k]||(aniGeo[k]=new THREE.BoxGeometry(w,h,d))};
+function abox(par,w,h,d,c,x,y,z,basic,op){const m=new THREE.Mesh(AG(w,h,d),AM(c,basic,op));m.position.set(x,y,z);m.castShadow=!basic&&!touch;par.add(m);return m}
+function pivot(par,x,y,z){const g=new THREE.Group();g.position.set(x,y,z);par.add(g);return g}
+function buildAnimal(a){
+ const g=new THREE.Group(),r=a.r,parts={legs:[]};
+ if(a.type==='mouton'){const wool=['#e6ddff','#f4f1ff','#d6cbff','#ffe1f0'][Math.floor(r*4)],skin='#4a3d7a';
+  abox(g,.86,.62,1.1,wool,0,.78,0);abox(g,.9,.2,.9,wool,0,1.1,0);
+  const hd=parts.head=pivot(g,0,.95,.55);abox(hd,.42,.42,.42,skin,0,0,.2);abox(hd,.5,.2,.3,wool,0,.22,.12);abox(hd,.08,.08,.02,'#ffffff',-.12,.04,.415,true);abox(hd,.08,.08,.02,'#ffffff',.12,.04,.415,true);
+  for(const[x,z]of[[-.25,.35],[.25,.35],[-.25,-.35],[.25,-.35]]){const l=pivot(g,x,.48,z);abox(l,.18,.48,.18,skin,0,-.24,0);parts.legs.push(l)}}
+ else if(a.type==='lapin'){const fur=['#f3e6d4','#e8d8ff','#d9c3a8'][Math.floor(r*3)];
+  abox(g,.34,.3,.46,fur,0,.25,0);const hd=parts.head=pivot(g,0,.42,.22);abox(hd,.28,.26,.26,fur,0,0,.06);
+  abox(hd,.07,.26,.05,fur,-.07,.24,0);abox(hd,.07,.26,.05,fur,.07,.24,0);abox(hd,.04,.18,.02,'#ffb8d9',-.07,.24,.03,true);abox(hd,.04,.18,.02,'#ffb8d9',.07,.24,.03,true);
+  abox(hd,.05,.05,.02,'#1c163a',-.08,.03,.2,true);abox(hd,.05,.05,.02,'#1c163a',.08,.03,.2,true);abox(g,.14,.14,.12,'#ffffff',0,.3,-.26);
+  for(const[x,z]of[[-.1,.14],[.1,.14],[-.12,-.14],[.12,-.14]]){const l=pivot(g,x,.12,z);abox(l,.09,.12,.14,fur,0,-.06,0);parts.legs.push(l)}}
+ else if(a.type==='renard'){const fur=r<.5?'#ff9a6b':'#ff8fb4',dark='#3b2c55';
+  abox(g,.38,.34,.8,fur,0,.55,0);const hd=parts.head=pivot(g,0,.66,.42);abox(hd,.36,.32,.3,fur,0,0,.08);abox(hd,.18,.14,.18,'#fff3ea',0,-.07,.3);abox(hd,.06,.06,.04,dark,0,-.03,.4,true);
+  abox(hd,.1,.14,.06,fur,-.12,.22,.02);abox(hd,.1,.14,.06,fur,.12,.22,.02);abox(hd,.05,.05,.02,dark,-.09,.05,.235,true);abox(hd,.05,.05,.02,dark,.09,.05,.235,true);
+  const tl=parts.tail=pivot(g,0,.6,-.4);abox(tl,.2,.2,.46,fur,0,0,-.22);abox(tl,.21,.21,.14,'#fff3ea',0,0,-.46);
+  for(const[x,z]of[[-.12,.28],[.12,.28],[-.12,-.28],[.12,-.28]]){const l=pivot(g,x,.38,z);abox(l,.12,.38,.12,dark,0,-.19,0);parts.legs.push(l)}}
+ else if(a.type==='poisson'){const c=['#7fe8ff','#ffb8d9','#ffd95e','#b6a4ff'][Math.floor(r*4)];
+  abox(g,.14,.24,.4,c,0,0,0,true);abox(g,.02,.08,.12,'#ffffff',0,.14,0,true);const tl=parts.tail=pivot(g,0,0,-.2);abox(tl,.04,.22,.16,c,0,0,-.08,true);
+  abox(g,.15,.05,.05,'#1c163a',0,.04,.14,true)}
+ else if(a.type==='meduse'){const c=r<.5?'#b6a4ff':'#7fe8ff';
+  abox(g,.7,.42,.7,c,0,.55,0,true,.55);abox(g,.46,.2,.46,'#ffffff',0,.58,0,true,.5);abox(g,.74,.06,.74,c,0,.34,0,true,.8);
+  parts.tent=[];for(let i=0;i<4;i++){const an=i/4*Math.PI*2+.4,t=pivot(g,Math.cos(an)*.2,.32,Math.sin(an)*.2);abox(t,.05,.6,.05,c,0,-.3,0,true,.7);parts.tent.push(t)}}
+ a.g=g;a.parts=parts;g.position.set(a.hx,a.hy,a.hz);scene.add(g)}
+// sol sous (x, z) : premier bloc plein en descendant depuis ref+4 (troncs et feuillages exclus au premier placement)
+function groundAt(x,z,ref,noTree,up=4){const xi=Math.floor(x),zi=Math.floor(z);for(let y=Math.min(SY-1,Math.floor(ref)+up);y>=Math.max(0,Math.floor(ref)-8);y--){const id=get(xi,y,zi);if(id===11)return{y:y+1,water:true};if(noTree&&(id===5||id===7))return null;if(isSolid(id))return{y:y+1,water:false}}return null}
+function topSolid(x,z){for(let y=SY-1;y>0;y--){const id=get(x,y,z);if(!id||isCross(id))continue;return{id,y}}return null}
+function spawnChunk(cx,cz){const k=ckey(cx,cz);if(ANIMALS.has(k))return;const list=[];ANIMALS.set(k,list);
+ const r=hash(cx*7+1,cz*13+2,61),x0=cx*CH,z0=cz*CH,near=Math.abs(cx)<=1&&Math.abs(cz)<=1;
+ const add=(type,n,rad)=>{for(let i=0;i<n;i++){const hx=x0+2+Math.floor(hash(cx+i*31,cz,62+i)*12),hz=z0+2+Math.floor(hash(cx,cz+i*17,70+i)*12);
+   const a={type,k,i,hx:hx+.5,hz:hz+.5,r:hash(cx*3+i,cz*5,80),ph:hash(cx+i,cz-i,81)*60,seed:(cx*73856093^cz*19349663^i*83492791)|0};
+   if(type==='meduse'){const t=islandTop(hx,hz);if(t<0)continue;a.hy=t+3}
+   else if(type==='poisson'){const s=topSolid(hx,hz);if(!s||s.id!==11)continue;let b=s.y;while(b>0&&get(hx,b-1,hz)===11)b--;if(s.y-b<2)continue;a.hy=s.y;a.bot=b}
+   else{const h0=heightAt(hx,hz);let s=null;for(let y=Math.min(SY-1,h0+5);y>=h0-3;y--){const id=get(hx,y,hz);if(id===5||id===7||!id||isCross(id))continue;s={id,y};break} // sol naturel, pas les îles ni les toits
+    if(!s||s.id===11||!isSolid(s.id)||get(hx,s.y+1,hz)&&!isCross(get(hx,s.y+1,hz)))continue;a.hy=s.y+1}
+   a.y=a.hy;buildAnimal(a);list.push(a)}};
+ // îles flottantes : méduses célestes
+ const r2=hash(cx*5-3,cz*11+7,65);
+ for(let t=0;t<3;t++){const x=x0+4+t*4,z=z0+8;if(islandTop(x,z)>0){if(r2<.18)add('meduse',1);break}}
+ const hc=heightAt(x0+8,z0+8);
+ if(hc<SEA){if(r<.25)add('poisson',2+Math.floor(hash(cx,cz,66)*3));return}
+ const bi=biome(x0+8,z0+8);
+ if(bi==='plaine'){if(r<.16||near&&r<.5)add('mouton',2+Math.floor(hash(cx,cz,63)*2));else if(r<.24)add('lapin',1+(r<.2?1:0))}
+ else if(bi==='foret'){if(r<.1)add('renard',1);else if(r<.18)add('lapin',1);else if(near&&r<.45)add('mouton',2)}
+ else{if(r<.14)add('lapin',1+Math.floor(hash(cx,cz,64)*2))}}
+function despawnChunk(k){const l=ANIMALS.get(k);if(!l)return;for(const a of l)scene.remove(a.g);ANIMALS.delete(k)}
+// point de passage n°k : autour du foyer, sur un sol accessible (sinon le foyer)
+function waypoint(a,k){const K=AK[a.type],an=hash(a.seed,k,90)*Math.PI*2,rr=Math.sqrt(hash(a.seed,k,91))*K.R;let x=a.hx+Math.cos(an)*rr,z=a.hz+Math.sin(an)*rr;
+ if(a.type==='poisson'){const ok=get(Math.floor(x),a.hy-1,Math.floor(z))===11&&get(Math.floor(x),a.bot,Math.floor(z))===11;if(!ok){x=a.hx;z=a.hz}return{x,z,y:ok?a.bot+.35+hash(a.seed,k,92)*(a.hy-a.bot-1):a.hy-.8}}
+ if(a.type==='meduse')return{x,z,y:a.hy+hash(a.seed,k,92)*3};
+ const gr=groundAt(x,z,a.hy,true,3);if(!gr||gr.water||Math.abs(gr.y-a.hy)>2||get(Math.floor(x),gr.y,Math.floor(z))&&!isCross(get(Math.floor(x),gr.y,Math.floor(z)))){x=a.hx;z=a.hz}return{x,z}}
+let aniT=0,aniSound=8;
+function updateAnimals(dt){
+ aniT-=dt;if(aniT<=0){aniT=1;const pcx=cOf(P.x),pcz=cOf(P.z),want=new Set();
+  for(let dz=-ANI_R;dz<=ANI_R;dz++)for(let dx=-ANI_R;dx<=ANI_R;dx++){const k=ckey(pcx+dx,pcz+dz);if(CHK.has(k)&&MESH.has(k)){want.add(k);spawnChunk(pcx+dx,pcz+dz)}}
+  for(const k of[...ANIMALS.keys()])if(!want.has(k))despawnChunk(k)}
+ const T=Date.now()/1000;let near=null,nd=18;
+ for(const l of ANIMALS.values())for(const a of l){const K=AK[a.type],tt=T+a.ph,k=Math.floor(tt/K.D),f=tt/K.D-k;
+  if(a.wk!==k){a.wk=k;a.from=waypoint(a,k-1);a.to=waypoint(a,k)}
+  let s=clamp(f/K.walk,0,1);const moving=s<1&&Math.hypot(a.to.x-a.from.x,a.to.z-a.from.z)>.3;s=s*s*(3-2*s);
+  const x=lerp(a.from.x,a.to.x,s),z=lerp(a.from.z,a.to.z,s),g=a.g,p=a.parts;g.position.x=x;g.position.z=z;
+  if(moving){const h=Math.atan2(a.to.x-a.from.x,a.to.z-a.from.z);let dr=h-g.rotation.y;dr=Math.atan2(Math.sin(dr),Math.cos(dr));g.rotation.y+=dr*Math.min(1,dt*6)}
+  a.walk=(a.walk||0)+dt*(moving?9:0);const sw=moving?Math.sin(a.walk):0;
+  if(a.type==='poisson'){g.position.y=lerp(a.from.y,a.to.y,s)+Math.sin(T*2+a.ph)*.06;p.tail.rotation.y=Math.sin(T*(moving?14:5)+a.ph)*.5}
+  else if(a.type==='meduse'){g.position.y=lerp(a.from.y,a.to.y,s)+Math.sin(T*.9+a.ph)*.35;const pu=Math.sin(T*2+a.ph);g.scale.set(1+pu*.05,1-pu*.06,1+pu*.05);p.tent.forEach((t,i)=>{t.rotation.x=Math.sin(T*1.7+i)*.3;t.rotation.z=Math.cos(T*1.3+i)*.3});g.rotation.y+=dt*.2}
+  else{const gr=groundAt(x,z,a.y+.1,false,1);if(gr&&!gr.water)a.y+=(gr.y-a.y)*Math.min(1,dt*10);
+   let hop=0;if(a.type==='lapin'&&moving)hop=Math.abs(Math.sin(a.walk*.8))*.35;g.position.y=a.y+hop;
+   p.legs.forEach((l,i)=>l.rotation.x=(i%2?-1:1)*(i<2?1:-1)*sw*.6);
+   if(p.head){const graze=a.type==='mouton'&&!moving&&Math.sin(tt*.7)>.2;p.head.rotation.x+=((graze?.7:Math.sin(tt*.9)*.08)-p.head.rotation.x)*Math.min(1,dt*4);p.head.rotation.y=moving?0:Math.sin(tt*.5+a.ph)*.35}
+   if(p.tail)p.tail.rotation.y=Math.sin(T*3+a.ph)*.25}
+  const d=Math.hypot(x-P.x,z-P.z);if(d<nd){nd=d;near=a}
+  if(a.pet>0){a.pet-=dt;g.rotation.z=Math.sin(a.pet*20)*.08*a.pet}}
+ aniSound-=dt;if(aniSound<=0){aniSound=7+Math.random()*12;if(near&&near.type!=='poisson')Sound.animal(near.type,1-nd/18)}
+ for(let i=hearts.length-1;i>=0;i--){const h=hearts[i];h.t+=dt;h.s.position.y+=dt*.9;h.s.position.x+=Math.sin(h.t*6+i)*.004;h.s.material.opacity=1-h.t/1.4;if(h.t>1.4){scene.remove(h.s);h.s.material.dispose();hearts.splice(i,1)}}}
+// visée : l'animal sous le viseur (ou sous le doigt) s'il est plus proche que le bloc visé
+const aniRay=new THREE.Ray(),aniBox=new THREE.Box3(),aniV=new THREE.Vector3();
+function aimRay(at){aniRay.origin.copy(camera.position);if(at)aniRay.direction.set(at.x,at.y,.5).unproject(camera).sub(camera.position).normalize();else aniRay.direction.set(0,0,-1).applyQuaternion(camera.quaternion);return aniRay}
+function pickAnimal(at,blk){const ray=aimRay(at);let best=null,bd=5.2;
+ for(const l of ANIMALS.values())for(const a of l){const[w,h,d]=AK[a.type].hit,p=a.g.position,m=Math.max(w,d)/2;aniBox.min.set(p.x-m,p.y,p.z-m);aniBox.max.set(p.x+m,p.y+h,p.z+m);
+  if(a.type==='poisson'){aniBox.min.y-=.2;aniBox.max.y-=.2}if(ray.intersectBox(aniBox,aniV)){const dd=aniV.distanceTo(ray.origin);if(dd<bd){bd=dd;best=a}}}
+ if(!best)return null;if(blk){aniBox.min.set(blk.x,blk.y,blk.z);aniBox.max.set(blk.x+1,blk.y+1,blk.z+1);if(ray.intersectBox(aniBox,aniV)&&aniV.distanceTo(ray.origin)<bd)return null}
+ return best}
+const heartTex=(()=>{const c=document.createElement('canvas');c.width=c.height=9;const x=c.getContext('2d');x.fillStyle='#ff7fb0';
+ ['.##.##.','#######','#######','.#####.','..###..','...#...'].forEach((r,y)=>[...r].forEach((ch,i)=>{if(ch==='#')x.fillRect(i+1,y+2,1,1)}));x.fillStyle='#ffd1e4';x.fillRect(2,3,1,1);const t=new THREE.CanvasTexture(c);t.magFilter=t.minFilter=THREE.NearestFilter;return t})();
+const hearts=[];
+function petAnimal(a){const K=AK[a.type],p=a.g.position;a.pet=.6;Sound.animal(a.type,1);
+ for(let i=0;i<(a.type==='meduse'?5:3);i++){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:heartTex,transparent:true,depthWrite:false}));s.scale.setScalar(.32);s.position.set(p.x+(Math.random()-.5)*.6,p.y+K.hit[1]+.1+i*.15,p.z+(Math.random()-.5)*.6);scene.add(s);hearts.push({s,t:-i*.12})}
+ const key=a.k+':'+a.i;S.pets=S.pets||{};
+ if(K.gift&&S.pets[key]!==S.dayN){S.pets[key]=S.dayN;
+  if(K.gift==='fleur')give(17+Math.floor(Math.random()*3),1,'cueillie par un renard rose');else give(K.gift[0],K.gift[1],K.gift[2]);Sound.chime()}}
+
 // ---------- boucle ----------
 const GENESIS=1606824023;let lastSlot=Math.floor((Date.now()/1000-GENESIS)/12);
 let last=performance.now(),bob=0,crouch=0,stepT=0,hitT=0;
@@ -591,13 +699,15 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
  sky.position.copy(camera.position);stars.position.copy(camera.position);clouds.position.x=camera.position.x;clouds.position.z=camera.position.z;cloudTex.offset.x+=dt*.0015;waterTex.offset.x+=dt*.03;waterTex.offset.y+=dt*.012;
  applyDay();
  if(playing){target=raycast(5.2,aim);if(target){sel.visible=true;sel.position.set(target.x+.5,target.y+.5,target.z+.5);const k=coordKey(target.x,target.y,target.z),ow=OWN.get(k),own=ow?ow.serial:0;const tg=$('target');tg.hidden=false;tg.classList.toggle('own',!!(ow&&ow.by===ME.id));
-   const tid=B[target.id].drop!==undefined&&B[target.id].drop?B[target.id].drop:target.id;tg.innerHTML=`${B[target.id].n}<span>${!inBorder(target.x,target.z)?'au-delà de la frontière':own?`posé par ${ow&&ow.by!==ME.id?ow.name:'toi'} · bloc #${own}`:`naturel · donne le jeton #${tid===0?'—':tid}`}</span>`}else{sel.visible=false;$('target').hidden=true}}
+   const tid=B[target.id].drop!==undefined&&B[target.id].drop?B[target.id].drop:target.id;tg.innerHTML=`${B[target.id].n}<span>${!inBorder(target.x,target.z)?'au-delà de la frontière':own?`posé par ${ow&&ow.by!==ME.id?ow.name:'toi'} · bloc #${own}`:`naturel · donne le jeton #${tid===0?'—':tid}`}</span>`}else{sel.visible=false;$('target').hidden=true}
+  const an=pickAnimal(aim,target);if(an){target=null;sel.visible=false;crack.visible=false;const K=AK[an.type],tg=$('target');tg.hidden=false;tg.classList.remove('own');
+   const g=K.gift&&(S.pets||{})[an.k+':'+an.i]!==S.dayN;tg.innerHTML=`${K.n}<span>${touch?'toucher':'clic droit'} : caresser${g?' · a un cadeau pour toi':''}</span>`}}
  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.t-=dt;p.v[1]-=14*dt;p.m.position.x+=p.v[0]*dt;p.m.position.y+=p.v[1]*dt;p.m.position.z+=p.v[2]*dt;p.m.scale.setScalar(Math.max(.05,p.t/.7));if(p.t<=0){scene.remove(p.m);parts.splice(i,1)}}
  for(const g of vals.values()){g.userData.d.rotation.y+=dt*1.5;g.userData.d.position.y=1.7+Math.sin(now/500)*.08}
  bigEth.rotation.y+=dt*.12;waterU.value=now/1000;updatePops(dt);
  {const nt=skyU.night.value;if(booted)updateFireflies(dt,nt,now/1000);if(playing){const cx=Math.floor(P.x),cz=Math.floor(P.z);Sound.tick(dt,nt,P.y+1<heightAt(cx,cz)-3,!!P.inWater)}}
  swing=Math.max(0,swing-dt*3);if(handMesh){const s=Math.sin((1-swing)*Math.PI)*swing;hand.rotation.set(-s*.9,0,0);hand.position.set(Math.sin(bob*.5)*.015,Math.abs(Math.cos(bob*.5))*.012-s*.08,0)}
- if(booted){stream(dt);computePower(dt)}borderU.t.value=now/1000;borderU.pl.value.set(P.x,P.y,P.z);updateOthers(dt);renderer.clear();renderer.render(scene,camera);renderer.clearDepth();if(playing)renderer.render(handScene,handCam);
+ if(booted){stream(dt);computePower(dt);updateAnimals(dt)}borderU.t.value=now/1000;borderU.pl.value.set(P.x,P.y,P.z);updateOthers(dt);renderer.clear();renderer.render(scene,camera);renderer.clearDepth();if(playing)renderer.render(handScene,handCam);
  requestAnimationFrame(frame)}
 
 // ---------- joueurs en ligne, chat ----------
@@ -780,5 +890,5 @@ async function boot(world){
  ui()}
 requestAnimationFrame(frame);
 // Outils de test : ouvrir index.html#debug expose window.mines dans la console.
-if(location.hash==='#debug')window.mines={get,CHK,frozen,EDC,commit,encodeChunk,decodeChunk,genChunk,loadChunks,get P(){return P},get R(){return R},GEN,POWERED,SPEC,popAt,B,get S(){return S},heightAt,islandTop,set yaw(v){yaw=v},set pitch(v){pitch=v}};
+if(location.hash==='#debug')window.mines={get,CHK,frozen,EDC,commit,encodeChunk,decodeChunk,genChunk,loadChunks,get P(){return P},get R(){return R},GEN,POWERED,SPEC,ANIMALS,petAnimal,spawnChunk,despawnChunk,popAt,B,get S(){return S},heightAt,islandTop,set yaw(v){yaw=v},set pitch(v){pitch=v}};
 })();

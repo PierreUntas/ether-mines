@@ -46,6 +46,15 @@ const Sound={
  click(){if(!ctx)return;const T=now();tone(1800,'square',.05,.02,T);noise('bandpass',3000,4,.25,.03,T);tone(420,'triangle',.08,.06,T+.03)},
  plate(){if(!ctx)return;const T=now();noise('lowpass',400,1,.4,.08,T);tone(160,'sine',.15,.1,T,sfx,.8)},
  door(){if(!ctx)return;const T=now();noise('bandpass',380,2.5,.35,.22,T,sfx,.8);tone(110,'sawtooth',.03,.25,T,sfx,1.3,.03);noise('lowpass',250,1,.4,.08,T+.22)},
+ // cris des animaux (v : volume selon la distance)
+ animal(type,v=1){if(!ctx)return;const T=now(),o=ctx.createGain();o.gain.value=Math.max(.05,v);o.connect(sfx);
+  if(type==='mouton'){for(let i=0;i<2;i++){const s=ctx.createOscillator(),f=ctx.createBiquadFilter(),g=ctx.createGain(),l=ctx.createOscillator(),lg=ctx.createGain();
+    s.type='sawtooth';s.frequency.value=(240+Math.random()*40)*(i?0.94:1);l.frequency.value=7;lg.gain.value=14;l.connect(lg);lg.connect(s.frequency);
+    f.type='bandpass';f.frequency.value=1000;f.Q.value=2;env(g,T+i*.28,.03,.18,.32);s.connect(f);f.connect(g);g.connect(o);s.start(T+i*.28);l.start(T+i*.28);s.stop(T+i*.28+.4);l.stop(T+i*.28+.4)}}
+  else if(type==='lapin'){tone(1900,'sine',.08,.07,T,o,1.3);tone(2300,'sine',.05,.05,T+.09,o,1.2)}
+  else if(type==='renard'){tone(720,'square',.05,.1,T,o,1.5);tone(760,'square',.05,.1,T+.16,o,1.45)}
+  else if(type==='poisson'){for(let i=0;i<3;i++)tone(420+i*140,'sine',.06,.06,T+i*.07,o,2)}
+  else if(type==='meduse'){[0,7,12].forEach((s,i)=>tone(660*Math.pow(2,s/12),'sine',.05,1.2,T+i*.12,o,1,.05))}},
  // appelé chaque image : fondu de l'ambiance + petits évènements (oiseaux, grillons, gouttes)
  tick(dt,night,under,water){if(!ctx||!on)return;const T=now();
   amb.gain.setTargetAtTime(.9,T,1.5);padLP.frequency.setTargetAtTime(water?380:under?600:900+(1-night)*900,T,.8);
