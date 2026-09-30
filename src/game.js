@@ -365,6 +365,7 @@ function placeStick(x,y){stick.style.left=x+'px';stick.style.top=y+'px'}
 function resetStick(){const[x,y]=stickHome();placeStick(x,y);knob.style.transform='';stick.classList.remove('on')}
 if(touch){resetStick();addEventListener('resize',()=>{if(joyId===null)resetStick()})}
 cv.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'||!playing)return;
+ try{cv.setPointerCapture(e.pointerId)}catch(_){}
  if(e.clientX<innerWidth*.4&&e.clientY>innerHeight*.25&&joyId===null){joyId=e.pointerId;const[hx,hy]=stickHome();
   joyO=Math.hypot(e.clientX-hx,e.clientY-hy)<90?[hx,hy]:[e.clientX,e.clientY];placeStick(joyO[0],joyO[1]);stick.classList.add('on');
   let dx=e.clientX-joyO[0],dy=e.clientY-joyO[1];const l=Math.hypot(dx,dy),m=46;if(l>m){dx*=m/l;dy*=m/l}knob.style.transform=`translate(${dx}px,${dy}px)`;move.x=dx/m;move.y=-dy/m}
@@ -379,7 +380,13 @@ cv.addEventListener('pointermove',e=>{if(e.pointerId===joyId){let dx=e.clientX-j
 function endP(e){if(e.pointerId===joyId){joyId=null;move.x=move.y=0;resetStick()}
  if(e.pointerId===lookId){lookId=null;const pr=press;press=null;ring.hidden=true;
   if(pr){clearTimeout(pr.timer);if(pr.mine)mining=false;else if(!pr.drag&&e.type==='pointerup'){target=raycast(5.2,aim);place()}}aim=null}}
-cv.addEventListener('pointerup',endP);cv.addEventListener('pointercancel',endP);
+// Relâchement écouté sur toute la page (le doigt peut finir sur un bouton ou hors de l'écran),
+// et remise à zéro complète dès qu'aucun doigt ne touche plus l'écran : le joystick ne peut plus rester bloqué.
+addEventListener('pointerup',endP);addEventListener('pointercancel',endP);cv.addEventListener('lostpointercapture',endP);
+function releaseAll(){if(joyId!==null)endP({pointerId:joyId,type:'pointercancel'});if(lookId!==null)endP({pointerId:lookId,type:'pointercancel'});move.x=move.y=0;jumpHeld=sneakHeld=false;resetStick()}
+let noTouch=0;const touchGone=e=>{if(e.touches.length)return;const t=++noTouch;setTimeout(()=>{if(t===noTouch)releaseAll()},60)};
+addEventListener('touchstart',()=>noTouch++,{passive:true});addEventListener('touchend',touchGone);addEventListener('touchcancel',touchGone);
+addEventListener('blur',()=>{if(touch)releaseAll()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&touch)releaseAll()});
 function hold(el,on,off){el.addEventListener('pointerdown',e=>{e.preventDefault();el.classList.add('on');on()});['pointerup','pointercancel','pointerleave'].forEach(t=>el.addEventListener(t,()=>{el.classList.remove('on');off()}))}
 hold($('tJump'),()=>jumpHeld=true,()=>jumpHeld=false);hold($('tSneak'),()=>sneakHeld=true,()=>sneakHeld=false);
 $('tSprint').addEventListener('pointerdown',e=>{e.preventDefault();sprintOn=!sprintOn;$('tSprint').classList.toggle('on',sprintOn)});
@@ -742,7 +749,7 @@ let profile;try{profile=JSON.parse(localStorage.getItem(PKEY)||'null')}catch(e){
 if(!profile||!profile.id)profile={id:(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)),name:'',color:COLORS[Math.floor(Math.random()*COLORS.length)]};
 const qs=new URLSearchParams(location.search);$('pseudo').value=profile.name||'';$('monde').value=qs.get('monde')||'principal';
 $('netStatus').textContent=Net.enabled?'Multijoueur prêt : invite tes amis avec le lien du monde.':'Mode solo : ajoute tes clés Supabase dans src/config.js pour jouer en ligne.';
-function pause(){playing=false;mining=false;keys.clear();$('title').hidden=false;$('play').textContent='Reprendre';save()}
+function pause(){playing=false;mining=false;keys.clear();if(touch)releaseAll();$('title').hidden=false;$('play').textContent='Reprendre';save()}
 let booted=false;
 function toggleSnd(){Sound.init();const on=Sound.toggle();$('sndBtn').classList.toggle('off',!on);$('sndBtn').title=on?'Son (M)':'Son coupé (M)'}
 $('sndBtn').classList.toggle('off',!Sound.on);$('sndBtn').onclick=e=>{e.stopPropagation();toggleSnd()};
