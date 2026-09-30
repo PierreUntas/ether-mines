@@ -106,4 +106,4 @@ Ouvrir `index.html#debug` expose `window.mines` dans la console : `get(x, y, z)`
 - Clic gauche maintenu : miner · clic droit : poser
 - Clic droit sur une porte ou un levier : l'actionner
 - 1 à 9, molette : barre d'objets · E : coffre et atelier · T : vue registre · M : son · Entrée : chat (`/rejoindre pseudo`, `/sanctuaire`)
-- Mobile : pouce gauche pour marcher, glisser à droite pour regarder, boutons Miner, Poser, Saut, Coffre, Chat
+- Mobile : pouce en bas à gauche pour marcher, glisser pour regarder, toucher long pour miner (là où touche le doigt), toucher bref pour poser, ouvrir une porte ou actionner un levier, bouton Saut à gauche, boutons Coffre et Chat à droite

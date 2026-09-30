@@ -119,10 +119,6 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 }
 .stick{position:absolute;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);display:none}
 .stick i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(255,255,255,.5)}
-.tb{position:absolute;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 80px);display:grid;grid-template-columns:auto auto;gap:10px;pointer-events:auto}
-.tb button{width:62px;height:62px;border-radius:50%;border:1px solid var(--line);background:var(--glass);font-size:13px;touch-action:none}
-.tb .big{width:76px;height:76px;background:var(--violet);border:0;grid-row:span 2;align-self:center}
-.tb button.on{filter:brightness(1.3)}
 #invBtn{position:absolute;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 230px);width:52px;height:52px;border-radius:12px;border:1px solid var(--line);background:var(--glass);font-size:12px;pointer-events:auto}
 @media (prefers-reduced-motion:reduce){.ev{animation:none}}
 
@@ -161,3 +157,11 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .rcat:first-child{margin-top:0}
 #sndBtn{pointer-events:auto;background:none;border:0;border-left:1px solid var(--line);color:var(--ink,#f4f1ff);font-size:14px;padding:0 0 0 8px;margin-left:2px;cursor:pointer;line-height:1}
 #sndBtn.off{opacity:.4;text-decoration:line-through}
+#tJump{position:absolute;left:calc(env(safe-area-inset-left,0px) + 18px);bottom:calc(env(safe-area-inset-bottom,0px) + 150px);width:66px;height:66px;border-radius:50%;border:1px solid var(--line);background:var(--glass);font-size:13px;touch-action:none;pointer-events:auto;-webkit-touch-callout:none}
+#tJump.on{filter:brightness(1.4);transform:scale(.94)}
+#press{position:absolute;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;pointer-events:none;border:2px solid rgba(255,255,255,.8)}
+#press.charge{animation:pressIn .3s linear forwards;opacity:.0}
+#press.mine{border-color:var(--cyan,#7fe8ff);box-shadow:0 0 12px var(--cyan,#7fe8ff);animation:pressPulse .5s ease-in-out infinite alternate}
+@keyframes pressIn{0%{transform:scale(1.6);opacity:0}30%{opacity:.2}100%{transform:scale(1);opacity:.9}}
+@keyframes pressPulse{from{transform:scale(.9)}to{transform:scale(1.05)}}
+#game canvas{-webkit-touch-callout:none}

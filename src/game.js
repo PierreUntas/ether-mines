@@ -355,18 +355,31 @@ addEventListener('mousemove',e=>{if(!playing||touch)return;if(locked||(noLock&&d
 addEventListener('wheel',e=>{if(!playing)return;select((S.sel+(e.deltaY>0?1:-1)+9)%9)},{passive:true});
 function look(dx,dy,s){yaw-=dx*s;pitch=clamp(pitch-dy*s,-1.55,1.55)}
 const stick=$('stick'),knob=$('knob'),move={x:0,y:0};let joyId=null,joyO=null,lookId=null,lookL=null;
+// Tactile : pouce gauche (bas gauche) = marcher. Ailleurs : glisser = regarder,
+// toucher bref = poser (ou actionner porte, levier) là où on touche, toucher long = miner là où on touche.
+const HOLD_MS=300,SLOP=12,ring=$('press');let aim=null,press=null;
+const ndcOf=(x,y)=>({x:x/innerWidth*2-1,y:-(y/innerHeight)*2+1});
+function ringAt(x,y,cls){ring.style.left=x+'px';ring.style.top=y+'px';ring.className=cls;ring.hidden=false}
 cv.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'||!playing)return;
- if(e.clientX<innerWidth*.42&&joyId===null){joyId=e.pointerId;joyO=[e.clientX,e.clientY];stick.style.display='block';stick.style.left=e.clientX+'px';stick.style.top=e.clientY+'px';knob.style.transform=''}else if(lookId===null){lookId=e.pointerId;lookL=[e.clientX,e.clientY]}});
+ if(e.clientX<innerWidth*.42&&e.clientY>innerHeight*.35&&joyId===null){joyId=e.pointerId;joyO=[e.clientX,e.clientY];stick.style.display='block';stick.style.left=e.clientX+'px';stick.style.top=e.clientY+'px';knob.style.transform=''}
+ else if(lookId===null){lookId=e.pointerId;lookL=[e.clientX,e.clientY];aim=ndcOf(e.clientX,e.clientY);ringAt(e.clientX,e.clientY,'charge');
+  const pr=press={x0:e.clientX,y0:e.clientY,drag:false,mine:false};
+  pr.timer=setTimeout(()=>{if(press!==pr||pr.drag)return;pr.mine=true;mining=true;ring.className='mine';try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}} ,HOLD_MS)}});
 cv.addEventListener('pointermove',e=>{if(e.pointerId===joyId){let dx=e.clientX-joyO[0],dy=e.clientY-joyO[1];const l=Math.hypot(dx,dy),m=46;if(l>m){dx*=m/l;dy*=m/l}knob.style.transform=`translate(${dx}px,${dy}px)`;move.x=dx/m;move.y=-dy/m}
- else if(e.pointerId===lookId){look(e.clientX-lookL[0],e.clientY-lookL[1],.005);lookL=[e.clientX,e.clientY]}});
-function endP(e){if(e.pointerId===joyId){joyId=null;move.x=move.y=0;stick.style.display='none'}if(e.pointerId===lookId)lookId=null}
+ else if(e.pointerId===lookId){const pr=press;
+  if(pr&&!pr.drag&&!pr.mine&&Math.hypot(e.clientX-pr.x0,e.clientY-pr.y0)>SLOP){pr.drag=true;aim=null;ring.hidden=true}
+  if(pr&&pr.mine){aim=ndcOf(e.clientX,e.clientY);ring.style.left=e.clientX+'px';ring.style.top=e.clientY+'px';return} // en minant, le doigt vise
+  if(pr&&!pr.drag)return;look(e.clientX-lookL[0],e.clientY-lookL[1],.005);lookL=[e.clientX,e.clientY]}});
+function endP(e){if(e.pointerId===joyId){joyId=null;move.x=move.y=0;stick.style.display='none'}
+ if(e.pointerId===lookId){lookId=null;const pr=press;press=null;ring.hidden=true;
+  if(pr){clearTimeout(pr.timer);if(pr.mine)mining=false;else if(!pr.drag&&e.type==='pointerup'){target=raycast(5.2,aim);place()}}aim=null}}
 cv.addEventListener('pointerup',endP);cv.addEventListener('pointercancel',endP);
 function hold(el,on,off){el.addEventListener('pointerdown',e=>{e.preventDefault();el.classList.add('on');on()});['pointerup','pointercancel','pointerleave'].forEach(t=>el.addEventListener(t,()=>{el.classList.remove('on');off()}))}
-hold($('tMine'),()=>mining=true,()=>mining=false);hold($('tJump'),()=>jumpHeld=true,()=>jumpHeld=false);hold($('tPlace'),()=>place(),()=>{});
+hold($('tJump'),()=>jumpHeld=true,()=>jumpHeld=false);
 $('invBtn').onclick=()=>togglePanel();
 
 // ---------- visée, minage, pose ----------
-function raycast(max){const o=camera.position,d=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+function raycast(max,at){const o=camera.position,d=at?new THREE.Vector3(at.x,at.y,.5).unproject(camera).sub(o).normalize():new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
  let x=Math.floor(o.x),y=Math.floor(o.y),z=Math.floor(o.z);const sx=Math.sign(d.x),sy=Math.sign(d.y),sz=Math.sign(d.z),tdx=Math.abs(1/d.x),tdy=Math.abs(1/d.y),tdz=Math.abs(1/d.z);
  let tx=d.x>0?(x+1-o.x)*tdx:(o.x-x)*tdx,ty=d.y>0?(y+1-o.y)*tdy:(o.y-y)*tdy,tz=d.z>0?(z+1-o.z)*tdz:(o.z-z)*tdz,prev=null,t=0;
  while(t<=max){const id=get(x,y,z);if(id&&id!==11)return{x,y,z,id,prev};prev=[x,y,z];if(tx<ty&&tx<tz){x+=sx;t=tx;tx+=tdx}else if(ty<tz){y+=sy;t=ty;ty+=tdy}else{z+=sz;t=tz;tz+=tdz}}return null}
@@ -557,7 +570,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
  camera.rotation.set(pitch,yaw,0);stepUp=Math.max(0,stepUp-dt*5);camera.position.set(P.x,P.y+EYE-stepUp+Math.sin(bob)*.04,P.z);camera.updateMatrixWorld();
  sky.position.copy(camera.position);stars.position.copy(camera.position);clouds.position.x=camera.position.x;clouds.position.z=camera.position.z;cloudTex.offset.x+=dt*.0015;waterTex.offset.x+=dt*.03;waterTex.offset.y+=dt*.012;
  applyDay();
- if(playing){target=raycast(5.2);if(target){sel.visible=true;sel.position.set(target.x+.5,target.y+.5,target.z+.5);const k=coordKey(target.x,target.y,target.z),ow=OWN.get(k),own=ow?ow.serial:0;const tg=$('target');tg.hidden=false;tg.classList.toggle('own',!!(ow&&ow.by===ME.id));
+ if(playing){target=raycast(5.2,aim);if(target){sel.visible=true;sel.position.set(target.x+.5,target.y+.5,target.z+.5);const k=coordKey(target.x,target.y,target.z),ow=OWN.get(k),own=ow?ow.serial:0;const tg=$('target');tg.hidden=false;tg.classList.toggle('own',!!(ow&&ow.by===ME.id));
    const tid=B[target.id].drop!==undefined&&B[target.id].drop?B[target.id].drop:target.id;tg.innerHTML=`${B[target.id].n}<span>${!inBorder(target.x,target.z)?'au-delà de la frontière':own?`posé par ${ow&&ow.by!==ME.id?ow.name:'toi'} · bloc #${own}`:`naturel · donne le jeton #${tid===0?'—':tid}`}</span>`}else{sel.visible=false;$('target').hidden=true}}
  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.t-=dt;p.v[1]-=14*dt;p.m.position.x+=p.v[0]*dt;p.m.position.y+=p.v[1]*dt;p.m.position.z+=p.v[2]*dt;p.m.scale.setScalar(Math.max(.05,p.t/.7));if(p.t<=0){scene.remove(p.m);parts.splice(i,1)}}
  for(const g of vals.values()){g.userData.d.rotation.y+=dt*1.5;g.userData.d.position.y=1.7+Math.sin(now/500)*.08}
