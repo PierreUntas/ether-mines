@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mines d'Éther</title>
+<meta name="description" content="Un monde en blocs aux couleurs d'Ethereum, à construire entre amis dans le navigateur.">
+<meta name="theme-color" content="#1c163a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+<div id="game"></div>
+<div class="hud" id="hud">
+  <div id="clock" class="chip"><canvas id="sunIcon" width="9" height="9"></canvas><span id="clockTxt">Jour 1 · 08:00</span></div>
+  <div id="online" class="chip" hidden><i></i><span id="onlineTxt"></span></div>
+  <div id="modeTag" class="chip" hidden>Vue registre · tes blocs posés sont surlignés</div>
+  <div id="feed"></div>
+  <div id="cross"></div>
+  <div id="target" class="chip" hidden></div>
+  <div id="selname"></div>
+  <div id="chat"><div id="chatLog"></div><form id="chatForm" hidden><input id="chatIn" maxlength="140" autocomplete="off" placeholder="Écris à tes amis… (Entrée pour envoyer)"></form></div>
+  <div id="bar" class="chip"></div>
+  <div class="touch">
+    <div class="stick" id="stick"><i id="knob"></i></div>
+    <button id="invBtn">Coffre</button><button id="chatBtn">Chat</button>
+    <div class="tb"><button id="tPlace">Poser</button><button class="big" id="tMine">Miner</button><button id="tJump">Saut</button></div>
+  </div>
+</div>
+
+<div class="panel" id="panel" hidden>
+  <div class="win">
+    <header>
+      <button class="tab" data-tab="inv" aria-selected="true">Coffre</button>
+      <button class="tab" data-tab="craft" aria-selected="false">Atelier</button>
+      <button class="tab" data-tab="log" aria-selected="false">Registre</button>
+      <button class="x" id="closeP">Fermer · E</button>
+    </header>
+    <div class="body" id="pbody"></div>
+  </div>
+</div>
+
+<div class="title" id="title">
+  <div class="box">
+    <h1>Mines<br>d'<em>Éther</em></h1>
+    <p>Un monde en blocs aux couleurs d'Ethereum, à construire entre amis. Chaque bloc et chaque objet est un jeton : ce que tu mines est frappé, ce que tu poses porte ton nom.</p>
+    <div class="fields">
+      <label>Ton pseudo<input id="pseudo" maxlength="16" autocomplete="nickname" placeholder="Pierre"></label>
+      <label>Monde<input id="monde" maxlength="32" autocomplete="off" placeholder="principal"></label>
+    </div>
+    <p id="netStatus" class="status"></p>
+    <div class="prog"><i id="progBar"></i></div>
+    <dl class="keys k-desk">
+      <dt>ZQSD · Maj</dt><dd>Marcher · courir · Espace pour sauter</dd>
+      <dt>Clic gauche</dt><dd>Maintenir pour miner</dd>
+      <dt>Clic droit</dt><dd>Poser le bloc choisi</dd>
+      <dt>1 – 9 · molette</dt><dd>Choisir dans la barre</dd>
+      <dt>E · T · Entrée</dt><dd>Coffre et atelier · vue registre · chat</dd>
+    </dl>
+    <dl class="keys k-touch">
+      <dt>Pouce gauche</dt><dd>Marcher</dd><dt>Glisser à droite</dt><dd>Regarder</dd><dt>Miner · Poser</dt><dd>Boutons à droite</dd>
+    </dl>
+    <div class="go"><button id="play">Entrer dans le monde</button></div>
+    <div class="share" id="shareRow" hidden><span>Invite tes amis :</span><code id="shareUrl"></code><button class="b" id="copyUrl">Copier le lien</button></div>
+    <button id="reset">Effacer ma progression locale</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="src/config.js"></script>
+<script src="src/net.js"></script>
+<script src="src/game.js"></script>
+</body>
+</html>
