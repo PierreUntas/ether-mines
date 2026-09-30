@@ -143,7 +143,7 @@ function collBoxes(id,key){if(!isSolid(id))return[];return isShaped(id)?shapeBox
 
 // ---------- monde par tronçons (16 × 16 colonnes, chargés autour des joueurs) ----------
 const SY=48,SEA=15,CH=16,CV=CH*CH*SY;
-const GEN=3; // version du générateur (2 : océans, îles flottantes, grottes profondes) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
+const GEN=1; // version du générateur (2 : océans, îles flottantes, grottes profondes) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
 const SPAWN={x:8,z:8,y:0};
 const CHK=new Map(); // "cx,cz" -> Uint8Array des blocs du tronçon
 const ckey=(cx,cz)=>cx+','+cz,coordKey=(x,y,z)=>x+','+y+','+z,cOf=v=>Math.floor(v/CH);
@@ -151,12 +151,9 @@ const li=(lx,y,lz)=>lx+lz*CH+y*CH*CH;
 function get(x,y,z){if(y<0||y>=SY)return 0;const cx=cOf(x),cz=cOf(z),c=CHK.get(cx+','+cz);return c?c[li(x-cx*CH,y,z-cz*CH)]:0}
 function setW(x,y,z,id){if(y<0||y>=SY)return;const cx=cOf(x),cz=cOf(z),c=CHK.get(cx+','+cz);if(c){c[li(x-cx*CH,y,z-cz*CH)]=id;specSet(x,y,z,id)}}
 const loaded=(x,z)=>CHK.has(cOf(x)+','+cOf(z));
-// Monde infini. La frontière reste disponible : passer FRONTIERE à true pour un monde qui s'agrandit avec les constructions.
-const FRONTIERE=false,LIMITE=100000; // LIMITE : bornes de la base (règles SQL), en blocs depuis le centre
-let R=FRONTIERE?3:Infinity; // rayon de la frontière, en tronçons autour du tronçon 0,0
-const inBorder=(x,z)=>{if(Math.abs(x)>=LIMITE||Math.abs(z)>=LIMITE)return false;const cx=cOf(x),cz=cOf(z);return cx>=-R&&cx<=R&&cz>=-R&&cz<=R};
-const ringFor=total=>Math.floor((Math.sqrt(1+4*total/150)-1)/2); // anneau n à 150 × n × (n + 1) blocs posés
-const radiusFor=total=>Math.min(60,3+ringFor(total));
+// Monde infini, borné seulement par les règles de la base (±100 000 blocs depuis le centre).
+const LIMITE=100000;
+const inWorld=(x,z)=>Math.abs(x)<LIMITE&&Math.abs(z)<LIMITE;
 const RUIN=80;
 // position de la ruine d'une région (ou null : océan, sommet) ; la région du sanctuaire en a une à portée de vue
 function ruinAt(rx,rz){for(let k=0;k<4;k++){let x,z;if(rx===0&&rz===0&&k===0){x=SPAWN.x+38;z=SPAWN.z-22}else{x=rx*RUIN+10+Math.floor(hash(rx,rz,120+k)*60);z=rz*RUIN+10+Math.floor(hash(rz,rx,130+k)*60)}
@@ -218,16 +215,19 @@ function genChunk(cx,cz){
 // ---------- état, sauvegarde ----------
 let KEY='ether-mines:solo';
 const SAVE_V=1;
-const S0=()=>({v:SAVE_V,chunks:{},edits:{},placedTotal:0,inv:{},bar:[null,null,null,null,null,null,null,null,null],sel:0,pos:null,placed:{},serial:0,nfts:[],log:[],supply:{},day:.3,dayN:1,seen:{},got:{},relit:0,totalMint:0,totalBurn:0});
+const S0=()=>({v:SAVE_V,chunks:{},edits:{},inv:{},bar:[null,null,null,null,null,null,null,null,null],sel:0,pos:null,placed:{},serial:0,nfts:[],log:[],supply:{},day:.3,dayN:1,seen:{},got:{},relit:0,totalMint:0,totalBurn:0});
 let S=S0(),ME={id:'moi',name:'moi',color:'#8a7bef'};const OWN=new Map();
 function loadState(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}useState(s)}
 function useState(s){S=Object.assign(S0(),s||{});if(s&&!s.v)S.v=1;migrateSave(S);
  for(const k of Object.keys(S.inv))S.got[k]=1;for(const n of S.nfts)S.got[n.id||201]=1}
-// Migrations de la sauvegarde locale : chaque version sait convertir la précédente. Ne jamais renommer KEY.
+// Migrations de la partie (navigateur et serveur) : chaque version sait convertir la précédente.
 function migrateSave(s){
  // v1 : première version. Pour une v2 : if(s.v<2){ …convertir… ; s.v=2 } — ne jamais supprimer une étape.
  if(!s.v)s.v=1;
 }
+// Saison : changer SAISON efface les parties gardées dans les navigateurs (à faire avec une remise à zéro de la base).
+const SAISON='1';
+try{if(localStorage.getItem('ether-mines:saison')!==SAISON){for(const k of Object.keys(localStorage))if(k.startsWith('ether-mines:')&&!['ether-mines:profil','ether-mines:son'].includes(k))localStorage.removeItem(k);localStorage.setItem('ether-mines:saison',SAISON)}}catch(e){}
 let dirty=false,cloudDirty=false,cloudBusy=false,cloudOff=false;
 function save(){if(!dirty)return;dirty=false;cloudDirty=true;S.pos=[P.x,P.y,P.z,yaw,pitch];try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 // partie côté serveur (en ligne) : sans le terrain du mode solo, avec un registre raccourci
@@ -369,7 +369,7 @@ let yaw=0,pitch=-.12;
 const PW=.3,PH=1.75,EYE=1.6;
 function collides(x,y,z){const ax0=x-PW,ax1=x+PW,ay1=y+PH,az0=z-PW,az1=z+PW;
  for(let bx=Math.floor(ax0);bx<=Math.floor(ax1-1e-4);bx++)for(let by=Math.floor(y);by<=Math.floor(ay1-1e-4);by++)for(let bz=Math.floor(az0);bz<=Math.floor(az1-1e-4);bz++){
-  if(by<0||!loaded(bx,bz)||!inBorder(bx,bz))return true;const id=get(bx,by,bz);if(!isSolid(id))continue;if(!isShaped(id))return true;
+  if(by<0||!loaded(bx,bz)||!inWorld(bx,bz))return true;const id=get(bx,by,bz);if(!isSolid(id))continue;if(!isShaped(id))return true;
   for(const b of collBoxes(id,coordKey(bx,by,bz)))if(ax1>bx+b[0]&&ax0<bx+b[3]&&ay1>by+b[1]&&y<by+b[4]&&az1>bz+b[2]&&az0<bz+b[5])return true}
  return false}
 let stepUp=0;
@@ -476,7 +476,7 @@ function updateFireflies(dt,night,t){ffMat.opacity=Math.max(0,night-.3)*1.3;fire
 function burst(x,y,z,id){const ti=B[id].x!=null?B[id].x:B[id].t[1];const c=pMats[ti]||(pMats[ti]=new THREE.MeshLambertMaterial({color:avgColor(ti)}));
  for(let i=0;i<10;i++){const m=new THREE.Mesh(pGeo,c);m.position.set(x+.2+Math.random()*.6,y+.2+Math.random()*.6,z+.2+Math.random()*.6);scene.add(m);parts.push({m,v:[(Math.random()-.5)*3,Math.random()*3+1,(Math.random()-.5)*3],t:.7})}}
 function breakBlock(t){
- const id=get(t.x,t.y,t.z);if(!id||id===12||!inBorder(t.x,t.z))return;const k=coordKey(t.x,t.y,t.z);
+ const id=get(t.x,t.y,t.z);if(!id||id===12||!inWorld(t.x,t.z))return;const k=coordKey(t.x,t.y,t.z);
  const owned=OWN.get(k)?.serial;commit(k,0,null);burst(t.x,t.y,t.z,id);Sound.brk(MAT_OF(id));
  if(B[id].shape==='door'){const oy=B[id].top?t.y-1:t.y+1;if(B[get(t.x,oy,t.z)]?.shape==='door')commit(coordKey(t.x,oy,t.z),0,null)}
  const above=get(t.x,t.y+1,t.z),ab=B[above];
@@ -495,17 +495,17 @@ function place(){
  if(!playing||!target)return;
  const tb=B[target.id],tk=coordKey(target.x,target.y,target.z);
  if(target.id===73){relight(target);return}
- if(tb&&tb.shape==='door'&&inBorder(target.x,target.z)){toggleDoor(target);return}
- if(tb&&tb.shape==='lever'&&inBorder(target.x,target.z)){commit(tk,tb.on?64:65,OWN.get(tk)||null);Sound.click();swing=.6;rebuildAt(target.x,target.z);return}
+ if(tb&&tb.shape==='door'&&inWorld(target.x,target.z)){toggleDoor(target);return}
+ if(tb&&tb.shape==='lever'&&inWorld(target.x,target.z)){commit(tk,tb.on?64:65,OWN.get(tk)||null);Sound.click();swing=.6;rebuildAt(target.x,target.z);return}
  if(!target.prev)return;const it=S.bar[S.sel];if(!it||!B[it]||!(S.inv[it]>0))return;let id=+it;
  const face=((Math.round(yaw/(Math.PI/2))%4)+4)%4;
  if(B[id].shape==='stairs')id=id+face;
- const[x,y,z]=target.prev;if(y<0||y>=SY||!loaded(x,z))return;if(!inBorder(x,z)){logEv('nft','Au-delà de la frontière','construisez ensemble pour la faire reculer');return}const cur=get(x,y,z);if(cur&&cur!==11&&!isCross(cur))return;
+ const[x,y,z]=target.prev;if(y<0||y>=SY||!loaded(x,z))return;if(!inWorld(x,z))return;const cur=get(x,y,z);if(cur&&cur!==11&&!isCross(cur))return;
  if(isSolid(id)&&x+1>P.x-PW&&x<P.x+PW&&y+1>P.y&&y<P.y+PH&&z+1>P.z-PW&&z<P.z+PW)return;
  if(isCross(id)&&![1,2].includes(get(x,y-1,z)))return;
  const sh=B[id].shape;if((sh==='plate'||sh==='cable'||sh==='lever')&&!isSolid(get(x,y-1,z)))return;
  if(sh==='door'){const up=get(x,y+1,z);if(y+1>=SY||(up&&up!==11&&!isCross(up)))return;id=48+face*4}
- const k=coordKey(x,y,z);take(it,1);S.serial++;if(!Net.online){S.placedTotal=(S.placedTotal||0)+1;setWorld(S.placedTotal)}const own={by:ME.id,name:ME.name,serial:S.serial};commit(k,id,own);
+ const k=coordKey(x,y,z);take(it,1);S.serial++;const own={by:ME.id,name:ME.name,serial:S.serial};commit(k,id,own);
  if(sh==='door')commit(coordKey(x,y+1,z),id+1,own);swing=1;Sound.place(MAT_OF(id));popAt(x,y,z,sh==='door'?2:1);
  logEv('burn',`1 ${B[id].n}`,`→ bloc posé #${S.serial}`);
  if(id===13){addVal(x,y,z);if(!S.seen.val){S.seen.val=1;toastInfo('Validateur actif : il frappe un cristal à chaque slot de 12 secondes.')}}
@@ -780,7 +780,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
   tierHintT=Math.max(0,tierHintT-dt);S.day+=dt/480;if(S.day>=1){S.day-=1;S.dayN++}
   // minage
   if(mining&&target&&B[target.id].h!==Infinity&&!canMine(target.id)){hitT-=dt;if(hitT<=0){hitT=.4;Sound.hit('pierre');swing=.5;if(!tierHintT){tierHintT=6;logEv('burn',`Trop dur pour ${TIER_NAME[heldTier()]}`,`il faut ${TIER_NAME[reqTier(target.id)]}`)}}crack.visible=false}
-  else if(mining&&target&&B[target.id].h!==Infinity&&inBorder(target.x,target.z)){const k=coordKey(target.x,target.y,target.z);if(k!==mineKey){mineKey=k;mineT=0}mineT+=dt*heldTool()*(B[target.id].stone?1:1);hitT-=dt;if(hitT<=0){hitT=.25;Sound.hit(MAT_OF(target.id))}const h=B[target.id].h/(B[target.id].stone?1:Math.max(1,heldTool()*.5));const pr=mineT/(B[target.id].h/ (B[target.id].stone?1:1)/(1));
+  else if(mining&&target&&B[target.id].h!==Infinity&&inWorld(target.x,target.z)){const k=coordKey(target.x,target.y,target.z);if(k!==mineKey){mineKey=k;mineT=0}mineT+=dt*heldTool()*(B[target.id].stone?1:1);hitT-=dt;if(hitT<=0){hitT=.25;Sound.hit(MAT_OF(target.id))}const h=B[target.id].h/(B[target.id].stone?1:Math.max(1,heldTool()*.5));const pr=mineT/(B[target.id].h/ (B[target.id].stone?1:1)/(1));
    const need=B[target.id].h;const prog=Math.min(1,mineT/need);crack.visible=true;crack.position.set(target.x+.5,target.y+.5,target.z+.5);crack.material.map=crackTex[Math.min(7,Math.floor(prog*8))];swing=Math.max(swing,.6);
    if(prog>=1){breakBlock(target);mineKey=-1;mineT=0;crack.visible=false}}else{mineKey=-1;mineT=0;crack.visible=false}
   // validateurs
@@ -790,7 +790,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
  sky.position.copy(camera.position);stars.position.copy(camera.position);clouds.position.x=camera.position.x;clouds.position.z=camera.position.z;cloudTex.offset.x+=dt*.0015;waterTex.offset.x+=dt*.03;waterTex.offset.y+=dt*.012;
  applyDay();
  if(playing){target=raycast(5.2,aim);if(target){sel.visible=true;sel.position.set(target.x+.5,target.y+.5,target.z+.5);const k=coordKey(target.x,target.y,target.z),ow=OWN.get(k),own=ow?ow.serial:0;const tg=$('target');tg.hidden=false;tg.classList.toggle('own',!!(ow&&ow.by===ME.id));
-   const tid=B[target.id].drop!==undefined&&B[target.id].drop?B[target.id].drop:target.id;tg.innerHTML=`${B[target.id].n}<span>${target.id===73?`${touch?'toucher':'clic droit'} avec un cœur de validateur pour le rallumer`:target.id===74?'rallumé · frappe 3 cristaux par slot pour qui l\'a rallumé':!canMine(target.id)&&B[target.id].h!==Infinity?`⛏ il faut ${TIER_NAME[reqTier(target.id)]}`:!inBorder(target.x,target.z)?'au-delà de la frontière':own?`posé par ${ow&&ow.by!==ME.id?ow.name:'toi'} · bloc #${own}`:`naturel · donne le jeton #${tid===0?'—':tid}`}</span>`}else{sel.visible=false;$('target').hidden=true}
+   const tid=B[target.id].drop!==undefined&&B[target.id].drop?B[target.id].drop:target.id;tg.innerHTML=`${B[target.id].n}<span>${target.id===73?`${touch?'toucher':'clic droit'} avec un cœur de validateur pour le rallumer`:target.id===74?'rallumé · frappe 3 cristaux par slot pour qui l\'a rallumé':!canMine(target.id)&&B[target.id].h!==Infinity?`⛏ il faut ${TIER_NAME[reqTier(target.id)]}`:!inWorld(target.x,target.z)?'bord du monde':own?`posé par ${ow&&ow.by!==ME.id?ow.name:'toi'} · bloc #${own}`:`naturel · donne le jeton #${tid===0?'—':tid}`}</span>`}else{sel.visible=false;$('target').hidden=true}
   const an=pickAnimal(aim,target);if(an){target=null;sel.visible=false;crack.visible=false;const K=AK[an.type],tg=$('target');tg.hidden=false;tg.classList.remove('own');
    const g=K.gift&&(S.pets||{})[an.k+':'+an.i]!==S.dayN;tg.innerHTML=`${K.n}<span>${touch?'toucher':'clic droit'} : caresser${g?' · a un cadeau pour toi':''}</span>`}}
  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.t-=dt;p.v[1]-=14*dt;p.m.position.x+=p.v[0]*dt;p.m.position.y+=p.v[1]*dt;p.m.position.z+=p.v[2]*dt;p.m.scale.setScalar(Math.max(.05,p.t/.7));if(p.t<=0){scene.remove(p.m);parts.splice(i,1)}}
@@ -798,7 +798,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
  bigEth.rotation.y+=dt*.12;waterU.value=now/1000;updatePops(dt);
  {const nt=skyU.night.value;if(booted)updateFireflies(dt,nt,now/1000);if(playing){const cx=Math.floor(P.x),cz=Math.floor(P.z);Sound.tick(dt,nt,P.y+1<heightAt(cx,cz)-3,!!P.inWater)}}
  swing=Math.max(0,swing-dt*3);if(handMesh){const s=Math.sin((1-swing)*Math.PI)*swing;hand.rotation.set(-s*.9,0,0);hand.position.set(Math.sin(bob*.5)*.015,Math.abs(Math.cos(bob*.5))*.012-s*.08,0)}
- if(booted){stream(dt);computePower(dt);updateAnimals(dt);if(playing)updateQuest(dt)}borderU.t.value=now/1000;borderU.pl.value.set(P.x,P.y,P.z);updateOthers(dt);renderer.clear();renderer.render(scene,camera);renderer.clearDepth();if(playing)renderer.render(handScene,handCam);
+ if(booted){stream(dt);computePower(dt);updateAnimals(dt);if(playing)updateQuest(dt)}updateOthers(dt);renderer.clear();renderer.render(scene,camera);renderer.clearDepth();if(playing)renderer.render(handScene,handCam);
  requestAnimationFrame(frame)}
 
 // ---------- joueurs en ligne, chat ----------
@@ -855,7 +855,7 @@ function computePower(dt){powT-=dt;if(powT>0)return;powT=.15;
 const VR=touch?4:5; // distance de vue, en tronçons
 const pending=new Set(),meshQ=new Set();let loading=false,streamT=0;
 function wanted(){const pcx=cOf(P.x),pcz=cOf(P.z),out=[];
- for(let dz=-VR;dz<=VR;dz++)for(let dx=-VR;dx<=VR;dx++){if(dx*dx+dz*dz>VR*VR+1)continue;const cx=pcx+dx,cz=pcz+dz;if(Math.abs(cx)>R+1||Math.abs(cz)>R+1)continue;out.push([cx,cz,dx*dx+dz*dz])}
+ for(let dz=-VR;dz<=VR;dz++)for(let dx=-VR;dx<=VR;dx++){if(dx*dx+dz*dz>VR*VR+1)continue;const cx=pcx+dx,cz=pcz+dz;if(!inWorld(cx*CH,cz*CH))continue;out.push([cx,cz,dx*dx+dz*dz])}
  return out.sort((a,b)=>a[2]-b[2])}
 async function loadChunks(list){
  list=list.filter(([cx,cz])=>!CHK.has(ckey(cx,cz))&&!pending.has(ckey(cx,cz)));if(!list.length)return;
@@ -877,26 +877,12 @@ function unloadFar(){const pcx=cOf(P.x),pcz=cOf(P.z),lim=(VR+2)*(VR+2);
  for(const k of[...CHK.keys()]){const[cx,cz]=k.split(',').map(Number);if((cx-pcx)**2+(cz-pcz)**2<=lim)continue;
   dropMesh(k);CHK.delete(k);SPEC.delete(k);meshQ.delete(k);for(const v of[...vals.keys()]){const[x,,z]=v.split(',').map(Number);if(cOf(x)===cx&&cOf(z)===cz)delVal(v)}}}
 function stream(dt){streamT-=dt;
- if(streamT<=0){streamT=.35;updateBorderHud();if(!loading){const miss=wanted().filter(([cx,cz])=>!CHK.has(ckey(cx,cz))&&!pending.has(ckey(cx,cz))).slice(0,12);
+ if(streamT<=0){streamT=.35;updatePosHud();if(!loading){const miss=wanted().filter(([cx,cz])=>!CHK.has(ckey(cx,cz))&&!pending.has(ckey(cx,cz))).slice(0,12);
    if(miss.length){loading=true;loadChunks(miss).catch(e=>console.error(e)).finally(()=>loading=false)}}unloadFar()}
  let n=0;for(const k of meshQ){meshQ.delete(k);const[cx,cz]=k.split(',').map(Number);if(CHK.has(k))buildChunk(cx,cz);if(++n>=2)break}}
 
-// ---------- frontière ----------
-let borderMesh=null,worldTotal=0;
-const borderU={t:{value:0},pl:{value:new THREE.Vector3()},col:{value:new THREE.Color(0xb4a8ff)}};
-const borderMat=new THREE.ShaderMaterial({uniforms:borderU,transparent:true,depthWrite:false,side:THREE.DoubleSide,
- vertexShader:'varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}',
- fragmentShader:'uniform float t;uniform vec3 pl,col;varying vec3 vW;void main(){float d=distance(vW.xz,pl.xz)+abs(vW.y-pl.y)*.3;float fade=smoothstep(26.,3.,d);vec2 g=fract(vec2(vW.x+vW.z,vW.y)*.5+vec2(0.,t*.15));float line=max(step(.955,g.x),step(.955,g.y));float a=fade*(.1+line*.45);if(a<.01)discard;gl_FragColor=vec4(col+line*.25,a);}'});
-function buildBorder(){if(!FRONTIERE){updateBorderHud();return}if(borderMesh){scene.remove(borderMesh);borderMesh.geometry.dispose()}
- const a=-R*CH,b=(R+1)*CH,h=SY+16,pos=[];const quad=(x0,z0,x1,z1)=>pos.push(x0,0,z0,x1,0,z1,x1,h,z1,x0,0,z0,x1,h,z1,x0,h,z0);
- quad(a,a,b,a);quad(b,a,b,b);quad(b,b,a,b);quad(a,b,a,a);
- const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));borderMesh=new THREE.Mesh(g,borderMat);borderMesh.renderOrder=3;scene.add(borderMesh);updateBorderHud()}
-function updateBorderHud(){if(!FRONTIERE){const d=Math.round(Math.hypot(P.x-SPAWN.x,P.z-SPAWN.z));$('borderTxt').textContent=`Position ${Math.floor(P.x)} · ${Math.floor(P.z)} · ${d<1000?d+' m':(d/1000).toFixed(1).replace('.',',')+' km'} du sanctuaire`;return}const n=R-3,next=150*(n+1)*(n+2),side=2*R+1;
- $('borderTxt').textContent=R>=60?`Frontière ${side} × ${side} tronçons · taille maximale`:`Frontière ${side} × ${side} · ${worldTotal.toLocaleString('fr-FR')} / ${next.toLocaleString('fr-FR')} blocs posés`;
- $('borderBar').style.width=R>=60?'100%':Math.min(100,(worldTotal-150*n*(n+1))/(next-150*n*(n+1))*100)+'%'}
-function setWorld(total,radius){worldTotal=total||0;if(!FRONTIERE)return;const r=Math.max(3,Math.min(60,radius||radiusFor(worldTotal)));const grew=r>R;R=r;
- if(grew){buildBorder();logEv('nft','La frontière recule !',`le monde fait maintenant ${2*R+1} × ${2*R+1} tronçons`)}else updateBorderHud()}
-Net.on('world',w=>{if(w&&w.world===Net.world)setWorld(w.placed_total,w.radius)});
+// ---------- position ----------
+function updatePosHud(){const d=Math.round(Math.hypot(P.x-SPAWN.x,P.z-SPAWN.z));$('borderTxt').textContent=`Position ${Math.floor(P.x)} · ${Math.floor(P.z)} · ${d<1000?d+' m':(d/1000).toFixed(1).replace('.',',')+' km'} du sanctuaire`}
 const others=new Map();
 function faceTex(hair){const c=document.createElement('canvas');c.width=c.height=8;const x=c.getContext('2d');x.fillStyle='#f6d3b8';x.fillRect(0,0,8,8);x.fillStyle=hair;x.fillRect(0,0,8,2);x.fillRect(0,2,1,2);x.fillRect(7,2,1,2);
  x.fillStyle='#1c163a';x.fillRect(2,4,1,1);x.fillRect(5,4,1,1);x.fillStyle='#ffb3cf';x.fillRect(1,5,1,1);x.fillRect(6,5,1,1);x.fillStyle='#c98a74';x.fillRect(3,6,2,1);
@@ -979,28 +965,24 @@ $('reset').onclick=async()=>{if(!arm){arm=true;$('reset').textContent='Tout ton 
  const w=booted?Net.world:(($('monde').value.trim()||'principal').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9-]+/g,'-').slice(0,32)||'principal');
  try{localStorage.removeItem('ether-mines:'+w)}catch(e){}if(Net.enabled){try{await accountReady;if(Net.userId)await Net.deletePlayer(w)}catch(e){console.error(e)}}booted=false;location.reload()};
 async function boot(world){
- let info={placed_total:0,radius:3};
  if(Net.enabled){
   if(!Net.userId)await accountReady;
   if(Net.userId){ME.id=Net.userId;
-   // blocs posés avant les comptes : rattachés une fois à ce compte
-   if(profile.id&&!profile.legacyClaimed){try{await Net.claimLegacy(profile.id);profile.legacyClaimed=1;localStorage.setItem(PKEY,JSON.stringify(profile))}catch(e){console.warn(e)}}
    // la partie du serveur fait foi ; sinon on y dépose la partie de ce navigateur
    try{const row=await Net.loadPlayer(world);if(row&&row.state&&Object.keys(row.state).length)useState(row.state);else cloudDirty=true}
-   catch(e){console.warn(e);cloudOff=true;setTimeout(()=>logEv('burn','Sauvegarde en ligne indisponible','partie gardée dans ce navigateur (migration 002 à lancer)'),1500)}}
+   catch(e){console.warn(e);cloudOff=true;setTimeout(()=>logEv('burn','Sauvegarde en ligne indisponible','partie gardée dans ce navigateur (schéma SQL à lancer)'),1500)}}
   else setTimeout(()=>logEv('burn','Compte indisponible','partie gardée dans ce navigateur'),1500);
-  const r=await Net.join(world,ME);info=r.world||info}else info={placed_total:S.placedTotal||0,radius:radiusFor(S.placedTotal||0)};
- worldTotal=info.placed_total||0;if(FRONTIERE)R=Math.max(3,Math.min(60,info.radius||3));
+  await Net.join(world,ME)}
  if(S.pos){[P.x,P.y,P.z,yaw,pitch]=S.pos}else{P.x=SPAWN.x+.5+(Math.random()-.5)*2;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5}
- if(!inBorder(P.x,P.z)){P.x=SPAWN.x+.5;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5}
+ if(!inWorld(P.x,P.z)){P.x=SPAWN.x+.5;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5}
  const list=wanted(),total=list.length;
  for(let i=0;i<total;i+=12){await loadChunks(list.slice(i,i+12));$('progBar').style.width=(Math.min(total,i+12)/total*60)+'%'}
  const q=[...meshQ];meshQ.clear();let m=0;
  for(const k of q){const[cx,cz]=k.split(',').map(Number);if(CHK.has(k))buildChunk(cx,cz);m++;$('progBar').style.width=(60+m/q.length*40)+'%';if(m%3===0)await new Promise(r=>setTimeout(r,0))}
- buildBorder();
+ updatePosHud();
  if(collides(P.x,P.y,P.z)){P.x=SPAWN.x+.5;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5}
  ui()}
 requestAnimationFrame(frame);
 // Outils de test : ouvrir index.html#debug expose window.mines dans la console.
-if(location.hash==='#debug')window.mines={get,CHK,frozen,EDC,commit,encodeChunk,decodeChunk,genChunk,loadChunks,get P(){return P},get R(){return R},GEN,QUESTS,questIndex,ruinAt,nearestRuin,give,canMine,relight,openTab,POWERED,SPEC,ANIMALS,petAnimal,spawnChunk,despawnChunk,popAt,B,get S(){return S},heightAt,islandTop,set yaw(v){yaw=v},set pitch(v){pitch=v}};
+if(location.hash==='#debug')window.mines={get,CHK,frozen,EDC,commit,encodeChunk,decodeChunk,genChunk,loadChunks,get P(){return P},GEN,QUESTS,questIndex,ruinAt,nearestRuin,give,canMine,relight,openTab,POWERED,SPEC,ANIMALS,petAnimal,spawnChunk,despawnChunk,popAt,B,get S(){return S},heightAt,islandTop,set yaw(v){yaw=v},set pitch(v){pitch=v}};
 })();

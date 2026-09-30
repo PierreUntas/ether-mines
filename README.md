@@ -5,9 +5,8 @@ Un monde en blocs aux couleurs d'Ethereum, à construire entre amis dans le navi
 ## Ce qu'il y a dedans
 
 - **Monde** : généré à partir d'une graine fixe (plaines, forêts roses, dunes, sommets, lacs, océans, îles flottantes entre 31 et 45 de haut, grottes profondes avec géodes d'éther pur), chargé par tronçons de 16 × 16 colonnes autour de chaque joueur, sur 48 blocs de haut.
-- **Monde infini** : on peut marcher dans n'importe quelle direction jusqu'à 100 000 blocs du centre (limite fixée par les règles de la base). La position et la distance au sanctuaire s'affichent en haut à gauche.
+- **Monde infini** : on peut marcher dans n'importe quelle direction jusqu'à 100 000 blocs du centre (bornes des règles de la base). La position et la distance au sanctuaire s'affichent en haut à gauche.
 - **Se retrouver** : dans le chat, `/rejoindre pseudo` téléporte près d'un ami en ligne, `/sanctuaire` ramène au point de départ.
-- **Frontière (désactivée)** : option `FRONTIERE` dans `src/game.js`. Le monde démarre à 7 × 7 tronçons et chaque palier de blocs posés par la communauté ajoute un anneau (300, 900, 1 800… blocs). Le compteur tourne déjà côté base, dans la table `worlds`.
 - **Construction** : béton pastel (8 couleurs), vitraux (4), dalles, escaliers orientés selon le regard, portes sur deux blocs (clic droit pour ouvrir). On monte sur les dalles et les marches sans sauter.
 - **Contrats en blocs** : levier et plaque de pression (sources), câble d'éther, lampe et porte alimentées. Le courant est recalculé en continu autour du joueur et n'est jamais enregistré : seul l'état des leviers l'est. Une plaque s'active sous n'importe quel joueur, y compris un ami.
 - **Progression** : un fil d'objectifs (bouton en haut de l'écran, touche O ou onglet Objectifs) et quatre paliers d'outils. La main ne taille pas la pierre ; la pioche en bois taille la pierre et le minerai ; la pioche de cristal (objet unique) ouvre les géodes ; la pioche d'éther pur (objet unique) taille la roche de genèse, au fond du monde, qui donne des fragments de genèse. Avec un fragment, des éclats et des cristaux, on forge un cœur de validateur.
@@ -23,7 +22,7 @@ Rien n'est inscrit sur une vraie blockchain pour l'instant.
 ## Stack
 
 - HTML, CSS et JavaScript natifs, sans framework ni étape de build.
-- [Supabase](https://supabase.com) : Realtime (présence, diffusion, changements de la table `worlds`) et trois tables.
+- [Supabase](https://supabase.com) : Auth (comptes invités), Realtime (présence, diffusion) et quatre tables : `chunks`, `blocks`, `players`, `recovery`.
 - Hébergement statique sur Vercel.
 
 ```
@@ -34,13 +33,13 @@ src/net.js              couche réseau (Supabase)
 src/game.js             monde, génération, rendu, joueur, jetons, contrats, joueurs distants, chat
 src/audio.js            sons génératifs (Web Audio)
 supabase/migrations/    schéma de la base, en migrations numérotées
-supabase/reset.sql      remise à zéro complète (supprime tout)
+supabase/reset.sql      remise à zéro complète (monde, parties, comptes invités)
 ```
 
 ## Mise en ligne
 
 1. **Supabase** : crée un projet gratuit sur supabase.com.
-2. **Base** : dans *SQL Editor*, lance les fichiers de `supabase/migrations/` dans l'ordre (001, puis les suivants).
+2. **Base** : dans *SQL Editor*, lance `supabase/migrations/001_schema.sql` (puis les suivantes s'il y en a, dans l'ordre).
 3. **Comptes invités** : dans *Authentication → Sign In / Providers*, active *Allow anonymous sign-ins*. Chaque joueur reçoit un compte automatiquement, sans email ni mot de passe.
 4. **Clés** : dans *Project Settings → API*, copie l'URL du projet et la clé `anon` publique dans `src/config.js`. Cette clé est faite pour être publique : ce sont les règles des migrations qui protègent la base.
 5. **Vercel** : importe le dépôt (*Add New → Project*), sans réglage particulier (site statique). Chaque push sur `main` redéploie.
@@ -48,13 +47,14 @@ supabase/reset.sql      remise à zéro complète (supprime tout)
 
 Sans clés dans `src/config.js`, le jeu tourne en solo et sauvegarde dans le navigateur.
 
-Pour tout effacer et repartir de zéro : lancer `supabase/reset.sql`, puis les migrations.
+Pour tout effacer et repartir de zéro :
+1. lancer `supabase/reset.sql`, puis les migrations ;
+2. augmenter `SAISON` dans `src/game.js` et publier : les parties gardées dans les navigateurs sont effacées au prochain chargement (pseudo et réglage du son conservés).
 
 ## Ce qui est sauvegardé où
 
 | Donnée | Où |
 | --- | --- |
-| Total de blocs posés (et rayon de frontière, si l'option est activée) | Supabase, table `worlds` (mise à jour par un déclencheur, jamais par les clients) |
 | Terrain d'origine des tronçons touchés | Supabase, table `chunks` (écrit une fois, jamais modifié) |
 | Blocs modifiés (x, y, z), auteur et numéro de série | Supabase, table `blocks` |
 | Positions, chat, présence | Supabase Realtime (rien n'est gardé) |
@@ -78,7 +78,6 @@ Au chargement d'un tronçon : terrain figé s'il existe, sinon générateur ; pu
 ### Ce qu'on peut changer librement
 
 - **Le générateur** (relief, biomes, arbres, grottes, minerais) : augmenter `GEN` à chaque changement de terrain. Seuls les tronçons jamais touchés changent. Un raccord peut apparaître entre un tronçon figé et un tronçon régénéré (petite marche, demi-arbre).
-- **La frontière** : `FRONTIERE` dans `src/game.js`. Paliers dans `on_block_placed()` (migration SQL) et dans `radiusFor()` côté client, à garder identiques.
 - Nouveaux blocs, objets, recettes, mécaniques, interface, rendu.
 
 ### Ce qu'il ne faut jamais faire
@@ -100,13 +99,12 @@ Au chargement d'un tronçon : terrain figé s'il existe, sinon générateur ; pu
 
 - Au premier passage, le jeu crée un compte invité et y enregistre la partie toutes les 5 secondes, à la pause et quand on quitte la page.
 - Sur l'écran titre, *Compte → Afficher mon code de sauvegarde* donne un code du type `4FC0-B18D-A98D-75EF`. Sur un autre appareil (ou après avoir vidé le navigateur), le saisir dans *Récupérer ma partie* rattache la partie et les blocs signés à ce nouvel appareil.
-- Les blocs posés avant les comptes (ancien identifiant du navigateur) sont rattachés au compte au premier lancement.
-- Écrire dans le monde demande un compte, et un bloc ne peut être signé qu'au nom de son auteur (règles de la migration 002).
-- Tant que la migration 002 ou les comptes invités ne sont pas activés, le jeu continue de fonctionner et garde la partie dans le navigateur.
+- Écrire dans le monde demande un compte, et un bloc ne peut être signé qu'au nom de son auteur (règles de `001_schema.sql`).
+- Si le schéma ou les comptes invités ne sont pas encore en place, le jeu fonctionne quand même et garde la partie dans le navigateur.
 
 ## Tester
 
-Ouvrir `index.html#debug` expose `window.mines` dans la console : `get(x, y, z)`, `CHK` (tronçons chargés), `frozen`, `genChunk(cx, cz)`, `commit(...)`, `P` (le joueur, déplaçable : `mines.P.x = 500`), `R` (rayon de la frontière, `Infinity` en monde infini), `S.day` (heure : `mines.S.day = .9` pour la nuit), `POWERED` (blocs alimentés), `islandTop(x, z)`.
+Ouvrir `index.html#debug` expose `window.mines` dans la console : `get(x, y, z)`, `CHK` (tronçons chargés), `frozen`, `genChunk(cx, cz)`, `commit(...)`, `P` (le joueur, déplaçable : `mines.P.x = 500`), `S.day` (heure : `mines.S.day = .9` pour la nuit), `POWERED` (blocs alimentés), `islandTop(x, z)`.
 
 ## Limites connues
 

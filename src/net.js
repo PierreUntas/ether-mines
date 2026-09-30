@@ -1,9 +1,9 @@
 // Couche réseau : Supabase Realtime (présence + diffusion) pour le temps réel,
-// table « blocks » pour garder le monde entre deux parties.
+// tables « chunks » et « blocks » pour garder le monde, « players » pour la partie de chaque joueur.
 window.Net = (() => {
   const cfg = window.CONFIG || {};
   const enabled = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
-  const handlers = { block: [], pos: [], chat: [], peers: [], status: [], world: [] };
+  const handlers = { block: [], pos: [], chat: [], peers: [], status: [] };
   let sb = null, ch = null, world = 'principal', me = null, online = false, userId = null;
   const client = () => sb || (sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
     realtime: { params: { eventsPerSecond: 40 } }, auth: { persistSession: true, autoRefreshToken: true, storageKey: 'ether-mines:session' },
@@ -14,7 +14,12 @@ window.Net = (() => {
     if (!enabled) return null;
     const c = client();
     const { data } = await c.auth.getSession();
-    if (data && data.session) { userId = data.session.user.id; return userId; }
+    if (data && data.session) {
+      // session gardée par le navigateur : on vérifie que le compte existe encore (remise à zéro de la base)
+      const { data: u, error: ue } = await c.auth.getUser();
+      if (!ue && u && u.user) { userId = u.user.id; return userId; }
+      await c.auth.signOut({ scope: 'local' }).catch(() => {});
+    }
     const { data: d2, error } = await c.auth.signInAnonymously();
     if (error) throw new Error(/anonymous/i.test(error.message) ? 'les comptes invités ne sont pas activés dans Supabase (Authentication → Sign In / Providers → Allow anonymous sign-ins)' : error.message);
     userId = d2.user.id; return userId;
@@ -37,7 +42,6 @@ window.Net = (() => {
   async function rpc(fn, args) { const { data, error } = await client().rpc(fn, args || {}); if (error) throw new Error(error.message); return data; }
   const recoveryCode = () => rpc('set_recovery_code');
   const claimRecovery = (code) => rpc('claim_recovery', { code });
-  const claimLegacy = (legacy) => rpc('claim_legacy', { legacy });
 
   const on = (ev, fn) => handlers[ev].push(fn);
   const emit = (ev, ...a) => { for (const f of handlers[ev]) { try { f(...a); } catch (e) { console.error(e); } } };
@@ -61,13 +65,10 @@ window.Net = (() => {
     if (!enabled) return { edits: [] };
     world = w; me = profile;
     client();
-    const { data: info, error: werr } = await sb.from('worlds').select('world,radius,placed_total').eq('world', w).maybeSingle();
-    if (werr) throw werr;
     ch = sb.channel('monde:' + w, { config: { broadcast: { self: false }, presence: { key: me.id } } });
     ch.on('broadcast', { event: 'pos' }, ({ payload }) => emit('pos', payload));
     ch.on('broadcast', { event: 'block' }, ({ payload }) => emit('block', payload));
     ch.on('broadcast', { event: 'chat' }, ({ payload }) => emit('chat', payload));
-    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'worlds', filter: 'world=eq.' + w }, (p) => emit('world', p.new));
     ch.on('presence', { event: 'sync' }, () => {
       const st = ch.presenceState(), list = [];
       for (const k in st) { const p = st[k][0]; if (p) list.push({ id: k, name: p.name, color: p.color }); }
@@ -81,7 +82,7 @@ window.Net = (() => {
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { if (!online) { clearTimeout(t); reject(new Error('connexion au salon refusée')); } }
       });
     });
-    return { world: info || { world: w, radius: 3, placed_total: 0 } };
+    return true;
   }
 
   // Terrain figé et blocs modifiés d'une zone rectangulaire de tronçons (bornes incluses).
@@ -122,5 +123,5 @@ window.Net = (() => {
     return fetchChunk(c.cx, c.cz);
   }
 
-  return { enabled, auth, loadPlayer, savePlayer, deletePlayer, recoveryCode, claimRecovery, claimLegacy, get userId() { return userId; }, join, on, sendPos, chat, setBlock, freezeChunk, fetchChunk, loadArea, get online() { return online; }, get world() { return world; } };
+  return { enabled, auth, loadPlayer, savePlayer, deletePlayer, recoveryCode, claimRecovery, get userId() { return userId; }, join, on, sendPos, chat, setBlock, freezeChunk, fetchChunk, loadArea, get online() { return online; }, get world() { return world; } };
 })();
