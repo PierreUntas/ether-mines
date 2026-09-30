@@ -4,11 +4,14 @@ Un monde en blocs aux couleurs d'Ethereum, à construire entre amis dans le navi
 
 ## Ce qu'il y a dedans
 
-- **Monde** : généré à partir d'une graine fixe (plaines, forêts roses, dunes, sommets, grottes, lacs), chargé par tronçons de 16 × 16 colonnes autour de chaque joueur, sur 48 blocs de haut.
+- **Monde** : généré à partir d'une graine fixe (plaines, forêts roses, dunes, sommets, lacs, océans, îles flottantes entre 31 et 45 de haut, grottes profondes avec géodes d'éther pur), chargé par tronçons de 16 × 16 colonnes autour de chaque joueur, sur 48 blocs de haut.
 - **Monde infini** : on peut marcher dans n'importe quelle direction jusqu'à 100 000 blocs du centre (limite fixée par les règles de la base). La position et la distance au sanctuaire s'affichent en haut à gauche.
 - **Se retrouver** : dans le chat, `/rejoindre pseudo` téléporte près d'un ami en ligne, `/sanctuaire` ramène au point de départ.
 - **Frontière (désactivée)** : option `FRONTIERE` dans `src/game.js`. Le monde démarre à 7 × 7 tronçons et chaque palier de blocs posés par la communauté ajoute un anneau (300, 900, 1 800… blocs). Le compteur tourne déjà côté base, dans la table `worlds`.
-- **Rendu** : Three.js r128, textures pixel art générées en code, ombres portées (désactivées sur mobile), cycle jour et nuit de 8 minutes, blocs lumineux la nuit.
+- **Construction** : béton pastel (8 couleurs), vitraux (4), dalles, escaliers orientés selon le regard, portes sur deux blocs (clic droit pour ouvrir). On monte sur les dalles et les marches sans sauter.
+- **Contrats en blocs** : levier et plaque de pression (sources), câble d'éther, lampe et porte alimentées. Le courant est recalculé en continu autour du joueur et n'est jamais enregistré : seul l'état des leviers l'est. Une plaque s'active sous n'importe quel joueur, y compris un ami.
+- **Rendu** : Three.js r128, textures pixel art générées en code, ombres portées (désactivées sur mobile), cycle jour et nuit de 8 minutes, blocs lumineux la nuit, eau qui ondule, lucioles la nuit, effet de pose, avatars qui respirent et se balancent en marchant.
+- **Son** : entièrement synthétisé dans `src/audio.js` (Web Audio, aucun fichier) : pas et coups selon la matière, cassures, poses, déclics des contrats, nappe musicale, oiseaux le jour, grillons la nuit, gouttes sous terre. Touche M ou bouton ♪ pour couper ; le choix est gardé dans le navigateur (`ether-mines:son`).
 - **Multijoueur** : les autres joueurs apparaissent avec leur pseudo, les blocs se synchronisent en direct, un chat (Entrée) et la liste des joueurs en ligne.
 - **Jetons (simulés)** : coffre avec fiches de jetons (ERC-1155 pour les ressources, ERC-721 pour la Pioche de cristal), atelier, registre des frappes et brûlages, vue registre (T) qui surligne tes blocs.
 
@@ -25,7 +28,8 @@ index.html              structure de la page
 src/style.css           interface
 src/config.js           URL et clé publique Supabase (vide = mode solo)
 src/net.js              couche réseau (Supabase)
-src/game.js             monde, génération, rendu, joueur, jetons, joueurs distants, chat
+src/game.js             monde, génération, rendu, joueur, jetons, contrats, joueurs distants, chat
+src/audio.js            sons génératifs (Web Audio)
 supabase/migrations/    schéma de la base, en migrations numérotées
 supabase/reset.sql      remise à zéro complète (supprime tout)
 ```
@@ -52,6 +56,8 @@ Pour tout effacer et repartir de zéro : lancer `supabase/reset.sql`, puis les m
 | Positions, chat, présence | Supabase Realtime (rien n'est gardé) |
 | Inventaire, registre, objets uniques, position | Navigateur de chaque joueur (`localStorage`, clé `ether-mines:<monde>`) |
 | Pseudo, couleur, identifiant | Navigateur (`ether-mines:profil`) |
+| Son activé ou coupé | Navigateur (`ether-mines:son`) |
+| Courant dans les câbles, lampes et portes | Nulle part : recalculé à partir des leviers et des plaques |
 
 ## Faire évoluer le jeu sans perdre les parties
 
@@ -86,7 +92,7 @@ Au chargement d'un tronçon : terrain figé s'il existe, sinon générateur ; pu
 
 ## Tester
 
-Ouvrir `index.html#debug` expose `window.mines` dans la console : `get(x, y, z)`, `CHK` (tronçons chargés), `frozen`, `genChunk(cx, cz)`, `commit(...)`, `P` (le joueur, déplaçable : `mines.P.x = 500`), `R` (rayon de la frontière, `Infinity` en monde infini).
+Ouvrir `index.html#debug` expose `window.mines` dans la console : `get(x, y, z)`, `CHK` (tronçons chargés), `frozen`, `genChunk(cx, cz)`, `commit(...)`, `P` (le joueur, déplaçable : `mines.P.x = 500`), `R` (rayon de la frontière, `Infinity` en monde infini), `S.day` (heure : `mines.S.day = .9` pour la nuit), `POWERED` (blocs alimentés), `islandTop(x, z)`.
 
 ## Limites connues
 
@@ -98,5 +104,6 @@ Ouvrir `index.html#debug` expose `window.mines` dans la console : `get(x, y, z)`
 
 - ZQSD ou flèches : marcher · Maj : courir · Espace : sauter
 - Clic gauche maintenu : miner · clic droit : poser
-- 1 à 9, molette : barre d'objets · E : coffre et atelier · T : vue registre · Entrée : chat (`/rejoindre pseudo`, `/sanctuaire`)
+- Clic droit sur une porte ou un levier : l'actionner
+- 1 à 9, molette : barre d'objets · E : coffre et atelier · T : vue registre · M : son · Entrée : chat (`/rejoindre pseudo`, `/sanctuaire`)
 - Mobile : pouce gauche pour marcher, glisser à droite pour regarder, boutons Miner, Poser, Saut, Coffre, Chat

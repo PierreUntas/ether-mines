@@ -156,3 +156,8 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 #online{top:calc(env(safe-area-inset-top,0px) + 100px)}
 #modeTag{top:calc(env(safe-area-inset-top,0px) + 138px)}
 @media (pointer:coarse){#feed{top:calc(env(safe-area-inset-top,0px) + 140px)}}
+
+.rcat{margin:14px 0 8px;font-size:12px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.rcat:first-child{margin-top:0}
+#sndBtn{pointer-events:auto;background:none;border:0;border-left:1px solid var(--line);color:var(--ink,#f4f1ff);font-size:14px;padding:0 0 0 8px;margin-left:2px;cursor:pointer;line-height:1}
+#sndBtn.off{opacity:.4;text-decoration:line-through}
