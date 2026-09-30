@@ -1,11 +1,13 @@
 # Mines d'Éther
 
-Un monde en blocs aux couleurs d'Ethereum, à construire entre amis dans le navigateur. On mine, on fabrique, on bâtit, et chaque bloc et chaque objet se comporte comme un jeton : miner frappe, poser brûle, et chaque bloc posé porte le nom de son auteur. Le monde démarre petit : sa frontière recule à mesure que la communauté construit.
+Un monde en blocs aux couleurs d'Ethereum, à construire entre amis dans le navigateur. On mine, on fabrique, on bâtit, et chaque bloc et chaque objet se comporte comme un jeton : miner frappe, poser brûle, et chaque bloc posé porte le nom de son auteur. Le monde est infini : le terrain se génère au fur et à mesure qu'on avance.
 
 ## Ce qu'il y a dedans
 
 - **Monde** : généré à partir d'une graine fixe (plaines, forêts roses, dunes, sommets, grottes, lacs), chargé par tronçons de 16 × 16 colonnes autour de chaque joueur, sur 48 blocs de haut.
-- **Frontière** : le monde fait d'abord 7 × 7 tronçons autour du sanctuaire. Chaque palier de blocs posés par l'ensemble des joueurs ajoute un anneau (300, 900, 1 800, 3 000… blocs), jusqu'à 121 × 121 tronçons. Un mur de lumière marque la limite, et une jauge indique le prochain palier.
+- **Monde infini** : on peut marcher dans n'importe quelle direction jusqu'à 100 000 blocs du centre (limite fixée par les règles de la base). La position et la distance au sanctuaire s'affichent en haut à gauche.
+- **Se retrouver** : dans le chat, `/rejoindre pseudo` téléporte près d'un ami en ligne, `/sanctuaire` ramène au point de départ.
+- **Frontière (désactivée)** : option `FRONTIERE` dans `src/game.js`. Le monde démarre à 7 × 7 tronçons et chaque palier de blocs posés par la communauté ajoute un anneau (300, 900, 1 800… blocs). Le compteur tourne déjà côté base, dans la table `worlds`.
 - **Rendu** : Three.js r128, textures pixel art générées en code, ombres portées (désactivées sur mobile), cycle jour et nuit de 8 minutes, blocs lumineux la nuit.
 - **Multijoueur** : les autres joueurs apparaissent avec leur pseudo, les blocs se synchronisent en direct, un chat (Entrée) et la liste des joueurs en ligne.
 - **Jetons (simulés)** : coffre avec fiches de jetons (ERC-1155 pour les ressources, ERC-721 pour la Pioche de cristal), atelier, registre des frappes et brûlages, vue registre (T) qui surligne tes blocs.
@@ -23,7 +25,7 @@ index.html              structure de la page
 src/style.css           interface
 src/config.js           URL et clé publique Supabase (vide = mode solo)
 src/net.js              couche réseau (Supabase)
-src/game.js             monde, génération, rendu, joueur, jetons, frontière, joueurs distants, chat
+src/game.js             monde, génération, rendu, joueur, jetons, joueurs distants, chat
 supabase/migrations/    schéma de la base, en migrations numérotées
 supabase/reset.sql      remise à zéro complète (supprime tout)
 ```
@@ -34,7 +36,7 @@ supabase/reset.sql      remise à zéro complète (supprime tout)
 2. **Base** : dans *SQL Editor*, lance les fichiers de `supabase/migrations/` dans l'ordre (001, puis les suivants).
 3. **Clés** : dans *Project Settings → API*, copie l'URL du projet et la clé `anon` publique dans `src/config.js`. Cette clé est faite pour être publique : ce sont les règles des migrations qui protègent la base.
 4. **Vercel** : importe le dépôt (*Add New → Project*), sans réglage particulier (site statique). Chaque push sur `main` redéploie.
-5. **Jouer** : ouvre le site, choisis un pseudo. Le lien contient le nom du monde (`?monde=principal`) ; envoie-le à tes amis. Un autre nom de monde donne un monde vierge séparé, avec sa propre frontière.
+5. **Jouer** : ouvre le site, choisis un pseudo. Le lien contient le nom du monde (`?monde=principal`) ; envoie-le à tes amis. Un autre nom de monde donne un monde vierge séparé.
 
 Sans clés dans `src/config.js`, le jeu tourne en solo et sauvegarde dans le navigateur.
 
@@ -44,7 +46,7 @@ Pour tout effacer et repartir de zéro : lancer `supabase/reset.sql`, puis les m
 
 | Donnée | Où |
 | --- | --- |
-| Taille de la frontière, total de blocs posés | Supabase, table `worlds` (mise à jour par un déclencheur, jamais par les clients) |
+| Total de blocs posés (et rayon de frontière, si l'option est activée) | Supabase, table `worlds` (mise à jour par un déclencheur, jamais par les clients) |
 | Terrain d'origine des tronçons touchés | Supabase, table `chunks` (écrit une fois, jamais modifié) |
 | Blocs modifiés (x, y, z), auteur et numéro de série | Supabase, table `blocks` |
 | Positions, chat, présence | Supabase Realtime (rien n'est gardé) |
@@ -64,7 +66,7 @@ Au chargement d'un tronçon : terrain figé s'il existe, sinon générateur ; pu
 ### Ce qu'on peut changer librement
 
 - **Le générateur** (relief, biomes, arbres, grottes, minerais) : augmenter `GEN` à chaque changement de terrain. Seuls les tronçons jamais touchés changent. Un raccord peut apparaître entre un tronçon figé et un tronçon régénéré (petite marche, demi-arbre).
-- **Les règles de la frontière** : paliers dans `on_block_placed()` (migration SQL) et dans `radiusFor()` côté client, à garder identiques.
+- **La frontière** : `FRONTIERE` dans `src/game.js`. Paliers dans `on_block_placed()` (migration SQL) et dans `radiusFor()` côté client, à garder identiques.
 - Nouveaux blocs, objets, recettes, mécaniques, interface, rendu.
 
 ### Ce qu'il ne faut jamais faire
@@ -84,11 +86,11 @@ Au chargement d'un tronçon : terrain figé s'il existe, sinon générateur ; pu
 
 ## Tester
 
-Ouvrir `index.html#debug` expose `window.mines` dans la console : `get(x, y, z)`, `CHK` (tronçons chargés), `frozen`, `genChunk(cx, cz)`, `commit(...)`, `P` (le joueur), `R` (rayon de la frontière).
+Ouvrir `index.html#debug` expose `window.mines` dans la console : `get(x, y, z)`, `CHK` (tronçons chargés), `frozen`, `genChunk(cx, cz)`, `commit(...)`, `P` (le joueur, déplaçable : `mines.P.x = 500`), `R` (rayon de la frontière, `Infinity` en monde infini).
 
 ## Limites connues
 
-- Chaque client fait autorité : n'importe qui ayant le lien peut modifier le monde (et faire avancer la frontière en posant des blocs). C'est fait pour jouer entre amis, pas pour un serveur public.
+- Chaque client fait autorité : n'importe qui ayant le lien peut modifier le monde. C'est fait pour jouer entre amis, pas pour un serveur public.
 - Les inventaires sont locaux : changer de navigateur fait repartir d'un coffre vide.
 - Pour aller vers de vrais jetons, il faudra d'abord déplacer les inventaires côté serveur (source de vérité), puis ne frapper onchain que les objets qui ont de la valeur ou une histoire (objets uniques, constructions, parcelles), pas chaque bloc.
 
@@ -96,5 +98,5 @@ Ouvrir `index.html#debug` expose `window.mines` dans la console : `get(x, y, z)`
 
 - ZQSD ou flèches : marcher · Maj : courir · Espace : sauter
 - Clic gauche maintenu : miner · clic droit : poser
-- 1 à 9, molette : barre d'objets · E : coffre et atelier · T : vue registre · Entrée : chat
+- 1 à 9, molette : barre d'objets · E : coffre et atelier · T : vue registre · Entrée : chat (`/rejoindre pseudo`, `/sanctuaire`)
 - Mobile : pouce gauche pour marcher, glisser à droite pour regarder, boutons Miner, Poser, Saut, Coffre, Chat

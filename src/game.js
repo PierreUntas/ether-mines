@@ -74,8 +74,10 @@ const li=(lx,y,lz)=>lx+lz*CH+y*CH*CH;
 function get(x,y,z){if(y<0||y>=SY)return 0;const cx=cOf(x),cz=cOf(z),c=CHK.get(cx+','+cz);return c?c[li(x-cx*CH,y,z-cz*CH)]:0}
 function setW(x,y,z,id){if(y<0||y>=SY)return;const cx=cOf(x),cz=cOf(z),c=CHK.get(cx+','+cz);if(c)c[li(x-cx*CH,y,z-cz*CH)]=id}
 const loaded=(x,z)=>CHK.has(cOf(x)+','+cOf(z));
-let R=3; // rayon de la frontière, en tronçons autour du tronçon 0,0
-const inBorder=(x,z)=>{const cx=cOf(x),cz=cOf(z);return cx>=-R&&cx<=R&&cz>=-R&&cz<=R};
+// Monde infini. La frontière reste disponible : passer FRONTIERE à true pour un monde qui s'agrandit avec les constructions.
+const FRONTIERE=false,LIMITE=100000; // LIMITE : bornes de la base (règles SQL), en blocs depuis le centre
+let R=FRONTIERE?3:Infinity; // rayon de la frontière, en tronçons autour du tronçon 0,0
+const inBorder=(x,z)=>{if(Math.abs(x)>=LIMITE||Math.abs(z)>=LIMITE)return false;const cx=cOf(x),cz=cOf(z);return cx>=-R&&cx<=R&&cz>=-R&&cz<=R};
 const ringFor=total=>Math.floor((Math.sqrt(1+4*total/150)-1)/2); // anneau n à 150 × n × (n + 1) blocs posés
 const radiusFor=total=>Math.min(60,3+ringFor(total));
 function heightAt(x,z){const c=vn2(x/40,z/40,1)*.6+vn2(x/17,z/17,2)*.3+vn2(x/7,z/7,3)*.1;const m=sm(clamp((vn2(x/64+10,z/64+10,4)-.52)/.25,0,1));
@@ -462,7 +464,7 @@ function unloadFar(){const pcx=cOf(P.x),pcz=cOf(P.z),lim=(VR+2)*(VR+2);
  for(const k of[...CHK.keys()]){const[cx,cz]=k.split(',').map(Number);if((cx-pcx)**2+(cz-pcz)**2<=lim)continue;
   dropMesh(k);CHK.delete(k);meshQ.delete(k);for(const v of[...vals.keys()]){const[x,,z]=v.split(',').map(Number);if(cOf(x)===cx&&cOf(z)===cz)delVal(v)}}}
 function stream(dt){streamT-=dt;
- if(streamT<=0){streamT=.35;if(!loading){const miss=wanted().filter(([cx,cz])=>!CHK.has(ckey(cx,cz))&&!pending.has(ckey(cx,cz))).slice(0,12);
+ if(streamT<=0){streamT=.35;updateBorderHud();if(!loading){const miss=wanted().filter(([cx,cz])=>!CHK.has(ckey(cx,cz))&&!pending.has(ckey(cx,cz))).slice(0,12);
    if(miss.length){loading=true;loadChunks(miss).catch(e=>console.error(e)).finally(()=>loading=false)}}unloadFar()}
  let n=0;for(const k of meshQ){meshQ.delete(k);const[cx,cz]=k.split(',').map(Number);if(CHK.has(k))buildChunk(cx,cz);if(++n>=2)break}}
 
@@ -472,14 +474,14 @@ const borderU={t:{value:0},pl:{value:new THREE.Vector3()},col:{value:new THREE.C
 const borderMat=new THREE.ShaderMaterial({uniforms:borderU,transparent:true,depthWrite:false,side:THREE.DoubleSide,
  vertexShader:'varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}',
  fragmentShader:'uniform float t;uniform vec3 pl,col;varying vec3 vW;void main(){float d=distance(vW.xz,pl.xz)+abs(vW.y-pl.y)*.3;float fade=smoothstep(26.,3.,d);vec2 g=fract(vec2(vW.x+vW.z,vW.y)*.5+vec2(0.,t*.15));float line=max(step(.955,g.x),step(.955,g.y));float a=fade*(.1+line*.45);if(a<.01)discard;gl_FragColor=vec4(col+line*.25,a);}'});
-function buildBorder(){if(borderMesh){scene.remove(borderMesh);borderMesh.geometry.dispose()}
+function buildBorder(){if(!FRONTIERE){updateBorderHud();return}if(borderMesh){scene.remove(borderMesh);borderMesh.geometry.dispose()}
  const a=-R*CH,b=(R+1)*CH,h=SY+16,pos=[];const quad=(x0,z0,x1,z1)=>pos.push(x0,0,z0,x1,0,z1,x1,h,z1,x0,0,z0,x1,h,z1,x0,h,z0);
  quad(a,a,b,a);quad(b,a,b,b);quad(b,b,a,b);quad(a,b,a,a);
  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));borderMesh=new THREE.Mesh(g,borderMat);borderMesh.renderOrder=3;scene.add(borderMesh);updateBorderHud()}
-function updateBorderHud(){const n=R-3,next=150*(n+1)*(n+2),side=2*R+1;
+function updateBorderHud(){if(!FRONTIERE){const d=Math.round(Math.hypot(P.x-SPAWN.x,P.z-SPAWN.z));$('borderTxt').textContent=`Position ${Math.floor(P.x)} · ${Math.floor(P.z)} · ${d<1000?d+' m':(d/1000).toFixed(1).replace('.',',')+' km'} du sanctuaire`;return}const n=R-3,next=150*(n+1)*(n+2),side=2*R+1;
  $('borderTxt').textContent=R>=60?`Frontière ${side} × ${side} tronçons · taille maximale`:`Frontière ${side} × ${side} · ${worldTotal.toLocaleString('fr-FR')} / ${next.toLocaleString('fr-FR')} blocs posés`;
  $('borderBar').style.width=R>=60?'100%':Math.min(100,(worldTotal-150*n*(n+1))/(next-150*n*(n+1))*100)+'%'}
-function setWorld(total,radius){worldTotal=total||0;const r=Math.max(3,Math.min(60,radius||radiusFor(worldTotal)));const grew=r>R;R=r;
+function setWorld(total,radius){worldTotal=total||0;if(!FRONTIERE)return;const r=Math.max(3,Math.min(60,radius||radiusFor(worldTotal)));const grew=r>R;R=r;
  if(grew){buildBorder();logEv('nft','La frontière recule !',`le monde fait maintenant ${2*R+1} × ${2*R+1} tronçons`)}else updateBorderHud()}
 Net.on('world',w=>{if(w&&w.world===Net.world)setWorld(w.placed_total,w.radius)});
 const others=new Map();
@@ -514,9 +516,15 @@ let lastSent='';setInterval(()=>{if(!Net.online||!playing)return;const p={id:ME.
 let chatOpen=false;
 function addChat(name,color,text){const d=document.createElement('div');d.className='msg';const n=document.createElement('b');n.textContent=name;n.style.color=color;const t=document.createElement('span');t.textContent=' '+text;d.append(n,t);$('chatLog').appendChild(d);
  while($('chatLog').children.length>8)$('chatLog').firstChild.remove();setTimeout(()=>d.classList.add('old'),9000)}
-function openChat(){if(!Net.online){logEv('nft','Le chat demande une connexion en ligne','');return}chatOpen=true;keys.clear();mining=false;$('chatForm').hidden=false;$('chatLog').classList.add('open');if(document.pointerLockElement)document.exitPointerLock();setTimeout(()=>$('chatIn').focus(),0)}
+function openChat(){chatOpen=true;keys.clear();mining=false;$('chatForm').hidden=false;$('chatLog').classList.add('open');if(document.pointerLockElement)document.exitPointerLock();setTimeout(()=>$('chatIn').focus(),0)}
 function closeChat(){chatOpen=false;$('chatForm').hidden=true;$('chatLog').classList.remove('open');$('chatIn').blur();if(playing)tryLock()}
-$('chatForm').addEventListener('submit',e=>{e.preventDefault();const v=$('chatIn').value.trim().slice(0,140);$('chatIn').value='';if(v){Net.chat(v);addChat(ME.name,ME.color,v)}closeChat()});
+function command(v){const[c,...rest]=v.slice(1).split(' ');const arg=rest.join(' ').trim().toLowerCase();
+ if(c==='sanctuaire'){P.x=SPAWN.x+.5;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5;P.vy=0;addChat('Monde','#7fe8ff','Retour au sanctuaire.');return}
+ if(c==='rejoindre'){const o=[...others.values()].find(o=>o.name.toLowerCase()===arg||o.name.toLowerCase().startsWith(arg));
+  if(!o||!o.t){addChat('Monde','#7fe8ff',arg?`Personne ne s'appelle « ${arg} » ici.`:'Écris /rejoindre suivi d\'un pseudo.');return}
+  P.x=o.t.x+1;P.y=o.t.y+.5;P.z=o.t.z+1;P.vy=0;addChat('Monde','#7fe8ff',`Tu rejoins ${o.name}.`);return}
+ addChat('Monde','#7fe8ff','Commandes : /rejoindre pseudo · /sanctuaire')}
+$('chatForm').addEventListener('submit',e=>{e.preventDefault();const v=$('chatIn').value.trim().slice(0,140);$('chatIn').value='';if(v.startsWith('/'))command(v);else if(v){Net.chat(v);addChat(ME.name,ME.color,v)}closeChat()});
 $('chatIn').addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();closeChat()}});
 $('chatBtn').onclick=()=>chatOpen?closeChat():openChat();
 
@@ -543,7 +551,7 @@ let arm=false;$('reset').onclick=()=>{if(!arm){arm=true;$('reset').textContent='
 async function boot(world){
  let info={placed_total:0,radius:3};
  if(Net.enabled){const r=await Net.join(world,ME);info=r.world||info}else info={placed_total:S.placedTotal||0,radius:radiusFor(S.placedTotal||0)};
- worldTotal=info.placed_total||0;R=Math.max(3,Math.min(60,info.radius||3));
+ worldTotal=info.placed_total||0;if(FRONTIERE)R=Math.max(3,Math.min(60,info.radius||3));
  if(S.pos){[P.x,P.y,P.z,yaw,pitch]=S.pos}else{P.x=SPAWN.x+.5+(Math.random()-.5)*2;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5}
  if(!inBorder(P.x,P.z)){P.x=SPAWN.x+.5;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5}
  const list=wanted(),total=list.length;
