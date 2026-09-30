@@ -3,7 +3,7 @@
 window.Net = (() => {
   const cfg = window.CONFIG || {};
   const enabled = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
-  const handlers = { block: [], pos: [], chat: [], peers: [], status: [] };
+  const handlers = { block: [], pos: [], chat: [], peers: [], status: [], claim: [], frozen: [] };
   let sb = null, ch = null, world = 'principal', me = null, online = false, userId = null;
   const client = () => sb || (sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
     realtime: { params: { eventsPerSecond: 40 } }, auth: { persistSession: true, autoRefreshToken: true, storageKey: 'ether-mines:session' },
@@ -67,7 +67,11 @@ window.Net = (() => {
     client();
     ch = sb.channel('monde:' + w, { config: { broadcast: { self: false }, presence: { key: me.id } } });
     ch.on('broadcast', { event: 'pos' }, ({ payload }) => emit('pos', payload));
-    ch.on('broadcast', { event: 'block' }, ({ payload }) => emit('block', payload));
+    // blocs et parcelles : la base fait foi, chaque changement validé par le serveur arrive ici
+    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'blocks', filter: 'world=eq.' + w }, (p) => {
+      const r = p.new; if (r && r.x !== undefined) emit('block', { x: r.x, y: r.y, z: r.z, id: r.id, by: r.placed_by, name: r.placed_name, serial: r.serial });
+    });
+    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'claims', filter: 'world=eq.' + w }, (p) => emit('claim', p.eventType, p.new, p.old));
     ch.on('broadcast', { event: 'chat' }, ({ payload }) => emit('chat', payload));
     ch.on('presence', { event: 'sync' }, () => {
       const st = ch.presenceState(), list = [];
@@ -98,30 +102,38 @@ window.Net = (() => {
   const sendPos = (p) => { if (ch && online) ch.send({ type: 'broadcast', event: 'pos', payload: p }); };
   const chat = (text) => { if (ch && online) ch.send({ type: 'broadcast', event: 'chat', payload: { id: me.id, name: me.name, color: me.color, text } }); };
 
-  async function setBlock(b) {
-    if (!ch || !online) return;
-    ch.send({ type: 'broadcast', event: 'block', payload: b });
-    const { error } = await sb.from('blocks').upsert({
-      world, x: b.x, y: b.y, z: b.z, id: b.id,
-      placed_by: b.by || null, placed_name: b.name || null, serial: b.serial || null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'world,x,y,z' });
-    if (error) { console.error(error); emit('status', 'SAVE_ERROR'); }
+  // Actions arbitrées par le serveur (fonctions act_* du schéma). Tronçon pas encore figé : on le fait figer puis on réessaie.
+  async function act(name, args) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { data, error } = await sb.rpc('act_' + name, { w: world, ...args });
+      if (!error) return data;
+      const m = /figer:(-?\d+),(-?\d+)/.exec(error.message || '');
+      if (!m || attempt) throw new Error(error.message);
+      await freeze(+m[1], +m[2]);
+    }
   }
+  async function freeze(cx, cz) {
+    const { data, error } = await sb.functions.invoke('figer', { body: { world, cx, cz } });
+    if (error) throw new Error('figer : ' + (error.message || error));
+    if (data && data.data) emit('frozen', cx, cz, data);
+    return data;
+  }
+  async function loadInventory() {
+    const [inv, uni] = await Promise.all([
+      sb.from('inventory').select('item,n').eq('world', world).eq('user_id', userId),
+      sb.from('uniques').select('serial,item,place,mined,created_at').eq('world', world).eq('user_id', userId).order('serial'),
+    ]);
+    if (inv.error) throw inv.error; if (uni.error) throw uni.error;
+    return { inv: inv.data, uniques: uni.data };
+  }
+  const loadClaims = () => readAll('claims', 'cx,cz,owner,owner_name,members', world, ['cx', 'cz']);
 
-  // Terrain d'origine d'un tronçon : écrit une seule fois (le premier arrivé gagne), jamais modifié ensuite.
+  // Terrain d'origine d'un tronçon, s'il a déjà été figé.
   async function fetchChunk(cx, cz) {
     if (!sb) return null;
     const { data, error } = await sb.from('chunks').select('gen,sy,data').eq('world', world).eq('cx', cx).eq('cz', cz).maybeSingle();
     if (error) throw error;
     return data;
   }
-  async function freezeChunk(c) {
-    if (!sb) return null;
-    const { error } = await sb.from('chunks').upsert({ world, ...c }, { onConflict: 'world,cx,cz', ignoreDuplicates: true });
-    if (error) { console.error(error); emit('status', 'SAVE_ERROR'); }
-    return fetchChunk(c.cx, c.cz);
-  }
-
-  return { enabled, auth, loadPlayer, savePlayer, deletePlayer, recoveryCode, claimRecovery, get userId() { return userId; }, join, on, sendPos, chat, setBlock, freezeChunk, fetchChunk, loadArea, get online() { return online; }, get world() { return world; } };
+  return { enabled, auth, loadPlayer, savePlayer, deletePlayer, recoveryCode, claimRecovery, get userId() { return userId; }, join, on, sendPos, chat, act, freeze, loadInventory, loadClaims, fetchChunk, loadArea, get online() { return online; }, get world() { return world; } };
 })();

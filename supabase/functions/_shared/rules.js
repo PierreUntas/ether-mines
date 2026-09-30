@@ -1,0 +1,62 @@
+// Règles du jeu partagées : blocs, objets, paliers d'outils, recettes.
+// Chargé par le jeu (<script>) et par tools/regles.mjs, qui en tire supabase/regles.sql pour l'arbitrage côté serveur.
+// Identifiants de blocs et d'objets : seulement en ajouter, ne jamais renuméroter.
+(function(root){
+'use strict';
+const PASTELS=[['rose','#ffb8d9'],['lavande','#c9b8ff'],['menthe','#aeeccb'],['ciel','#b3dcff'],['pêche','#ffcfae'],['citron','#fff0a0'],['corail','#ff9f9a'],['blanc','#f4f2fa']];
+const VITRAUX=[['rose','#ffb8d9'],['ciel','#b3dcff'],['menthe','#aeeccb'],['lavande','#c9b8ff']];
+// ---------- blocs et objets (chaque objet = un jeton) ----------
+const B={
+ 1:{n:'Herbe',t:[0,1,2],h:.6,drop:2},2:{n:'Terre',t:[2,2,2],h:.6},3:{n:'Granite',t:[3,3,3],h:2,stone:1},4:{n:'Sable',t:[4,4,4],h:.5},
+ 5:{n:'Bois',t:[6,5,6],h:1.4},6:{n:'Feuilles',t:[7,7,7],h:.25,leaf:1,drop:0},7:{n:'Feuilles roses',t:[8,8,8],h:.25,leaf:1,drop:0},
+ 8:{n:"Minerai d'éther",t:[9,9,9],h:2.6,stone:1,drop:101},9:{n:'Planches',t:[10,10,10],h:1.1},10:{n:'Verre',t:[11,11,11],h:.5,glass:1},
+ 11:{n:'Eau',water:1},12:{n:'Socle',t:[12,12,12],h:Infinity},13:{n:'Validateur',t:[14,13,14],h:2.5,stone:1},14:{n:'Lanterne',t:[15,15,15],h:.5},
+ 15:{n:'Marbre',t:[16,16,16],h:2.2,stone:1},16:{n:'Neige',t:[17,18,3],h:.5},
+ 17:{n:'Fleur rose',x:19,h:.05},18:{n:'Fleur dorée',x:20,h:.05},19:{n:'Fleur bleue',x:21,h:.05},20:{n:'Herbes hautes',x:22,h:.05,drop:0}};
+const ITEM={101:{n:"Cristal d'éther",icon:24},102:{n:'Pioche en bois',icon:25,tool:2.2},201:{n:'Pioche de cristal',icon:26,tool:5,nft:1}};
+// v2 : blocs ajoutés à la suite (ne jamais renuméroter). Variantes d'orientation et d'état = identifiants consécutifs.
+PASTELS.forEach(([n],i)=>B[21+i]={n:'Béton '+n,t:[27+i,27+i,27+i],h:1.2,stone:1});
+VITRAUX.forEach(([n],i)=>B[29+i]={n:'Vitrail '+n,t:[35+i,35+i,35+i],h:.5,glass:1});
+[['planches',10,1.1,0],['marbre',16,2.2,1],['granite',3,2,1]].forEach(([n,t,h,st],i)=>{
+ B[33+i]={n:'Dalle de '+n,t:[t,t,t],h:h*.6,stone:st,shape:'slab'};
+ for(let o=0;o<4;o++)B[36+i*4+o]={n:'Escalier de '+n,t:[t,t,t],h,stone:st,shape:'stairs',o,drop:36+i*4}});
+for(let f=0;f<4;f++)for(let op=0;op<2;op++)for(let top=0;top<2;top++)B[48+f*4+op*2+top]={n:'Porte',t:[10,top?40:39,10],h:.9,shape:'door',f,open:op,top,drop:48,icon:52};
+B[64]={n:'Levier',t:[3,3,3],h:.3,shape:'lever',on:0,drop:64,icon:50,pass:1};B[65]={...B[64],on:1};
+B[66]={n:'Plaque de pression',t:[16,16,16],h:.5,shape:'plate',icon:51,pass:1};
+B[67]={n:"Câble d'éther",t:[43,43,43],h:.1,shape:'cable',icon:43,pass:1};
+B[68]={n:'Lampe',t:[45,45,45],h:.5};
+B[69]={n:'Géode',t:[47,47,47],h:3,stone:1,drop:103};
+B[70]={n:"Bloc d'éther pur",t:[49,49,49],h:2.4,stone:1};
+B[71]={n:"Laine d'éther",t:[53,53,53],h:.5};
+ITEM[103]={n:'Éclat pur',icon:48};
+// v3 : progression par paliers d'outils (0 main nue, 1 bois, 2 cristal, 3 éther pur)
+B[72]={n:'Roche de genèse',t:[60,60,60],h:5,stone:1,tier:3,drop:104};
+B[73]={n:'Validateur éteint',t:[55,54,55],h:Infinity};
+B[74]={n:'Validateur ancien',t:[14,13,14],h:Infinity};
+B[69].tier=2;B[70].tier=2;
+ITEM[104]={n:'Fragment de genèse',icon:56};ITEM[105]={n:'Cœur de validateur',icon:57};
+ITEM[102].tier=1;ITEM[201].tier=2;
+ITEM[202]={n:"Pioche d'éther pur",icon:58,tool:8,tier:3,nft:1};ITEM[203]={n:'Sceau de validateur',icon:59,nft:1};
+const reqTier=id=>B[id]?(B[id].tier??(B[id].stone?1:0)):0;
+const RECIPES=[
+ {out:9,n:4,need:{5:1},d:'Débiter une bûche'},{out:102,n:1,need:{9:3},d:'Outil fongible · minage ×2 · taille la pierre'},{out:15,n:1,need:{3:2},d:'Tailler le granite'},
+ {out:10,n:1,need:{4:2},d:'Fondre le sable'},{out:14,n:1,need:{10:1,101:1},d:'Lumière pour les galeries'},
+ {out:201,n:1,need:{9:2,101:3},d:'Objet unique (ERC-721) · minage ×5 · ouvre les géodes',nft:1},{out:13,n:1,need:{101:8,15:4},d:'Frappe un cristal par slot'},
+ {out:70,n:1,need:{103:4},d:'Éther pur des profondeurs, lumineux'},
+ {out:202,n:1,need:{103:4,101:4,9:2},d:'Objet unique (ERC-721) · minage ×8 · taille la roche de genèse',nft:1},
+ {out:105,n:1,need:{104:1,103:2,101:4},d:'Rallume un validateur ancien (clic droit dessus)'}];
+RECIPES.forEach(r=>r.cat='Ressources et outils');
+// construction
+[[9,'planches'],[15,'marbre'],[3,'granite']].forEach(([m],i)=>{RECIPES.push({out:33+i,n:4,need:{[m]:2},d:'Demi-bloc',cat:'Construction'},{out:36+i*4,n:4,need:{[m]:3},d:"S'oriente selon ton regard",cat:'Construction'})});
+RECIPES.push({out:48,n:1,need:{9:4},d:'Clic droit pour ouvrir',cat:'Construction'});
+// couleurs : sable et granite teintés par une fleur, des feuilles ou du marbre
+[[17],[7],[6],[19],[4],[18],[17,18],[15]].forEach((col,i)=>{const need={4:2,3:1};for(const c of col)need[c]=(need[c]||0)+1;RECIPES.push({out:21+i,n:4,need,d:'Béton coloré',cat:'Couleurs'})});
+[[17],[19],[6],[7]].forEach(([c],i)=>RECIPES.push({out:29+i,n:2,need:{10:2,[c]:1},d:'Verre teinté',cat:'Couleurs'}));
+// contrats
+RECIPES.push({out:64,n:1,need:{9:1,3:1},d:'Source : clic droit pour basculer',cat:'Contrats'},{out:66,n:2,need:{15:2},d:'Source : active quand on marche dessus',cat:'Contrats'},
+ {out:67,n:8,need:{101:1},d:'Transmet le signal, bloc après bloc',cat:'Contrats'},{out:68,n:1,need:{10:1,101:2},d:"S'allume quand elle est alimentée",cat:'Contrats'});
+const TOOLS={102:1,201:1,202:1};
+// ce que devient un objet posé : bloc de même numéro, sauf escaliers (4 orientations) et portes (4 orientations, 2 moitiés)
+function placeIds(it){it=+it;if(!B[it])return[];const b=B[it];if(b.shape==='stairs')return[it,it+1,it+2,it+3];if(b.shape==='door')return[48,52,56,60];return[it]}
+root.Rules={PASTELS,VITRAUX,B,ITEM,RECIPES,reqTier,placeIds};
+})(globalThis);

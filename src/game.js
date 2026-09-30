@@ -1,13 +1,10 @@
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),lerp=(a,b,t)=>a+(b-a)*t,sm=t=>t*t*(3-2*t);
+const{clamp,lerp,sm,hash,hash3,vn2,vn3,SY,SEA,CH,CV,DEEP,GEN,SPAWN,LIMITE,RUIN,ckey,coordKey,cOf,li,inWorld,ruinAt,contAt,heightAt,islandZone,isIsland,islandTop,biome,topAt,genChunk}=World;
+const encodeChunk=(cx,cz)=>World.encodeChunk(CHK.get(ckey(cx,cz))),decodeChunk=World.decodeChunk;
+const{PASTELS,VITRAUX,B,ITEM,RECIPES,reqTier}=Rules;
 const touch=matchMedia('(pointer:coarse)').matches;
-function hash(x,y,s=0){let h=Math.imul(x|0,374761393)^Math.imul(y|0,668265263)^Math.imul(97+s,1442695041);h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return(h>>>0)/4294967296}
-function hash3(x,y,z,s=0){return hash(x+Math.imul(z|0,19349663),y,s)}
-function vn2(x,z,s=0){const xi=Math.floor(x),zi=Math.floor(z),xf=sm(x-xi),zf=sm(z-zi);const a=hash(xi,zi,s),b=hash(xi+1,zi,s),c=hash(xi,zi+1,s),d=hash(xi+1,zi+1,s);return a+(b-a)*xf+(c-a)*zf+(a-b-c+d)*xf*zf}
-function vn3(x,y,z,s=0){const xi=Math.floor(x),yi=Math.floor(y),zi=Math.floor(z),xf=sm(x-xi),yf=sm(y-yi),zf=sm(z-zi);const L=(a,b,t)=>a+(b-a)*t;
- const c=(dx,dy,dz)=>hash3(xi+dx,yi+dy,zi+dz,s);return L(L(L(c(0,0,0),c(1,0,0),xf),L(c(0,1,0),c(1,1,0),xf),yf),L(L(c(0,0,1),c(1,0,1),xf),L(c(0,1,1),c(1,1,1),xf),yf),zf)}
 
 // ---------- atlas de textures (16 px, pixel art procédural) ----------
 const AT=16,AN=16;
@@ -47,10 +44,8 @@ tile(25,P=>pick(P,'#f2cfa6','#d7ae84'));tile(26,(P,E)=>{pick(P,'#7fe8ff','#3fc6f
 // ---------- textures v2 : construction, contrats, profondeurs (tuiles 27 à 52) ----------
 const rgbaOf=(hex,a)=>{const n=parseInt(hex.slice(1),16);return`rgba(${n>>16&255},${n>>8&255},${n&255},${a})`};
 const shadeOf=(hex,k)=>{const n=parseInt(hex.slice(1),16),f=v=>Math.max(0,Math.min(255,Math.round(v*k)));return`rgb(${f(n>>16&255)},${f(n>>8&255)},${f(n&255)})`};
-const PASTELS=[['rose','#ffb8d9'],['lavande','#c9b8ff'],['menthe','#aeeccb'],['ciel','#b3dcff'],['pêche','#ffcfae'],['citron','#fff0a0'],['corail','#ff9f9a'],['blanc','#f4f2fa']];
 tile(53,(P,E,t)=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++){const r=hash(x*7+y,y*3+x,53),curl=((x+(y>>1))%4===0)!==((y+(x>>2))%3===0);P(x,y,curl?'#cdbff7':r<.2?'#f2edff':'#e3dbff')}});
 PASTELS.forEach(([,c],i)=>tile(27+i,(P,E,t)=>noise(P,t,c,[[shadeOf(c,.95),.22],[shadeOf(c,1.03),.18],[shadeOf(c,.9),.04]])));
-const VITRAUX=[['rose','#ffb8d9'],['ciel','#b3dcff'],['menthe','#aeeccb'],['lavande','#c9b8ff']];
 VITRAUX.forEach(([,c],i)=>tile(35+i,P=>{for(let y=0;y<16;y++)for(let x=0;x<16;x++){const b=x===0||y===0||x===15||y===15||x===7||y===7;P(x,y,b?shadeOf(c,.82):rgbaOf(c,.42))}
  for(const[x,y]of[[2,3],[3,2],[10,11],[11,10],[9,3],[3,10]])P(x,y,'rgba(255,255,255,.85)')}));
 function doorTile(P,top){for(let y=0;y<16;y++)for(let x=0;x<16;x++){let c=x%5===0?'#d7ae84':'#f2cfa6';if(x===0||x===15||(!top&&y===15)||(top&&y===0))c='#b98a5a';P(x,y,c)}
@@ -84,40 +79,8 @@ for(const t of[atlasTex,emisTex]){t.magFilter=THREE.NearestFilter;t.minFilter=TH
 const waterC=document.createElement('canvas');waterC.width=waterC.height=32;{const w=waterC.getContext('2d');for(let y=0;y<32;y++)for(let x=0;x<32;x++){const r=hash(x,y,77);w.fillStyle=r<.18?'#a9dcf7':r<.3?'#6fb6e8':'#86c7ee';w.fillRect(x,y,1,1)}for(let k=0;k<10;k++){const x=Math.floor(hash(k,1,78)*28),y=Math.floor(hash(k,2,78)*30);w.fillStyle='#d7f1ff';w.fillRect(x,y,4,1)}}
 const waterTex=new THREE.CanvasTexture(waterC);waterTex.wrapS=waterTex.wrapT=THREE.RepeatWrapping;waterTex.magFilter=THREE.NearestFilter;waterTex.minFilter=THREE.NearestFilter;waterTex.generateMipmaps=false;
 
-// ---------- blocs et objets (chaque objet = un jeton) ----------
-const B={
- 1:{n:'Herbe',t:[0,1,2],h:.6,drop:2},2:{n:'Terre',t:[2,2,2],h:.6},3:{n:'Granite',t:[3,3,3],h:2,stone:1},4:{n:'Sable',t:[4,4,4],h:.5},
- 5:{n:'Bois',t:[6,5,6],h:1.4},6:{n:'Feuilles',t:[7,7,7],h:.25,leaf:1,drop:0},7:{n:'Feuilles roses',t:[8,8,8],h:.25,leaf:1,drop:0},
- 8:{n:"Minerai d'éther",t:[9,9,9],h:2.6,stone:1,drop:101},9:{n:'Planches',t:[10,10,10],h:1.1},10:{n:'Verre',t:[11,11,11],h:.5,glass:1},
- 11:{n:'Eau',water:1},12:{n:'Socle',t:[12,12,12],h:Infinity},13:{n:'Validateur',t:[14,13,14],h:2.5,stone:1},14:{n:'Lanterne',t:[15,15,15],h:.5},
- 15:{n:'Marbre',t:[16,16,16],h:2.2,stone:1},16:{n:'Neige',t:[17,18,3],h:.5},
- 17:{n:'Fleur rose',x:19,h:.05},18:{n:'Fleur dorée',x:20,h:.05},19:{n:'Fleur bleue',x:21,h:.05},20:{n:'Herbes hautes',x:22,h:.05,drop:0}};
-const ITEM={101:{n:"Cristal d'éther",icon:24},102:{n:'Pioche en bois',icon:25,tool:2.2},201:{n:'Pioche de cristal',icon:26,tool:5,nft:1}};
-// v2 : blocs ajoutés à la suite (ne jamais renuméroter). Variantes d'orientation et d'état = identifiants consécutifs.
-PASTELS.forEach(([n],i)=>B[21+i]={n:'Béton '+n,t:[27+i,27+i,27+i],h:1.2,stone:1});
-VITRAUX.forEach(([n],i)=>B[29+i]={n:'Vitrail '+n,t:[35+i,35+i,35+i],h:.5,glass:1});
-[['planches',10,1.1,0],['marbre',16,2.2,1],['granite',3,2,1]].forEach(([n,t,h,st],i)=>{
- B[33+i]={n:'Dalle de '+n,t:[t,t,t],h:h*.6,stone:st,shape:'slab'};
- for(let o=0;o<4;o++)B[36+i*4+o]={n:'Escalier de '+n,t:[t,t,t],h,stone:st,shape:'stairs',o,drop:36+i*4}});
-for(let f=0;f<4;f++)for(let op=0;op<2;op++)for(let top=0;top<2;top++)B[48+f*4+op*2+top]={n:'Porte',t:[10,top?40:39,10],h:.9,shape:'door',f,open:op,top,drop:48,icon:52};
-B[64]={n:'Levier',t:[3,3,3],h:.3,shape:'lever',on:0,drop:64,icon:50,pass:1};B[65]={...B[64],on:1};
-B[66]={n:'Plaque de pression',t:[16,16,16],h:.5,shape:'plate',icon:51,pass:1};
-B[67]={n:"Câble d'éther",t:[43,43,43],h:.1,shape:'cable',icon:43,pass:1};
-B[68]={n:'Lampe',t:[45,45,45],h:.5};
-B[69]={n:'Géode',t:[47,47,47],h:3,stone:1,drop:103};
-B[70]={n:"Bloc d'éther pur",t:[49,49,49],h:2.4,stone:1};
-B[71]={n:"Laine d'éther",t:[53,53,53],h:.5};
-ITEM[103]={n:'Éclat pur',icon:48};
-// v3 : progression par paliers d'outils (0 main nue, 1 bois, 2 cristal, 3 éther pur)
-B[72]={n:'Roche de genèse',t:[60,60,60],h:5,stone:1,tier:3,drop:104};
-B[73]={n:'Validateur éteint',t:[55,54,55],h:Infinity};
-B[74]={n:'Validateur ancien',t:[14,13,14],h:Infinity};
-B[69].tier=2;B[70].tier=2;
-ITEM[104]={n:'Fragment de genèse',icon:56};ITEM[105]={n:'Cœur de validateur',icon:57};
-ITEM[102].tier=1;ITEM[201].tier=2;
-ITEM[202]={n:"Pioche d'éther pur",icon:58,tool:8,tier:3,nft:1};ITEM[203]={n:'Sceau de validateur',icon:59,nft:1};
+// ---------- blocs et objets : supabase/functions/_shared/rules.js ----------
 const TIER_NAME=['la main','une pioche en bois','la pioche de cristal',"la pioche d'éther pur"];
-const reqTier=id=>B[id]?(B[id].tier??(B[id].stone?1:0)):0;
 const MAT_OF=id=>id===72||id===73||id===74?'pierre':[1,2,6,7,17,18,19,20].includes(id)?'herbe':id===4?'sable':id===16||id===71?'neige':[5,9,33,36,37,38,39].includes(id)||(id>=48&&id<=63)?'bois':[10,14,68].includes(id)||(id>=29&&id<=32)?'verre':'pierre';
 const nameOf=id=>B[id]?B[id].n:ITEM[id]?ITEM[id].n:'Objet inconnu';
 const isCross=id=>B[id]&&B[id].x!=null;
@@ -141,77 +104,11 @@ function shapeBoxes(id,key){const b=B[id];switch(b.shape){
  default:return[[0,0,0,1,1,1]]}}
 function collBoxes(id,key){if(!isSolid(id))return[];return isShaped(id)?shapeBoxes(id,key):[[0,0,0,1,1,1]]}
 
-// ---------- monde par tronçons (16 × 16 colonnes, chargés autour des joueurs) ----------
-const SY=48,SEA=15,CH=16,CV=CH*CH*SY;
-const GEN=1; // version du générateur (2 : océans, îles flottantes, grottes profondes) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
-const SPAWN={x:8,z:8,y:0};
+// ---------- monde par tronçons (générateur partagé : supabase/functions/_shared/world.js) ----------
 const CHK=new Map(); // "cx,cz" -> Uint8Array des blocs du tronçon
-const ckey=(cx,cz)=>cx+','+cz,coordKey=(x,y,z)=>x+','+y+','+z,cOf=v=>Math.floor(v/CH);
-const li=(lx,y,lz)=>lx+lz*CH+y*CH*CH;
 function get(x,y,z){if(y<0||y>=SY)return 0;const cx=cOf(x),cz=cOf(z),c=CHK.get(cx+','+cz);return c?c[li(x-cx*CH,y,z-cz*CH)]:0}
 function setW(x,y,z,id){if(y<0||y>=SY)return;const cx=cOf(x),cz=cOf(z),c=CHK.get(cx+','+cz);if(c){c[li(x-cx*CH,y,z-cz*CH)]=id;specSet(x,y,z,id)}}
 const loaded=(x,z)=>CHK.has(cOf(x)+','+cOf(z));
-// Monde infini, borné seulement par les règles de la base (±100 000 blocs depuis le centre).
-const LIMITE=100000;
-const inWorld=(x,z)=>Math.abs(x)<LIMITE&&Math.abs(z)<LIMITE;
-const RUIN=80;
-// position de la ruine d'une région (ou null : océan, sommet) ; la région du sanctuaire en a une à portée de vue
-function ruinAt(rx,rz){for(let k=0;k<4;k++){let x,z;if(rx===0&&rz===0&&k===0){x=SPAWN.x+38;z=SPAWN.z-22}else{x=rx*RUIN+10+Math.floor(hash(rx,rz,120+k)*60);z=rz*RUIN+10+Math.floor(hash(rz,rx,130+k)*60)}
- if(Math.hypot(x-SPAWN.x,z-SPAWN.z)<(rx||rz?50:20)||(rx||rz)&&Math.hypot(x-SPAWN.x-38,z-SPAWN.z+22)<40)continue;let lo=99,hi=0;for(let dx=-2;dx<=2;dx+=2)for(let dz=-2;dz<=2;dz+=2){const h=heightAt(x+dx,z+dz);lo=Math.min(lo,h);hi=Math.max(hi,h)}
- if(lo<=SEA+1||hi>34||hi-lo>4)continue;return{x,z,y:heightAt(x,z)}}return null}
-const contAt=(x,z)=>vn2(x/170+50,z/170-40,9)*.7+vn2(x/60,z/60,10)*.3; // bas = océan
-function heightAt(x,z){const c=vn2(x/40,z/40,1)*.6+vn2(x/17,z/17,2)*.3+vn2(x/7,z/7,3)*.1;const m=sm(clamp((vn2(x/64+10,z/64+10,4)-.52)/.25,0,1));
- const d=Math.hypot(x-SPAWN.x,z-SPAWN.z),flat=sm(clamp((d-5)/10,0,1)),oc=sm(clamp((.4-contAt(x,z))/.1,0,1));
- const land=12+c*14+m*18*vn2(x/16,z/16,5),sea=5+vn2(x/9,z/9,11)*5;return Math.floor(lerp(20,lerp(land,sea,oc),flat))}
-// îles flottantes : nuages de roche entre 31 et 45, loin du sanctuaire, jamais au-dessus des montagnes
-const islandZone=(x,z)=>vn2(x/90+7,z/90-3,14)>.56&&Math.hypot(x-SPAWN.x,z-SPAWN.z)>36&&heightAt(x,z)<29&&contAt(x,z)>.42;
-const isIsland=(x,y,z)=>{if(y<31||y>45)return false;const band=1-Math.abs(y-38)/7;return(vn3(x/26,y/9,z/26,12)*.75+vn3(x/9,y/5,z/9,13)*.25)*sm(clamp(band*1.6,0,1))>.47};
-function islandTop(x,z){if(!islandZone(x,z))return -1;for(let y=45;y>=31;y--)if(isIsland(x,y,z))return y;return -1}
-function biome(x,z){const b=vn2(x/50+30,z/50-20,6);return b<.42?'plaine':b<.66?'foret':'dunes'}
-const topAt=(h,bi)=>h<=SEA+1?4:bi==='dunes'?4:h>=36?16:h>=31?3:1;
-SPAWN.y=heightAt(SPAWN.x,SPAWN.z)+1;
-function genChunk(cx,cz){
- const a=new Uint8Array(CV),x0=cx*CH,z0=cz*CH;
- const put=(x,y,z,id,onlyAir)=>{const lx=x-x0,lz=z-z0;if(lx<0||lz<0||lx>=CH||lz>=CH||y<0||y>=SY)return;const i=li(lx,y,lz);if(onlyAir&&a[i])return;a[i]=id};
- const at=(x,y,z)=>{const lx=x-x0,lz=z-z0;if(lx<0||lz<0||lx>=CH||lz>=CH||y<0||y>=SY)return -1;return a[li(lx,y,lz)]};
- for(let lz=0;lz<CH;lz++)for(let lx=0;lx<CH;lx++){const x=x0+lx,z=z0+lz,h=heightAt(x,z),bi=biome(x,z);
-  for(let y=0;y<SY;y++){let id=0;
-   if(y===0)id=12;else if(y<h-3)id=3;else if(y<h)id=(bi==='dunes'||h<=SEA+1)?4:2;else if(y===h)id=topAt(h,bi);else if(y<=SEA)id=11;
-   if(id===3&&y>1&&y<h-4&&vn3(x/11,y/7,z/11,7)>.7)id=0;
-   if(id===3&&y>1&&y<13&&vn3(x/18,y/6,z/18,15)>.66)id=0; // grandes grottes profondes
-   if(id===3&&vn3(x/3.2,y/3.2,z/3.2,8)>.8-Math.min(.1,(h-y)*.004))id=8;
-   if(id===3&&y<14&&vn3(x/2.4,y/2.4,z/2.4,16)>.885)id=69; // géodes d'éther pur
-   if(id===3&&(y<=2||y<=4&&vn3(x/5,y/3,z/5,17)>.5))id=72; // roche de genèse, tout au fond
-   if(id)a[li(lx,y,lz)]=id}
-  if(islandZone(x,z)){let depth=0;for(let y=45;y>=31;y--){if(isIsland(x,y,z)){depth++;let id=depth===1?1:depth<=3?2:3;if(id===3&&hash(x*3+y,z,17)<.07)id=8;a[li(lx,y,lz)]=id}else depth=0}}}
- // décor : racines prises dans une marge de 3 colonnes, pour qu'un arbre à cheval sur deux tronçons soit identique des deux côtés
- for(let z=z0-3;z<z0+CH+3;z++)for(let x=x0-3;x<x0+CH+3;x++){const h=heightAt(x,z),bi=biome(x,z);if(topAt(h,bi)!==1||Math.hypot(x-SPAWN.x,z-SPAWN.z)<8)continue;const r=hash(x,z,40);
-  if(bi==='foret'&&r<.004){const t=2+Math.floor(hash(x,z,41)*3);for(let k=1;k<=t;k++)put(x,h+k,z,8);continue}
-  if(r<(bi==='foret'?.028:.01)){const th=4+Math.floor(hash(x,z,42)*3),leaf=bi==='foret'?7:6;for(let k=1;k<=th;k++)put(x,h+k,z,5);
-   for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){const rr=Math.hypot(dx,dy*1.2,dz);if(rr<=2.5-(hash(x+dx,z+dz,dy+50)<.3?.6:0))put(x+dx,h+th+dy,z+dz,leaf,true)}
-   put(x,h+th+2,z,leaf,true);continue}
-  if(at(x,h+1,z)===0){if(r<.09)put(x,h+1,z,20);else if(r<.11)put(x,h+1,z,17+Math.floor(hash(x,z,43)*3))}}
- // décor des îles flottantes (même marge : identique des deux côtés d'un bord)
- for(let z=z0-3;z<z0+CH+3;z++)for(let x=x0-3;x<x0+CH+3;x++){const t=islandTop(x,z);if(t<0||t>=43)continue;const r=hash(x,z,45);
-  if(r<.012){for(let k=1;k<=2+Math.floor(hash(x,z,46)*2);k++)put(x,t+k,z,8,true);continue}
-  if(r<.05&&t<=40){const th=3+Math.floor(hash(x,z,47)*2);for(let k=1;k<=th;k++)put(x,t+k,z,5,true);
-   for(let dy=-1;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++)if(Math.hypot(dx,dy*1.3,dz)<=2.3)put(x+dx,t+th+dy,z+dz,7,true);continue}
-  if(at(x,t+1,z)===0&&r<.16)put(x,t+1,z,r<.1?20:17+Math.floor(hash(x,z,48)*3))}
- // ruines : un validateur éteint par région de 80 × 80
- for(let rz=Math.floor((z0-4)/RUIN);rz<=Math.floor((z0+CH+4)/RUIN);rz++)for(let rx=Math.floor((x0-4)/RUIN);rx<=Math.floor((x0+CH+4)/RUIN);rx++){const r=ruinAt(rx,rz);if(!r)continue;
-  const{x:rx0,z:rz0,y:ry}=r;
-  for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){const hh=hash(rx0+dx,rz0+dz,121);put(rx0+dx,ry,rz0+dz,hh<.2?3:15);for(let k=1;k<=6;k++)put(rx0+dx,ry+k,rz0+dz,0);put(rx0+dx,ry-1,rz0+dz,3)}
-  for(const[dx,dz]of[[-2,-2],[2,-2],[-2,2],[2,2]]){const hp=1+Math.floor(hash(rx0+dx,rz0+dz,122)*3);for(let k=1;k<=hp;k++)put(rx0+dx,ry+k,rz0+dz,hash(rx0+dx,k,123)<.25?3:15);if(hp===3)put(rx0+dx,ry+4,rz0+dz,14)}
-  put(rx0,ry+1,rz0,73)}
- // le sanctuaire du validateur, au point d'apparition
- const sx=SPAWN.x,sz=SPAWN.z,sy=SPAWN.y-1;
- if(x0<=sx+3&&x0+CH>sx-3&&z0<=sz+3&&z0+CH>sz-3){
-  for(let dx=-3;dx<=3;dx++)for(let dz=-3;dz<=3;dz++){put(sx+dx,sy,sz+dz,15);for(let k=1;k<7;k++)put(sx+dx,sy+k,sz+dz,0)}
-  for(const[dx,dz]of[[-3,-3],[3,-3],[-3,3],[3,3]])for(let k=1;k<=4;k++)put(sx+dx,sy+k,sz+dz,15);
-  for(let dx=-3;dx<=3;dx++)for(let dz=-3;dz<=3;dz++)if(Math.abs(dx)===3||Math.abs(dz)===3)put(sx+dx,sy+5,sz+dz,15);
-  put(sx,sy+1,sz,13);for(const[dx,dz]of[[-2,-2],[2,-2],[-2,2],[2,2]])put(sx+dx,sy+4,sz+dz,14)}
- return a}
-
 // ---------- état, sauvegarde ----------
 let KEY='ether-mines:solo';
 const SAVE_V=1;
@@ -226,12 +123,12 @@ function migrateSave(s){
  if(!s.v)s.v=1;
 }
 // Saison : changer SAISON efface les parties gardées dans les navigateurs (à faire avec une remise à zéro de la base).
-const SAISON='1';
+const SAISON='2';
 try{if(localStorage.getItem('ether-mines:saison')!==SAISON){for(const k of Object.keys(localStorage))if(k.startsWith('ether-mines:')&&!['ether-mines:profil','ether-mines:son'].includes(k))localStorage.removeItem(k);localStorage.setItem('ether-mines:saison',SAISON)}}catch(e){}
 let dirty=false,cloudDirty=false,cloudBusy=false,cloudOff=false;
 function save(){if(!dirty)return;dirty=false;cloudDirty=true;S.pos=[P.x,P.y,P.z,yaw,pitch];try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 // partie côté serveur (en ligne) : sans le terrain du mode solo, avec un registre raccourci
-const cloudState=()=>{const c={...S,log:S.log.slice(0,40)};delete c.chunks;delete c.edits;delete c.placed;return c};
+const cloudState=()=>{const c={...S,log:S.log.slice(0,40)};delete c.chunks;delete c.edits;delete c.placed;delete c.inv;delete c.nfts;return c};
 async function cloudSave(force){if(!Net.enabled||!Net.userId||cloudOff||!booted||cloudBusy||!(cloudDirty||force))return;cloudBusy=true;cloudDirty=false;
  try{if(!await Net.savePlayer(Net.world,ME.name,ME.color,cloudState()))cloudDirty=true}finally{cloudBusy=false}}
 setInterval(()=>{save();cloudSave()},5000);addEventListener('pagehide',()=>{dirty=true;save();cloudSave(true)});
@@ -475,8 +372,67 @@ function updateFireflies(dt,night,t){ffMat.opacity=Math.max(0,night-.3)*1.3;fire
  ffReady=true;ffMat.size=.28+Math.sin(t*3)*.05;ffGeo.attributes.position.needsUpdate=true}
 function burst(x,y,z,id){const ti=B[id].x!=null?B[id].x:B[id].t[1];const c=pMats[ti]||(pMats[ti]=new THREE.MeshLambertMaterial({color:avgColor(ti)}));
  for(let i=0;i<10;i++){const m=new THREE.Mesh(pGeo,c);m.position.set(x+.2+Math.random()*.6,y+.2+Math.random()*.6,z+.2+Math.random()*.6);scene.add(m);parts.push({m,v:[(Math.random()-.5)*3,Math.random()*3+1,(Math.random()-.5)*3],t:.7})}}
+// ---------- arbitrage par le serveur (en ligne) ----------
+// Le jeu montre tout de suite le résultat attendu, le serveur valide ; en cas de refus on revient en arrière.
+let REC=null;
+const SERVER=()=>Net.online&&!!Net.userId;
+function record(fn){REC=[];try{fn()}catch(e){REC=null;throw e}const r=REC;REC=null;return r}
+function revert(rec){for(const[k,id,own]of rec.slice().reverse()){const[x,y,z]=k.split(',').map(Number);setW(x,y,z,id);editSet(x,y,z,id);if(own)OWN.set(k,own);else OWN.delete(k);
+ if(id===13||id===74)addVal(x,y,z);else delVal(k);rebuildAt(x,z)}if(regView)buildRegView()}
+const REFUS={'outil':()=>`il faut ${target?TIER_NAME[reqTier(target.id)]:'un meilleur outil'}`,'protégé':()=>'zone protégée','coffre vide':()=>'plus rien de cet objet','support':()=>'il faut un support','case occupée':()=>null,'trop vite':()=>null,'rien à miner':()=>null};
+function setInv(inv,why){if(!inv)return;for(const[k,n]of Object.entries(inv)){const old=S.inv[k]||0;if(n>0)S.inv[k]=n;else{delete S.inv[k];if(!ITEM[k]?.nft){const b=S.bar.indexOf(String(k));if(b>=0)S.bar[b]=null}}
+  if(n>old){S.got[k]=1;S.supply[k]=(S.supply[k]||0)+n-old;S.totalMint+=n-old;if(!S.bar.includes(String(k))){const e=S.bar.indexOf(null);if(e>=0)S.bar[e]=String(k)}if(why)logEv('mint',`${n-old} ${nameOf(+k)}`,why)}}
+ dirty=true;ui()}
+function addUnique(u){if(!u||S.nfts.some(n=>n.serial===u.serial))return;S.nfts.push({serial:u.serial,id:u.id,date:u.date,where:u.place||'',mined:u.mined||0});S.got[u.id]=1;
+ logEv('nft',`${nameOf(u.id)} #${u.serial}`,'frappé, unique');if(u.id!==203){const e=S.bar.indexOf(null);S.bar[e>=0?e:S.sel]='nft'+u.serial}dirty=true;ui()}
+function applyServer(r){for(const c of r.changes||[])applyBlock(c)}
+async function serverAct(name,args,rec,why){
+ try{const r=await Net.act(name,args);if(r&&r.ok){applyServer(r);setInv(r.inv,why);return r}
+  if(rec)revert(rec);if(r&&r.inv)setInv(r.inv);const m=r&&REFUS[r.err]?REFUS[r.err]():r&&r.err;if(m)logEv('burn','Refusé',m);
+  if(r&&r.cell!==undefined&&args.px!==undefined){applyBlock({x:args.px,y:args.py,z:args.pz,id:r.cell,by:OWN.get(coordKey(args.px,args.py,args.pz))?.by,name:OWN.get(coordKey(args.px,args.py,args.pz))?.name,serial:OWN.get(coordKey(args.px,args.py,args.pz))?.serial})}
+  if(rec)syncInventory();return null}
+ catch(e){console.error(e);if(rec)revert(rec);logEv('burn','Le serveur ne répond pas',/act_|function/i.test(e.message)&&/not find|does not exist|Could not/i.test(e.message)?'schéma SQL à mettre à jour':'réessaie dans un instant');syncInventory();return null}}
+let syncing=null;
+function syncInventory(){if(!SERVER())return Promise.resolve();if(syncing)return syncing;
+ syncing=Net.loadInventory().then(({inv,uniques})=>{S.inv={};for(const r of inv)if(r.n>0)S.inv[r.item]=r.n;
+  S.nfts=uniques.map(u=>({serial:u.serial,id:u.item,date:new Date(u.created_at).toLocaleDateString('fr-FR'),where:u.place||'',mined:u.mined}));
+  for(const k of Object.keys(S.inv))S.got[k]=1;for(const n of S.nfts)S.got[n.id]=1;
+  const seals=S.nfts.filter(n=>n.id===203);S.relit=seals.length;S.relitAt={};for(const n of seals){const[x,y,z]=n.where.split(',').map(v=>parseInt(v));S.relitAt[coordKey(x,y,z)]=1}
+  for(let i=0;i<9;i++){const b=S.bar[i];if(b&&(String(b).startsWith('nft')?!nftOf(b):!(S.inv[b]>0)))S.bar[i]=null}dirty=true;ui()}).catch(e=>console.error(e)).finally(()=>syncing=null);return syncing}
+
+// ---------- parcelles ----------
+const CLAIMS=new Map();
+const sanctuary=(x,z)=>x>=4&&x<=12&&z>=4&&z<=12;
+const claimAt=(x,z)=>CLAIMS.get(ckey(cOf(Math.floor(x)),cOf(Math.floor(z))));
+function canBuildHere(x,z){if(!SERVER())return true;if(sanctuary(x,z))return false;const c=claimAt(x,z);return !c||c.owner===ME.id||(c.members||[]).includes(ME.id)}
+function protectMsg(x,z){if(sanctuary(x,z))return'le sanctuaire est protégé';const c=claimAt(x,z);return`parcelle de ${c?.owner_name||'quelqu\'un'}`}
+let hintT=0;function protectHint(x,z){if(hintT>0)return;hintT=3;logEv('burn','Zone protégée',protectMsg(x,z))}
+const claimMat=[new THREE.LineBasicMaterial({color:0x9fe3c4,transparent:true,opacity:.75}),new THREE.LineBasicMaterial({color:0xff9ab8,transparent:true,opacity:.75})];
+let claimLines=[],claimKey='';
+function buildClaimLines(force){const pcx=cOf(Math.floor(P.x)),pcz=cOf(Math.floor(P.z)),key=pcx+','+pcz+':'+CLAIMS.size;if(!force&&key===claimKey)return;claimKey=key;
+ for(const l of claimLines){scene.remove(l);l.geometry.dispose()}claimLines=[];const pos=[[],[]];
+ for(const c of CLAIMS.values()){if(Math.abs(c.cx-pcx)>5||Math.abs(c.cz-pcz)>5)continue;const mine=c.owner===ME.id||(c.members||[]).includes(ME.id)?0:1,x0=c.cx*CH,z0=c.cz*CH;
+  for(const[x,z]of[[x0,z0],[x0+CH,z0],[x0,z0+CH],[x0+CH,z0+CH]])pos[mine].push(x,0,z,x,SY+4,z);
+  const y=Math.max(heightAt(x0+8,z0+8)+1.05,SEA+1.05);for(const[a,b,c2,d]of[[x0,z0,x0+CH,z0],[x0+CH,z0,x0+CH,z0+CH],[x0+CH,z0+CH,x0,z0+CH],[x0,z0+CH,x0,z0]])pos[mine].push(a,y,b,c2,y,d)}
+ for(let m=0;m<2;m++)if(pos[m].length){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos[m],3));const l=new THREE.LineSegments(g,claimMat[m]);scene.add(l);claimLines.push(l)}}
+Net.on('claim',(ev,n,o)=>{if(ev==='DELETE'){if(o)CLAIMS.delete(ckey(o.cx,o.cz))}else if(n)CLAIMS.set(ckey(n.cx,n.cz),n);buildClaimLines(true);updatePosHud()});
+async function claimCmd(c,arg){if(!SERVER()){addChat('Monde','#7fe8ff','Les parcelles demandent une partie en ligne.');return}
+ const qx=cOf(Math.floor(P.x)),qz=cOf(Math.floor(P.z)),say=t=>addChat('Monde','#7fe8ff',t);
+ if(c==='parcelle'){const r=await serverAct('claim',{qx,qz},null,'parcelle');if(r)say(`Parcelle ${qx}, ${qz} revendiquée (2 cristaux). Toi et tes invités seuls pouvez y construire.`);return}
+ if(c==='liberer'){const r=await serverAct('unclaim',{qx,qz});if(r)say(`Parcelle ${qx}, ${qz} libérée.`);return}
+ if(c==='inviter'||c==='exclure'){if(!arg){say(`Écris /${c} suivi d'un pseudo.`);return}const r=await serverAct('member',{pseudo:arg,invite:c==='inviter'});if(r)say(c==='inviter'?`${r.name} peut construire sur toutes tes parcelles.`:`${r.name} ne peut plus construire sur tes parcelles.`);return}
+ if(c==='parcelles'){const mine=[...CLAIMS.values()].filter(v=>v.owner===ME.id);say(mine.length?`Tes parcelles : ${mine.map(v=>v.cx+', '+v.cz).join(' · ')}`:'Tu n\'as pas encore de parcelle. /parcelle revendique celle où tu te trouves.')}}
+
 function breakBlock(t){
  const id=get(t.x,t.y,t.z);if(!id||id===12||!inWorld(t.x,t.z))return;const k=coordKey(t.x,t.y,t.z);
+ if(SERVER()){if(!canBuildHere(t.x,t.z)){protectHint(t.x,t.z);return}
+  const rec=record(()=>{commit(k,0,null);if(B[id].shape==='door'){const oy=B[id].top?t.y-1:t.y+1;if(B[get(t.x,oy,t.z)]?.shape==='door')commit(coordKey(t.x,oy,t.z),0,null)}
+   const above=get(t.x,t.y+1,t.z),ab=B[above];if(isCross(above)||ab&&(ab.shape==='plate'||ab.shape==='cable'||ab.shape==='lever'))commit(coordKey(t.x,t.y+1,t.z),0,null)});
+  burst(t.x,t.y,t.z,id);Sound.brk(MAT_OF(id));if(id===13)delVal(k);rebuildAt(t.x,t.z);if(regView)buildRegView();
+  const held=S.bar[S.sel]||null;
+  serverAct('mine',{px:t.x,py:t.y,pz:t.z,held},rec,B[id].drop===101?'extrait du minerai':B[id].drop===103?'extrait de la géode':B[id].drop===104?'arraché à la roche de genèse':`jeton #${B[id].drop??id}`).then(r=>{if(!r)return;
+   const g=r.got||{};if([101,103,104].includes(g.item)&&g.n)Sound.chime();if(g.item===104&&!g.n)logEv('burn','La roche de genèse s\'effrite','pas de fragment cette fois');
+   const u=held&&nftOf(held);if(u)u.mined=(u.mined||0)+1});return}
  const owned=OWN.get(k)?.serial;commit(k,0,null);burst(t.x,t.y,t.z,id);Sound.brk(MAT_OF(id));
  if(B[id].shape==='door'){const oy=B[id].top?t.y-1:t.y+1;if(B[get(t.x,oy,t.z)]?.shape==='door')commit(coordKey(t.x,oy,t.z),0,null)}
  const above=get(t.x,t.y+1,t.z),ab=B[above];
@@ -495,8 +451,9 @@ function place(){
  if(!playing||!target)return;
  const tb=B[target.id],tk=coordKey(target.x,target.y,target.z);
  if(target.id===73){relight(target);return}
- if(tb&&tb.shape==='door'&&inWorld(target.x,target.z)){toggleDoor(target);return}
- if(tb&&tb.shape==='lever'&&inWorld(target.x,target.z)){commit(tk,tb.on?64:65,OWN.get(tk)||null);Sound.click();swing=.6;rebuildAt(target.x,target.z);return}
+ if(tb&&(tb.shape==='door'||tb.shape==='lever')&&SERVER()&&!canBuildHere(target.x,target.z)){protectHint(target.x,target.z);return}
+ if(tb&&tb.shape==='door'&&inWorld(target.x,target.z)){const t=target,rec=record(()=>toggleDoor(t));if(SERVER())serverAct('toggle',{px:t.x,py:t.y,pz:t.z},rec);return}
+ if(tb&&tb.shape==='lever'&&inWorld(target.x,target.z)){const t=target,rec=record(()=>commit(tk,tb.on?64:65,OWN.get(tk)||null));Sound.click();swing=.6;rebuildAt(t.x,t.z);if(SERVER())serverAct('toggle',{px:t.x,py:t.y,pz:t.z},rec);return}
  if(!target.prev)return;const it=S.bar[S.sel];if(!it||!B[it]||!(S.inv[it]>0))return;let id=+it;
  const face=((Math.round(yaw/(Math.PI/2))%4)+4)%4;
  if(B[id].shape==='stairs')id=id+face;
@@ -505,13 +462,17 @@ function place(){
  if(isCross(id)&&![1,2].includes(get(x,y-1,z)))return;
  const sh=B[id].shape;if((sh==='plate'||sh==='cable'||sh==='lever')&&!isSolid(get(x,y-1,z)))return;
  if(sh==='door'){const up=get(x,y+1,z);if(y+1>=SY||(up&&up!==11&&!isCross(up)))return;id=48+face*4}
- const k=coordKey(x,y,z);take(it,1);S.serial++;const own={by:ME.id,name:ME.name,serial:S.serial};commit(k,id,own);
- if(sh==='door')commit(coordKey(x,y+1,z),id+1,own);swing=1;Sound.place(MAT_OF(id));popAt(x,y,z,sh==='door'?2:1);
- logEv('burn',`1 ${B[id].n}`,`→ bloc posé #${S.serial}`);
+ if(SERVER()&&!canBuildHere(x,z)){protectHint(x,z);return}
+ const k=coordKey(x,y,z);take(it,1);if(!SERVER())S.serial++;const own={by:ME.id,name:ME.name,serial:SERVER()?0:S.serial};
+ const rec=record(()=>{commit(k,id,own);if(sh==='door')commit(coordKey(x,y+1,z),id+1,own)});swing=1;Sound.place(MAT_OF(id));popAt(x,y,z,sh==='door'?2:1);
+ if(SERVER()){const name=B[id].n;serverAct('place',{px:x,py:y,pz:z,it:+it,bid:id},rec).then(r=>{if(r)logEv('burn',`1 ${name}`,`→ bloc posé #${r.serial}`)})}
+ else logEv('burn',`1 ${B[id].n}`,`→ bloc posé #${S.serial}`);
  if(id===13){addVal(x,y,z);if(!S.seen.val){S.seen.val=1;toastInfo('Validateur actif : il frappe un cristal à chaque slot de 12 secondes.')}}
  dirty=true;rebuildAt(x,z);ui();if(regView)buildRegView()}
 function toastInfo(t){logEv('nft',t,'')}
 function relight(t){if(!(S.inv[105]>0)){logEv('burn','Validateur éteint','il faut un cœur de validateur : regarde tes objectifs');Sound.hit('pierre');return}
+ if(SERVER()){swing=1;serverAct('relight',{px:t.x,py:t.y,pz:t.z}).then(r=>{if(!r)return;addUnique(r.unique);syncInventory();
+  logEv('burn','1 Cœur de validateur','→ validateur ancien rallumé');toastInfo('Validateur ancien rallumé : 3 cristaux par slot, à ton nom.');Sound.chime();popAt(t.x,t.y,t.z,1)});return}
  take(105,1);S.serial++;const k=coordKey(t.x,t.y,t.z),own={by:ME.id,name:ME.name,serial:S.serial};commit(k,74,own);addVal(t.x,t.y,t.z);
  S.relit=(S.relit||0)+1;S.relitAt=S.relitAt||{};S.relitAt[k]=1;mintNft(203,`${t.x}, ${t.y}, ${t.z}`);
  logEv('burn','1 Cœur de validateur',`→ validateur ancien rallumé (${S.relit})`);toastInfo('Validateur ancien rallumé : 3 cristaux par slot, à ton nom.');
@@ -541,23 +502,6 @@ $('closeP').onclick=togglePanel;
 function openTab(t){tab=t;document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x.dataset.tab===t));if($('panel').hidden)togglePanel();else renderPanel()}
 $('quest').onclick=e=>{e.stopPropagation();if(playing)openTab('quest')};
 function togglePanel(){const p=$('panel');p.hidden=!p.hidden;if(!p.hidden){if(document.pointerLockElement)document.exitPointerLock();mining=false;renderPanel()}else if(playing)tryLock()}
-const RECIPES=[
- {out:9,n:4,need:{5:1},d:'Débiter une bûche'},{out:102,n:1,need:{9:3},d:'Outil fongible · minage ×2 · taille la pierre'},{out:15,n:1,need:{3:2},d:'Tailler le granite'},
- {out:10,n:1,need:{4:2},d:'Fondre le sable'},{out:14,n:1,need:{10:1,101:1},d:'Lumière pour les galeries'},
- {out:201,n:1,need:{9:2,101:3},d:'Objet unique (ERC-721) · minage ×5 · ouvre les géodes',nft:1},{out:13,n:1,need:{101:8,15:4},d:'Frappe un cristal par slot'},
- {out:70,n:1,need:{103:4},d:'Éther pur des profondeurs, lumineux'},
- {out:202,n:1,need:{103:4,101:4,9:2},d:'Objet unique (ERC-721) · minage ×8 · taille la roche de genèse',nft:1},
- {out:105,n:1,need:{104:1,103:2,101:4},d:'Rallume un validateur ancien (clic droit dessus)'}];
-RECIPES.forEach(r=>r.cat='Ressources et outils');
-// construction
-[[9,'planches'],[15,'marbre'],[3,'granite']].forEach(([m],i)=>{RECIPES.push({out:33+i,n:4,need:{[m]:2},d:'Demi-bloc',cat:'Construction'},{out:36+i*4,n:4,need:{[m]:3},d:"S'oriente selon ton regard",cat:'Construction'})});
-RECIPES.push({out:48,n:1,need:{9:4},d:'Clic droit pour ouvrir',cat:'Construction'});
-// couleurs : sable et granite teintés par une fleur, des feuilles ou du marbre
-[[17],[7],[6],[19],[4],[18],[17,18],[15]].forEach((col,i)=>{const need={4:2,3:1};for(const c of col)need[c]=(need[c]||0)+1;RECIPES.push({out:21+i,n:4,need,d:'Béton coloré',cat:'Couleurs'})});
-[[17],[19],[6],[7]].forEach(([c],i)=>RECIPES.push({out:29+i,n:2,need:{10:2,[c]:1},d:'Verre teinté',cat:'Couleurs'}));
-// contrats
-RECIPES.push({out:64,n:1,need:{9:1,3:1},d:'Source : clic droit pour basculer',cat:'Contrats'},{out:66,n:2,need:{15:2},d:'Source : active quand on marche dessus',cat:'Contrats'},
- {out:67,n:8,need:{101:1},d:'Transmet le signal, bloc après bloc',cat:'Contrats'},{out:68,n:1,need:{10:1,101:2},d:"S'allume quand elle est alimentée",cat:'Contrats'});
 // ---------- objectifs : la progression ----------
 const hasNft=id=>S.nfts.some(n=>(n.id||201)===id);
 const QUESTS=[
@@ -565,7 +509,7 @@ const QUESTS=[
  {t:'Fabrique une pioche en bois',h:'Atelier (E) : 3 planches. Une bûche donne 4 planches.',ok:()=>S.got[102]},
  {t:"Extrais un cristal d'éther",h:'Le minerai bleu dans la roche. La pierre se taille avec une pioche.',ok:()=>S.got[101]},
  {t:'Forge la pioche de cristal',h:'2 planches + 3 cristaux. Objet unique, minage ×5.',ok:()=>hasNft(201)},
- {t:'Ouvre une géode',h:'Sous la couche 14, dans les grandes grottes. Seule la pioche de cristal les ouvre.',ok:()=>S.got[103]},
+ {t:'Ouvre une géode',h:`Sous la couche ${DEEP}, dans les grandes grottes. Seule la pioche de cristal les ouvre.`,ok:()=>S.got[103]},
  {t:"Forge la pioche d'éther pur",h:'4 éclats purs + 4 cristaux + 2 planches.',ok:()=>hasNft(202)},
  {t:'Atteins la roche de genèse',h:'Tout au fond du monde, juste au-dessus du socle. Elle ne cède qu\'à la pioche d\'éther pur.',ok:()=>S.got[104]},
  {t:'Fabrique un cœur de validateur',h:'1 fragment de genèse + 2 éclats purs + 4 cristaux.',ok:()=>S.got[105]},
@@ -622,7 +566,8 @@ function renderPanel(){
   log.innerHTML=S.log.map(l=>`<div><time>${l.t}</time><b style="background:${col[l.k]}">${l.k.toUpperCase()}</b><span>${l.x} <span style="color:var(--muted)">${l.d}</span></span></div>`).join('')||'<p style="color:var(--muted)">Rien d\'inscrit pour l\'instant.</p>';body.appendChild(log)}
 }
 function mintNft(id,where){const serial=S.nfts.length+1;const n={serial,id,date:new Date().toLocaleDateString('fr-FR'),where,mined:0};S.nfts.push(n);S.supply[id]=(S.supply[id]||0)+1;S.got[id]=1;logEv('nft',`${nameOf(id)} #${serial}`,'frappé, unique');return n}
-function craft(r){for(const[k,n]of Object.entries(r.need))take(+k,n);logEv('craft',`${Object.entries(r.need).map(([k,n])=>n+' '+nameOf(+k)).join(' + ')}`,`→ ${r.n} ${nameOf(r.out)}`);
+function craft(r){if(SERVER()){serverAct('craft',{out_id:r.out},null,'fabriqué').then(res=>{if(!res)return;logEv('craft',`${Object.entries(r.need).map(([k,n])=>n+' '+nameOf(+k)).join(' + ')}`,`→ ${r.n} ${nameOf(r.out)}`);if(res.unique)addUnique(res.unique)});return}
+ for(const[k,n]of Object.entries(r.need))take(+k,n);logEv('craft',`${Object.entries(r.need).map(([k,n])=>n+' '+nameOf(+k)).join(' + ')}`,`→ ${r.n} ${nameOf(r.out)}`);
  if(r.nft){const n=mintNft(r.out,`${Math.floor(P.x)}, ${Math.floor(P.y)}, ${Math.floor(P.z)}`);const serial=n.serial;const e=S.bar.indexOf(null);S.bar[e>=0?e:S.sel]='nft'+serial;dirty=true;ui()}
  else give(r.out,r.n,'fabriqué')}
 // objets tenus : outils
@@ -751,8 +696,9 @@ const heartTex=(()=>{const c=document.createElement('canvas');c.width=c.height=9
 const hearts=[];
 function petAnimal(a){const K=AK[a.type],p=a.g.position;a.pet=.6;Sound.animal(a.type,1);
  for(let i=0;i<(a.type==='meduse'?5:3);i++){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:heartTex,transparent:true,depthWrite:false}));s.scale.setScalar(.32);s.position.set(p.x+(Math.random()-.5)*.6,p.y+K.hit[1]+.1+i*.15,p.z+(Math.random()-.5)*.6);scene.add(s);hearts.push({s,t:-i*.12})}
- const key=a.k+':'+a.i;S.pets=S.pets||{};
- if(K.gift&&S.pets[key]!==S.dayN){S.pets[key]=S.dayN;
+ const key=a.k+':'+a.i,today=new Date().toISOString().slice(0,10);S.pets=S.pets||{};
+ if(K.gift&&S.pets[key]!==today&&SERVER()){S.pets[key]=today;serverAct('gift',{animal:key,kind:a.type},null,K.gift==='fleur'?'cueillie par un renard rose':K.gift[2]).then(r=>{if(r)Sound.chime()});return}
+ if(K.gift&&S.pets[key]!==today){S.pets[key]=today;
   if(K.gift==='fleur')give(17+Math.floor(Math.random()*3),1,'cueillie par un renard rose');else give(K.gift[0],K.gift[1],K.gift[2]);Sound.chime()}}
 
 // ---------- boucle ----------
@@ -777,22 +723,23 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
   if(l>.1&&P.on&&!inW){stepT-=dt;if(stepT<=0){stepT=run?.28:.38;Sound.step(under())}}else stepT=.12;
   if(!was&&P.on&&fallV<-7)Sound.step(under());
   crouch+=((sneak&&!inW?.22:0)-crouch)*Math.min(1,dt*12);
-  tierHintT=Math.max(0,tierHintT-dt);S.day+=dt/480;if(S.day>=1){S.day-=1;S.dayN++}
+  tierHintT=Math.max(0,tierHintT-dt);hintT=Math.max(0,hintT-dt);S.day+=dt/480;if(S.day>=1){S.day-=1;S.dayN++}
   // minage
-  if(mining&&target&&B[target.id].h!==Infinity&&!canMine(target.id)){hitT-=dt;if(hitT<=0){hitT=.4;Sound.hit('pierre');swing=.5;if(!tierHintT){tierHintT=6;logEv('burn',`Trop dur pour ${TIER_NAME[heldTier()]}`,`il faut ${TIER_NAME[reqTier(target.id)]}`)}}crack.visible=false}
+  if(mining&&target&&B[target.id].h!==Infinity&&!canBuildHere(target.x,target.z)){crack.visible=false;mineKey=-1;mineT=0;protectHint(target.x,target.z)}
+  else if(mining&&target&&B[target.id].h!==Infinity&&!canMine(target.id)){hitT-=dt;if(hitT<=0){hitT=.4;Sound.hit('pierre');swing=.5;if(!tierHintT){tierHintT=6;logEv('burn',`Trop dur pour ${TIER_NAME[heldTier()]}`,`il faut ${TIER_NAME[reqTier(target.id)]}`)}}crack.visible=false}
   else if(mining&&target&&B[target.id].h!==Infinity&&inWorld(target.x,target.z)){const k=coordKey(target.x,target.y,target.z);if(k!==mineKey){mineKey=k;mineT=0}mineT+=dt*heldTool()*(B[target.id].stone?1:1);hitT-=dt;if(hitT<=0){hitT=.25;Sound.hit(MAT_OF(target.id))}const h=B[target.id].h/(B[target.id].stone?1:Math.max(1,heldTool()*.5));const pr=mineT/(B[target.id].h/ (B[target.id].stone?1:1)/(1));
    const need=B[target.id].h;const prog=Math.min(1,mineT/need);crack.visible=true;crack.position.set(target.x+.5,target.y+.5,target.z+.5);crack.material.map=crackTex[Math.min(7,Math.floor(prog*8))];swing=Math.max(swing,.6);
    if(prog>=1){breakBlock(target);mineKey=-1;mineT=0;crack.visible=false}}else{mineKey=-1;mineT=0;crack.visible=false}
   // validateurs
-  const slot=Math.floor((Date.now()/1000-GENESIS)/12);if(slot>lastSlot){let own=0;for(const k of vals.keys())if(OWN.get(k)?.by===ME.id){const[x,y,z]=k.split(',').map(Number);own+=get(x,y,z)===74?3:1}const n=own*Math.min(3,slot-lastSlot);lastSlot=slot;if(n){give(101,n,`récompense du slot ${slot.toLocaleString('fr-FR')}`)}}
+  const slot=Math.floor((Date.now()/1000-GENESIS)/12);if(!SERVER()&&slot>lastSlot){let own=0;for(const k of vals.keys())if(OWN.get(k)?.by===ME.id){const[x,y,z]=k.split(',').map(Number);own+=get(x,y,z)===74?3:1}const n=own*Math.min(3,slot-lastSlot);lastSlot=slot;if(n){give(101,n,`récompense du slot ${slot.toLocaleString('fr-FR')}`)}}
  }
  camera.rotation.set(pitch,yaw,0);stepUp=Math.max(0,stepUp-dt*5);camera.position.set(P.x,P.y+EYE-stepUp-crouch+Math.sin(bob)*.04,P.z);camera.updateMatrixWorld();
  sky.position.copy(camera.position);stars.position.copy(camera.position);clouds.position.x=camera.position.x;clouds.position.z=camera.position.z;cloudTex.offset.x+=dt*.0015;waterTex.offset.x+=dt*.03;waterTex.offset.y+=dt*.012;
  applyDay();
  if(playing){target=raycast(5.2,aim);if(target){sel.visible=true;sel.position.set(target.x+.5,target.y+.5,target.z+.5);const k=coordKey(target.x,target.y,target.z),ow=OWN.get(k),own=ow?ow.serial:0;const tg=$('target');tg.hidden=false;tg.classList.toggle('own',!!(ow&&ow.by===ME.id));
-   const tid=B[target.id].drop!==undefined&&B[target.id].drop?B[target.id].drop:target.id;tg.innerHTML=`${B[target.id].n}<span>${target.id===73?`${touch?'toucher':'clic droit'} avec un cœur de validateur pour le rallumer`:target.id===74?'rallumé · frappe 3 cristaux par slot pour qui l\'a rallumé':!canMine(target.id)&&B[target.id].h!==Infinity?`⛏ il faut ${TIER_NAME[reqTier(target.id)]}`:!inWorld(target.x,target.z)?'bord du monde':own?`posé par ${ow&&ow.by!==ME.id?ow.name:'toi'} · bloc #${own}`:`naturel · donne le jeton #${tid===0?'—':tid}`}</span>`}else{sel.visible=false;$('target').hidden=true}
+   const tid=B[target.id].drop!==undefined&&B[target.id].drop?B[target.id].drop:target.id;tg.innerHTML=`${B[target.id].n}<span>${target.id===73?`${touch?'toucher':'clic droit'} avec un cœur de validateur pour le rallumer`:target.id===74?'rallumé · frappe 3 cristaux par slot pour qui l\'a rallumé':!canBuildHere(target.x,target.z)&&B[target.id].h!==Infinity?`🔒 ${protectMsg(target.x,target.z)}`:!canMine(target.id)&&B[target.id].h!==Infinity?`⛏ il faut ${TIER_NAME[reqTier(target.id)]}`:!inWorld(target.x,target.z)?'bord du monde':own?`posé par ${ow&&ow.by!==ME.id?ow.name:'toi'} · bloc #${own}`:`naturel · donne le jeton #${tid===0?'—':tid}`}</span>`}else{sel.visible=false;$('target').hidden=true}
   const an=pickAnimal(aim,target);if(an){target=null;sel.visible=false;crack.visible=false;const K=AK[an.type],tg=$('target');tg.hidden=false;tg.classList.remove('own');
-   const g=K.gift&&(S.pets||{})[an.k+':'+an.i]!==S.dayN;tg.innerHTML=`${K.n}<span>${touch?'toucher':'clic droit'} : caresser${g?' · a un cadeau pour toi':''}</span>`}}
+   const g=K.gift&&(S.pets||{})[an.k+':'+an.i]!==new Date().toISOString().slice(0,10);tg.innerHTML=`${K.n}<span>${touch?'toucher':'clic droit'} : caresser${g?' · a un cadeau pour toi':''}</span>`}}
  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.t-=dt;p.v[1]-=14*dt;p.m.position.x+=p.v[0]*dt;p.m.position.y+=p.v[1]*dt;p.m.position.z+=p.v[2]*dt;p.m.scale.setScalar(Math.max(.05,p.t/.7));if(p.t<=0){scene.remove(p.m);parts.splice(i,1)}}
  for(const g of vals.values()){g.userData.d.rotation.y+=dt*1.5;g.userData.d.position.y=1.7+Math.sin(now/500)*.08}
  bigEth.rotation.y+=dt*.12;waterU.value=now/1000;updatePops(dt);
@@ -804,23 +751,17 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
 // ---------- joueurs en ligne, chat ----------
 const frozen=new Set(),EDC=new Map(); // tronçons figés ; modifications connues, rangées par tronçon
 function editSet(x,y,z,id){const k=ckey(cOf(x),cOf(z));let m=EDC.get(k);if(!m)EDC.set(k,m=new Map());m.set(coordKey(x,y,z),id)}
-function encodeChunk(cx,cz){const arr=CHK.get(ckey(cx,cz));const out=[];let last=-1,run=0;const push=()=>{if(run)out.push(run,last)};
- for(let i=0;i<CV;i++){const v=arr[i];if(v===last&&run<255)run++;else{push();last=v;run=1}}push();
- let b='';for(let i=0;i<out.length;i+=8192)b+=String.fromCharCode.apply(null,out.slice(i,i+8192));return btoa(b)}
-function decodeChunk(data,sy){const bin=atob(data),a=new Uint8Array(CV),max=CH*CH*Math.min(sy,SY);let n=0;
- for(let i=0;i+1<bin.length&&n<max;i+=2){const r=bin.charCodeAt(i),v=bin.charCodeAt(i+1);for(let k=0;k<r&&n<max;k++)a[n++]=v}return a}
 function applyEditsTo(cx,cz){const arr=CHK.get(ckey(cx,cz)),m=EDC.get(ckey(cx,cz));if(!arr||!m)return;
  for(const[k,id]of m){const[x,y,z]=k.split(',').map(Number);if(y>=0&&y<SY)arr[li(x-cx*CH,y,z-cz*CH)]=id}}
 function refreshVals(cx,cz){for(const k of[...vals.keys()]){const[x,,z]=k.split(',').map(Number);if(cOf(x)===cx&&cOf(z)===cz)delVal(k)}
  const arr=CHK.get(ckey(cx,cz));if(!arr)return;for(let i=0;i<CV;i++)if(arr[i]===13||arr[i]===74){const lx=i%CH,lz=Math.floor(i/CH)%CH,y=Math.floor(i/(CH*CH));addVal(cx*CH+lx,y,cz*CH+lz)}}
 // Fige le terrain d'origine d'un tronçon au premier contact : il ne dépendra plus jamais du générateur.
-function freeze(cx,cz){const k=ckey(cx,cz);if(frozen.has(k)||!CHK.has(k))return;frozen.add(k);const data=encodeChunk(cx,cz);
- if(Net.online){Net.freezeChunk({cx,cz,gen:GEN,sy:SY,data}).then(row=>{if(row&&row.data!==data&&CHK.has(k)){CHK.set(k,decodeChunk(row.data,row.sy));applyEditsTo(cx,cz);refreshVals(cx,cz);indexChunk(cx,cz);buildChunk(cx,cz)}}).catch(e=>console.error(e))}
- else{S.chunks[k]=data;dirty=true}}
-function commit(k,id,own){const[x,y,z]=k.split(',').map(Number);freeze(cOf(x),cOf(z));
+// Mode solo seulement : en ligne, c'est la fonction serveur « figer » qui génère et enregistre le terrain.
+function freeze(cx,cz){const k=ckey(cx,cz);if(frozen.has(k)||!CHK.has(k))return;frozen.add(k);S.chunks[k]=encodeChunk(cx,cz);dirty=true}
+Net.on('frozen',(cx,cz,row)=>{const k=ckey(cx,cz);frozen.add(k);if(!CHK.has(k))return;CHK.set(k,decodeChunk(row.data,row.sy));applyEditsTo(cx,cz);refreshVals(cx,cz);indexChunk(cx,cz);if(MESH.has(k))buildChunk(cx,cz)});
+function commit(k,id,own){const[x,y,z]=k.split(',').map(Number);if(REC)REC.push([k,get(x,y,z),OWN.get(k)||null]);
  setW(x,y,z,id);editSet(x,y,z,id);if(own)OWN.set(k,own);else OWN.delete(k);
- if(Net.online)Net.setBlock({x,y,z,id,by:own?own.by:null,name:own?own.name:null,serial:own?own.serial:null});
- else{S.edits[k]=id;if(own)S.placed[k]=own.serial;else delete S.placed[k]}dirty=true}
+ if(!SERVER()){freeze(cOf(x),cOf(z));S.edits[k]=id;if(own)S.placed[k]=own.serial;else delete S.placed[k]}dirty=true}
 function myBlocks(){let n=0;for(const o of OWN.values())if(o.by===ME.id)n++;return n}
 function applyBlock(b){if(![b.x,b.y,b.z].every(Number.isInteger)||b.y<0||b.y>=SY)return;const cx=cOf(b.x),cz=cOf(b.z),k=ckey(cx,cz),key=coordKey(b.x,b.y,b.z);
  editSet(b.x,b.y,b.z,b.id);if(b.id&&b.by)OWN.set(key,{by:b.by,name:b.name,serial:b.serial});else OWN.delete(key);
@@ -882,7 +823,7 @@ function stream(dt){streamT-=dt;
  let n=0;for(const k of meshQ){meshQ.delete(k);const[cx,cz]=k.split(',').map(Number);if(CHK.has(k))buildChunk(cx,cz);if(++n>=2)break}}
 
 // ---------- position ----------
-function updatePosHud(){const d=Math.round(Math.hypot(P.x-SPAWN.x,P.z-SPAWN.z));$('borderTxt').textContent=`Position ${Math.floor(P.x)} · ${Math.floor(P.z)} · ${d<1000?d+' m':(d/1000).toFixed(1).replace('.',',')+' km'} du sanctuaire`}
+function updatePosHud(){const d=Math.round(Math.hypot(P.x-SPAWN.x,P.z-SPAWN.z)),c=claimAt(P.x,P.z);$('borderTxt').textContent=`Position ${Math.floor(P.x)} · ${Math.floor(P.z)} · ${d<1000?d+' m':(d/1000).toFixed(1).replace('.',',')+' km'} du sanctuaire${c?` · parcelle de ${c.owner===ME.id?'toi':c.owner_name||'?'}`:''}`;buildClaimLines()}
 const others=new Map();
 function faceTex(hair){const c=document.createElement('canvas');c.width=c.height=8;const x=c.getContext('2d');x.fillStyle='#f6d3b8';x.fillRect(0,0,8,8);x.fillStyle=hair;x.fillRect(0,0,8,2);x.fillRect(0,2,1,2);x.fillRect(7,2,1,2);
  x.fillStyle='#1c163a';x.fillRect(2,4,1,1);x.fillRect(5,4,1,1);x.fillStyle='#ffb3cf';x.fillRect(1,5,1,1);x.fillRect(6,5,1,1);x.fillStyle='#c98a74';x.fillRect(3,6,2,1);
@@ -907,14 +848,18 @@ Net.on('pos',p=>{const o=ensureOther(p);if(!o)return;o.t=p;if(!o.seen){o.seen=tr
 Net.on('block',b=>applyBlock(b));
 Net.on('chat',m=>addChat(m.name,m.color,m.text));
 Net.on('status',s=>{if(s==='SAVE_ERROR')logEv('burn','Sauvegarde refusée par le serveur','vérifie le schéma Supabase');if(s==='CLOSED'||s==='CHANNEL_ERROR')$('onlineTxt').textContent='Connexion perdue · reconnexion…'});
-function updateOthers(dt){for(const o of others.values()){if(!o.t)continue;const g=o.g,k=Math.min(1,dt*10);const dx=o.t.x-g.position.x,dz=o.t.z-g.position.z;
+function updateOthers(dt){for(const o of others.values()){if(!o.t)continue;const g=o.g,k=Math.min(1,dt*7);const dx=o.t.x-g.position.x,dz=o.t.z-g.position.z;
  g.position.x+=dx*k;g.position.y+=(o.t.y-g.position.y)*k;g.position.z+=dz*k;let dr=o.t.yaw-g.rotation.y;dr=Math.atan2(Math.sin(dr),Math.cos(dr));g.rotation.y+=dr*k;o.head.rotation.x=-(o.t.pitch||0)*.6;
  const sp=Math.hypot(dx,dz)/Math.max(dt,.001);o.walk+=Math.min(sp,8)*dt*1.6;const a=Math.min(1,sp/2)*Math.sin(o.walk)*.7;o.legs[0].rotation.x=a;o.legs[1].rotation.x=-a;o.arms[0].rotation.x=-a;o.arms[1].rotation.x=o.t.m?-1.2+Math.sin(performance.now()/90)*.5:a;
  o.ph+=dt;const br=Math.sin(o.ph*2.2),mv=Math.min(1,sp/2),hop=Math.abs(Math.sin(o.walk))*.07*mv;
  o.body.scale.set(1+br*.02,1+br*.012,1+br*.035);o.body.position.y=.94+hop;o.head.position.y=1.52+hop+br*.012;o.head.rotation.z=Math.sin(o.walk)*.06*mv;
  o.arms[0].rotation.z=-.06-br*.03*(1-mv);o.arms[1].rotation.z=.06+br*.03*(1-mv);o.arms[0].position.y=o.arms[1].position.y=1.26+hop;o.tag.position.y=2.1+hop}}
-let lastSent='';setInterval(()=>{if(!Net.online||!playing)return;const p={id:ME.id,name:ME.name,color:ME.color,x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),yaw:+yaw.toFixed(2),pitch:+pitch.toFixed(2),m:mining&&!!target};
- const key=`${p.x},${p.y},${p.z},${p.yaw},${p.pitch},${p.m}`;if(key===lastSent&&Math.random()>.1)return;lastSent=key;Net.sendPos(p)},100);
+setInterval(()=>{if(SERVER()&&booted&&playing)serverAct('rewards',{},null,'récompense des validateurs')},60000);
+// Position : 5 fois par seconde au plus, seulement si on bouge vraiment, et un signe de vie toutes les 4 s.
+// Chaque envoi est reçu par tous les autres joueurs : c'est le premier poste de messages temps réel.
+let lastPos=null,lastPosT=0;setInterval(()=>{if(!Net.online||!playing)return;const now=performance.now(),p={id:ME.id,name:ME.name,color:ME.color,x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),yaw:+yaw.toFixed(2),pitch:+pitch.toFixed(2),m:mining&&!!target};
+ const L=lastPos,moved=!L||Math.hypot(p.x-L.x,p.y-L.y,p.z-L.z)>.08||Math.abs(p.yaw-L.yaw)>.06||Math.abs(p.pitch-L.pitch)>.08||p.m!==L.m;
+ if(!moved&&now-lastPosT<4000)return;lastPos=p;lastPosT=now;Net.sendPos(p)},200);
 let chatOpen=false;
 function addChat(name,color,text){const d=document.createElement('div');d.className='msg';const n=document.createElement('b');n.textContent=name;n.style.color=color;const t=document.createElement('span');t.textContent=' '+text;d.append(n,t);$('chatLog').appendChild(d);
  while($('chatLog').children.length>8)$('chatLog').firstChild.remove();setTimeout(()=>d.classList.add('old'),9000)}
@@ -925,7 +870,8 @@ function command(v){const[c,...rest]=v.slice(1).split(' ');const arg=rest.join('
  if(c==='rejoindre'){const o=[...others.values()].find(o=>o.name.toLowerCase()===arg||o.name.toLowerCase().startsWith(arg));
   if(!o||!o.t){addChat('Monde','#7fe8ff',arg?`Personne ne s'appelle « ${arg} » ici.`:'Écris /rejoindre suivi d\'un pseudo.');return}
   P.x=o.t.x+1;P.y=o.t.y+.5;P.z=o.t.z+1;P.vy=0;addChat('Monde','#7fe8ff',`Tu rejoins ${o.name}.`);return}
- addChat('Monde','#7fe8ff','Commandes : /rejoindre pseudo · /sanctuaire')}
+ if(['parcelle','liberer','libérer','inviter','exclure','parcelles'].includes(c)){claimCmd(c==='libérer'?'liberer':c,rest.join(' ').trim());return}
+ addChat('Monde','#7fe8ff','Commandes : /rejoindre pseudo · /sanctuaire · /parcelle · /liberer · /inviter pseudo · /exclure pseudo · /parcelles')}
 $('chatForm').addEventListener('submit',e=>{e.preventDefault();const v=$('chatIn').value.trim().slice(0,140);$('chatIn').value='';if(v.startsWith('/'))command(v);else if(v){Net.chat(v);addChat(ME.name,ME.color,v)}closeChat()});
 $('chatIn').addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();closeChat()}});
 $('chatBtn').onclick=()=>chatOpen?closeChat():openChat();
@@ -972,7 +918,8 @@ async function boot(world){
    try{const row=await Net.loadPlayer(world);if(row&&row.state&&Object.keys(row.state).length)useState(row.state);else cloudDirty=true}
    catch(e){console.warn(e);cloudOff=true;setTimeout(()=>logEv('burn','Sauvegarde en ligne indisponible','partie gardée dans ce navigateur (schéma SQL à lancer)'),1500)}}
   else setTimeout(()=>logEv('burn','Compte indisponible','partie gardée dans ce navigateur'),1500);
-  await Net.join(world,ME)}
+  await Net.join(world,ME);
+  if(Net.userId){await syncInventory();try{for(const c of await Net.loadClaims())CLAIMS.set(ckey(c.cx,c.cz),c)}catch(e){console.warn(e)}serverAct('rewards',{})}}
  if(S.pos){[P.x,P.y,P.z,yaw,pitch]=S.pos}else{P.x=SPAWN.x+.5+(Math.random()-.5)*2;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5}
  if(!inWorld(P.x,P.z)){P.x=SPAWN.x+.5;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5}
  const list=wanted(),total=list.length;
@@ -984,5 +931,5 @@ async function boot(world){
  ui()}
 requestAnimationFrame(frame);
 // Outils de test : ouvrir index.html#debug expose window.mines dans la console.
-if(location.hash==='#debug')window.mines={get,CHK,frozen,EDC,commit,encodeChunk,decodeChunk,genChunk,loadChunks,get P(){return P},GEN,QUESTS,questIndex,ruinAt,nearestRuin,give,canMine,relight,openTab,POWERED,SPEC,ANIMALS,petAnimal,spawnChunk,despawnChunk,popAt,B,get S(){return S},heightAt,islandTop,set yaw(v){yaw=v},set pitch(v){pitch=v}};
+if(location.hash==='#debug')window.mines={place,get target(){return target},breakBlock,craft,claimCmd,serverAct,syncInventory,get CLAIMS(){return CLAIMS},get ME(){return ME},get,CHK,frozen,EDC,commit,encodeChunk,decodeChunk,genChunk,loadChunks,get P(){return P},GEN,QUESTS,questIndex,ruinAt,nearestRuin,give,canMine,relight,openTab,POWERED,SPEC,ANIMALS,petAnimal,spawnChunk,despawnChunk,popAt,B,get S(){return S},heightAt,islandTop,set yaw(v){yaw=v},set pitch(v){pitch=v}};
 })();

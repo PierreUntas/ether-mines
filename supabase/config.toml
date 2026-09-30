@@ -1,0 +1,5 @@
+# Configuration minimale pour le CLI Supabase (déploiement de la fonction « figer »).
+project_id = "ether-mines"
+
+[functions.figer]
+verify_jwt = true

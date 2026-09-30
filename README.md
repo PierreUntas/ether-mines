@@ -4,8 +4,9 @@ Un monde en blocs aux couleurs d'Ethereum, à construire entre amis dans le navi
 
 ## Ce qu'il y a dedans
 
-- **Monde** : généré à partir d'une graine fixe (plaines, forêts roses, dunes, sommets, lacs, océans, îles flottantes entre 31 et 45 de haut, grottes profondes avec géodes d'éther pur), chargé par tronçons de 16 × 16 colonnes autour de chaque joueur, sur 48 blocs de haut.
+- **Monde** : généré à partir d'une graine fixe (plaines, forêts roses, dunes, sommets, lacs, océans, îles flottantes entre 43 et 57 de haut, grottes profondes avec géodes d'éther pur sous la couche 20), chargé par tronçons de 16 × 16 colonnes autour de chaque joueur, sur 64 blocs de haut.
 - **Monde infini** : on peut marcher dans n'importe quelle direction jusqu'à 100 000 blocs du centre (bornes des règles de la base). La position et la distance au sanctuaire s'affichent en haut à gauche.
+- **Parcelles** : dans le chat, `/parcelle` revendique le tronçon (16 × 16) où l'on se trouve pour 2 cristaux (16 au plus). Seuls le propriétaire et ses invités (`/inviter pseudo`, `/exclure pseudo`) peuvent y miner, construire et ouvrir les portes. `/liberer` rend la parcelle, `/parcelles` les liste. Des poteaux verts (les tiennes) ou roses (celles des autres) marquent les coins. Le sanctuaire est intouchable.
 - **Se retrouver** : dans le chat, `/rejoindre pseudo` téléporte près d'un ami en ligne, `/sanctuaire` ramène au point de départ.
 - **Construction** : béton pastel (8 couleurs), vitraux (4), dalles, escaliers orientés selon le regard, portes sur deux blocs (clic droit pour ouvrir). On monte sur les dalles et les marches sans sauter.
 - **Contrats en blocs** : levier et plaque de pression (sources), câble d'éther, lampe et porte alimentées. Le courant est recalculé en continu autour du joueur et n'est jamais enregistré : seul l'état des leviers l'est. Une plaque s'active sous n'importe quel joueur, y compris un ami.
@@ -22,43 +23,77 @@ Rien n'est inscrit sur une vraie blockchain pour l'instant.
 ## Stack
 
 - HTML, CSS et JavaScript natifs, sans framework ni étape de build.
-- [Supabase](https://supabase.com) : Auth (comptes invités), Realtime (présence, diffusion) et quatre tables : `chunks`, `blocks`, `players`, `recovery`.
+- [Supabase](https://supabase.com) : Auth (comptes invités), Realtime (présence, positions, changements de blocs et de parcelles), Postgres (monde, coffres, règles, fonctions d'arbitrage) et une fonction Edge (`figer`).
 - Hébergement statique sur Vercel.
+
+### Le serveur fait autorité
+
+Les joueurs ne peuvent rien écrire directement : ni blocs, ni terrain, ni coffre. Chaque action passe par une fonction SQL `act_*` qui vérifie les règles puis applique :
+
+| Action | Ce que le serveur vérifie |
+| --- | --- |
+| `act_mine` | bloc réel à cet endroit, outil possédé et de palier suffisant, rythme de minage plausible, zone non protégée ; tire le butin lui-même |
+| `act_place` | objet présent dans le coffre, transformation autorisée (escalier orienté, porte), case libre, support correct, zone non protégée |
+| `act_toggle` | porte ou levier réel, zone non protégée |
+| `act_craft` | recette connue du serveur, ingrédients présents |
+| `act_relight` | validateur éteint réel, cœur de validateur dans le coffre |
+| `act_gift` | une fois par jour et par animal, 15 cadeaux par jour au plus |
+| `act_rewards` | validateurs signés par le joueur, temps écoulé (30 minutes rattrapées au plus) |
+| `act_claim`, `act_unclaim`, `act_member` | parcelles : coût, limite, propriétaire |
+
+Le terrain d'origine d'un tronçon est généré **côté serveur** par la fonction Edge `figer`, avec le même générateur que le jeu (`supabase/functions/_shared/world.js`) : impossible d'inventer du terrain. Les règles (blocs, outils, recettes) viennent de `supabase/functions/_shared/rules.js`, partagé par le jeu ; `node tools/regles.mjs > supabase/regles.sql` les transforme en tables SQL.
+
+Le jeu montre le résultat tout de suite et le serveur confirme : en cas de refus, le bloc revient et le coffre est relu depuis le serveur.
 
 ```
 index.html              structure de la page
 src/style.css           interface
 src/config.js           URL et clé publique Supabase (vide = mode solo)
 src/net.js              couche réseau (Supabase)
-src/game.js             monde, génération, rendu, joueur, jetons, contrats, joueurs distants, chat
+src/game.js             rendu, joueur, interface, jetons, contrats, animaux, parcelles, joueurs distants, chat
 src/audio.js            sons génératifs (Web Audio)
-supabase/migrations/    schéma de la base, en migrations numérotées
+supabase/functions/_shared/world.js   générateur du monde (jeu et serveur)
+supabase/functions/_shared/rules.js   blocs, objets, paliers, recettes (jeu et serveur)
+supabase/functions/figer/             fonction Edge : génère et fige le terrain d'un tronçon
+supabase/migrations/    schéma de la base, fonctions d'arbitrage act_*
+supabase/regles.sql     règles du jeu en SQL (généré par tools/regles.mjs)
 supabase/reset.sql      remise à zéro complète (monde, parties, comptes invités)
+tools/regles.mjs        génère supabase/regles.sql
 ```
 
 ## Mise en ligne
 
 1. **Supabase** : crée un projet gratuit sur supabase.com.
-2. **Base** : dans *SQL Editor*, lance `supabase/migrations/001_schema.sql` (puis les suivantes s'il y en a, dans l'ordre).
-3. **Comptes invités** : dans *Authentication → Sign In / Providers*, active *Allow anonymous sign-ins*. Chaque joueur reçoit un compte automatiquement, sans email ni mot de passe.
-4. **Clés** : dans *Project Settings → API*, copie l'URL du projet et la clé `anon` publique dans `src/config.js`. Cette clé est faite pour être publique : ce sont les règles des migrations qui protègent la base.
-5. **Vercel** : importe le dépôt (*Add New → Project*), sans réglage particulier (site statique). Chaque push sur `main` redéploie.
-6. **Jouer** : ouvre le site, choisis un pseudo. Le lien contient le nom du monde (`?monde=principal`) ; envoie-le à tes amis. Un autre nom de monde donne un monde vierge séparé.
+2. **Comptes invités** : dans *Authentication → Sign In / Providers*, active *Allow anonymous sign-ins*. Chaque joueur reçoit un compte automatiquement, sans email ni mot de passe.
+3. **Base** : dans *SQL Editor*, lance `supabase/migrations/001_schema.sql`, puis `supabase/regles.sql`.
+4. **Fonction `figer`** (une fois, puis à chaque changement du générateur) :
+   ```
+   npx supabase login
+   npx supabase functions deploy figer --project-ref <identifiant du projet> --use-api
+   ```
+   Ou automatiquement : ajoute au dépôt GitHub les secrets `SUPABASE_ACCESS_TOKEN` (supabase.com → *Account → Access Tokens*) et `SUPABASE_PROJECT_REF` ; le workflow `.github/workflows/supabase-functions.yml` redéploie la fonction à chaque push qui la touche.
+5. **Clés** : dans *Project Settings → API*, copie l'URL du projet et la clé `anon` publique dans `src/config.js`. Cette clé est faite pour être publique : ce sont les règles des migrations qui protègent la base.
+6. **Vercel** : importe le dépôt (*Add New → Project*), sans réglage particulier (site statique). Chaque push sur `main` redéploie.
+7. **Jouer** : ouvre le site, choisis un pseudo. Le lien contient le nom du monde (`?monde=principal`) ; envoie-le à tes amis. Un autre nom de monde donne un monde vierge séparé.
 
 Sans clés dans `src/config.js`, le jeu tourne en solo et sauvegarde dans le navigateur.
 
 Pour tout effacer et repartir de zéro :
-1. lancer `supabase/reset.sql`, puis les migrations ;
+1. lancer `supabase/reset.sql`, puis `001_schema.sql` et `regles.sql` ;
 2. augmenter `SAISON` dans `src/game.js` et publier : les parties gardées dans les navigateurs sont effacées au prochain chargement (pseudo et réglage du son conservés).
 
 ## Ce qui est sauvegardé où
 
 | Donnée | Où |
 | --- | --- |
-| Terrain d'origine des tronçons touchés | Supabase, table `chunks` (écrit une fois, jamais modifié) |
-| Blocs modifiés (x, y, z), auteur et numéro de série | Supabase, table `blocks` |
+| Terrain d'origine des tronçons touchés | Supabase, table `chunks` (généré et écrit par la fonction `figer`, jamais modifié) |
+| Blocs modifiés (x, y, z), auteur et numéro de série | Supabase, table `blocks` (écrite par les fonctions `act_*`) |
+| Parcelles | Supabase, table `claims` |
+| Coffre | Supabase, table `inventory` (lecture seule pour le joueur) |
+| Objets uniques (pioches, sceaux) | Supabase, table `uniques` (lecture seule pour le joueur) |
+| Règles du jeu | Supabase, tables `rule_*` (depuis `regles.sql`) |
+| Préférences de partie : barre, position, objectifs vus, registre | Supabase, table `players`, colonne `state` (seule partie modifiable par le joueur) ; copie dans le navigateur (`ether-mines:<monde>`) |
 | Positions, chat, présence | Supabase Realtime (rien n'est gardé) |
-| Partie de chaque joueur : coffre, objets uniques, objectifs, position | Supabase, table `players` (une ligne par compte et par monde, lisible et modifiable par son seul propriétaire), copie dans le navigateur (`ether-mines:<monde>`) |
 | Compte invité | Supabase Auth ; la session est gardée par le navigateur (`ether-mines:session`) |
 | Codes de sauvegarde | Supabase, table `recovery` (empreinte SHA-256 seulement, jamais le code) |
 | Pseudo, couleur, identifiant | Navigateur (`ether-mines:profil`) |
@@ -69,7 +104,7 @@ Pour tout effacer et repartir de zéro :
 
 Le monde d'un joueur, c'est trois couches superposées :
 
-1. **Le générateur** (`genChunk()` dans `src/game.js`), qui dessine un tronçon à partir de la graine et de ses coordonnées.
+1. **Le générateur** (`genChunk()` dans `supabase/functions/_shared/world.js`), qui dessine un tronçon à partir de la graine et de ses coordonnées.
 2. **Les tronçons figés** (table `chunks`) : dès qu'un bloc est modifié dans un tronçon, son terrain d'origine est enregistré tel quel. Il ne dépend plus jamais du générateur.
 3. **Les modifications** (table `blocks`), en coordonnées x, y, z, par-dessus.
 
@@ -77,8 +112,9 @@ Au chargement d'un tronçon : terrain figé s'il existe, sinon générateur ; pu
 
 ### Ce qu'on peut changer librement
 
-- **Le générateur** (relief, biomes, arbres, grottes, minerais) : augmenter `GEN` à chaque changement de terrain. Seuls les tronçons jamais touchés changent. Un raccord peut apparaître entre un tronçon figé et un tronçon régénéré (petite marche, demi-arbre).
-- Nouveaux blocs, objets, recettes, mécaniques, interface, rendu.
+- **Le générateur** (relief, biomes, arbres, grottes, minerais) : augmenter `GEN` à chaque changement de terrain, puis redéployer la fonction `figer` (automatique avec le workflow GitHub). Seuls les tronçons jamais touchés changent. Un raccord peut apparaître entre un tronçon figé et un tronçon régénéré (petite marche, demi-arbre).
+- Nouveaux blocs, objets, recettes (dans `rules.js`) : relancer `node tools/regles.mjs > supabase/regles.sql` puis exécuter `regles.sql` dans Supabase, sinon le serveur refusera les nouveautés.
+- Mécaniques, interface, rendu.
 
 ### Ce qu'il ne faut jamais faire
 
@@ -99,24 +135,26 @@ Au chargement d'un tronçon : terrain figé s'il existe, sinon générateur ; pu
 
 - Au premier passage, le jeu crée un compte invité et y enregistre la partie toutes les 5 secondes, à la pause et quand on quitte la page.
 - Sur l'écran titre, *Compte → Afficher mon code de sauvegarde* donne un code du type `4FC0-B18D-A98D-75EF`. Sur un autre appareil (ou après avoir vidé le navigateur), le saisir dans *Récupérer ma partie* rattache la partie et les blocs signés à ce nouvel appareil.
-- Écrire dans le monde demande un compte, et un bloc ne peut être signé qu'au nom de son auteur (règles de `001_schema.sql`).
-- Si le schéma ou les comptes invités ne sont pas encore en place, le jeu fonctionne quand même et garde la partie dans le navigateur.
+- Le code rattache tout ce que possède l'ancien compte : parties, coffres, objets uniques, blocs signés, parcelles.
 
 ## Tester
 
-Ouvrir `index.html#debug` expose `window.mines` dans la console : `get(x, y, z)`, `CHK` (tronçons chargés), `frozen`, `genChunk(cx, cz)`, `commit(...)`, `P` (le joueur, déplaçable : `mines.P.x = 500`), `S.day` (heure : `mines.S.day = .9` pour la nuit), `POWERED` (blocs alimentés), `islandTop(x, z)`.
+Ouvrir `index.html#debug` expose `window.mines` dans la console (dont `serverAct(nom, arguments)` et `syncInventory()`) : `get(x, y, z)`, `CHK` (tronçons chargés), `frozen`, `genChunk(cx, cz)`, `commit(...)`, `P` (le joueur, déplaçable : `mines.P.x = 500`), `S.day` (heure : `mines.S.day = .9` pour la nuit), `POWERED` (blocs alimentés), `islandTop(x, z)`.
 
 ## Limites connues
 
-- Chaque client fait encore autorité sur sa propre partie : le serveur garde le coffre mais ne vérifie pas comment il a été rempli. Un joueur qui modifie le code peut se donner des objets. Avant de vrais jetons, il faudra faire valider minage, pose et fabrication par des fonctions côté serveur.
-- N'importe qui ayant le lien peut modifier le monde. C'est fait pour jouer entre amis, pas pour un serveur public.
-- Pour aller vers de vrais jetons, il faudra d'abord déplacer les inventaires côté serveur (source de vérité), puis ne frapper onchain que les objets qui ont de la valeur ou une histoire (objets uniques, constructions, parcelles), pas chaque bloc.
+- Le serveur ne connaît pas la position des joueurs : il ne vérifie pas qu'un bloc miné est à portée de main. Un tricheur peut miner à distance (au rythme normal, avec ses outils, hors des parcelles des autres).
+- Les objectifs sont suivis dans le navigateur ; ils ne donnent aucune récompense, donc rien à y gagner en trichant.
+- Les animaux et les cadeaux ne sont pas vérifiés un par un (le serveur limite à 15 cadeaux par jour).
+- Le chat n'est pas modéré.
+- Pour aller vers de vrais jetons : ne frapper onchain que les objets qui ont de la valeur ou une histoire (objets uniques, parcelles), à partir des tables `uniques` et `claims`, qui sont déjà la source de vérité.
+- Offre gratuite de Supabase : projet mis en pause après une semaine sans activité, 2 millions de messages temps réel par mois (les positions sont limitées à 5 envois par seconde et par joueur, seulement quand il bouge).
 
 ## Commandes
 
 - ZQSD ou flèches : marcher · Maj : courir · Espace : sauter
 - Clic gauche maintenu : miner · clic droit : poser
 - Clic droit sur une porte ou un levier : l'actionner
-- 1 à 9, molette : barre d'objets · E : coffre et atelier · T : vue registre · M : son · Entrée : chat (`/rejoindre pseudo`, `/sanctuaire`)
+- 1 à 9, molette : barre d'objets · E : coffre et atelier · T : vue registre · M : son · Entrée : chat (`/rejoindre pseudo`, `/sanctuaire`, `/parcelle`, `/liberer`, `/inviter pseudo`, `/exclure pseudo`, `/parcelles`)
 - Mobile (disposition de Minecraft mobile) : croix à gauche pour marcher, glisser pour regarder, toucher long pour miner, toucher bref pour poser ou actionner ; à droite, sauter (↑), courir (», reste actif jusqu'à l'arrêt) et s'accroupir (↓ : plus lent, ne tombe pas des bords, descend dans l'eau) ; en haut, coffre, chat et menu ; « … » au bout de la barre ouvre le coffre
 - Clavier : C ou Ctrl pour s'accroupir
