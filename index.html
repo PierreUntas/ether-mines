@@ -75,6 +75,13 @@
       <dt>Croix à gauche</dt><dd>Marcher</dd><dt>Glisser</dt><dd>Regarder</dd><dt>Toucher long</dt><dd>Miner</dd><dt>Toucher bref</dt><dd>Poser, ouvrir, actionner</dd><dt>Flèches à droite</dt><dd>Sauter · courir · s'accroupir</dd><dt>En haut · « … »</dt><dd>Coffre, chat, menu</dd>
     </dl>
     <div class="go"><button id="play">Entrer dans le monde</button></div>
+    <details class="acct" id="acct" hidden>
+      <summary>Compte · <span id="acctTxt">connexion…</span></summary>
+      <p>Ta partie (coffre, objets uniques, objectifs) est gardée sur le serveur, liée à ce navigateur. Pour la retrouver sur un autre appareil ou après avoir vidé le navigateur, garde ton code de sauvegarde.</p>
+      <div class="arow"><button class="b" id="showCode">Afficher mon code de sauvegarde</button><code id="myCode" hidden></code></div>
+      <div class="arow"><input id="codeIn" placeholder="Code d'un autre appareil" maxlength="19" autocomplete="off" spellcheck="false"><button class="b" id="useCode">Récupérer ma partie</button></div>
+      <p id="acctMsg" class="status"></p>
+    </details>
     <div class="share" id="shareRow" hidden><span>Invite tes amis :</span><code id="shareUrl"></code><button class="b" id="copyUrl">Copier le lien</button></div>
     <button id="reset">Effacer ma progression locale</button>
   </div>

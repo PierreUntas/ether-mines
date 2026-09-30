@@ -220,15 +220,22 @@ let KEY='ether-mines:solo';
 const SAVE_V=1;
 const S0=()=>({v:SAVE_V,chunks:{},edits:{},placedTotal:0,inv:{},bar:[null,null,null,null,null,null,null,null,null],sel:0,pos:null,placed:{},serial:0,nfts:[],log:[],supply:{},day:.3,dayN:1,seen:{},got:{},relit:0,totalMint:0,totalBurn:0});
 let S=S0(),ME={id:'moi',name:'moi',color:'#8a7bef'};const OWN=new Map();
-function loadState(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}S=Object.assign(S0(),s||{});if(s&&!s.v)S.v=1;migrateSave(S);
+function loadState(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}useState(s)}
+function useState(s){S=Object.assign(S0(),s||{});if(s&&!s.v)S.v=1;migrateSave(S);
  for(const k of Object.keys(S.inv))S.got[k]=1;for(const n of S.nfts)S.got[n.id||201]=1}
 // Migrations de la sauvegarde locale : chaque version sait convertir la précédente. Ne jamais renommer KEY.
 function migrateSave(s){
  // v1 : première version. Pour une v2 : if(s.v<2){ …convertir… ; s.v=2 } — ne jamais supprimer une étape.
  if(!s.v)s.v=1;
 }
-let dirty=false;function save(){if(!dirty)return;dirty=false;S.pos=[P.x,P.y,P.z,yaw,pitch];try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
-setInterval(save,4000);addEventListener('pagehide',save);
+let dirty=false,cloudDirty=false,cloudBusy=false,cloudOff=false;
+function save(){if(!dirty)return;dirty=false;cloudDirty=true;S.pos=[P.x,P.y,P.z,yaw,pitch];try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+// partie côté serveur (en ligne) : sans le terrain du mode solo, avec un registre raccourci
+const cloudState=()=>{const c={...S,log:S.log.slice(0,40)};delete c.chunks;delete c.edits;delete c.placed;return c};
+async function cloudSave(force){if(!Net.enabled||!Net.userId||cloudOff||!booted||cloudBusy||!(cloudDirty||force))return;cloudBusy=true;cloudDirty=false;
+ try{if(!await Net.savePlayer(Net.world,ME.name,ME.color,cloudState()))cloudDirty=true}finally{cloudBusy=false}}
+setInterval(()=>{save();cloudSave()},5000);addEventListener('pagehide',()=>{dirty=true;save();cloudSave(true)});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){dirty=true;save();cloudSave(true)}});
 
 // ---------- rendu three ----------
 let renderer;try{renderer=new THREE.WebGLRenderer({antialias:!touch,powerPreference:'high-performance'})}catch(e){$('play').textContent='WebGL indisponible sur cet appareil';throw e}
@@ -944,8 +951,15 @@ const PKEY='ether-mines:profil',COLORS=['#8a7bef','#ff9ab8','#7fe8ff','#9fe3c4',
 let profile;try{profile=JSON.parse(localStorage.getItem(PKEY)||'null')}catch(e){}
 if(!profile||!profile.id)profile={id:(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)),name:'',color:COLORS[Math.floor(Math.random()*COLORS.length)]};
 const qs=new URLSearchParams(location.search);$('pseudo').value=profile.name||'';$('monde').value=qs.get('monde')||'principal';
+let acctErr='';
+const accountReady=Net.enabled?Net.auth().then(id=>{$('acctTxt').textContent='sauvegardé en ligne';$('acct').hidden=false;return id}).catch(e=>{acctErr=e.message||String(e);$('acctTxt').textContent='indisponible';$('acctMsg').textContent=acctErr;$('acct').hidden=false}):Promise.resolve(null);
+$('showCode').onclick=async()=>{if(!Net.userId)return;$('showCode').disabled=true;try{const c=await Net.recoveryCode();$('myCode').textContent=c;$('myCode').hidden=false;$('acctMsg').textContent="Note ce code : il remplace l'ancien et ne sera plus affiché. Il sert à retrouver ta partie sur un autre appareil."}catch(e){$('acctMsg').textContent='Impossible : '+e.message}$('showCode').disabled=false};
+$('useCode').onclick=async()=>{const c=$('codeIn').value.trim().toUpperCase();if(!/^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/.test(c)){$('acctMsg').textContent='Le code ressemble à 4FC0-B18D-A98D-75EF.';return}
+ if(!Net.userId)return;$('useCode').disabled=true;try{const n=await Net.claimRecovery(c);$('acctMsg').textContent=`Partie retrouvée (${n} monde${n>1?'s':''}). Rechargement…`;for(const k of Object.keys(localStorage))if(k.startsWith('ether-mines:')&&k!==PKEY&&k!=='ether-mines:son'&&k!=='ether-mines:session')localStorage.removeItem(k);setTimeout(()=>location.reload(),900)}
+ catch(e){$('acctMsg').textContent=/inconnu/.test(e.message)?'Code inconnu.':'Impossible : '+e.message;$('useCode').disabled=false}};
+$('codeIn').addEventListener('input',e=>{let v=e.target.value.toUpperCase().replace(/[^0-9A-F]/g,'').slice(0,16);e.target.value=v.replace(/(.{4})(?=.)/g,'$1-')});
 $('netStatus').textContent=Net.enabled?'Multijoueur prêt : invite tes amis avec le lien du monde.':'Mode solo : ajoute tes clés Supabase dans src/config.js pour jouer en ligne.';
-function pause(){playing=false;mining=false;keys.clear();if(touch)releaseAll();$('title').hidden=false;$('play').textContent='Reprendre';save()}
+function pause(){playing=false;mining=false;keys.clear();setTimeout(()=>cloudSave(true),50);if(touch)releaseAll();$('title').hidden=false;$('play').textContent='Reprendre';save()}
 let booted=false;
 function toggleSnd(){Sound.init();const on=Sound.toggle();$('sndBtn').classList.toggle('off',!on);$('sndBtn').title=on?'Son (M)':'Son coupé (M)'}
 $('sndBtn').classList.toggle('off',!Sound.on);$('sndBtn').onclick=e=>{e.stopPropagation();toggleSnd()};
@@ -956,14 +970,26 @@ $('play').onclick=async()=>{Sound.init();
   KEY='ether-mines:'+world;loadState();$('play').disabled=true;$('play').textContent=Net.enabled?'Connexion…':'Génération du monde…';$('pseudo').disabled=$('monde').disabled=true;
   try{history.replaceState(null,'','?monde='+world)}catch(e){}
   try{await boot(world)}catch(e){console.error(e);$('netStatus').textContent='Connexion impossible : '+(e.message||e)+'. Vérifie src/config.js et le schéma.';$('play').disabled=false;$('play').textContent='Réessayer';$('pseudo').disabled=$('monde').disabled=false;return}
-  booted=true;$('play').disabled=false;$('shareRow').hidden=!Net.online;$('shareUrl').textContent=location.href}
+  booted=true;cloudSave(true);$('play').disabled=false;$('shareRow').hidden=!Net.online;$('shareUrl').textContent=location.href}
  $('title').hidden=true;playing=true;tryLock();
  if(!S.seen.intro){S.seen.intro=1;logEv('nft','Bienvenue au sanctuaire du validateur','');setTimeout(()=>logEv('mint','Mine un bloc','il devient un jeton dans ton coffre'),900)}};
 $('copyUrl').onclick=async()=>{try{await navigator.clipboard.writeText(location.href);$('copyUrl').textContent='Lien copié'}catch(e){const r=document.createRange();r.selectNodeContents($('shareUrl'));const s=getSelection();s.removeAllRanges();s.addRange(r)}};
-let arm=false;$('reset').onclick=()=>{if(!arm){arm=true;$('reset').textContent='Effacer ta progression locale ? Clique pour confirmer';return}try{localStorage.removeItem(KEY)}catch(e){}location.reload()};
+let arm=false;if(Net.enabled)$('reset').textContent='Recommencer ma partie dans ce monde';
+$('reset').onclick=async()=>{if(!arm){arm=true;$('reset').textContent='Tout ton coffre et tes objectifs dans ce monde seront effacés. Clique pour confirmer';return}
+ const w=booted?Net.world:(($('monde').value.trim()||'principal').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9-]+/g,'-').slice(0,32)||'principal');
+ try{localStorage.removeItem('ether-mines:'+w)}catch(e){}if(Net.enabled){try{await accountReady;if(Net.userId)await Net.deletePlayer(w)}catch(e){console.error(e)}}booted=false;location.reload()};
 async function boot(world){
  let info={placed_total:0,radius:3};
- if(Net.enabled){const r=await Net.join(world,ME);info=r.world||info}else info={placed_total:S.placedTotal||0,radius:radiusFor(S.placedTotal||0)};
+ if(Net.enabled){
+  if(!Net.userId)await accountReady;
+  if(Net.userId){ME.id=Net.userId;
+   // blocs posés avant les comptes : rattachés une fois à ce compte
+   if(profile.id&&!profile.legacyClaimed){try{await Net.claimLegacy(profile.id);profile.legacyClaimed=1;localStorage.setItem(PKEY,JSON.stringify(profile))}catch(e){console.warn(e)}}
+   // la partie du serveur fait foi ; sinon on y dépose la partie de ce navigateur
+   try{const row=await Net.loadPlayer(world);if(row&&row.state&&Object.keys(row.state).length)useState(row.state);else cloudDirty=true}
+   catch(e){console.warn(e);cloudOff=true;setTimeout(()=>logEv('burn','Sauvegarde en ligne indisponible','partie gardée dans ce navigateur (migration 002 à lancer)'),1500)}}
+  else setTimeout(()=>logEv('burn','Compte indisponible','partie gardée dans ce navigateur'),1500);
+  const r=await Net.join(world,ME);info=r.world||info}else info={placed_total:S.placedTotal||0,radius:radiusFor(S.placedTotal||0)};
  worldTotal=info.placed_total||0;if(FRONTIERE)R=Math.max(3,Math.min(60,info.radius||3));
  if(S.pos){[P.x,P.y,P.z,yaw,pitch]=S.pos}else{P.x=SPAWN.x+.5+(Math.random()-.5)*2;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5}
  if(!inBorder(P.x,P.z)){P.x=SPAWN.x+.5;P.y=SPAWN.y+.1;P.z=SPAWN.z+2.5}

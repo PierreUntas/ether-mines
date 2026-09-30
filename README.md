@@ -41,9 +41,10 @@ supabase/reset.sql      remise à zéro complète (supprime tout)
 
 1. **Supabase** : crée un projet gratuit sur supabase.com.
 2. **Base** : dans *SQL Editor*, lance les fichiers de `supabase/migrations/` dans l'ordre (001, puis les suivants).
-3. **Clés** : dans *Project Settings → API*, copie l'URL du projet et la clé `anon` publique dans `src/config.js`. Cette clé est faite pour être publique : ce sont les règles des migrations qui protègent la base.
-4. **Vercel** : importe le dépôt (*Add New → Project*), sans réglage particulier (site statique). Chaque push sur `main` redéploie.
-5. **Jouer** : ouvre le site, choisis un pseudo. Le lien contient le nom du monde (`?monde=principal`) ; envoie-le à tes amis. Un autre nom de monde donne un monde vierge séparé.
+3. **Comptes invités** : dans *Authentication → Sign In / Providers*, active *Allow anonymous sign-ins*. Chaque joueur reçoit un compte automatiquement, sans email ni mot de passe.
+4. **Clés** : dans *Project Settings → API*, copie l'URL du projet et la clé `anon` publique dans `src/config.js`. Cette clé est faite pour être publique : ce sont les règles des migrations qui protègent la base.
+5. **Vercel** : importe le dépôt (*Add New → Project*), sans réglage particulier (site statique). Chaque push sur `main` redéploie.
+6. **Jouer** : ouvre le site, choisis un pseudo. Le lien contient le nom du monde (`?monde=principal`) ; envoie-le à tes amis. Un autre nom de monde donne un monde vierge séparé.
 
 Sans clés dans `src/config.js`, le jeu tourne en solo et sauvegarde dans le navigateur.
 
@@ -57,7 +58,9 @@ Pour tout effacer et repartir de zéro : lancer `supabase/reset.sql`, puis les m
 | Terrain d'origine des tronçons touchés | Supabase, table `chunks` (écrit une fois, jamais modifié) |
 | Blocs modifiés (x, y, z), auteur et numéro de série | Supabase, table `blocks` |
 | Positions, chat, présence | Supabase Realtime (rien n'est gardé) |
-| Inventaire, registre, objets uniques, position | Navigateur de chaque joueur (`localStorage`, clé `ether-mines:<monde>`) |
+| Partie de chaque joueur : coffre, objets uniques, objectifs, position | Supabase, table `players` (une ligne par compte et par monde, lisible et modifiable par son seul propriétaire), copie dans le navigateur (`ether-mines:<monde>`) |
+| Compte invité | Supabase Auth ; la session est gardée par le navigateur (`ether-mines:session`) |
+| Codes de sauvegarde | Supabase, table `recovery` (empreinte SHA-256 seulement, jamais le code) |
 | Pseudo, couleur, identifiant | Navigateur (`ether-mines:profil`) |
 | Son activé ou coupé | Navigateur (`ether-mines:son`) |
 | Courant dans les câbles, lampes et portes | Nulle part : recalculé à partir des leviers et des plaques |
@@ -93,14 +96,22 @@ Au chargement d'un tronçon : terrain figé s'il existe, sinon générateur ; pu
 3. **Tester** : pousser sur une branche. Vercel donne une URL de prévisualisation, à tester sur un monde jetable (`?monde=test`). La base est la même que la production : ne jamais tester sur `principal`.
 4. **Publier** : lancer la migration SQL s'il y en a une, puis fusionner dans `main`. Les joueurs déjà connectés doivent recharger la page.
 
+## Comptes et codes de sauvegarde
+
+- Au premier passage, le jeu crée un compte invité et y enregistre la partie toutes les 5 secondes, à la pause et quand on quitte la page.
+- Sur l'écran titre, *Compte → Afficher mon code de sauvegarde* donne un code du type `4FC0-B18D-A98D-75EF`. Sur un autre appareil (ou après avoir vidé le navigateur), le saisir dans *Récupérer ma partie* rattache la partie et les blocs signés à ce nouvel appareil.
+- Les blocs posés avant les comptes (ancien identifiant du navigateur) sont rattachés au compte au premier lancement.
+- Écrire dans le monde demande un compte, et un bloc ne peut être signé qu'au nom de son auteur (règles de la migration 002).
+- Tant que la migration 002 ou les comptes invités ne sont pas activés, le jeu continue de fonctionner et garde la partie dans le navigateur.
+
 ## Tester
 
 Ouvrir `index.html#debug` expose `window.mines` dans la console : `get(x, y, z)`, `CHK` (tronçons chargés), `frozen`, `genChunk(cx, cz)`, `commit(...)`, `P` (le joueur, déplaçable : `mines.P.x = 500`), `R` (rayon de la frontière, `Infinity` en monde infini), `S.day` (heure : `mines.S.day = .9` pour la nuit), `POWERED` (blocs alimentés), `islandTop(x, z)`.
 
 ## Limites connues
 
-- Chaque client fait autorité : n'importe qui ayant le lien peut modifier le monde. C'est fait pour jouer entre amis, pas pour un serveur public.
-- Les inventaires sont locaux : changer de navigateur fait repartir d'un coffre vide.
+- Chaque client fait encore autorité sur sa propre partie : le serveur garde le coffre mais ne vérifie pas comment il a été rempli. Un joueur qui modifie le code peut se donner des objets. Avant de vrais jetons, il faudra faire valider minage, pose et fabrication par des fonctions côté serveur.
+- N'importe qui ayant le lien peut modifier le monde. C'est fait pour jouer entre amis, pas pour un serveur public.
 - Pour aller vers de vrais jetons, il faudra d'abord déplacer les inventaires côté serveur (source de vérité), puis ne frapper onchain que les objets qui ont de la valeur ou une histoire (objets uniques, constructions, parcelles), pas chaque bloc.
 
 ## Commandes

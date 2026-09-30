@@ -4,7 +4,40 @@ window.Net = (() => {
   const cfg = window.CONFIG || {};
   const enabled = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
   const handlers = { block: [], pos: [], chat: [], peers: [], status: [], world: [] };
-  let sb = null, ch = null, world = 'principal', me = null, online = false;
+  let sb = null, ch = null, world = 'principal', me = null, online = false, userId = null;
+  const client = () => sb || (sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
+    realtime: { params: { eventsPerSecond: 40 } }, auth: { persistSession: true, autoRefreshToken: true, storageKey: 'ether-mines:session' },
+  }));
+
+  // Compte : une session invitée est créée automatiquement au premier passage, et gardée par le navigateur.
+  async function auth() {
+    if (!enabled) return null;
+    const c = client();
+    const { data } = await c.auth.getSession();
+    if (data && data.session) { userId = data.session.user.id; return userId; }
+    const { data: d2, error } = await c.auth.signInAnonymously();
+    if (error) throw new Error(/anonymous/i.test(error.message) ? 'les comptes invités ne sont pas activés dans Supabase (Authentication → Sign In / Providers → Allow anonymous sign-ins)' : error.message);
+    userId = d2.user.id; return userId;
+  }
+  async function loadPlayer(w) {
+    const { data, error } = await client().from('players').select('name,color,state,updated_at').eq('user_id', userId).eq('world', w).maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+  async function savePlayer(w, name, color, state) {
+    if (!userId) return false;
+    const { error } = await client().from('players').upsert({ user_id: userId, world: w, name, color, state, updated_at: new Date().toISOString() }, { onConflict: 'user_id,world' });
+    if (error) { console.error(error); emit('status', 'SAVE_ERROR'); return false; }
+    return true;
+  }
+  async function deletePlayer(w) {
+    const { error } = await client().from('players').delete().eq('user_id', userId).eq('world', w);
+    if (error) throw error;
+  }
+  async function rpc(fn, args) { const { data, error } = await client().rpc(fn, args || {}); if (error) throw new Error(error.message); return data; }
+  const recoveryCode = () => rpc('set_recovery_code');
+  const claimRecovery = (code) => rpc('claim_recovery', { code });
+  const claimLegacy = (legacy) => rpc('claim_legacy', { legacy });
 
   const on = (ev, fn) => handlers[ev].push(fn);
   const emit = (ev, ...a) => { for (const f of handlers[ev]) { try { f(...a); } catch (e) { console.error(e); } } };
@@ -27,7 +60,7 @@ window.Net = (() => {
   async function join(w, profile) {
     if (!enabled) return { edits: [] };
     world = w; me = profile;
-    sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, { realtime: { params: { eventsPerSecond: 40 } } });
+    client();
     const { data: info, error: werr } = await sb.from('worlds').select('world,radius,placed_total').eq('world', w).maybeSingle();
     if (werr) throw werr;
     ch = sb.channel('monde:' + w, { config: { broadcast: { self: false }, presence: { key: me.id } } });
@@ -89,5 +122,5 @@ window.Net = (() => {
     return fetchChunk(c.cx, c.cz);
   }
 
-  return { enabled, join, on, sendPos, chat, setBlock, freezeChunk, fetchChunk, loadArea, get online() { return online; }, get world() { return world; } };
+  return { enabled, auth, loadPlayer, savePlayer, deletePlayer, recoveryCode, claimRecovery, claimLegacy, get userId() { return userId; }, join, on, sendPos, chat, setBlock, freezeChunk, fetchChunk, loadArea, get online() { return online; }, get world() { return world; } };
 })();
