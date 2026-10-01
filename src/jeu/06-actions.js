@@ -36,6 +36,7 @@ const REFUS = {
   'coffre vide': () => 'plus rien de cet objet',
   support: () => 'il faut un support',
   'case occupée': () => 'la case est occupée',
+  'objet non posable': () => 'le serveur ne connaît pas encore ce bloc (règles à mettre à jour : supabase/regles.sql)',
   'trop vite': () => null,
   'rien à miner': () => null,
   'trop loin': () => 'hors de portée de main',
