@@ -16,7 +16,7 @@ jobs:
       - name: Générateur et règles
         run: node --test tests/*.test.mjs
       - name: Mise en forme (Prettier)
-        run: npx --yes prettier@3 --check "src/jeu/*.js" src/net.js src/audio.js "supabase/functions/_shared/*.js"
+        run: npx --yes prettier@3 --check "src/jeu/*.js" "src/*.js" "supabase/functions/_shared/*.js"
   sql:
     runs-on: ubuntu-latest
     services:

@@ -2,7 +2,7 @@
 // Les fichiers de src/jeu/ se chargent dans l'ordre et partagent la même portée globale.
 'use strict';
 // ---------- chargement des tronçons autour du joueur ----------
-const VR = touch ? 4 : 5; // distance de vue, en tronçons
+let VR = REG.vue; // distance de vue, en tronçons (réglable)
 const pending = new Set(),
   meshQ = new Set();
 let loading = false,
@@ -115,10 +115,13 @@ function stream(dt) {
     unloadFar();
   }
   let n = 0;
+  // sur place : 2 tronçons par image au plus ; en arrière-plan : tant que le travailleur a de la place
   for (const k of meshQ) {
+    if (!maillageLibre()) break;
     meshQ.delete(k);
     const [cx, cz] = k.split(',').map(Number);
     if (CHK.has(k)) buildChunk(cx, cz);
-    if (++n >= 2) break;
+    if (!mailleur && ++n >= 2) break;
   }
 }
+appliquerReglages('vue'); // brouillard accordé à la distance de vue

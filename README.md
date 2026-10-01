@@ -14,6 +14,9 @@ Un monde en blocs aux couleurs d'Ethereum, à construire entre amis dans le navi
 - **Validateurs anciens** : une ruine avec un validateur éteint par région de 80 × 80 blocs (la première à une quarantaine de mètres du sanctuaire). La boussole de l'objectif mène à la plus proche. Le rallumer avec un cœur le met à ton nom : 3 cristaux par slot de 12 s, et un sceau de validateur (objet unique) en souvenir.
 - **Animaux** : moutons d'éther (plaines), lapins (dunes, plaines, forêts), renards roses (forêts), poissons prisme (océans), méduses célestes (autour des îles flottantes). Clic droit ou toucher bref pour les caresser : une fois par jour, un mouton offre de la laine d'éther (bloc), un renard une fleur, une méduse un éclat pur. Ils sont placés et déplacés à partir de la graine et de l'heure : tous les joueurs les voient au même endroit, sans échange réseau.
 - **Rendu** : Three.js r128, textures pixel art générées en code, ombres portées (désactivées sur mobile), cycle jour et nuit de 8 minutes, blocs lumineux la nuit, eau qui ondule, lucioles la nuit, effet de pose, avatars qui respirent et se balancent en marchant.
+- **Réglages** (onglet Réglages du coffre, propres à chaque appareil) : distance de vue, netteté, ombres, lucioles, animaux, sensibilité de la caméra, compteur d'images par seconde.
+- **Performances** : le maillage des tronçons (≈ 18 ms par tronçon sur un serveur, sans doute 2 à 4 fois plus sur un téléphone) se fait dans un travailleur en arrière-plan, sans bloquer l'image ; retour automatique au calcul sur place si le navigateur ne le permet pas (page ouverte en `file://`).
+- **Plein écran** : sur Android, le jeu passe en plein écran et en paysage en lançant la partie. Sur iPhone, Safari ne le permet pas aux pages : l'écran titre propose d'ajouter le jeu à l'écran d'accueil (bouton Partager → « Sur l'écran d'accueil »), d'où il s'ouvre sans barres.
 - **Son** : entièrement synthétisé dans `src/audio.js` (Web Audio, aucun fichier) : pas et coups selon la matière, cassures, poses, déclics des contrats, nappe musicale, oiseaux le jour, grillons la nuit, gouttes sous terre. Touche M ou bouton ♪ pour couper ; le choix est gardé dans le navigateur (`ether-mines:son`).
 - **Multijoueur** : les autres joueurs apparaissent avec leur pseudo, les blocs se synchronisent en direct, un chat (Entrée) et la liste des joueurs en ligne.
 - **Jetons (simulés)** : coffre avec fiches de jetons (ERC-1155 pour les ressources, ERC-721 pour la Pioche de cristal), atelier, registre des frappes et brûlages, vue registre (T) qui surligne tes blocs.
@@ -50,6 +53,9 @@ index.html              structure de la page
 src/style.css           interface
 src/config.js           URL et clé publique Supabase (vide = mode solo)
 src/net.js              couche réseau (Supabase)
+src/maillage.js         maillage des tronçons (fonction pure, partagée avec le travailleur)
+src/maillage-travailleur.js  maillage en arrière-plan (Web Worker)
+manifest.webmanifest, icones/   application installable (plein écran)
 src/jeu/                le jeu, en fichiers chargés dans l'ordre (portée globale partagée) :
   00-base.js            raccourcis, générateur et règles partagés
   01-textures.js        atlas pixel art généré en code
@@ -158,7 +164,7 @@ Les tests tournent automatiquement sur GitHub à chaque push (onglet *Actions*, 
 
 - **Générateur et règles** (sans base) : `node --test tests/*.test.mjs`. Vérifie que le monde est déterministe, l'encodage des tronçons, le sanctuaire et la première ruine, la cohérence des recettes, et que `supabase/regles.sql` est à jour avec `rules.js`.
 - **Schéma et arbitrage** : `PGHOST=… PGUSER=postgres tests/sql/run.sh` sur un Postgres 16 vide (une base `mines_test` est recréée). Installe le schéma deux fois, les règles, des tronçons générés par le vrai générateur, puis joue une quarantaine de scénarios : lecture du terrain par le serveur identique au générateur, minage, paliers d'outils, rythme, pose, portes, fabrication, parcelles, invitations, ruines, cadeaux, récompenses, récupération de partie, et toutes les tentatives de triche directe (écrire un bloc, se donner des objets, inventer du terrain…). Vérifie enfin que `reset.sql` efface tout.
-- **Mise en forme** : `npx prettier@3 --write "src/jeu/*.js" src/net.js src/audio.js "supabase/functions/_shared/*.js"` (vérifiée par les tests).
+- **Mise en forme** : `npx prettier@3 --write "src/jeu/*.js" "src/*.js" "supabase/functions/_shared/*.js"` (vérifiée par les tests).
 - **Partie dans un navigateur** (mode solo, Chromium) : `npm i --no-save playwright@1.56.0 three@0.128.0 && npx playwright install chromium && node tests/navigateur.mjs`.
 - **À la main** : ouvrir `index.html#debug` expose `window.mines` dans la console (dont `serverAct(nom, arguments)`, `syncInventory()`, `get(x, y, z)`, `P` le joueur, `S.day` l'heure).
 

@@ -329,6 +329,7 @@ function renderPanel() {
       '<p class="note">Simulation locale : rien n\'est inscrit sur une vraie blockchain. C\'est une maquette de ce que donneraient des blocs tokenisés.</p>',
     );
   } else if (tab === 'quest') renderQuests(body);
+  else if (tab === 'reglages') renderReglages(body);
   else if (tab === 'craft') {
     let cat = '';
     for (const r of RECIPES) {
@@ -420,3 +421,128 @@ function heldTier() {
   return ITEM[id]?.tier || 0;
 }
 const canMine = id => heldTier() >= reqTier(id);
+
+// ---------- réglages ----------
+const REG_CHOIX = [
+  {
+    k: 'vue',
+    t: 'Distance de vue',
+    d: 'Tronçons de 16 blocs chargés autour de toi. Moins = plus fluide.',
+    o: [
+      [3, 'Courte'],
+      [4, 'Moyenne'],
+      [5, 'Longue'],
+      [6, 'Très longue'],
+    ],
+  },
+  {
+    k: 'nettete',
+    t: 'Netteté',
+    d: "Résolution de l'image. Plus bas = moins de chauffe sur téléphone.",
+    o: [
+      [1, 'Économe'],
+      [1.5, 'Normale'],
+      [2, 'Haute'],
+    ],
+  },
+  {
+    k: 'ombres',
+    t: 'Ombres portées',
+    d: 'Jolies mais coûteuses, surtout sur téléphone.',
+    o: [
+      [false, 'Non'],
+      [true, 'Oui'],
+    ],
+  },
+  {
+    k: 'lucioles',
+    t: 'Lucioles la nuit',
+    o: [
+      [false, 'Non'],
+      [true, 'Oui'],
+    ],
+  },
+  {
+    k: 'animaux',
+    t: 'Animaux',
+    o: [
+      [false, 'Non'],
+      [true, 'Oui'],
+    ],
+  },
+  {
+    k: 'sensibilite',
+    t: 'Sensibilité de la caméra',
+    o: [
+      [0.6, 'Douce'],
+      [1, 'Normale'],
+      [1.5, 'Vive'],
+    ],
+  },
+  {
+    k: 'ips',
+    t: 'Images par seconde',
+    d: "Affiche la fluidité à côté de l'horloge (60 = parfait, moins de 30 = saccadé).",
+    o: [
+      [false, 'Masquer'],
+      [true, 'Afficher'],
+    ],
+  },
+];
+function renderReglages(body) {
+  body.insertAdjacentHTML('beforeend', '<p class="qintro">Réglages propres à cet appareil. Ils s\'appliquent tout de suite.</p>');
+  const box = document.createElement('div');
+  box.className = 'reglages';
+  for (const c of REG_CHOIX) {
+    const row = document.createElement('div');
+    row.className = 'reg';
+    row.innerHTML = `<div><strong>${c.t}</strong>${c.d ? `<span>${c.d}</span>` : ''}</div><div class="opts"></div>`;
+    for (const [v, lab] of c.o) {
+      const b = document.createElement('button');
+      b.className = 'b' + (REG[c.k] === v ? ' primary' : '');
+      b.textContent = lab;
+      b.onclick = () => {
+        REG[c.k] = v;
+        sauverReglages();
+        appliquerReglages(c.k);
+        renderPanel();
+      };
+      row.querySelector('.opts').appendChild(b);
+    }
+    box.appendChild(row);
+  }
+  body.appendChild(box);
+  const raz = document.createElement('button');
+  raz.className = 'b';
+  raz.textContent = 'Revenir aux réglages conseillés';
+  raz.onclick = () => {
+    REG = { ...REG_DEFAUT };
+    sauverReglages();
+    for (const c of REG_CHOIX) appliquerReglages(c.k);
+    renderPanel();
+  };
+  body.appendChild(raz);
+}
+function appliquerReglages(k) {
+  if (k === 'vue') {
+    VR = REG.vue;
+    scene.fog.far = VR * CH + 12;
+    scene.fog.near = scene.fog.far * 0.37;
+  }
+  if (k === 'nettete') {
+    renderer.setPixelRatio(Math.min(devicePixelRatio, REG.nettete));
+    resize();
+  }
+  if (k === 'ombres') {
+    SHADOWS = REG.ombres;
+    renderer.shadowMap.enabled = REG.ombres;
+    sun.castShadow = REG.ombres;
+    scene.traverse(o => {
+      if (o.isMesh) {
+        if (o.material === opMat) o.castShadow = REG.ombres;
+        [].concat(o.material).forEach(m => (m.needsUpdate = true));
+      }
+    });
+  }
+  if (k === 'ips') $('ips').hidden = !REG.ips;
+}

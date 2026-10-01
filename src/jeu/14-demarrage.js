@@ -391,7 +391,20 @@ $('sndBtn').onclick = e => {
   e.stopPropagation();
   toggleSnd();
 };
+// Plein écran : API du navigateur sur Android et ordinateur ; sur iPhone, seulement depuis l'écran d'accueil.
+const autonome = matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone === true;
+const iOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (touch && iOS && !autonome) $('astuceIos').hidden = false;
+function pleinEcran() {
+  if (!touch || autonome || document.fullscreenElement) return;
+  const el = document.documentElement;
+  if (el.requestFullscreen)
+    el.requestFullscreen({ navigationUI: 'hide' })
+      .then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {}))
+      .catch(() => {});
+}
 $('play').onclick = async () => {
+  pleinEcran();
   Sound.init();
   if (!booted) {
     const name = $('pseudo').value.trim().slice(0, 16);
@@ -535,12 +548,24 @@ async function boot(world) {
   const q = [...meshQ];
   meshQ.clear();
   let m = 0;
-  for (const k of q) {
-    const [cx, cz] = k.split(',').map(Number);
-    if (CHK.has(k)) buildChunk(cx, cz);
-    m++;
+  // au plus près du joueur d'abord ; en arrière-plan, plusieurs tronçons à la fois
+  q.sort((a, b) => {
+    const [ax, az] = a.split(',').map(Number),
+      [bx, bz] = b.split(',').map(Number),
+      pcx = cOf(P.x),
+      pcz = cOf(P.z);
+    return Math.hypot(ax - pcx, az - pcz) - Math.hypot(bx - pcx, bz - pcz);
+  });
+  for (let i = 0; i < q.length; i += 4) {
+    await Promise.all(
+      q.slice(i, i + 4).map(k => {
+        const [cx, cz] = k.split(',').map(Number);
+        return CHK.has(k) ? buildChunk(cx, cz) : null;
+      }),
+    );
+    m = Math.min(q.length, i + 4);
     $('progBar').style.width = 60 + (m / q.length) * 40 + '%';
-    if (m % 3 === 0) await new Promise(r => setTimeout(r, 0));
+    await new Promise(r => setTimeout(r, 0));
   }
   updatePosHud();
   if (collides(P.x, P.y, P.z)) {
@@ -554,6 +579,12 @@ requestAnimationFrame(frame);
 // Outils de test : ouvrir index.html#debug expose window.mines dans la console.
 if (location.hash === '#debug')
   window.mines = {
+    get mailleur() {
+      return !!mailleur;
+    },
+    get nbMaillages() {
+      return MESH.size;
+    },
     place,
     get target() {
       return target;

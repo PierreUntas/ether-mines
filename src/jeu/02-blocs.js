@@ -18,46 +18,9 @@ const MAT_OF = id =>
               ? 'verre'
               : 'pierre';
 const nameOf = id => (B[id] ? B[id].n : ITEM[id] ? ITEM[id].n : 'Objet inconnu');
-const isCross = id => B[id] && B[id].x != null;
-const isTransp = id => id === 0 || id === 11 || isCross(id) || !B[id] || !!(B[id].leaf || B[id].glass || B[id].shape);
-const isSolid = id => !!(id && id !== 11 && B[id] && !isCross(id) && !B[id].pass);
-const isOpaque = id => id && !isTransp(id);
-
-// ---------- formes non cubiques (dalles, escaliers, portes, contrats) ----------
-const isShaped = id => !!(B[id] && B[id].shape);
-const STAIR_HI = [
-  [0, 0.5, 0, 1, 1, 0.5],
-  [0, 0.5, 0, 0.5, 1, 1],
-  [0, 0.5, 0.5, 1, 1, 1],
-  [0.5, 0.5, 0, 1, 1, 1],
-]; // partie haute côté du regard : 0 → -z, 1 → -x, 2 → +z, 3 → +x
-const DOORB = [
-  [0, 0, 0, 1, 1, 0.1875],
-  [0, 0, 0, 0.1875, 1, 1],
-  [0, 0, 0.8125, 1, 1, 1],
-  [0.8125, 0, 0, 1, 1, 1],
-];
+const { isCross, isTransp, isSolid, isOpaque, isShaped, STAIR_HI, DOORB } = Maillage; // src/maillage.js
 const POWERED = new Set(); // blocs alimentés (calculés, jamais enregistrés)
-const doorOpen = (id, key) => !!(B[id].open || POWERED.has(key));
-function shapeBoxes(id, key) {
-  const b = B[id];
-  switch (b.shape) {
-    case 'slab':
-      return [[0, 0, 0, 1, 0.5, 1]];
-    case 'stairs':
-      return [[0, 0, 0, 1, 0.5, 1], STAIR_HI[b.o]];
-    case 'door':
-      return [DOORB[doorOpen(id, key) ? (b.f + 1) % 4 : b.f]];
-    case 'plate':
-      return [[0.06, 0, 0.06, 0.94, POWERED.has(key) ? 0.03 : 0.06, 0.94]];
-    case 'cable':
-      return [[0, 0, 0, 1, 0.03, 1]];
-    case 'lever':
-      return [[0.3, 0, 0.3, 0.7, 0.12, 0.7], b.on ? [0.54, 0.1, 0.46, 0.62, 0.58, 0.54] : [0.38, 0.1, 0.46, 0.46, 0.58, 0.54]];
-    default:
-      return [[0, 0, 0, 1, 1, 1]];
-  }
-}
+const shapeBoxes = (id, key) => Maillage.shapeBoxes(id, key, k => POWERED.has(k));
 function collBoxes(id, key) {
   if (!isSolid(id)) return [];
   return isShaped(id) ? shapeBoxes(id, key) : [[0, 0, 0, 1, 1, 1]];

@@ -9,6 +9,7 @@ globalThis.atob ??= (s) => Buffer.from(s, 'base64').toString('binary');
 const load = (f) => new Function(readFileSync(new URL('../' + f, import.meta.url), 'utf8'))();
 load('supabase/functions/_shared/world.js');
 load('supabase/functions/_shared/rules.js');
+load('src/maillage.js');
 const W = globalThis.World, R = globalThis.Rules;
 
 test('le générateur est déterministe', () => {
@@ -64,4 +65,22 @@ test('index.html charge tous les fichiers du jeu, dans l\'ordre', async () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const loaded = [...html.matchAll(/src="src\/jeu\/([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(loaded, files);
+});
+
+test('maillage : triangles valides et identiques d\'un calcul à l\'autre', () => {
+  const cache = new Map();
+  const chunk = (cx, cz) => cache.get(cx + ',' + cz) ?? cache.set(cx + ',' + cz, W.genChunk(cx, cz)).get(cx + ',' + cz);
+  const get = (x, y, z) => {
+    if (y < 0 || y >= W.SY) return 0;
+    const cx = Math.floor(x / 16), cz = Math.floor(z / 16);
+    return chunk(cx, cz)[W.li(x - cx * 16, y, z - cz * 16)];
+  };
+  const M = globalThis.Maillage;
+  const a = M.pack(M.meshChunk(0, 0, get, () => false)), b = M.pack(M.meshChunk(0, 0, get, () => false));
+  assert.ok(a.op && a.op.idx.length > 0, 'des faces opaques');
+  for (const g of Object.values(a).filter(Boolean)) {
+    assert.equal(g.pos.length % 3, 0);
+    assert.ok(Math.max(...g.idx) < g.pos.length / 3, 'indices dans les bornes');
+  }
+  assert.deepEqual(a.op.pos, b.op.pos);
 });

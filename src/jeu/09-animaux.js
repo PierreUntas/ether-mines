@@ -273,6 +273,10 @@ function waypoint(a, k) {
 let aniT = 0,
   aniSound = 8;
 function updateAnimals(dt) {
+  if (!REG.animaux) {
+    for (const k of [...ANIMALS.keys()]) despawnChunk(k);
+    return;
+  }
   aniT -= dt;
   if (aniT <= 0) {
     aniT = 1;

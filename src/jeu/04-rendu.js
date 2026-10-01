@@ -9,9 +9,9 @@ try {
   $('play').textContent = 'WebGL indisponible sur cet appareil';
   throw e;
 }
-renderer.setPixelRatio(Math.min(devicePixelRatio, touch ? 1.5 : 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, REG.nettete));
 renderer.autoClear = false;
-renderer.shadowMap.enabled = !touch;
+renderer.shadowMap.enabled = REG.ombres;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 $('game').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
@@ -21,7 +21,7 @@ camera.rotation.order = 'YXZ';
 const hemi = new THREE.HemisphereLight(0xdfe8ff, 0xb9a7e0, 0.6);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2e0, 0.9);
-sun.castShadow = !touch;
+sun.castShadow = REG.ombres;
 sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -44, right: 44, top: 44, bottom: -44, near: 1, far: 180 });
 sun.shadow.bias = -0.0006;
@@ -139,75 +139,7 @@ bigEth.position.set(SPAWN.x, SY + 40, SPAWN.z - 110);
 scene.add(bigEth);
 
 // ---------- maillage par tronçons ----------
-const FACES = [
-  {
-    n: [1, 0, 0],
-    a: 0,
-    c: [
-      [1, 0, 0],
-      [1, 1, 0],
-      [1, 1, 1],
-      [1, 0, 1],
-    ],
-    s: 1,
-  },
-  {
-    n: [-1, 0, 0],
-    a: 0,
-    c: [
-      [0, 0, 1],
-      [0, 1, 1],
-      [0, 1, 0],
-      [0, 0, 0],
-    ],
-    s: 1,
-  },
-  {
-    n: [0, 1, 0],
-    a: 1,
-    c: [
-      [0, 1, 1],
-      [1, 1, 1],
-      [1, 1, 0],
-      [0, 1, 0],
-    ],
-    s: 0,
-  },
-  {
-    n: [0, -1, 0],
-    a: 1,
-    c: [
-      [0, 0, 0],
-      [1, 0, 0],
-      [1, 0, 1],
-      [0, 0, 1],
-    ],
-    s: 2,
-  },
-  {
-    n: [0, 0, 1],
-    a: 2,
-    c: [
-      [1, 0, 1],
-      [1, 1, 1],
-      [0, 1, 1],
-      [0, 0, 1],
-    ],
-    s: 1,
-  },
-  {
-    n: [0, 0, -1],
-    a: 2,
-    c: [
-      [0, 0, 0],
-      [0, 1, 0],
-      [1, 1, 0],
-      [1, 0, 0],
-    ],
-    s: 1,
-  },
-];
-const AOF = [0.42, 0.62, 0.82, 1];
+const { FACES, AOF, uvRect } = Maillage; // src/maillage.js
 const opMat = new THREE.MeshLambertMaterial({
   map: atlasTex,
   emissiveMap: emisTex,
@@ -236,12 +168,6 @@ waMat.onBeforeCompile = sh => {
     );
 };
 const plMat = new THREE.MeshLambertMaterial({ map: atlasTex, alphaTest: 0.5, side: THREE.DoubleSide });
-function uvRect(ti) {
-  const tx = ti % AN,
-    ty = Math.floor(ti / AN),
-    e = 0.0008;
-  return [tx / AN + e, (tx + 1) / AN - e, 1 - (ty + 1) / AN + e, 1 - ty / AN - e];
-}
 const MESH = new Map();
 function dropMesh(k) {
   const ch = MESH.get(k);
@@ -252,192 +178,70 @@ function dropMesh(k) {
   }
   MESH.delete(k);
 }
+// Maillage en arrière-plan (travailleur) quand le navigateur le permet, sinon sur place.
+// Chaque demande porte un numéro : une réponse dépassée par une modification plus récente est ignorée.
+let mailleur = null,
+  maillageSeq = 0,
+  enVol = 0;
+const maillageDernier = new Map(),
+  maillageAttente = new Map();
+try {
+  mailleur = new Worker('src/maillage-travailleur.js');
+  mailleur.onmessage = e => {
+    const { id, cx, cz, mesh } = e.data,
+      k = ckey(cx, cz);
+    enVol--;
+    const fin = maillageAttente.get(id);
+    maillageAttente.delete(id);
+    if (maillageDernier.get(k) === id && CHK.has(k)) applyMesh(cx, cz, mesh);
+    if (fin) fin();
+  };
+  mailleur.onerror = e => {
+    console.warn('maillage en arrière-plan indisponible, retour au maillage sur place', e.message);
+    mailleur = null;
+    for (const f of maillageAttente.values()) f();
+    maillageAttente.clear();
+    for (const k of maillageDernier.keys()) if (CHK.has(k)) meshQ.add(k);
+  };
+} catch (e) {
+  mailleur = null;
+}
+const maillageLibre = () => !mailleur || enVol < 4;
 function buildChunk(cx, cz) {
-  const arr = CHK.get(ckey(cx, cz));
-  if (!arr) return;
-  const A = { op: [[], [], [], [], []], gl: [[], [], [], [], []], wa: [[], [], [], []], pl: [[], [], [], []] }; // pos,nor,uv,col,idx
-  const pushQ = (G, pts, nor, uvs, cols, flipTri) => {
-    const base = G[0].length / 3;
-    for (let k = 0; k < 4; k++) {
-      G[0].push(...pts[k]);
-      G[1].push(...nor);
-      G[2].push(...uvs[k]);
-      if (cols) G[3].push(cols[k], cols[k], cols[k]);
+  const k = ckey(cx, cz);
+  if (!CHK.has(k)) return Promise.resolve();
+  const pw = [];
+  for (const key of POWERED) {
+    const [x, , z] = key.split(',').map(Number);
+    if (Math.abs(cOf(x) - cx) <= 1 && Math.abs(cOf(z) - cz) <= 1) pw.push(key);
+  }
+  if (!mailleur) {
+    const ps = new Set(pw);
+    applyMesh(cx, cz, Maillage.pack(Maillage.meshChunk(cx, cz, get, key => ps.has(key))));
+    return Promise.resolve();
+  }
+  const id = ++maillageSeq,
+    chunks = {};
+  for (let dz = -1; dz <= 1; dz++)
+    for (let dx = -1; dx <= 1; dx++) {
+      const n = ckey(cx + dx, cz + dz),
+        a = CHK.get(n);
+      if (a) chunks[n] = a;
     }
-    const ix = cols ? G[4] : G[3];
-    if (flipTri) ix.push(base + 1, base + 2, base + 3, base + 1, base + 3, base);
-    else ix.push(base, base + 1, base + 2, base, base + 2, base + 3);
-  };
-  // boîte quelconque dans un bloc (dalle, marche, porte…) : faces cachées seulement contre un bloc plein opaque
-  const emitBox = (G, x, y, z, bb, tt, big) => {
-    const [x0, y0, z0, x1, y1, z1] = bb,
-      thin = x1 - x0 < 0.3 ? 0 : z1 - z0 < 0.3 ? 2 : -1;
-    for (const f of FACES) {
-      const edge =
-        (f.n[0] > 0 && x1 === 1) ||
-        (f.n[0] < 0 && x0 === 0) ||
-        (f.n[1] > 0 && y1 === 1) ||
-        (f.n[1] < 0 && y0 === 0) ||
-        (f.n[2] > 0 && z1 === 1) ||
-        (f.n[2] < 0 && z0 === 0);
-      if (edge && isOpaque(get(x + f.n[0], y + f.n[1], z + f.n[2]))) continue;
-      const [u0, u1, v0, v1] = uvRect(big != null && f.a === thin ? big : tt[f.s]),
-        pts = [],
-        uvs = [];
-      for (const c of f.c) {
-        const px = c[0] ? x1 : x0,
-          py = c[1] ? y1 : y0,
-          pz = c[2] ? z1 : z0;
-        pts.push([x + px, y + py, z + pz]);
-        let uu, vv;
-        if (f.a === 1) {
-          uu = px;
-          vv = pz;
-        } else if (f.a === 0) {
-          uu = f.n[0] > 0 ? 1 - pz : pz;
-          vv = py;
-        } else {
-          uu = f.n[2] > 0 ? px : 1 - px;
-          vv = py;
-        }
-        uvs.push([lerp(u0, u1, uu), lerp(v0, v1, vv)]);
-      }
-      pushQ(G, pts, f.n, uvs, [1, 1, 1, 1], false);
-    }
-  };
-  for (let y = 0; y < SY; y++)
-    for (let z = cz * CH; z < cz * CH + CH; z++)
-      for (let x = cx * CH; x < cx * CH + CH; x++) {
-        const id = arr[li(x - cx * CH, y, z - cz * CH)];
-        if (!id) continue;
-        const b = B[id];
-        if (!b) continue;
-        if (b.x != null) {
-          const [u0, u1, v0, v1] = uvRect(b.x),
-            o = 0.15;
-          for (const [p, q] of [
-            [
-              [x + o, z + o],
-              [x + 1 - o, z + 1 - o],
-            ],
-            [
-              [x + 1 - o, z + o],
-              [x + o, z + 1 - o],
-            ],
-          ])
-            pushQ(
-              A.pl,
-              [
-                [p[0], y, p[1]],
-                [p[0], y + 1, p[1]],
-                [q[0], y + 1, q[1]],
-                [q[0], y, q[1]],
-              ],
-              [0, 1, 0],
-              [
-                [u0, v0],
-                [u0, v1],
-                [u1, v1],
-                [u1, v0],
-              ],
-              null,
-              false,
-            );
-          continue;
-        }
-        if (b.water) {
-          for (const f of FACES) {
-            const nb = get(x + f.n[0], y + f.n[1], z + f.n[2]);
-            if (nb === 11 || (isSolid(nb) && !B[nb].leaf && !B[nb].glass)) continue;
-            if (f.n[1] < 0) continue;
-            const top = get(x, y + 1, z) !== 11 ? 0.86 : 1;
-            const pts = f.c.map(c => [x + c[0], y + (c[1] ? top : 0), z + c[2]]);
-            const uvs = pts.map(p =>
-              f.a === 1 ? [p[0] * 0.25, p[2] * 0.25] : f.a === 0 ? [p[2] * 0.25, p[1] * 0.25] : [p[0] * 0.25, p[1] * 0.25],
-            );
-            pushQ(A.wa, pts, f.n, uvs, null, false);
-          }
-          continue;
-        }
-        if (b.shape) {
-          const key = coordKey(x, y, z),
-            pw = POWERED.has(key);
-          shapeBoxes(id, key).forEach((bb, bi) =>
-            emitBox(
-              A.op,
-              x,
-              y,
-              z,
-              bb,
-              b.shape === 'cable' ? (pw ? [44, 44, 44] : [43, 43, 43]) : b.shape === 'lever' && bi === 1 ? [10, 10, 10] : b.t,
-              b.shape === 'door' ? (b.top ? 40 : 39) : null,
-            ),
-          );
-          if (b.shape === 'lever' && b.on) emitBox(A.op, x, y, z, [0.54, 0.52, 0.46, 0.62, 0.6, 0.54], [46, 46, 46], null);
-          continue;
-        }
-        const G = b.glass ? A.gl : A.op,
-          lit = id === 68 && POWERED.has(coordKey(x, y, z));
-        for (const f of FACES) {
-          const nx = x + f.n[0],
-            ny = y + f.n[1],
-            nz = z + f.n[2],
-            nb = get(nx, ny, nz);
-          if (ny < 0) continue;
-          if (isOpaque(nb)) continue;
-          if (nb === id && (b.leaf || b.glass)) continue;
-          const [u0, u1, v0, v1] = uvRect(lit ? 46 : b.t[f.s]);
-          const u = (f.a + 1) % 3,
-            w = (f.a + 2) % 3,
-            ao = [],
-            pts = [],
-            uvs = [];
-          for (const c of f.c) {
-            const p = [nx, ny, nz],
-              du = c[u] ? 1 : -1,
-              dw = c[w] ? 1 : -1;
-            const p1 = p.slice();
-            p1[u] += du;
-            const p2 = p.slice();
-            p2[w] += dw;
-            const p3 = p1.slice();
-            p3[w] += dw;
-            const s1 = isOpaque(get(...p1)) ? 1 : 0,
-              s2 = isOpaque(get(...p2)) ? 1 : 0,
-              s3 = isOpaque(get(...p3)) ? 1 : 0;
-            ao.push(s1 && s2 ? 0 : 3 - (s1 + s2 + s3));
-            pts.push([x + c[0], y + c[1], z + c[2]]);
-            let uu, vv;
-            if (f.a === 1) {
-              uu = c[0];
-              vv = c[2];
-            } else if (f.a === 0) {
-              uu = f.n[0] > 0 ? 1 - c[2] : c[2];
-              vv = c[1];
-            } else {
-              uu = f.n[2] > 0 ? c[0] : 1 - c[0];
-              vv = c[1];
-            }
-            uvs.push([lerp(u0, u1, uu), lerp(v0, v1, vv)]);
-          }
-          pushQ(
-            G,
-            pts,
-            f.n,
-            uvs,
-            ao.map(a => AOF[a]),
-            ao[0] + ao[2] < ao[1] + ao[3],
-          );
-        }
-      }
-  const mkG = (G, col) => {
-    if (!G[0].length) return null;
+  maillageDernier.set(k, id);
+  enVol++;
+  mailleur.postMessage({ id, cx, cz, chunks, powered: pw });
+  return new Promise(res => maillageAttente.set(id, res));
+}
+function applyMesh(cx, cz, M) {
+  const mkG = G => {
+    if (!G) return null;
     const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(G[0], 3));
-    g.setAttribute('normal', new THREE.Float32BufferAttribute(G[1], 3));
-    g.setAttribute('uv', new THREE.Float32BufferAttribute(G[2], 2));
-    if (col) g.setAttribute('color', new THREE.Float32BufferAttribute(G[3], 3));
-    g.setIndex(new THREE.Uint32BufferAttribute(col ? G[4] : G[3], 1));
+    g.setAttribute('position', new THREE.BufferAttribute(G.pos, 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(G.nor, 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(G.uv, 2));
+    if (G.col) g.setAttribute('color', new THREE.BufferAttribute(G.col, 3));
+    g.setIndex(new THREE.BufferAttribute(G.idx, 1));
     g.computeBoundingSphere();
     return g;
   };
@@ -452,24 +256,26 @@ function buildChunk(cx, cz) {
   const add = (g, mat, cast) => {
     if (!g) return;
     const m = new THREE.Mesh(g, mat);
-    m.castShadow = cast;
+    m.castShadow = cast && !!SHADOWS;
     m.receiveShadow = true;
     scene.add(m);
     ch.meshes.push(m);
   };
-  add(mkG(A.op, true), opMat, true);
-  add(mkG(A.gl, true), glMat, false);
-  add(mkG(A.wa, false), waMat, false);
-  add(mkG(A.pl, false), plMat, false);
+  add(mkG(M.op), opMat, true);
+  add(mkG(M.gl), glMat, false);
+  add(mkG(M.wa), waMat, false);
+  add(mkG(M.pl), plMat, false);
 }
 function rebuildAt(x, z) {
   const cx = Math.floor(x / CH),
     cz = Math.floor(z / CH);
   const set = new Set([cx + ',' + cz]);
-  if (x % CH === 0) set.add(cx - 1 + ',' + cz);
-  if (x % CH === CH - 1) set.add(cx + 1 + ',' + cz);
-  if (z % CH === 0) set.add(cx + ',' + (cz - 1));
-  if (z % CH === CH - 1) set.add(cx + ',' + (cz + 1));
+  const lx = ((x % CH) + CH) % CH,
+    lz = ((z % CH) + CH) % CH; // aussi juste pour les coordonnées négatives
+  if (lx === 0) set.add(cx - 1 + ',' + cz);
+  if (lx === CH - 1) set.add(cx + 1 + ',' + cz);
+  if (lz === 0) set.add(cx + ',' + (cz - 1));
+  if (lz === CH - 1) set.add(cx + ',' + (cz + 1));
   for (const k of set) {
     const [a, b] = k.split(',').map(Number);
     if (MESH.has(k)) buildChunk(a, b);

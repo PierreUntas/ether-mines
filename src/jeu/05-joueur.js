@@ -148,6 +148,7 @@ addEventListener(
   { passive: true },
 );
 function look(dx, dy, s) {
+  s *= REG.sensibilite;
   yaw -= dx * s;
   pitch = clamp(pitch - dy * s, -1.55, 1.55);
 }
@@ -563,7 +564,7 @@ for (let i = 0; i < FF; i++) {
 }
 let ffReady = false;
 function updateFireflies(dt, night, t) {
-  ffMat.opacity = Math.max(0, night - 0.3) * 1.3;
+  ffMat.opacity = REG.lucioles ? Math.max(0, night - 0.3) * 1.3 : 0;
   fireflies.visible = ffMat.opacity > 0.01;
   if (!fireflies.visible) {
     ffReady = false;

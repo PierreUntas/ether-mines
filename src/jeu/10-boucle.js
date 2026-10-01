@@ -10,8 +10,19 @@ let last = performance.now(),
   crouch = 0,
   stepT = 0,
   hitT = 0;
+let ipsN = 0,
+  ipsT = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
+  ipsN++;
+  ipsT += (now - last) / 1000;
+  if (ipsT >= 0.5) {
+    const el = $('ips');
+    el.hidden = !REG.ips;
+    if (REG.ips) el.textContent = Math.round(ipsN / ipsT) + ' i/s';
+    ipsN = 0;
+    ipsT = 0;
+  }
   last = now;
   if (playing && $('panel').hidden && !chatOpen) {
     let fx = 0,

@@ -1,6 +1,28 @@
 // Mines d'Éther · État de la partie, sauvegarde locale et serveur, saisons.
 // Les fichiers de src/jeu/ se chargent dans l'ordre et partagent la même portée globale.
 'use strict';
+// ---------- réglages (propres à cet appareil) ----------
+const REG_CLE = 'ether-mines:reglages';
+const REG_DEFAUT = {
+  vue: touch ? 4 : 5,
+  ombres: !touch,
+  nettete: touch ? 1.5 : 2,
+  lucioles: true,
+  animaux: true,
+  ips: false,
+  sensibilite: 1,
+};
+let REG = { ...REG_DEFAUT };
+try {
+  REG = { ...REG_DEFAUT, ...JSON.parse(localStorage.getItem(REG_CLE) || '{}') };
+} catch (e) {}
+const sauverReglages = () => {
+  try {
+    localStorage.setItem(REG_CLE, JSON.stringify(REG));
+  } catch (e) {}
+};
+let SHADOWS = REG.ombres;
+
 // ---------- état, sauvegarde ----------
 let KEY = 'ether-mines:solo';
 const SAVE_V = 1;
