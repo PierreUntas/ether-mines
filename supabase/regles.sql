@@ -113,7 +113,18 @@ insert into public.rule_blocks (id, name, hard, tier, drop_item, kind, solid, to
 (120,'Porte NON',0.8,0,120,'cube',true,false),
 (121,'Porte NON',0.8,0,120,'cube',true,false),
 (122,'Porte NON',0.8,0,120,'cube',true,false),
-(123,'Porte NON',0.8,0,120,'cube',true,false);
+(123,'Porte NON',0.8,0,120,'cube',true,false),
+(124,'Tronc de palmier',1,0,5,'cube',true,false),
+(125,'Palmes',0.25,0,null,'cube',true,false),
+(126,'Amas d''améthyste',0.3,0,126,'cross',false,false),
+(127,'Colonne de marbre',2.2,1,127,'cube',true,false),
+(128,'Néon cyan',1.2,1,128,'cube',true,false),
+(129,'Écran holographique',0.5,0,129,'cube',true,false),
+(130,'Bloc diamant',1,0,130,'cube',true,false),
+(131,'Brique de jeu lavande',1.2,0,131,'cube',true,false),
+(132,'Brique de jeu menthe',1.2,0,132,'cube',true,false),
+(133,'Brique de jeu bleue',1.2,0,133,'cube',true,false),
+(134,'Brique de jeu pêche',1.2,0,134,'cube',true,false);
 insert into public.rule_place (item, block) values
 (2,2),
 (3,3),
@@ -201,7 +212,16 @@ insert into public.rule_place (item, block) values
 (120,120),
 (120,121),
 (120,122),
-(120,123);
+(120,123),
+(126,126),
+(127,127),
+(128,128),
+(129,129),
+(130,130),
+(131,131),
+(132,132),
+(133,133),
+(134,134);
 insert into public.rule_items (id, name, tool, tier, uniq) values
 (101,'Cristal d''éther',1,0,false),
 (102,'Pioche en bois',2.2,1,false),
@@ -263,5 +283,13 @@ insert into public.rule_recipes (out_item, n, need, uniq) values
 (82,1,'{"9":6,"76":3}'::jsonb,false),
 (83,1,'{"101":9}'::jsonb,false),
 (84,1,'{"14":1,"17":1}'::jsonb,false),
-(85,1,'{"10":1,"75":2}'::jsonb,false);
+(85,1,'{"10":1,"75":2}'::jsonb,false),
+(127,2,'{"15":3}'::jsonb,false),
+(128,4,'{"3":2,"10":1,"101":1}'::jsonb,false),
+(129,2,'{"10":2,"101":1}'::jsonb,false),
+(130,1,'{"10":1,"101":4}'::jsonb,false),
+(131,4,'{"22":2}'::jsonb,false),
+(132,4,'{"23":2}'::jsonb,false),
+(133,4,'{"24":2}'::jsonb,false),
+(134,4,'{"25":2}'::jsonb,false);
 commit;

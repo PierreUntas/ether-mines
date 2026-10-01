@@ -199,6 +199,30 @@
   });
   B[111] = { n: 'Horloge', t: [106, 104, 104], tOn: [107, 105, 104], h: 0.8 };
 
+  // v7 : inspirés des illustrations d'ethereum.org. Numéros 124 et plus (101–105 et 201–203 sont des objets).
+  B[124] = { n: 'Tronc de palmier', t: [108, 109, 108], h: 1, drop: 5 }; // donne du bois ordinaire
+  B[125] = { n: 'Palmes', t: [110, 110, 110], h: 0.25, leaf: 1, drop: 0 };
+  B[126] = { n: "Amas d'améthyste", x: 111, h: 0.3 }; // grottes profondes, lumineux
+  B[127] = { n: 'Colonne de marbre', t: [112, 113, 112], h: 2.2, stone: 1 };
+  B[128] = { n: 'Néon cyan', t: [114, 114, 114], h: 1.2, stone: 1 };
+  B[129] = { n: 'Écran holographique', t: [115, 115, 115], h: 0.5, glass: 1 };
+  B[130] = { n: 'Bloc diamant', t: [116, 116, 116], h: 1, glass: 1 };
+  ['lavande', 'menthe', 'bleue', 'pêche'].forEach(
+    (c, i) => (B[131 + i] = { n: 'Brique de jeu ' + c, t: [117 + i, 117 + i, 117 + i], h: 1.2 }),
+  );
+  RECIPES.push(
+    { out: 127, n: 2, need: { 15: 3 }, d: 'Pour les halls et les jardins', cat: 'Décoration' },
+    { out: 128, n: 4, need: { 3: 2, 10: 1, 101: 1 }, d: 'Bande lumineuse, comme la ville la nuit', cat: 'Décoration' },
+    { out: 129, n: 2, need: { 10: 2, 101: 1 }, d: 'Vitre lumineuse qui affiche du code', cat: 'Décoration' },
+    { out: 130, n: 1, need: { 10: 1, 101: 4 }, d: "Le diamant d'Éther, en verre lumineux", cat: 'Décoration' },
+    ...[22, 23, 24, 25].map((c, i) => ({
+      out: 131 + i,
+      n: 4,
+      need: { [c]: 2 },
+      d: 'Brique à picots, pour bâtir le diamant',
+      cat: 'Décoration',
+    })),
+  );
   const TOOLS = { 102: 1, 201: 1, 202: 1 };
   // ce que devient un objet posé : bloc de même numéro, sauf escaliers (4 orientations) et portes (4 orientations, 2 moitiés)
   function placeIds(it) {

@@ -20,6 +20,10 @@ const AK = {
     hit: [0.8, 1.2, 0.8],
     gift: [101, 1, 'cristal laissé par une méduse céleste'],
   },
+  // inspirés des illustrations d'ethereum.org (pas de cadeau : rien à arbitrer côté serveur)
+  chat: { n: 'Chat', D: 7, walk: 0.42, R: 6, sp: 1, hit: [0.4, 0.6, 0.75] },
+  shiba: { n: "Shiba de l'espace", D: 6, walk: 0.55, R: 9, sp: 1, hit: [0.6, 1.05, 0.9] },
+  robot: { n: 'Robot validateur', D: 11, walk: 0.32, R: 6, sp: 1, hit: [0.8, 1.9, 0.7] },
 };
 const aniMat = {};
 const AM = (c, basic, op) => {
@@ -127,6 +131,93 @@ function buildAnimal(a) {
     const tl = (parts.tail = pivot(g, 0, 0, -0.2));
     abox(tl, 0.04, 0.22, 0.16, c, 0, 0, -0.08, true);
     abox(g, 0.15, 0.05, 0.05, '#1c163a', 0, 0.04, 0.14, true);
+  } else if (a.type === 'chat') {
+    const [fur, ventre] = [
+      ['#f4a36b', '#ffe8d6'],
+      ['#a9adcf', '#eef0ff'],
+      ['#f3e6d4', '#ffffff'],
+      ['#5b4f8c', '#c9b8ff'],
+    ][Math.floor(r * 4)];
+    abox(g, 0.3, 0.26, 0.62, fur, 0, 0.36, 0);
+    abox(g, 0.24, 0.06, 0.4, ventre, 0, 0.23, 0.02);
+    const hd = (parts.head = pivot(g, 0, 0.5, 0.3));
+    abox(hd, 0.3, 0.26, 0.26, fur, 0, 0, 0.06);
+    abox(hd, 0.18, 0.1, 0.06, ventre, 0, -0.06, 0.2);
+    abox(hd, 0.08, 0.1, 0.06, fur, -0.09, 0.17, 0.02);
+    abox(hd, 0.08, 0.1, 0.06, fur, 0.09, 0.17, 0.02);
+    abox(hd, 0.05, 0.05, 0.02, '#2b8a6e', -0.07, 0.03, 0.195, true);
+    abox(hd, 0.05, 0.05, 0.02, '#2b8a6e', 0.07, 0.03, 0.195, true);
+    abox(hd, 0.04, 0.03, 0.02, '#ff8fb4', 0, -0.03, 0.235, true);
+    const tl = (parts.tail = pivot(g, 0, 0.45, -0.3));
+    abox(tl, 0.07, 0.07, 0.42, fur, 0, 0.12, -0.16).rotation.x = -0.9;
+    for (const [x, z] of [
+      [-0.09, 0.2],
+      [0.09, 0.2],
+      [-0.09, -0.2],
+      [0.09, -0.2],
+    ]) {
+      const l = pivot(g, x, 0.24, z);
+      abox(l, 0.08, 0.24, 0.08, fur, 0, -0.12, 0);
+      parts.legs.push(l);
+    }
+  } else if (a.type === 'shiba') {
+    // le Shiba des illustrations : combinaison spatiale lavande, tête rousse, museau blanc, truffe bleue
+    const suit = '#c9b8ff',
+      suit2 = '#9a8cf5',
+      fur = '#f4b183',
+      creme = '#fff4ea';
+    abox(g, 0.42, 0.4, 0.78, suit, 0, 0.6, 0);
+    abox(g, 0.3, 0.26, 0.2, '#b3dcff', 0, 0.86, -0.22); // sac à dos
+    abox(g, 0.44, 0.08, 0.3, suit2, 0, 0.82, 0.24); // col du scaphandre
+    const hd = (parts.head = pivot(g, 0, 0.9, 0.42));
+    abox(hd, 0.4, 0.36, 0.34, fur, 0, 0.04, 0.06);
+    abox(hd, 0.26, 0.16, 0.2, creme, 0, -0.05, 0.26);
+    abox(hd, 0.08, 0.06, 0.04, '#5b7fff', 0, 0.02, 0.37, true); // truffe bleue
+    abox(hd, 0.1, 0.05, 0.02, '#7fa8ff', 0, -0.1, 0.36, true); // langue
+    abox(hd, 0.11, 0.16, 0.08, fur, -0.12, 0.28, 0.02);
+    abox(hd, 0.11, 0.16, 0.08, fur, 0.12, 0.28, 0.02);
+    abox(hd, 0.08, 0.025, 0.02, '#3b2c55', -0.09, 0.1, 0.235, true); // yeux rieurs
+    abox(hd, 0.08, 0.025, 0.02, '#3b2c55', 0.09, 0.1, 0.235, true);
+    const tl = (parts.tail = pivot(g, 0, 0.82, -0.4));
+    abox(tl, 0.16, 0.16, 0.24, fur, 0, 0.08, -0.06);
+    for (const [x, z] of [
+      [-0.13, 0.26],
+      [0.13, 0.26],
+      [-0.13, -0.26],
+      [0.13, -0.26],
+    ]) {
+      const l = pivot(g, x, 0.4, z);
+      abox(l, 0.14, 0.4, 0.14, suit2, 0, -0.2, 0);
+      parts.legs.push(l);
+    }
+  } else if (a.type === 'robot') {
+    // robot des illustrations : grand corps rond bleu, articulations menthe, chapeau pointu lavande, yeux orange
+    const bleu = '#6f88e8',
+      menthe = '#a6f4ee',
+      lav = '#c9a8ff';
+    abox(g, 0.72, 0.62, 0.5, bleu, 0, 1.12, 0);
+    abox(g, 0.5, 0.42, 0.06, '#5b6fd6', 0, 1.12, 0.26);
+    abox(g, 0.2, 0.14, 0.04, menthe, 0.12, 1.0, 0.3, true);
+    abox(g, 0.86, 0.1, 0.2, lav, 0, 1.44, 0);
+    const hd = (parts.head = pivot(g, 0, 1.52, 0));
+    abox(hd, 0.32, 0.22, 0.28, menthe, 0, 0.1, 0);
+    abox(hd, 0.09, 0.09, 0.04, '#ffb36b', -0.08, 0.12, 0.15, true);
+    abox(hd, 0.09, 0.09, 0.04, '#ffb36b', 0.08, 0.12, 0.15, true);
+    const ch1 = abox(hd, 0.44, 0.06, 0.4, lav, -0.11, 0.33, 0);
+    ch1.rotation.z = 0.75;
+    const ch2 = abox(hd, 0.44, 0.06, 0.4, lav, 0.11, 0.33, 0);
+    ch2.rotation.z = -0.75;
+    for (const x of [-0.44, 0.44]) {
+      const bras = pivot(g, x, 1.3, 0);
+      abox(bras, 0.14, 0.5, 0.14, menthe, 0, -0.25, 0);
+      abox(bras, 0.16, 0.14, 0.16, bleu, 0, -0.52, 0);
+    }
+    for (const x of [-0.16, 0.16]) {
+      const l = pivot(g, x, 0.82, 0);
+      abox(l, 0.16, 0.5, 0.16, menthe, 0, -0.25, 0);
+      abox(l, 0.2, 0.3, 0.22, bleu, 0, -0.6, 0.02);
+      parts.legs.push(l);
+    }
   } else if (a.type === 'meduse') {
     const c = r < 0.5 ? '#b6a4ff' : '#7fe8ff';
     abox(g, 0.7, 0.42, 0.7, c, 0, 0.55, 0, true, 0.55);
@@ -232,7 +323,17 @@ function spawnChunk(cx, cz) {
     if (r < 0.25) add('poisson', 2 + Math.floor(hash(cx, cz, 66) * 3));
     return;
   }
+  // au sanctuaire : un robot validateur et le Shiba de l'espace
+  if (cx === 0 && cz === 0) {
+    add('robot', 1);
+    add('shiba', 1);
+    return;
+  }
   const bi = biome(x0 + 8, z0 + 8);
+  const r3 = hash(cx * 11 - 5, cz * 3 + 9, 67);
+  if (r3 < 0.05) add('chat', 1 + (r3 < 0.02 ? 1 : 0));
+  else if (r3 < 0.07) add(bi === 'dunes' ? 'shiba' : 'chat', 1);
+  else if (r3 < 0.08) add('robot', 1);
   if (bi === 'plaine') {
     if (r < 0.16 || (near && r < 0.5)) add('mouton', 2 + Math.floor(hash(cx, cz, 63) * 2));
     else if (r < 0.24) add('lapin', 1 + (r < 0.2 ? 1 : 0));

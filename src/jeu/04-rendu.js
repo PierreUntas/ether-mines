@@ -138,7 +138,23 @@ const ethMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.Dou
 const bigEth = new THREE.Mesh(ethGeo(9, 15, 10, 2.5, ['#9a8cf5', '#c2b8ff', '#6a58e0', '#8a7bef']), ethMat);
 bigEth.position.set(SPAWN.x, SY + 40, SPAWN.z - 110);
 scene.add(bigEth);
-
+// anneau de blocs orange en orbite autour du grand diamant (comme dans les illustrations d'ethereum.org)
+const anneau = new THREE.Group();
+anneau.position.copy(bigEth.position);
+anneau.rotation.x = 0.35;
+{
+  const mats = ['#ffb36b', '#ff9a5c', '#ffc98a'].map(c => new THREE.MeshBasicMaterial({ color: c, fog: false })),
+    geo = new THREE.BoxGeometry(3.2, 3.2, 3.2);
+  for (let i = 0; i < 16; i++) {
+    const an = (i / 16) * Math.PI * 2,
+      m = new THREE.Mesh(geo, mats[i % 3]);
+    m.position.set(Math.cos(an) * 17, Math.sin(i * 1.7) * 0.8, Math.sin(an) * 17);
+    m.rotation.set(i, i * 0.6, 0);
+    m.scale.setScalar(0.7 + (i % 4) * 0.15);
+    anneau.add(m);
+  }
+}
+scene.add(anneau);
 // ---------- maillage par tronçons ----------
 const { FACES, AOF, uvRect } = Maillage; // src/maillage.js
 const opMat = new THREE.MeshLambertMaterial({

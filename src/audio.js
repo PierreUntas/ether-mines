@@ -196,6 +196,14 @@
         tone(760, 'square', 0.05, 0.1, T + 0.16, o, 1.45);
       } else if (type === 'poisson') {
         for (let i = 0; i < 3; i++) tone(420 + i * 140, 'sine', 0.06, 0.06, T + i * 0.07, o, 2);
+      } else if (type === 'chat') {
+        tone(620, 'triangle', 0.05, 0.35, T, o, 1.35);
+        tone(880, 'sine', 0.04, 0.25, T + 0.05, o, 0.75);
+      } else if (type === 'shiba') {
+        tone(330, 'square', 0.02, 0.09, T, o, 0.7);
+        tone(360, 'square', 0.02, 0.09, T + 0.18, o, 0.7);
+      } else if (type === 'robot') {
+        [0, 4, 7, 12].forEach((s, i) => tone(520 * Math.pow(2, s / 12), 'square', 0.01, 0.06, T + i * 0.08, o, 1));
       } else if (type === 'meduse') {
         [0, 7, 12].forEach((s, i) => tone(660 * Math.pow(2, s / 12), 'sine', 0.05, 1.2, T + i * 0.12, o, 1, 0.05));
       }

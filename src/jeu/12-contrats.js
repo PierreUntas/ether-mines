@@ -8,7 +8,19 @@ const SPEC = new Map(),
 // ---------- lumières : lanternes, éther pur, lampes ----------
 // Index des sources par tronçon ; les plus proches du joueur reçoivent une vraie lumière (voir lumieres()).
 const LUM = new Map(),
-  LUM_COL = { 14: 0xffc27a, 70: 0x9fd8ff, 68: 0xffe08a, 13: 0xb7a6ff, 75: 0x5fd8ff, 83: 0x7fe8ff, 84: 0xff8fc8, 85: 0x5fb8ff },
+  LUM_COL = {
+    14: 0xffc27a,
+    70: 0x9fd8ff,
+    68: 0xffe08a,
+    13: 0xb7a6ff,
+    75: 0x5fd8ff,
+    83: 0x7fe8ff,
+    84: 0xff8fc8,
+    85: 0x5fb8ff,
+    126: 0xb98aff,
+    128: 0x7fe8ff,
+    130: 0xc9b8ff,
+  },
   isLum = id => LUM_COL[id] !== undefined;
 function lumSet(x, y, z, id) {
   const k = ckey(cOf(x), cOf(z));

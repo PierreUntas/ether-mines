@@ -247,6 +247,7 @@ function frame(now) {
     g.userData.d.position.y = 1.7 + Math.sin(now / 500) * 0.08;
   }
   bigEth.rotation.y += dt * 0.12;
+  anneau.rotation.y -= dt * 0.05;
   waterU.value = now / 1000;
   updatePops(dt);
   {

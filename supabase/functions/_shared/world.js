@@ -47,7 +47,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP : sous cette couche, géodes et grandes grottes
-  const GEN = 2; // version du générateur (2 : champignons, roseaux, nénuphars, rochers moussus) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
+  const GEN = 3; // version du générateur (2 : champignons, roseaux, nénuphars, rochers moussus ; 3 : palmiers, améthystes) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -117,6 +117,32 @@
   const topAt = (h, bi) => (h <= SEA + 1 ? 4 : bi === 'dunes' ? 4 : h >= DY + 36 ? 16 : h >= DY + 31 ? 3 : 1);
   SPAWN.y = heightAt(SPAWN.x, SPAWN.z) + 1;
   function genChunk(cx, cz) {
+    // palmier de tronc en (x, z) posé sur le sol h ; ses palmes tiennent dans la marge de 3 colonnes du décor
+    const palmier = (x, h, z) => {
+      const th = 5 + Math.floor(hash(x, z, 141) * 3);
+      for (let k = 1; k <= th; k++) put(x, h + k, z, 124);
+      const t = h + th;
+      put(x, t + 1, z, 125, true);
+      for (const [dx, dz] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ]) {
+        put(x + dx, t + 1, z + dz, 125, true);
+        put(x + dx * 2, t, z + dz * 2, 125, true);
+        put(x + dx * 3, t - 1, z + dz * 3, 125, true);
+      }
+      for (const [dx, dz] of [
+        [1, 1],
+        [-1, 1],
+        [1, -1],
+        [-1, -1],
+      ]) {
+        put(x + dx, t, z + dz, 125, true);
+        put(x + dx * 2, t - 1, z + dz * 2, 125, true);
+      }
+    };
     const a = new Uint8Array(CV),
       x0 = cx * CH,
       z0 = cz * CH;
@@ -158,7 +184,10 @@
         for (let y = 2; y < h - 4; y++) {
           const i = li(lx, y, lz),
             sol = a[li(lx, y - 1, lz)];
-          if (!a[i] && (sol === 3 || sol === 8 || sol === 72) && hash(x * 7 + y, z, 130) < (y < DEEP ? 0.04 : 0.015)) a[i] = 75;
+          if (a[i] || !(sol === 3 || sol === 8 || sol === 72)) continue;
+          const r = hash(x * 7 + y, z, 130);
+          if (r < (y < DEEP ? 0.04 : 0.015)) a[i] = 75;
+          else if (y < DEEP && r < 0.055) a[i] = 126; // amas d'améthyste, seulement dans les profondeurs
         }
         if (h >= SEA && h <= SEA + 2 && !islandZone(x, z)) {
           // roseaux sur les rives : une colonne voisine est sous l'eau
@@ -182,7 +211,13 @@
       for (let x = x0 - 3; x < x0 + CH + 3; x++) {
         const h = heightAt(x, z),
           bi = biome(x, z);
-        if (topAt(h, bi) !== 1 || Math.hypot(x - SPAWN.x, z - SPAWN.z) < 8) continue;
+        if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 8) continue;
+        // palmiers sur les plages et dans les dunes
+        if (topAt(h, bi) === 4 && h > SEA && h < DY + 31 && hash(x, z, 140) < (bi === 'dunes' ? 0.006 : 0.014)) {
+          palmier(x, h, z);
+          continue;
+        }
+        if (topAt(h, bi) !== 1) continue;
         const r = hash(x, z, 40);
         if (bi === 'foret' && r < 0.004) {
           const t = 2 + Math.floor(hash(x, z, 41) * 3);
@@ -268,6 +303,15 @@
     const sx = SPAWN.x,
       sz = SPAWN.z,
       sy = SPAWN.y - 1;
+    // quatre palmiers aux coins de la zone protégée du sanctuaire
+    if (x0 <= sx + 7 && x0 + CH > sx - 7 && z0 <= sz + 7 && z0 + CH > sz - 7)
+      for (const [dx, dz] of [
+        [-4, -4],
+        [4, -4],
+        [-4, 4],
+        [4, 4],
+      ])
+        palmier(sx + dx, heightAt(sx + dx, sz + dz), sz + dz);
     if (x0 <= sx + 3 && x0 + CH > sx - 3 && z0 <= sz + 3 && z0 + CH > sz - 3) {
       for (let dx = -3; dx <= 3; dx++)
         for (let dz = -3; dz <= 3; dz++) {

@@ -6,13 +6,13 @@ const TIER_NAME = ['la main', 'une pioche en bois', 'la pioche de cristal', "la 
 const MAT_OF = id =>
   id === 72 || id === 73 || id === 74
     ? 'pierre'
-    : [1, 2, 6, 7, 17, 18, 19, 20].includes(id)
+    : [1, 2, 6, 7, 17, 18, 19, 20, 125].includes(id)
       ? 'herbe'
       : id === 4
         ? 'sable'
         : id === 16 || id === 71
           ? 'neige'
-          : [5, 9, 33, 36, 37, 38, 39, 82, 92, 94, 95, 96, 97, 98].includes(id) || (id >= 48 && id <= 63)
+          : [5, 9, 33, 36, 37, 38, 39, 82, 92, 94, 95, 96, 97, 98, 124].includes(id) || (id >= 48 && id <= 63)
             ? 'bois'
             : [10, 14, 68].includes(id) || (id >= 29 && id <= 32)
               ? 'verre'

@@ -927,6 +927,128 @@ for (const on of [0, 1])
       if (on) E(x, y, '#ffffff');
     }
   });
+// ---------- v7 : inspirés des illustrations d'ethereum.org ----------
+// tronc de palmier : dessus en anneaux, côtés en écailles
+tile(108, P => {
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const d = Math.hypot(x - 7.5, y - 7.5);
+      P(x, y, d > 6.5 ? '#9a6b4f' : Math.floor(d) % 2 ? '#e3b98c' : '#d2a577');
+    }
+});
+tile(109, P => {
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const ecaille = (y + (x >> 2) * 2) % 4 === 0;
+      P(x, y, ecaille ? '#d9a47e' : hash(x, y, 109) < 0.2 ? '#ffe2c4' : '#f6cfa6');
+    }
+});
+// palmes : nervures et folioles turquoise, comme les palmiers des illustrations
+tile(110, P => {
+  vide(P);
+  for (const [x0, y0, dx] of [
+    [0, 2, 1],
+    [15, 7, -1],
+    [0, 12, 1],
+  ])
+    for (let k = 0; k < 16; k++) {
+      const x = x0 + dx * k,
+        y = y0 + Math.round(k * 0.25);
+      if (x < 0 || x > 15 || y > 15) continue;
+      P(x, y, '#3f9e8f');
+      for (const s of [-1, 1])
+        for (let j = 1; j <= 2; j++) {
+          const yy = y + s * j + (k % 2);
+          if (yy >= 0 && yy < 16 && hash(x, yy, 110) < 0.9) P(x, yy, j === 1 ? '#7fe0c8' : hash(x, k, 111) < 0.3 ? '#b6a4ff' : '#a6f4dc');
+        }
+    }
+});
+// amas d'améthyste : cristaux violets lumineux
+tile(111, (P, E) => {
+  vide(P);
+  for (const [cx, h, w] of [
+    [4, 9, 2],
+    [8, 14, 3],
+    [12, 7, 2],
+  ])
+    for (let y = 16 - h; y < 16; y++) {
+      const ww = Math.max(1, Math.round(w * Math.min(1, (y - (16 - h)) / 3)));
+      for (let x = cx - ww + 1; x <= cx + ww - 1; x++) {
+        const c = x < cx ? '#c9a8ff' : x > cx ? '#9a7bef' : '#efe2ff';
+        P(x, y, c);
+        E(x, y, c);
+      }
+    }
+});
+// colonne de marbre : dessus, puis cannelures
+tile(112, (P, E, i) => {
+  noise(P, i, '#f4f2fa', [['#e3def2', 0.2]]);
+  for (let k = 0; k < 16; k++) for (const b of [0, 15]) (P(k, b, '#c9c2e0'), P(b, k, '#c9c2e0'));
+});
+tile(113, P => {
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) P(x, y, y < 2 || y > 13 ? '#e3def2' : x % 4 === 0 ? '#c9c2e0' : x % 4 === 2 ? '#ffffff' : '#f4f2fa');
+});
+// néon cyan : panneau sombre traversé de bandes lumineuses
+tile(114, (P, E) => {
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const bande = y === 4 || y === 11 || (y === 7 && x > 3 && x < 12);
+      const c = bande ? (y === 7 ? '#ffb36b' : '#7fe8ff') : hash(x, y, 114) < 0.15 ? '#3a2f70' : '#2f2660';
+      P(x, y, c);
+      if (bande) E(x, y, c);
+    }
+});
+// écran holographique : lavande translucide, lignes de code et petit diamant
+tile(115, (P, E) => {
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const bord = x === 0 || y === 0 || x === 15 || y === 15;
+      let c = bord ? '#b6a4ff' : null;
+      if (!bord && y % 3 === 1 && x > 1 && x < 3 + ((hash(y, 7, 115) * 11) | 0)) c = '#e6dcff';
+      if (c) {
+        P(x, y, c);
+        E(x, y, c);
+      } else P(x, y, null);
+    }
+  for (const [x, y] of [
+    [12, 3],
+    [11, 4],
+    [13, 4],
+    [12, 5],
+    [12, 6],
+  ])
+    (P(x, y, '#7fe8ff'), E(x, y, '#7fe8ff'));
+});
+// bloc diamant : le diamant d'Éther en facettes lavande et menthe, fond translucide
+tile(116, (P, E) => {
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const dx = Math.abs(x - 7.5),
+        haut = y <= 9 && dx <= (y - 1) * 0.55,
+        bas = y >= 11 && y <= 15 && dx <= (15 - y) * 0.9;
+      if (haut || bas) {
+        const c = haut ? (x < 8 ? (y > 6 ? '#8fa8ff' : '#c9b8ff') : y > 6 ? '#c9a8ff' : '#a6f4ee') : x < 8 ? '#8fa8ff' : '#c9a8ff';
+        P(x, y, c);
+        E(x, y, c);
+      } else P(x, y, x === 0 || y === 0 || x === 15 || y === 15 ? '#c9b8ff' : null);
+    }
+});
+// briques de jeu : picots en relief
+['#c9b8ff', '#a6f4ee', '#8fa8ff', '#ffc9a8'].forEach((base, i) =>
+  tile(117 + i, P => {
+    const fonce = ['#a796e8', '#7fd8d0', '#6f88e8', '#e8a888'][i],
+      clair = ['#e6dcff', '#d8fffa', '#bfd0ff', '#ffe4d2'][i];
+    for (let y = 0; y < 16; y++)
+      for (let x = 0; x < 16; x++) {
+        const lx = x % 8,
+          ly = y % 8,
+          d = Math.hypot(lx - 3.5, ly - 3.5);
+        // picot rond : sommet clair, ombre en bas à droite, joints sombres entre les briques
+        P(x, y, lx === 7 || ly === 7 ? fonce : d < 1.8 ? clair : d < 2.8 ? (lx + ly >= 7 ? fonce : clair) : base);
+      }
+  }),
+);
 const atlasTex = new THREE.CanvasTexture(atlas),
   emisTex = new THREE.CanvasTexture(emis);
 for (const t of [atlasTex, emisTex]) {
