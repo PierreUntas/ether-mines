@@ -198,6 +198,7 @@ try {
   };
   mailleur.onerror = e => {
     console.warn('maillage en arrière-plan indisponible, retour au maillage sur place', e.message);
+    if (window.noterErreur && location.protocol !== 'file:') noterErreur('travailleur de maillage : ' + (e.message || 'erreur'));
     mailleur = null;
     for (const f of maillageAttente.values()) f();
     maillageAttente.clear();

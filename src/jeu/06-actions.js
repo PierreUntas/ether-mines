@@ -121,6 +121,7 @@ async function serverAct(name, args, rec, why) {
     console.error(e);
     if (rec) revert(rec);
     const msg = e.message || '';
+    if (window.noterErreur) noterErreur(`serveur ${name} : ${msg}`, e.stack);
     logEv(
       'burn',
       'Le serveur refuse',

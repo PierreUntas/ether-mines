@@ -124,7 +124,12 @@ Net.on('pos', p => {
   }
 });
 Net.on('block', b => applyBlock(b));
-Net.on('chat', m => addChat(m.name, m.color, m.text));
+// joueurs ignorés : gardés dans ce navigateur, leurs messages ne s'affichent plus
+const IGNORES = new Set(JSON.parse(localStorage.getItem('ether-mines:ignores') || '[]'));
+const sauverIgnores = () => localStorage.setItem('ether-mines:ignores', JSON.stringify([...IGNORES]));
+Net.on('chat', m => {
+  if (!IGNORES.has(String(m.name).toLowerCase())) addChat(m.name, m.color, m.text);
+});
 Net.on('status', s => {
   if (s === 'SAVE_ERROR') logEv('burn', 'Sauvegarde refusée par le serveur', 'vérifie le schéma Supabase');
   if (s === 'CLOSED' || s === 'CHANNEL_ERROR') $('onlineTxt').textContent = 'Connexion perdue · reconnexion…';
@@ -259,6 +264,44 @@ function command(v) {
     addChat('Monde', '#7fe8ff', `Tu rejoins ${o.name}.`);
     return;
   }
+  if (c === 'ignorer' || c === 'ecouter' || c === 'écouter') {
+    if (!arg) {
+      addChat('Monde', '#7fe8ff', IGNORES.size ? `Ignorés : ${[...IGNORES].join(', ')}` : 'Tu n’ignores personne.');
+      return;
+    }
+    if (c === 'ignorer') IGNORES.add(arg);
+    else IGNORES.delete(arg);
+    sauverIgnores();
+    addChat('Monde', '#7fe8ff', c === 'ignorer' ? `Tu ne verras plus les messages de ${arg}.` : `Tu revois les messages de ${arg}.`);
+    return;
+  }
+  if (c === 'signaler') {
+    if (!arg) return addChat('Monde', '#7fe8ff', "Écris /signaler suivi d'un pseudo.");
+    if (!SERVER()) return addChat('Monde', '#7fe8ff', 'Les signalements demandent une partie en ligne.');
+    Net.act('report', { pseudo: arg })
+      .then(r => {
+        const m = !r
+          ? 'réessaie plus tard'
+          : r.ok
+            ? r.muted
+              ? `${arg} est rendu muet pour un moment.`
+              : `Signalement enregistré. Trois signalements rendent ${arg} muet.`
+            : r.err === 'joueur inconnu'
+              ? `Personne ne s'appelle « ${arg} » dans ce monde.`
+              : r.err === 'il faut avoir joué un peu'
+                ? 'Joue un peu avant de pouvoir signaler quelqu’un.'
+                : r.err === "trop d'actions"
+                  ? 'Un signalement à la fois, patiente un peu.'
+                  : r.err;
+        addChat('Monde', '#7fe8ff', m);
+        if (r && r.ok) {
+          IGNORES.add(arg);
+          sauverIgnores();
+        }
+      })
+      .catch(() => addChat('Monde', '#7fe8ff', 'Signalement indisponible (schéma 003 à lancer).'));
+    return;
+  }
   if (['parcelle', 'liberer', 'libérer', 'inviter', 'exclure', 'parcelles'].includes(c)) {
     claimCmd(c === 'libérer' ? 'liberer' : c, rest.join(' ').trim());
     return;
@@ -266,7 +309,7 @@ function command(v) {
   addChat(
     'Monde',
     '#7fe8ff',
-    'Commandes : /rejoindre pseudo · /sanctuaire · /parcelle · /liberer · /inviter pseudo · /exclure pseudo · /parcelles',
+    'Commandes : /rejoindre pseudo · /sanctuaire · /parcelle · /liberer · /inviter pseudo · /exclure pseudo · /parcelles · /ignorer pseudo · /ecouter pseudo · /signaler pseudo',
   );
 }
 $('chatForm').addEventListener('submit', e => {
@@ -282,8 +325,14 @@ $('chatForm').addEventListener('submit', e => {
     if (chatJetons < 1) addChat('Monde', '#7fe8ff', 'Doucement : un message par seconde.');
     else {
       chatJetons -= 1;
-      Net.chat(v);
-      addChat(ME.name, ME.color, v);
+      Net.chat(v)
+        .then(r => {
+          if ((r && r.ok) || (r && r.err === 'hors ligne')) addChat(ME.name, ME.color, (r.ok && r.text) || v);
+          else if (r && r.err === 'muet') addChat('Monde', '#7fe8ff', `Tu es muet encore ${r.minutes} min (signalé par d'autres joueurs).`);
+          else if (r && r.err === "trop d'actions") addChat('Monde', '#7fe8ff', 'Doucement : un message par seconde.');
+          else if (r && r.err) addChat('Monde', '#7fe8ff', 'Message refusé : ' + r.err);
+        })
+        .catch(() => addChat('Monde', '#7fe8ff', 'Message non envoyé, réessaie.'));
     }
   }
   closeChat();

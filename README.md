@@ -48,7 +48,9 @@ En plus, toutes les actions passent un contrôle commun (`supabase/migrations/00
 
 - **Rythme** : chaque joueur a une réserve de jetons par type d'action (miner et poser : 8 par seconde, portes 4, fabrication 4, parcelles et invitations 1 toutes les 2 s, codes de sauvegarde 1 toutes les 5 s). Au-delà : « trop d'actions ».
 - **Position et portée** : miner, poser, ouvrir, rallumer et revendiquer envoient la position du joueur. Le bloc visé doit être à portée de main (6,5 blocs depuis les yeux), on ne pose pas un bloc dans son propre corps, et la position doit être atteignable depuis la précédente (course, avec de la marge pour le réseau ; chutes libres). Retour au sanctuaire et `/rejoindre` (à côté d'un joueur actif) restent permis. Pour revendiquer une parcelle, il faut s'y trouver. Le jeu envoie aussi un signal de position toutes les 15 s quand on bouge.
-- **Chat** : un message par seconde (rafale de 4), limité dans le jeu (le chat ne passe pas par la base).
+- **Chat** (`003_moderation.sql`) : chaque message passe par `act_chat`. Le pseudo et la couleur viennent de la partie, donc impossible de parler au nom d'un autre. Un message par seconde (rafale de 4), 140 caractères, mots bannis remplacés par des étoiles (liste dans la table `chat_mots_bannis`, à compléter à la main). Les messages de plus de 2 jours sont effacés.
+- **Signalements** : `/signaler pseudo`. Trois joueurs différents en 24 h rendent le joueur muet 1 h, puis 2 h, 4 h… à chaque récidive. Seuls les joueurs qui ont déjà miné ou posé un bloc peuvent signaler (contre les comptes jetables). `/ignorer pseudo` masque un joueur dans ton navigateur seulement.
+- **Erreurs du jeu** : les erreurs JavaScript des joueurs en ligne (et les refus inattendus du serveur) arrivent dans la table `client_errors`, une ligne par erreur avec un compteur, gardées 14 jours. Voir plus bas « Surveiller le jeu ».
 
 Le terrain d'origine d'un tronçon est généré **côté serveur** par la fonction Edge `figer`, avec le même générateur que le jeu (`supabase/functions/_shared/world.js`) : impossible d'inventer du terrain. Les règles (blocs, outils, recettes) viennent de `supabase/functions/_shared/rules.js`, partagé par le jeu ; `node tools/regles.mjs > supabase/regles.sql` les transforme en tables SQL.
 
@@ -59,6 +61,7 @@ index.html              structure de la page
 src/style.css           interface
 src/config.js           URL et clé publique Supabase (vide = mode solo)
 src/net.js              couche réseau (Supabase)
+src/erreurs.js          remontée des erreurs des joueurs vers le serveur
 src/maillage.js         maillage des tronçons (fonction pure, partagée avec le travailleur)
 src/maillage-travailleur.js  maillage en arrière-plan (Web Worker)
 manifest.webmanifest, icones/   application installable (plein écran)
@@ -92,7 +95,7 @@ tools/regles.mjs        génère supabase/regles.sql
 
 1. **Supabase** : crée un projet gratuit sur supabase.com.
 2. **Comptes invités** : dans *Authentication → Sign In / Providers*, active *Allow anonymous sign-ins*. Chaque joueur reçoit un compte automatiquement, sans email ni mot de passe.
-3. **Base** : dans *SQL Editor*, lance dans l'ordre `supabase/migrations/001_schema.sql`, `supabase/migrations/002_securite.sql`, puis `supabase/regles.sql`. Chaque migration se relance sans risque ; une nouvelle migration (`003_…`) se lance simplement après les autres.
+3. **Base** : dans *SQL Editor*, lance dans l'ordre `supabase/migrations/001_schema.sql`, `supabase/migrations/002_securite.sql`, `supabase/migrations/003_moderation.sql`, puis `supabase/regles.sql`. Chaque migration se relance sans risque ; une nouvelle migration (`004_…`) se lance simplement après les autres.
 4. **Fonction `figer`** (une fois, puis à chaque changement du générateur) :
    ```
    npx supabase login
@@ -179,15 +182,32 @@ Les tests tournent automatiquement sur GitHub à chaque push (onglet *Actions*, 
 - Le serveur vérifie que les positions annoncées sont vraisemblables, pas la physique fine : un tricheur peut traverser un mur ou voler à vitesse de course. Il ne peut ni miner à distance, ni se téléporter, ni agir plus vite qu'un humain.
 - Les objectifs sont suivis dans le navigateur ; ils ne donnent aucune récompense, donc rien à y gagner en trichant.
 - Les animaux et les cadeaux ne sont pas vérifiés un par un (le serveur limite à 15 cadeaux par jour).
-- Le chat n'est pas modéré.
+- La modération du chat est automatique et simple : pas de modérateur humain, et le filtre ne voit que des mots entiers (« c0nnard » passe). Plusieurs joueurs peuvent porter le même pseudo ; `/signaler` vise le plus récent.
 - Pour aller vers de vrais jetons : ne frapper onchain que les objets qui ont de la valeur ou une histoire (objets uniques, parcelles), à partir des tables `uniques` et `claims`, qui sont déjà la source de vérité.
 - Offre gratuite de Supabase : projet mis en pause après une semaine sans activité, 2 millions de messages temps réel par mois (les positions sont limitées à 5 envois par seconde et par joueur, seulement quand il bouge).
+
+## Surveiller le jeu
+
+Dans Supabase → *SQL Editor* :
+
+```sql
+-- erreurs des dernières 24 h, les plus fréquentes d'abord
+select msg, sum(n) as fois, count(distinct user_id) as joueurs, max(at) as derniere
+from client_errors where at > now() - interval '1 day' group by msg order by fois desc;
+
+-- rendre un joueur muet à la main, ou lui rendre la parole
+update players set muted_until = now() + interval '1 day' where world = 'principal' and name = 'Pseudo';
+update players set muted_until = null where world = 'principal' and name = 'Pseudo';
+
+-- ajouter un mot au filtre du chat (minuscules, sans accents)
+insert into chat_mots_bannis values ('motif') on conflict do nothing;
+```
 
 ## Commandes
 
 - ZQSD ou flèches : marcher · Maj : courir · Espace : sauter
 - Clic gauche maintenu : miner · clic droit : poser
 - Clic droit sur une porte ou un levier : l'actionner
-- 1 à 9, molette : barre d'objets · E : coffre et atelier · T : vue registre · M : son · Entrée : chat (`/rejoindre pseudo`, `/sanctuaire`, `/parcelle`, `/liberer`, `/inviter pseudo`, `/exclure pseudo`, `/parcelles`)
+- 1 à 9, molette : barre d'objets · E : coffre et atelier · T : vue registre · M : son · Entrée : chat (`/rejoindre pseudo`, `/sanctuaire`, `/parcelle`, `/liberer`, `/inviter pseudo`, `/exclure pseudo`, `/parcelles`, `/ignorer pseudo`, `/ecouter pseudo`, `/signaler pseudo`)
 - Mobile (disposition de Minecraft mobile) : croix à gauche pour marcher, glisser pour regarder, toucher long pour miner, toucher bref pour poser ou actionner ; à droite, sauter (↑), courir (», reste actif jusqu'à l'arrêt) et s'accroupir (↓ : plus lent, ne tombe pas des bords, descend dans l'eau) ; en haut, coffre, chat et menu ; « … » au bout de la barre ouvre le coffre
 - Clavier : C ou Ctrl pour s'accroupir

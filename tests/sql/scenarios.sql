@@ -146,4 +146,38 @@ do $$ declare i int; n int := 0; begin
   raise notice 'ok : essais de codes en masse freinés';
 end $$;
 reset role;
+-- ---------- chat, signalements, erreurs (003) ----------
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('chat : message accepté', (act_chat('w', '  salut   tout le monde ') ->> 'text') = 'salut tout le monde');
+select pg_temp.ok('chat : pseudo pris dans la partie', (select name from chat order by id desc limit 1) = 'Pierre');
+select pg_temp.ok('chat : insulte masquée', act_chat('w', 'Espèce de CONNARD !') ->> 'text' = 'Espèce de ******* !');
+select pg_temp.ok('chat : mot qui contient une insulte laissé tel quel', act_chat('w', 'connardise') ->> 'text' = 'connardise');
+select pg_temp.refused('écrire dans le chat sans passer par le serveur', $q$insert into chat (world, user_id, name, color, text) values ('w', 'bbbbbbbb-0000-0000-0000-000000000002', 'Admin', '#fff', 'x')$q$);
+select pg_temp.ok('chat : rafale freinée', (select count(*) filter (where act_chat('w', 'spam') ->> 'err' = 'trop d''actions') from generate_series(1, 10)) >= 8);
+select pg_temp.refused('se rendre la parole soi-même', $q$update players set muted_until = null where user_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$);
+reset role;
+insert into auth.users values ('cccccccc-0000-0000-0000-000000000003'), ('dddddddd-0000-0000-0000-000000000004'), ('eeeeeeee-0000-0000-0000-000000000005');
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'cccccccc-0000-0000-0000-000000000003', false) \g /dev/null
+select pg_temp.ok('compte neuf : signalement refusé', act_report('w', 'pierre') ->> 'err' = 'il faut avoir joué un peu');
+reset role;
+update players set mine_at = now() where user_id in ('cccccccc-0000-0000-0000-000000000003', 'dddddddd-0000-0000-0000-000000000004', 'eeeeeeee-0000-0000-0000-000000000005');
+insert into players (user_id, world, mine_at) values ('dddddddd-0000-0000-0000-000000000004', 'w', now()), ('eeeeeeee-0000-0000-0000-000000000005', 'w', now()) on conflict do nothing;
+set role authenticated;
+select pg_temp.ok('signaler un inconnu', act_report('w', 'personne') ->> 'err' = 'joueur inconnu');
+select pg_temp.ok('premier signalement', act_report('w', 'pierre') ->> 'muted' = 'false');
+select pg_temp.ok('signaler deux fois ne compte qu''une', act_report('w', 'pierre') ->> 'muted' = 'false');
+select set_config('request.jwt.claim.sub', 'dddddddd-0000-0000-0000-000000000004', false) \g /dev/null
+select pg_temp.ok('deuxième signalement', act_report('w', 'Pierre') ->> 'muted' = 'false');
+select set_config('request.jwt.claim.sub', 'eeeeeeee-0000-0000-0000-000000000005', false) \g /dev/null
+select pg_temp.ok('troisième signalement : muet', act_report('w', 'Pierre') ->> 'muted' = 'true');
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('un joueur muet ne parle plus', act_chat('w', 'coucou') ->> 'err' = 'muet');
+select log_error('w', 'TypeError: x is undefined', 'at f (src/jeu/05-joueur.js:1)', '/src/jeu/05-joueur.js', 'test');
+select log_error('w', 'TypeError: x is undefined', null, null, 'test');
+select pg_temp.ok('erreurs illisibles par les joueurs', (select count(*) from client_errors) = 0);
+reset role;
+select pg_temp.ok('erreur répétée comptée une fois', (select n from client_errors where msg = 'TypeError: x is undefined') = 2);
+select pg_temp.ok('muet pour une heure', (select muted_until between now() + interval '59 minutes' and now() + interval '61 minutes' from players where name = 'Pierre'));
 \echo Tous les scénarios SQL passent.

@@ -118,6 +118,11 @@ window.Net = (() => {
       emit('claim', p.eventType, p.new, p.old),
     );
     ch.on('broadcast', { event: 'chat' }, ({ payload }) => emit('chat', payload));
+    // chat arbitré par le serveur (003_moderation.sql) : pseudo et couleur viennent de la base
+    ch.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat', filter: 'world=eq.' + w }, p => {
+      const r = p.new;
+      if (r && r.user_id !== userId) emit('chat', { id: r.user_id, name: r.name, color: r.color, text: r.text });
+    });
     ch.on('presence', { event: 'sync' }, () => {
       const st = ch.presenceState(),
         list = [];
@@ -166,9 +171,26 @@ window.Net = (() => {
   const sendPos = p => {
     if (ch && online) ch.send({ type: 'broadcast', event: 'pos', payload: p });
   };
-  const chat = text => {
-    if (ch && online) ch.send({ type: 'broadcast', event: 'chat', payload: { id: me.id, name: me.name, color: me.color, text } });
-  };
+  // Chat : par le serveur si act_chat existe ; sinon (003 pas encore lancé) diffusion directe comme avant.
+  let chatServeur = true;
+  async function chat(text) {
+    if (!ch || !online) return { ok: false, err: 'hors ligne' };
+    if (chatServeur && userId) {
+      const { data, error } = await sb.rpc('act_chat', { w: world, msg: text });
+      if (!error) return data;
+      if (!/act_chat|function|schema cache/i.test(error.message || '')) throw new Error(error.message);
+      chatServeur = false;
+    }
+    ch.send({ type: 'broadcast', event: 'chat', payload: { id: me.id, name: me.name, color: me.color, text } });
+    return { ok: true, text };
+  }
+  // Erreurs du jeu envoyées au serveur (table client_errors), sans jamais gêner la partie.
+  async function logError(msg, stack, src) {
+    if (!sb || !userId) return;
+    try {
+      await sb.rpc('log_error', { w: world, msg, stack: stack || null, src: src || null, ua: navigator.userAgent });
+    } catch (e) {}
+  }
 
   // Actions arbitrées par le serveur (fonctions act_* du schéma). Tronçon pas encore figé : on le fait figer puis on réessaie.
   async function act(name, args) {
@@ -219,6 +241,7 @@ window.Net = (() => {
     on,
     sendPos,
     chat,
+    logError,
     act,
     freeze,
     loadInventory,
