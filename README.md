@@ -139,7 +139,11 @@ Au chargement d'un tronçon : terrain figé s'il existe, sinon générateur ; pu
 
 ## Tester
 
-Ouvrir `index.html#debug` expose `window.mines` dans la console (dont `serverAct(nom, arguments)` et `syncInventory()`) : `get(x, y, z)`, `CHK` (tronçons chargés), `frozen`, `genChunk(cx, cz)`, `commit(...)`, `P` (le joueur, déplaçable : `mines.P.x = 500`), `S.day` (heure : `mines.S.day = .9` pour la nuit), `POWERED` (blocs alimentés), `islandTop(x, z)`.
+Les tests tournent automatiquement sur GitHub à chaque push (onglet *Actions*, workflow *Tests*). Un push qui casse quelque chose apparaît en rouge.
+
+- **Générateur et règles** (sans base) : `node --test tests/*.test.mjs`. Vérifie que le monde est déterministe, l'encodage des tronçons, le sanctuaire et la première ruine, la cohérence des recettes, et que `supabase/regles.sql` est à jour avec `rules.js`.
+- **Schéma et arbitrage** : `PGHOST=… PGUSER=postgres tests/sql/run.sh` sur un Postgres 16 vide (une base `mines_test` est recréée). Installe le schéma deux fois, les règles, des tronçons générés par le vrai générateur, puis joue une quarantaine de scénarios : lecture du terrain par le serveur identique au générateur, minage, paliers d'outils, rythme, pose, portes, fabrication, parcelles, invitations, ruines, cadeaux, récompenses, récupération de partie, et toutes les tentatives de triche directe (écrire un bloc, se donner des objets, inventer du terrain…). Vérifie enfin que `reset.sql` efface tout.
+- **Dans le navigateur** : ouvrir `index.html#debug` expose `window.mines` dans la console (dont `serverAct(nom, arguments)`, `syncInventory()`, `get(x, y, z)`, `P` le joueur, `S.day` l'heure).
 
 ## Limites connues
 
