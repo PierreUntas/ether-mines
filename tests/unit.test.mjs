@@ -57,3 +57,11 @@ test('supabase/regles.sql est à jour avec rules.js', () => {
   const file = readFileSync(new URL('../supabase/regles.sql', import.meta.url), 'utf8');
   assert.equal(gen.trim(), file.trim(), 'relancer : node tools/regles.mjs > supabase/regles.sql');
 });
+
+test('index.html charge tous les fichiers du jeu, dans l\'ordre', async () => {
+  const { readdirSync } = await import('node:fs');
+  const files = readdirSync(new URL('../src/jeu/', import.meta.url)).filter((f) => f.endsWith('.js')).sort();
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const loaded = [...html.matchAll(/src="src\/jeu\/([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(loaded, files);
+});

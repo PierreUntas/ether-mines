@@ -12,9 +12,11 @@ jobs:
         with:
           node-version: 22
       - name: Syntaxe
-        run: for f in src/*.js supabase/functions/_shared/*.js tools/*.mjs tests/*.mjs; do node --check "$f"; done
+        run: for f in src/*.js src/jeu/*.js supabase/functions/_shared/*.js tools/*.mjs tests/*.mjs; do node --check "$f"; done
       - name: Générateur et règles
         run: node --test tests/*.test.mjs
+      - name: Mise en forme (Prettier)
+        run: npx --yes prettier@3 --check "src/jeu/*.js" src/net.js src/audio.js "supabase/functions/_shared/*.js"
   sql:
     runs-on: ubuntu-latest
     services:
@@ -36,3 +38,14 @@ jobs:
           node-version: 22
       - name: Schéma, règles et scénarios de jeu et de triche
         run: tests/sql/run.sh
+  navigateur:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Navigateur et three.js
+        run: npm i --no-save playwright@1.56.0 three@0.128.0 && npx playwright install --with-deps chromium
+      - name: Partie en mode solo dans Chromium
+        run: node tests/navigateur.mjs

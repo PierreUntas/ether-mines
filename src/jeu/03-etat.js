@@ -1,0 +1,107 @@
+// Mines d'Éther · État de la partie, sauvegarde locale et serveur, saisons.
+// Les fichiers de src/jeu/ se chargent dans l'ordre et partagent la même portée globale.
+'use strict';
+// ---------- état, sauvegarde ----------
+let KEY = 'ether-mines:solo';
+const SAVE_V = 1;
+const S0 = () => ({
+  v: SAVE_V,
+  chunks: {},
+  edits: {},
+  inv: {},
+  bar: [null, null, null, null, null, null, null, null, null],
+  sel: 0,
+  pos: null,
+  placed: {},
+  serial: 0,
+  nfts: [],
+  log: [],
+  supply: {},
+  day: 0.3,
+  dayN: 1,
+  seen: {},
+  got: {},
+  relit: 0,
+  totalMint: 0,
+  totalBurn: 0,
+});
+let S = S0(),
+  ME = { id: 'moi', name: 'moi', color: '#8a7bef' };
+const OWN = new Map();
+function loadState() {
+  let s = null;
+  try {
+    s = JSON.parse(localStorage.getItem(KEY) || 'null');
+  } catch (e) {}
+  useState(s);
+}
+function useState(s) {
+  S = Object.assign(S0(), s || {});
+  if (s && !s.v) S.v = 1;
+  migrateSave(S);
+  for (const k of Object.keys(S.inv)) S.got[k] = 1;
+  for (const n of S.nfts) S.got[n.id || 201] = 1;
+}
+// Migrations de la partie (navigateur et serveur) : chaque version sait convertir la précédente.
+function migrateSave(s) {
+  // v1 : première version. Pour une v2 : if(s.v<2){ …convertir… ; s.v=2 } — ne jamais supprimer une étape.
+  if (!s.v) s.v = 1;
+}
+// Saison : changer SAISON efface les parties gardées dans les navigateurs (à faire avec une remise à zéro de la base).
+const SAISON = '2';
+try {
+  if (localStorage.getItem('ether-mines:saison') !== SAISON) {
+    for (const k of Object.keys(localStorage))
+      if (k.startsWith('ether-mines:') && !['ether-mines:profil', 'ether-mines:son'].includes(k)) localStorage.removeItem(k);
+    localStorage.setItem('ether-mines:saison', SAISON);
+  }
+} catch (e) {}
+let dirty = false,
+  cloudDirty = false,
+  cloudBusy = false,
+  cloudOff = false;
+function save() {
+  if (!dirty) return;
+  dirty = false;
+  cloudDirty = true;
+  S.pos = [P.x, P.y, P.z, yaw, pitch];
+  try {
+    localStorage.setItem(KEY, JSON.stringify(S));
+  } catch (e) {}
+}
+// partie côté serveur (en ligne) : sans le terrain du mode solo, avec un registre raccourci
+const cloudState = () => {
+  const c = { ...S, log: S.log.slice(0, 40) };
+  delete c.chunks;
+  delete c.edits;
+  delete c.placed;
+  delete c.inv;
+  delete c.nfts;
+  return c;
+};
+async function cloudSave(force) {
+  if (!Net.enabled || !Net.userId || cloudOff || !booted || cloudBusy || !(cloudDirty || force)) return;
+  cloudBusy = true;
+  cloudDirty = false;
+  try {
+    if (!(await Net.savePlayer(Net.world, ME.name, ME.color, cloudState()))) cloudDirty = true;
+  } finally {
+    cloudBusy = false;
+  }
+}
+setInterval(() => {
+  save();
+  cloudSave();
+}, 5000);
+addEventListener('pagehide', () => {
+  dirty = true;
+  save();
+  cloudSave(true);
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    dirty = true;
+    save();
+    cloudSave(true);
+  }
+});

@@ -50,7 +50,22 @@ index.html              structure de la page
 src/style.css           interface
 src/config.js           URL et clé publique Supabase (vide = mode solo)
 src/net.js              couche réseau (Supabase)
-src/game.js             rendu, joueur, interface, jetons, contrats, animaux, parcelles, joueurs distants, chat
+src/jeu/                le jeu, en fichiers chargés dans l'ordre (portée globale partagée) :
+  00-base.js            raccourcis, générateur et règles partagés
+  01-textures.js        atlas pixel art généré en code
+  02-blocs.js           formes des blocs, accès au monde chargé
+  03-etat.js            état de la partie, sauvegardes, saisons
+  04-rendu.js           scène Three.js, maillage des tronçons, main, icônes
+  05-joueur.js          physique, entrées clavier / souris / tactile, visée
+  06-actions.js         miner, poser, fabriquer, arbitrage serveur, parcelles
+  07-interface.js       barre, coffre, atelier, registre, objectifs
+  08-ciel.js            jour et nuit
+  09-animaux.js         animaux
+  10-boucle.js          boucle principale
+  11-multijoueur.js     autres joueurs, chat
+  12-contrats.js        courant électrique (leviers, câbles, lampes, portes)
+  13-troncons.js        chargement des tronçons autour du joueur
+  14-demarrage.js       compte, écran titre, démarrage
 src/audio.js            sons génératifs (Web Audio)
 supabase/functions/_shared/world.js   générateur du monde (jeu et serveur)
 supabase/functions/_shared/rules.js   blocs, objets, paliers, recettes (jeu et serveur)
@@ -80,7 +95,7 @@ Sans clés dans `src/config.js`, le jeu tourne en solo et sauvegarde dans le nav
 
 Pour tout effacer et repartir de zéro :
 1. lancer `supabase/reset.sql`, puis `001_schema.sql` et `regles.sql` ;
-2. augmenter `SAISON` dans `src/game.js` et publier : les parties gardées dans les navigateurs sont effacées au prochain chargement (pseudo et réglage du son conservés).
+2. augmenter `SAISON` dans `src/jeu/03-etat.js` et publier : les parties gardées dans les navigateurs sont effacées au prochain chargement (pseudo et réglage du son conservés).
 
 ## Ce qui est sauvegardé où
 
@@ -143,7 +158,9 @@ Les tests tournent automatiquement sur GitHub à chaque push (onglet *Actions*, 
 
 - **Générateur et règles** (sans base) : `node --test tests/*.test.mjs`. Vérifie que le monde est déterministe, l'encodage des tronçons, le sanctuaire et la première ruine, la cohérence des recettes, et que `supabase/regles.sql` est à jour avec `rules.js`.
 - **Schéma et arbitrage** : `PGHOST=… PGUSER=postgres tests/sql/run.sh` sur un Postgres 16 vide (une base `mines_test` est recréée). Installe le schéma deux fois, les règles, des tronçons générés par le vrai générateur, puis joue une quarantaine de scénarios : lecture du terrain par le serveur identique au générateur, minage, paliers d'outils, rythme, pose, portes, fabrication, parcelles, invitations, ruines, cadeaux, récompenses, récupération de partie, et toutes les tentatives de triche directe (écrire un bloc, se donner des objets, inventer du terrain…). Vérifie enfin que `reset.sql` efface tout.
-- **Dans le navigateur** : ouvrir `index.html#debug` expose `window.mines` dans la console (dont `serverAct(nom, arguments)`, `syncInventory()`, `get(x, y, z)`, `P` le joueur, `S.day` l'heure).
+- **Mise en forme** : `npx prettier@3 --write "src/jeu/*.js" src/net.js src/audio.js "supabase/functions/_shared/*.js"` (vérifiée par les tests).
+- **Partie dans un navigateur** (mode solo, Chromium) : `npm i --no-save playwright@1.56.0 three@0.128.0 && npx playwright install chromium && node tests/navigateur.mjs`.
+- **À la main** : ouvrir `index.html#debug` expose `window.mines` dans la console (dont `serverAct(nom, arguments)`, `syncInventory()`, `get(x, y, z)`, `P` le joueur, `S.day` l'heure).
 
 ## Limites connues
 
