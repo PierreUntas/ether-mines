@@ -260,7 +260,10 @@ function frame(now) {
     computePower(dt);
     lumieres(dt);
     updateAnimals(dt);
-    if (playing) updateQuest(dt);
+    if (playing) {
+      updateQuest(dt);
+      suivreObjectifs(dt);
+    }
   }
   updateOthers(dt);
   renderer.clear();

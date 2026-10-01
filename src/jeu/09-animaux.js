@@ -441,6 +441,7 @@ function petAnimal(a) {
     p = a.g.position;
   a.pet = 0.6;
   Sound.animal(a.type, 1);
+  stat('caresse');
   for (let i = 0; i < (a.type === 'meduse' ? 5 : 3); i++) {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: heartTex, transparent: true, depthWrite: false }));
     s.scale.setScalar(0.32);
@@ -454,7 +455,9 @@ function petAnimal(a) {
   if (K.gift && S.pets[key] !== today && SERVER()) {
     S.pets[key] = today;
     serverAct('gift', { animal: key, kind: a.type }, null, K.gift === 'fleur' ? 'cueillie par un renard rose' : K.gift[2]).then(r => {
-      if (r) Sound.chime();
+      if (!r) return;
+      Sound.chime();
+      stat('gift');
     });
     return;
   }
@@ -463,5 +466,6 @@ function petAnimal(a) {
     if (K.gift === 'fleur') give(17 + Math.floor(Math.random() * 3), 1, 'cueillie par un renard rose');
     else give(K.gift[0], K.gift[1], K.gift[2]);
     Sound.chime();
+    stat('gift');
   }
 }

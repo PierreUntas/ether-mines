@@ -180,4 +180,30 @@ select pg_temp.ok('erreurs illisibles par les joueurs', (select count(*) from cl
 reset role;
 select pg_temp.ok('erreur répétée comptée une fois', (select n from client_errors where msg = 'TypeError: x is undefined') = 2);
 select pg_temp.ok('muet pour une heure', (select muted_until between now() + interval '59 minutes' and now() + interval '61 minutes' from players where name = 'Pierre'));
+-- ---------- défis du jour (004) ----------
+select v as d0 from fixtures where k = 'defi0' \gset
+select v as d1 from fixtures where k = 'defi1' \gset
+select v as d2 from fixtures where k = 'defi2' \gset
+select pg_temp.ok('défis du jour : même tirage que le jeu', _defis_du_jour() = array[:d0, :d1, :d2]);
+select pg_temp.ok('défis du jour : trois défis différents', (select count(distinct x) from unnest(_defis_du_jour()) x) = 3);
+select pg_temp.ok('les mines de A ont été comptées', (select (counts ->> 'mine')::int >= 2 and (counts ->> 'got:2')::int >= 1 from daily where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' or user_id = 'aaaaaaaa-0000-0000-0000-000000000001' order by (counts ->> 'mine')::int desc limit 1));
+select pg_temp.ok('la fabrication est comptée', exists (select 1 from daily where (counts ->> 'craft:102')::int = 1));
+select min(id) as autre from rule_defis where id <> all (_defis_du_jour()) \gset
+select pg_temp.ok('la porte posée est comptée', exists (select 1 from daily where (counts ->> 'place:52')::int = 1 and (counts ->> 'toggle')::int >= 1));
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'dddddddd-0000-0000-0000-000000000004', false) \g /dev/null
+select pg_temp.ok('lire les défis du jour', jsonb_array_length(act_daily('w') -> 'defis') = 3);
+select pg_temp.ok('défi pas terminé : pas de récompense', act_daily_claim('w', :d0) ->> 'err' = 'défi pas terminé');
+select pg_temp.ok('défi d''un autre jour refusé', act_daily_claim('w', :autre) ->> 'err' = 'pas un défi du jour');
+select pg_temp.refused('avancer ses compteurs soi-même', $q$insert into daily (user_id, world, day, counts) values ('dddddddd-0000-0000-0000-000000000004', 'w', current_date, '{"mine": 999}')$q$);
+reset role;
+insert into daily (user_id, world, day, counts)
+  select 'dddddddd-0000-0000-0000-000000000004', 'w', (now() at time zone 'utc')::date, jsonb_build_object(counter, n) from rule_defis where id = :d0;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'dddddddd-0000-0000-0000-000000000004', false) \g /dev/null
+select pg_temp.ok('défi terminé : récompense versée', (act_daily_claim('w', :d0) ->> 'reward')::int = (select reward from rule_defis where id = :d0));
+select pg_temp.ok('récompense dans le coffre', (select n from inventory where item = 101) = (select reward from rule_defis where id = :d0));
+select pg_temp.ok('récompense touchée une seule fois', act_daily_claim('w', :d0) ->> 'err' = 'déjà touché');
+select pg_temp.ok('défi marqué comme touché', (select (d ->> 'claimed')::boolean from jsonb_array_elements(act_daily('w') -> 'defis') d where (d ->> 'id')::int = :d0));
+reset role;
 \echo Tous les scénarios SQL passent.

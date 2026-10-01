@@ -4,7 +4,8 @@
 drop table if exists public.players, public.inventory, public.uniques, public.claims, public.recovery,
   public.legacy_claims, public.blocks, public.chunks, public.worlds,
   public.rule_blocks, public.rule_place, public.rule_items, public.rule_recipes, public.rate_limits,
-  public.chat, public.reports, public.client_errors, public.chat_mots_bannis cascade;
+  public.chat, public.reports, public.client_errors, public.chat_mots_bannis,
+  public.daily, public.rule_defis cascade;
 
 -- fonctions du jeu : act_*, outils internes _*, codes de sauvegarde, anciennes versions
 do $$ declare f record; begin

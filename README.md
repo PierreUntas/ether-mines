@@ -4,6 +4,7 @@ Un monde en blocs aux couleurs d'Ethereum, à construire entre amis dans le navi
 
 ## Ce qu'il y a dedans
 
+- **Objectifs** (bouton en haut de l'écran ou touche O) : l'histoire principale en 9 étapes, puis trois **défis du jour** (les mêmes pour tous, renouvelés chaque jour à 2 h, heure de Paris en été) récompensés en cristaux, et 24 **succès** à débloquer (minage, construction, exploration, animaux, validateurs…). En ligne, les défis sont comptés et payés par le serveur (`004_objectifs.sql`) ; les succès sont honorifiques et gardés dans la partie.
 - **Monde** : généré à partir d'une graine fixe (plaines, forêts roses, dunes, sommets, lacs, océans, îles flottantes entre 43 et 57 de haut, grottes profondes avec géodes d'éther pur sous la couche 20), chargé par tronçons de 16 × 16 colonnes autour de chaque joueur, sur 64 blocs de haut.
 - **Monde infini** : on peut marcher dans n'importe quelle direction jusqu'à 100 000 blocs du centre (bornes des règles de la base). La position et la distance au sanctuaire s'affichent en haut à gauche.
 - **Parcelles** : dans le chat, `/parcelle` revendique le tronçon (16 × 16) où l'on se trouve pour 2 cristaux (16 au plus). Seuls le propriétaire et ses invités (`/inviter pseudo`, `/exclure pseudo`) peuvent y miner, construire et ouvrir les portes. `/liberer` rend la parcelle, `/parcelles` les liste. Des poteaux verts (les tiennes) ou roses (celles des autres) marquent les coins. Le sanctuaire est intouchable.
@@ -43,6 +44,7 @@ Les joueurs ne peuvent rien écrire directement : ni blocs, ni terrain, ni coffr
 | `act_gift` | une fois par jour et par animal, 15 cadeaux par jour au plus |
 | `act_rewards` | validateurs signés par le joueur, temps écoulé (30 minutes rattrapées au plus) |
 | `act_claim`, `act_unclaim`, `act_member` | parcelles : coût, limite, propriétaire |
+| `act_daily`, `act_daily_claim` | défis du jour : tirage du jour, compteurs tenus par le serveur à chaque action réussie, récompense versée une seule fois |
 
 En plus, toutes les actions passent un contrôle commun (`supabase/migrations/002_securite.sql`) :
 
@@ -73,7 +75,8 @@ src/jeu/                le jeu, en fichiers chargés dans l'ordre (portée globa
   04-rendu.js           scène Three.js, maillage des tronçons, main, icônes
   05-joueur.js          physique, entrées clavier / souris / tactile, visée
   06-actions.js         miner, poser, fabriquer, arbitrage serveur, parcelles
-  07-interface.js       barre, coffre, atelier, registre, objectifs
+  07-interface.js       barre, coffre, atelier, registre, histoire
+  07-objectifs.js       défis du jour et succès
   08-ciel.js            jour et nuit
   09-animaux.js         animaux
   10-boucle.js          boucle principale
@@ -95,7 +98,7 @@ tools/regles.mjs        génère supabase/regles.sql
 
 1. **Supabase** : crée un projet gratuit sur supabase.com.
 2. **Comptes invités** : dans *Authentication → Sign In / Providers*, active *Allow anonymous sign-ins*. Chaque joueur reçoit un compte automatiquement, sans email ni mot de passe.
-3. **Base** : dans *SQL Editor*, lance dans l'ordre `supabase/migrations/001_schema.sql`, `supabase/migrations/002_securite.sql`, `supabase/migrations/003_moderation.sql`, puis `supabase/regles.sql`. Chaque migration se relance sans risque ; une nouvelle migration (`004_…`) se lance simplement après les autres.
+3. **Base** : dans *SQL Editor*, lance dans l'ordre `supabase/migrations/001_schema.sql`, `supabase/migrations/002_securite.sql`, `supabase/migrations/003_moderation.sql`, `supabase/migrations/004_objectifs.sql`, puis `supabase/regles.sql`. Chaque migration se relance sans risque ; une nouvelle migration (`005_…`) se lance simplement après les autres.
 4. **Fonction `figer`** (une fois, puis à chaque changement du générateur) :
    ```
    npx supabase login

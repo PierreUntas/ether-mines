@@ -2,7 +2,7 @@
 // Usage : node tools/regles.mjs > supabase/regles.sql, puis lancer ce fichier dans Supabase après chaque changement de règles.
 import { readFileSync } from 'node:fs';
 new Function(readFileSync(new URL('../supabase/functions/_shared/rules.js', import.meta.url), 'utf8'))();
-const { B, ITEM, RECIPES, reqTier, placeIds } = globalThis.Rules;
+const { B, ITEM, RECIPES, reqTier, placeIds, DEFIS } = globalThis.Rules;
 const q = (v) => (v === null || v === undefined ? 'null' : typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : String(v));
 const kindOf = (b) => (b.water ? 'water' : b.x != null ? 'cross' : b.shape || 'cube');
 const blocks = [], place = [], items = [], recipes = [];
@@ -27,4 +27,8 @@ insert into public.rule_items (id, name, tool, tier, uniq) values
 ${items.join(',\n')};
 insert into public.rule_recipes (out_item, n, need, uniq) values
 ${recipes.join(',\n')};
+-- défis du jour (table créée par 004_objectifs.sql)
+delete from public.rule_defis;
+insert into public.rule_defis (id, counter, n, title, reward) values
+${DEFIS.map(d => `(${d.id},${q(d.c)},${d.n},${q(d.t)},${d.r})`).join(',\n')};
 commit;`);

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 globalThis.btoa ??= (s) => Buffer.from(s, 'binary').toString('base64');
 globalThis.atob ??= (s) => Buffer.from(s, 'base64').toString('binary');
 new Function(readFileSync(new URL('../supabase/functions/_shared/world.js', import.meta.url), 'utf8'))();
+new Function(readFileSync(new URL('../supabase/functions/_shared/rules.js', import.meta.url), 'utf8'))();
 const W = globalThis.World;
 const out = [];
 for (const [cx, cz] of [[0, 0], [1, 0], [2, -1], [-1, 0]])
@@ -22,4 +23,7 @@ const c = col(20, 3); let gy = 0; for (let y = W.SY - 1; y > 0; y--) { const v =
 const stones = []; for (let y = gy - 1; y > 0 && stones.length < 6; y--) if (c(y) === 3) stones.push(y);
 const r = W.ruinAt(0, 0);
 out.push(`create table fixtures (k text primary key, v int); insert into fixtures values ('gy', ${gy}), ('gid', ${c(gy)}), ('s1', ${stones[0]}), ('s2', ${stones[1]}), ('s3', ${stones[2]}), ('rx', ${r.x}), ('ry', ${r.y + 1}), ('rz', ${r.z});`);
+// défis du jour attendus selon rules.js, à comparer au tirage du serveur
+const R = globalThis.Rules;
+out.push(`insert into fixtures values ${R.defisDuJour().map((d, j) => `('defi${j}', ${d.id})`).join(', ')};`);
 console.log(out.join('\n'));

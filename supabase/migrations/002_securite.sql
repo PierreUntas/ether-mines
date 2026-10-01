@@ -105,6 +105,14 @@ exception when others then
 end $$;
 
 -- ---------- 4. nouvelles act_* : rythme, position, portée, puis la règle du jeu ----------
+-- Après chaque action réussie, _hook est appelé (compteurs des défis du jour, voir 004_objectifs.sql).
+-- Ici, une version vide seulement si elle n'existe pas encore : relancer 002 ne l'écrase pas.
+do $$ begin
+  if to_regprocedure('public._hook(uuid, text, text, jsonb, jsonb)') is null then
+    create function public._hook(me uuid, w text, kind text, res jsonb, args jsonb) returns void
+    language sql security definer set search_path = public as 'select null::void';
+  end if;
+end $$;
 create or replace function public._me_or_fail(w text) returns uuid
 language plpgsql security definer set search_path = public as $$
 begin
@@ -115,17 +123,19 @@ end $$;
 
 create or replace function public.act_mine(w text, px int, py int, pz int, held text, ex real, ey real, ez real) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare me uuid := _me_or_fail(w); e text;
+declare me uuid := _me_or_fail(w); r jsonb; e text;
 begin
   if not _rate(me, 'mine', 8, 16) then return _no('trop d''actions'); end if;
   e := _check_pos(me, w, ex, ey, ez, px, py, pz);
   if e is not null then return _no(e, jsonb_build_object('cell', _cell_soft(w, px, py, pz))); end if;
-  return _core_mine(w, px, py, pz, held);
+  r := _core_mine(w, px, py, pz, held);
+  if (r ->> 'ok')::boolean then perform _hook(me, w, 'mine', r, '{}'::jsonb); end if;
+  return r;
 end $$;
 
 create or replace function public.act_place(w text, px int, py int, pz int, it int, bid int, ex real, ey real, ez real) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare me uuid := _me_or_fail(w); e text;
+declare me uuid := _me_or_fail(w); r jsonb; e text;
 begin
   if not _rate(me, 'place', 8, 16) then return _no('trop d''actions'); end if;
   e := _check_pos(me, w, ex, ey, ez, px, py, pz);
@@ -135,27 +145,33 @@ begin
      and px + 1 > ex - 0.3 and px < ex + 0.3 and pz + 1 > ez - 0.3 and pz < ez + 0.3 and py + 1 > ey and py < ey + 1.75 then
     return _no('case occupée');
   end if;
-  return _core_place(w, px, py, pz, it, bid);
+  r := _core_place(w, px, py, pz, it, bid);
+  if (r ->> 'ok')::boolean then perform _hook(me, w, 'place', r, jsonb_build_object('bid', bid)); end if;
+  return r;
 end $$;
 
 create or replace function public.act_toggle(w text, px int, py int, pz int, ex real, ey real, ez real) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare me uuid := _me_or_fail(w); e text;
+declare me uuid := _me_or_fail(w); r jsonb; e text;
 begin
   if not _rate(me, 'toggle', 4, 8) then return _no('trop d''actions'); end if;
   e := _check_pos(me, w, ex, ey, ez, px, py, pz);
   if e is not null then return _no(e); end if;
-  return _core_toggle(w, px, py, pz);
+  r := _core_toggle(w, px, py, pz);
+  if (r ->> 'ok')::boolean then perform _hook(me, w, 'toggle', r, '{}'::jsonb); end if;
+  return r;
 end $$;
 
 create or replace function public.act_relight(w text, px int, py int, pz int, ex real, ey real, ez real) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare me uuid := _me_or_fail(w); e text;
+declare me uuid := _me_or_fail(w); r jsonb; e text;
 begin
   if not _rate(me, 'relight', 1, 3) then return _no('trop d''actions'); end if;
   e := _check_pos(me, w, ex, ey, ez, px, py, pz);
   if e is not null then return _no(e); end if;
-  return _core_relight(w, px, py, pz);
+  r := _core_relight(w, px, py, pz);
+  if (r ->> 'ok')::boolean then perform _hook(me, w, 'relight', r, '{}'::jsonb); end if;
+  return r;
 end $$;
 
 -- Simple signal de position (toutes les ~15 s en mouvement) : sert à /rejoindre et garde la position serveur fraîche.
@@ -171,18 +187,22 @@ end $$;
 
 create or replace function public.act_craft(w text, out_id int) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare me uuid := _me_or_fail(w);
+declare me uuid := _me_or_fail(w); r jsonb;
 begin
   if not _rate(me, 'craft', 4, 12) then return _no('trop d''actions'); end if;
-  return _core_craft(w, out_id);
+  r := _core_craft(w, out_id);
+  if (r ->> 'ok')::boolean then perform _hook(me, w, 'craft', r, jsonb_build_object('out', out_id)); end if;
+  return r;
 end $$;
 
 create or replace function public.act_gift(w text, animal text, kind text) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare me uuid := _me_or_fail(w);
+declare me uuid := _me_or_fail(w); r jsonb;
 begin
   if not _rate(me, 'gift', 0.5, 3) then return _no('trop d''actions'); end if;
-  return _core_gift(w, animal, kind);
+  r := _core_gift(w, animal, kind);
+  if (r ->> 'ok')::boolean then perform _hook(me, w, 'gift', r, '{}'::jsonb); end if;
+  return r;
 end $$;
 
 create or replace function public.act_rewards(w text) returns jsonb
