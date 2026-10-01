@@ -843,7 +843,7 @@ const LETTRES = {
   T: ['111', '010', '010', '010', '010'],
   O: ['111', '101', '101', '101', '111'],
   U: ['101', '101', '101', '101', '111'],
-  N: ['101', '111', '111', '101', '101'],
+  N: ['1001', '1101', '1011', '1001', '1001'],
 };
 function socle(P, E, on) {
   for (let y = 0; y < 16; y++)
@@ -874,12 +874,14 @@ function porteTile(P, E, mot, o, on) {
   }
   // le mot, au centre, lisible depuis l'arrière de la porte (là où l'on se tient pour la poser).
   // Sur le dessus, la ligne 0 de la tuile est du côté +z : on retourne le texte, puis on le tourne comme la flèche.
-  const w = mot.length * 4 - 1;
+  const larg = [...mot].map(l => LETTRES[l][0].length),
+    w = larg.reduce((a, b) => a + b + 1, -1);
   [...mot].forEach((l, i) =>
     LETTRES[l].forEach((ligne, dy) =>
       [...ligne].forEach((b, dx) => {
         if (b !== '1') return;
-        const [rx, ry] = rot(Math.floor((16 - w) / 2) + i * 4 + dx, 15 - (6 + dy));
+        const x0 = Math.floor((16 - w) / 2) + larg.slice(0, i).reduce((a, b) => a + b + 1, 0);
+        const [rx, ry] = rot(x0 + dx, 15 - (6 + dy));
         pt(rx, ry, lum);
       }),
     ),
