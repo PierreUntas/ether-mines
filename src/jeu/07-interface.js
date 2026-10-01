@@ -242,7 +242,7 @@ function renderQuests(body) {
     const r = nearestRuin();
     body.insertAdjacentHTML(
       'beforeend',
-      `<p class="qintro">${r ? `Ruine la plus proche : ${Math.round(r.d)} m, direction ${arrowTo(r.x + 0.5, r.z + 0.5)} (x ${r.x}, z ${r.z}).` : 'Aucune ruine éteinte dans les environs.'} Chaque validateur rallumé te rapporte 3 cristaux par slot et un sceau unique.</p>`,
+      `<p class="qintro">${r ? `Ruine la plus proche : ${Math.round(r.d)} m, direction ${arrowTo(r.x + 0.5, r.z + 0.5)} (x ${r.x}, z ${r.z}).` : 'Aucune ruine éteinte dans les environs.'} Chaque validateur rallumé te rapporte un cristal par minute et un sceau unique.</p>`,
     );
   }
   body.insertAdjacentHTML(

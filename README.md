@@ -14,7 +14,7 @@ Un monde en blocs aux couleurs d'Ethereum, à construire entre amis dans le navi
 - **Contrats en blocs** : levier et plaque de pression (sources), câble d'éther, lampe et porte alimentées. Le courant est recalculé en continu autour du joueur et n'est jamais enregistré : seul l'état des leviers l'est. Une plaque s'active sous n'importe quel joueur, y compris un ami.
 - **Portes logiques** (Atelier, Contrats) : ET (les deux côtés alimentés), OU (un côté ou l'arrière), NON (active tant que l'arrière ne l'est pas) et horloge (bat chaque seconde). Une porte se pose comme un escalier : sa sortie part dans la direction du regard, une flèche l'indique sur le dessus. Elles s'enchaînent entre elles et avec les câbles, ce qui permet des serrures à code, des clignotants ou des pièges.
 - **Progression** : un fil d'objectifs (bouton en haut de l'écran, touche O ou onglet Objectifs) et quatre paliers d'outils. La main ne taille pas la pierre ; la pioche en bois taille la pierre et le minerai ; la pioche de cristal (objet unique) ouvre les géodes ; la pioche d'éther pur (objet unique) taille la roche de genèse, au fond du monde, qui donne des fragments de genèse. Avec un fragment, des éclats et des cristaux, on forge un cœur de validateur.
-- **Validateurs anciens** : une ruine avec un validateur éteint par région de 80 × 80 blocs (la première à une quarantaine de mètres du sanctuaire). La boussole de l'objectif mène à la plus proche. Le rallumer avec un cœur le met à ton nom : 3 cristaux par slot de 12 s, et un sceau de validateur (objet unique) en souvenir.
+- **Validateurs anciens** : une ruine avec un validateur éteint par région de 80 × 80 blocs (la première à une quarantaine de mètres du sanctuaire). La boussole de l'objectif mène à la plus proche. Le rallumer avec un cœur le met à ton nom : un cristal par minute, et un sceau de validateur (objet unique) en souvenir. Un validateur posé soi-même frappe un cristal toutes les 5 minutes ; 5 au plus comptent par joueur (`007_economie.sql`).
 - **Animaux** : moutons d'éther (plaines), lapins (dunes, plaines, forêts), renards roses (forêts), poissons prisme (océans), méduses célestes (autour des îles flottantes). Clic droit ou toucher bref pour les caresser : une fois par jour, un mouton offre de la laine d'éther (bloc), un renard une fleur, une méduse un éclat pur. Ils sont placés et déplacés à partir de la graine et de l'heure : tous les joueurs les voient au même endroit, sans échange réseau.
 - **Rendu** : Three.js r128, textures pixel art générées en code, ombres portées (désactivées sur mobile), cycle jour et nuit de 8 minutes, blocs lumineux la nuit, eau qui ondule, lucioles la nuit, effet de pose, avatars qui respirent et se balancent en marchant.
 - **Réglages** (onglet Réglages du coffre, propres à chaque appareil) : distance de vue, netteté, ombres, lucioles, animaux, sensibilité de la caméra, compteur d'images par seconde.
@@ -44,7 +44,7 @@ Les joueurs ne peuvent rien écrire directement : ni blocs, ni terrain, ni coffr
 | `act_craft` | recette connue du serveur, ingrédients présents |
 | `act_relight` | validateur éteint réel, cœur de validateur dans le coffre |
 | `act_gift` | une fois par jour et par animal, 15 cadeaux par jour au plus |
-| `act_rewards` | validateurs signés par le joueur, temps écoulé (30 minutes rattrapées au plus) |
+| `act_rewards` | validateurs signés par le joueur (5 posés au plus : 1 cristal toutes les 5 minutes chacun ; anciens rallumés : 1 par minute), temps écoulé (30 minutes rattrapées au plus) |
 | `act_claim`, `act_unclaim`, `act_member` | parcelles : coût, limite, propriétaire |
 | `act_chest`, `act_chest_move` | malles : bloc malle réel, à portée de main, droit de construire à cet endroit, objets présents dans le sac ou la malle ; une malle cassée rend son contenu à celui qui la casse |
 
@@ -99,7 +99,7 @@ tools/regles.mjs        génère supabase/regles.sql
 
 1. **Supabase** : crée un projet gratuit sur supabase.com.
 2. **Comptes invités** : dans *Authentication → Sign In / Providers*, active *Allow anonymous sign-ins*. Chaque joueur reçoit un compte automatiquement, sans email ni mot de passe.
-3. **Base** : dans *SQL Editor*, lance dans l'ordre `supabase/migrations/001_schema.sql`, `supabase/migrations/002_securite.sql`, `supabase/migrations/003_moderation.sql`, `supabase/migrations/005_coffres.sql`, `supabase/migrations/006_renumerotation.sql`, puis `supabase/regles.sql`. Chaque migration se relance sans risque ; une nouvelle migration se lance simplement après les autres (le numéro 004 n'est pas utilisé).
+3. **Base** : dans *SQL Editor*, lance dans l'ordre `supabase/migrations/001_schema.sql`, `supabase/migrations/002_securite.sql`, `supabase/migrations/003_moderation.sql`, `supabase/migrations/005_coffres.sql`, `supabase/migrations/006_renumerotation.sql`, `supabase/migrations/007_economie.sql`, puis `supabase/regles.sql`. Chaque migration se relance sans risque ; une nouvelle migration se lance simplement après les autres (le numéro 004 n'est pas utilisé).
 4. **Fonction `figer`** (une fois, puis à chaque changement du générateur) :
    ```
    npx supabase login

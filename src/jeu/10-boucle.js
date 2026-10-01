@@ -167,13 +167,18 @@ function frame(now) {
     // validateurs
     const slot = Math.floor((Date.now() / 1000 - GENESIS) / 12);
     if (!SERVER() && slot > lastSlot) {
-      let own = 0;
+      // même barème que le serveur (007_economie.sql) : parts par slot, 25 parts = 1 cristal
+      let poses = 0,
+        anciens = 0;
       for (const k of vals.keys())
         if (OWN.get(k)?.by === ME.id) {
           const [x, y, z] = k.split(',').map(Number);
-          own += get(x, y, z) === 74 ? 3 : 1;
+          if (get(x, y, z) === 74) anciens++;
+          else poses++;
         }
-      const n = own * Math.min(3, slot - lastSlot);
+      S.parts = (S.parts || 0) + (Math.min(poses, 5) + 5 * anciens) * Math.min(3, slot - lastSlot);
+      const n = Math.floor(S.parts / 25);
+      S.parts -= n * 25;
       lastSlot = slot;
       if (n) {
         give(101, n, `récompense du slot ${slot.toLocaleString('fr-FR')}`);
@@ -206,7 +211,7 @@ function frame(now) {
       tg.hidden = false;
       tg.classList.toggle('own', !!(ow && ow.by === ME.id));
       const tid = B[target.id].drop !== undefined && B[target.id].drop ? B[target.id].drop : target.id;
-      tg.innerHTML = `${B[target.id].n}<span>${target.id === 73 ? `${touch ? 'toucher' : 'clic droit'} avec un cœur de validateur pour le rallumer` : target.id === 74 ? "rallumé · frappe 3 cristaux par slot pour qui l'a rallumé" : !canBuildHere(target.x, target.z) && B[target.id].h !== Infinity ? `🔒 ${protectMsg(target.x, target.z)}` : !canMine(target.id) && B[target.id].h !== Infinity ? `⛏ il faut ${TIER_NAME[reqTier(target.id)]}` : !inWorld(target.x, target.z) ? 'bord du monde' : own ? `posé par ${ow && ow.by !== ME.id ? ow.name : 'toi'} · bloc #${own}` : `naturel · donne le jeton #${tid === 0 ? '—' : tid}`}</span>`;
+      tg.innerHTML = `${B[target.id].n}<span>${target.id === 73 ? `${touch ? 'toucher' : 'clic droit'} avec un cœur de validateur pour le rallumer` : target.id === 74 ? "rallumé · frappe un cristal par minute pour qui l'a rallumé" : !canBuildHere(target.x, target.z) && B[target.id].h !== Infinity ? `🔒 ${protectMsg(target.x, target.z)}` : !canMine(target.id) && B[target.id].h !== Infinity ? `⛏ il faut ${TIER_NAME[reqTier(target.id)]}` : !inWorld(target.x, target.z) ? 'bord du monde' : own ? `posé par ${ow && ow.by !== ME.id ? ow.name : 'toi'} · bloc #${own}` : `naturel · donne le jeton #${tid === 0 ? '—' : tid}`}</span>`;
     } else {
       sel.visible = false;
       $('target').hidden = true;

@@ -102,7 +102,7 @@
     { out: 10, n: 1, need: { 4: 2 }, d: 'Fondre le sable' },
     { out: 14, n: 1, need: { 10: 1, 101: 1 }, d: 'Lumière pour les galeries' },
     { out: 201, n: 1, need: { 9: 2, 101: 3 }, d: 'Objet unique (ERC-721) · minage ×5 · ouvre les géodes', nft: 1 },
-    { out: 13, n: 1, need: { 101: 8, 15: 4 }, d: 'Frappe un cristal par slot' },
+    { out: 13, n: 1, need: { 101: 8, 15: 4 }, d: 'Frappe un cristal toutes les 5 minutes' },
     { out: 70, n: 1, need: { 103: 4 }, d: 'Éther pur des profondeurs, lumineux' },
     { out: 202, n: 1, need: { 103: 4, 101: 4, 9: 2 }, d: 'Objet unique (ERC-721) · minage ×8 · taille la roche de genèse', nft: 1 },
     { out: 105, n: 1, need: { 104: 1, 103: 2, 101: 4 }, d: 'Rallume un validateur ancien (clic droit dessus)' },

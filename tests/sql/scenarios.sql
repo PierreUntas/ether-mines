@@ -105,8 +105,26 @@ reset role;
 update players set rewards_at = now() - interval '60 seconds';
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
-select pg_temp.ok('récompenses : 5 slots × poids 3', act_rewards('w') ->> 'slots' = '5');
-select pg_temp.ok('récompenses versées : 15 cristaux', (select n from inventory where item = 101) = 20);
+select pg_temp.ok('récompenses : un validateur ancien, 1 minute → 1 cristal', act_rewards('w') ->> 'n' = '1');
+select pg_temp.ok('récompense versée', (select n from inventory where item = 101) = 6);
+reset role;
+-- 8 validateurs posés : seuls 5 comptent ; 10 minutes → (5 + 5) parts × 50 slots / 25 = 20 cristaux
+insert into blocks (world, x, y, z, id, placed_by) select 'w', 100 + k, 40, 100, 13, 'aaaaaaaa-0000-0000-0000-000000000001' from generate_series(1, 8) k;
+update players set rewards_at = now() - interval '10 minutes' where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('5 validateurs posés comptent au plus', (act_rewards('w') ->> 'n')::int = 20);
+reset role;
+update players set rewards_at = now() - interval '5 hours' where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+delete from rate_limits where kind = 'rewards'; -- l'appel précédent a vidé la réserve
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('30 minutes rattrapées au plus : 150 slots × 10 parts / 25 = 60', (act_rewards('w') ->> 'n')::int = 60);
+select pg_temp.ok('coffre : 6 + 20 + 60', (select n from inventory where item = 101) = 86);
+reset role;
+delete from blocks where world = 'w' and x between 101 and 108 and y = 40 and z = 100;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 
 -- ---------- joueur B ----------
 select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
@@ -124,7 +142,7 @@ select pg_temp.ok('B mine chez A après invitation', (act_mine('w', 21, :gy, 4, 
 -- ---------- récupération de partie par code ----------
 select pg_temp.ok('code inconnu refusé', claim_recovery('0000-0000-0000-0000') = -1);
 select pg_temp.ok('B récupère la partie de A', claim_recovery(:'code') = 1);
-select pg_temp.ok('le coffre a déménagé, sans doublon', (select n from inventory where item = 101) = 20 and (select count(*) from inventory where item = 2) = 1);
+select pg_temp.ok('le coffre a déménagé, sans doublon', (select n from inventory where item = 101) = 86 and (select count(*) from inventory where item = 2) = 1);
 select pg_temp.ok('les objets uniques ont suivi', (select count(*) from uniques) = 2);
 reset role;
 select pg_temp.ok('A n''a plus rien', (select count(*) from inventory where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 0);

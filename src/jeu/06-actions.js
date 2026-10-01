@@ -481,7 +481,7 @@ function place() {
     addVal(x, y, z);
     if (!S.seen.val) {
       S.seen.val = 1;
-      toastInfo('Validateur actif : il frappe un cristal à chaque slot de 12 secondes.');
+      toastInfo('Validateur actif : il frappe un cristal toutes les 5 minutes (5 validateurs posés comptent au plus).');
     }
   }
   dirty = true;
@@ -505,7 +505,7 @@ function relight(t) {
       addUnique(r.unique);
       syncInventory();
       logEv('burn', '1 Cœur de validateur', '→ validateur ancien rallumé');
-      toastInfo('Validateur ancien rallumé : 3 cristaux par slot, à ton nom.');
+      toastInfo('Validateur ancien rallumé : un cristal par minute, à ton nom.');
       Sound.chime();
       popAt(t.x, t.y, t.z, 1);
     });
@@ -522,7 +522,7 @@ function relight(t) {
   S.relitAt[k] = 1;
   mintNft(203, `${t.x}, ${t.y}, ${t.z}`);
   logEv('burn', '1 Cœur de validateur', `→ validateur ancien rallumé (${S.relit})`);
-  toastInfo('Validateur ancien rallumé : 3 cristaux par slot, à ton nom.');
+  toastInfo('Validateur ancien rallumé : un cristal par minute, à ton nom.');
   Sound.chime();
   popAt(t.x, t.y, t.z, 1);
   swing = 1;
