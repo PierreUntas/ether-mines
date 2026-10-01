@@ -99,7 +99,7 @@ tools/regles.mjs        génère supabase/regles.sql
 
 1. **Supabase** : crée un projet gratuit sur supabase.com.
 2. **Comptes invités** : dans *Authentication → Sign In / Providers*, active *Allow anonymous sign-ins*. Chaque joueur reçoit un compte automatiquement, sans email ni mot de passe.
-3. **Base** : dans *SQL Editor*, lance dans l'ordre `supabase/migrations/001_schema.sql`, `supabase/migrations/002_securite.sql`, `supabase/migrations/003_moderation.sql`, `supabase/migrations/005_coffres.sql`, puis `supabase/regles.sql`. Chaque migration se relance sans risque ; une nouvelle migration se lance simplement après les autres (le numéro 004 n'est pas utilisé).
+3. **Base** : dans *SQL Editor*, lance dans l'ordre `supabase/migrations/001_schema.sql`, `supabase/migrations/002_securite.sql`, `supabase/migrations/003_moderation.sql`, `supabase/migrations/005_coffres.sql`, `supabase/migrations/006_renumerotation.sql`, puis `supabase/regles.sql`. Chaque migration se relance sans risque ; une nouvelle migration se lance simplement après les autres (le numéro 004 n'est pas utilisé).
 4. **Fonction `figer`** (une fois, puis à chaque changement du générateur) :
    ```
    npx supabase login
@@ -157,6 +157,7 @@ Au chargement d'un tronçon : terrain figé s'il existe, sinon générateur ; pu
 - **Changer la taille des tronçons** (`CH = 16`) ou la hauteur (`SY`) sans convertir la table `chunks`.
 - **Réécrire ou supprimer des lignes** de `chunks` ou `blocks` dans une migration.
 - **Renommer les clés `localStorage`** (`ether-mines:<monde>`, `ether-mines:profil`).
+- Donner à un bloc un numéro déjà pris par un objet (`ITEM`, ex. 101 à 105, 201 à 203) : le jeu et le serveur les confondraient. Un test le vérifie.
 
 ### Faire une mise à jour
 

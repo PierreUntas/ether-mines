@@ -141,9 +141,9 @@
     { out: 66, n: 2, need: { 15: 2 }, d: 'Source : active quand on marche dessus', cat: 'Contrats' },
     { out: 67, n: 8, need: { 101: 1 }, d: 'Transmet le signal, bloc après bloc', cat: 'Contrats' },
     { out: 68, n: 1, need: { 10: 1, 101: 2 }, d: "S'allume quand elle est alimentée", cat: 'Contrats' },
-    { out: 99, n: 1, need: { 67: 2, 3: 1, 101: 1 }, d: 'Active devant elle si ses deux côtés sont alimentés', cat: 'Contrats' },
-    { out: 103, n: 1, need: { 67: 2, 3: 1, 101: 1 }, d: 'Active devant elle si un côté ou l’arrière est alimenté', cat: 'Contrats' },
-    { out: 107, n: 1, need: { 67: 1, 3: 1, 101: 1 }, d: 'Active devant elle tant que l’arrière ne l’est pas', cat: 'Contrats' },
+    { out: 112, n: 1, need: { 67: 2, 3: 1, 101: 1 }, d: 'Active devant elle si ses deux côtés sont alimentés', cat: 'Contrats' },
+    { out: 116, n: 1, need: { 67: 2, 3: 1, 101: 1 }, d: 'Active devant elle si un côté ou l’arrière est alimenté', cat: 'Contrats' },
+    { out: 120, n: 1, need: { 67: 1, 3: 1, 101: 1 }, d: 'Active devant elle tant que l’arrière ne l’est pas', cat: 'Contrats' },
     { out: 111, n: 1, need: { 67: 2, 15: 1, 101: 2 }, d: 'Source qui bat chaque seconde', cat: 'Contrats' },
   );
   // v4 : nature (générée dans le monde) et décoration. t = [dessus, côtés, dessous]
@@ -180,18 +180,20 @@
   for (let o = 0; o < 4; o++) B[94 + o] = { n: 'Échelle', t: [73, 73, 73], h: 0.5, shape: 'ladder', o, drop: 94, icon: 73, pass: 1 };
   B[98] = { n: 'Malle', t: [75, 76, 75], h: 1.2 }; // contenu gardé par le serveur (005_coffres.sql)
   // v6 : portes logiques (4 orientations : la sortie part dans la direction du regard) et horloge.
+  // Numéros 112 à 123 (ET, OU, NON × 4 orientations) : 101 à 105 sont des objets (cristal, pioche…), jamais des blocs.
+  // Elles ont d'abord porté les numéros 99 à 110 : 006_renumerotation.sql et migrateSave() convertissent.
   // Tuiles du dessus : 80 + porte * 8 + orientation * 2 (+1 allumée) ; côtés 104/105 ; horloge 106/107.
   ['ET', 'OU', 'NON'].forEach((g, gi) => {
     for (let o = 0; o < 4; o++) {
       const top = 80 + gi * 8 + o * 2;
-      B[99 + gi * 4 + o] = {
+      B[112 + gi * 4 + o] = {
         n: 'Porte ' + g,
         gate: g.toLowerCase(),
         o,
         t: [top, 104, 104],
         tOn: [top + 1, 105, 104],
         h: 0.8,
-        drop: 99 + gi * 4,
+        drop: 112 + gi * 4,
       };
     }
   });

@@ -25,7 +25,7 @@ let SHADOWS = REG.ombres;
 
 // ---------- état, sauvegarde ----------
 let KEY = 'ether-mines:solo';
-const SAVE_V = 1;
+const SAVE_V = 2;
 const S0 = () => ({
   v: SAVE_V,
   chunks: {},
@@ -68,6 +68,20 @@ function useState(s) {
 function migrateSave(s) {
   // v1 : première version. Pour une v2 : if(s.v<2){ …convertir… ; s.v=2 } — ne jamais supprimer une étape.
   if (!s.v) s.v = 1;
+  // v2 : portes logiques renumérotées (99–110 → 112–123), car 101–105 sont des objets
+  if (s.v < 2) {
+    for (const [a, b] of [
+      [99, 112],
+      [107, 120],
+    ])
+      if (s.inv?.[a]) {
+        s.inv[b] = (s.inv[b] || 0) + s.inv[a];
+        delete s.inv[a];
+      }
+    for (const k of Object.keys(s.edits || {})) if (s.edits[k] >= 99 && s.edits[k] <= 110) s.edits[k] += 13;
+    if (s.bar) s.bar = s.bar.map(v => (v === '99' ? '112' : v === '107' ? '120' : v));
+    s.v = 2;
+  }
 }
 // Saison : changer SAISON efface les parties gardées dans les navigateurs (à faire avec une remise à zéro de la base).
 const SAISON = '2';

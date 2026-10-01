@@ -91,7 +91,7 @@ const circuit = async (levier2) =>
   page.evaluate(async (l2) => {
     const Y = 47, y = Y + 1, c = (x, yy, z, id) => mines.commit(x + ',' + yy + ',' + z, id, null);
     for (let x = 16; x <= 22; x++) for (let z = 2; z <= 6; z++) c(x, Y, z, 80);
-    c(16, y, 5, 65); c(17, y, 5, 67); c(18, y, 5, 99); c(19, y, 5, 67); c(20, y, 5, l2); c(18, y, 4, 67); c(18, y, 3, 68);
+    c(16, y, 5, 65); c(17, y, 5, 67); c(18, y, 5, 112); c(19, y, 5, 67); c(20, y, 5, l2); c(18, y, 4, 67); c(18, y, 3, 68);
     await new Promise(r => setTimeout(r, 2500));
     return mines.POWERED.has('18,' + y + ',3');
   }, levier2);

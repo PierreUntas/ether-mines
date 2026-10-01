@@ -4,7 +4,7 @@
 // ---------- contrats en blocs : leviers, plaques, câbles, lampes, portes ----------
 // Rien n'est enregistré : chaque client recalcule le courant à partir des blocs et de la position des joueurs.
 const SPEC = new Map(),
-  isSpecial = id => (id >= 48 && id <= 68) || (id >= 99 && id <= 111); // contrats : portes, leviers, plaques, câbles, lampes, portes logiques, horloge
+  isSpecial = id => (id >= 48 && id <= 68) || (id >= 111 && id <= 123); // contrats : portes, leviers, plaques, câbles, lampes, portes logiques, horloge
 // ---------- lumières : lanternes, éther pur, lampes ----------
 // Index des sources par tronçon ; les plus proches du joueur reçoivent une vraie lumière (voir lumieres()).
 const LUM = new Map(),

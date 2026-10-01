@@ -97,3 +97,9 @@ test('maillage : chaque bloc de forme (plaque, escalier, porte, câble, levier�
       assert.ok(m.op && m.op.idx.length > 0, `bloc ${id} (${B[id].n}) maillé`);
     }
 });
+
+test('règles : aucun numéro n’est à la fois un bloc et un objet', () => {
+  const doubles = Object.keys(R.ITEM).filter(k => R.B[k]);
+  assert.deepEqual(doubles, [], `numéros en double : ${doubles.join(', ')}`);
+  for (const id of Object.keys(R.B)) assert.ok(+id > 0 && +id < 256, `bloc ${id} : les tronçons stockent les blocs sur un octet`);
+});
