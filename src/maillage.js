@@ -113,7 +113,9 @@
       s: 1,
     },
   ];
-  const AOF = [0.42, 0.62, 0.82, 1];
+  const AOF = [0.36, 0.58, 0.8, 1];
+  // ombrage par face, comme dans Minecraft : les arêtes des blocs restent lisibles même sous un soleil vertical
+  const faceShade = n => (n[1] > 0 ? 1 : n[1] < 0 ? 0.6 : n[0] !== 0 ? 0.8 : 0.9);
   function uvRect(ti) {
     const tx = ti % AN,
       ty = Math.floor(ti / AN),
@@ -127,12 +129,16 @@
       for (let z = 0; z < CH; z++) for (let x = 0; x < CH; x++) arr[li(x, y, z)] = get(cx * CH + x, y, cz * CH + z);
     const A = { op: [[], [], [], [], []], gl: [[], [], [], [], []], wa: [[], [], [], []], pl: [[], [], [], []] }; // pos,nor,uv,col,idx
     const pushQ = (G, pts, nor, uvs, cols, flipTri) => {
-      const base = G[0].length / 3;
+      const base = G[0].length / 3,
+        sh = faceShade(nor);
       for (let k = 0; k < 4; k++) {
         G[0].push(...pts[k]);
         G[1].push(...nor);
         G[2].push(...uvs[k]);
-        if (cols) G[3].push(cols[k], cols[k], cols[k]);
+        if (cols) {
+          const c = cols[k] * sh;
+          G[3].push(c, c, c);
+        }
       }
       const ix = cols ? G[4] : G[3];
       if (flipTri) ix.push(base + 1, base + 2, base + 3, base + 1, base + 3, base);
@@ -199,8 +205,8 @@
                 A.pl,
                 [
                   [p[0], y, p[1]],
-                  [p[0], y + 1, p[1]],
-                  [q[0], y + 1, q[1]],
+                  [p[0], y + 0.999, p[1]], // sommets du haut à peine plus bas : le shader les reconnaît et les fait onduler au vent
+                  [q[0], y + 0.999, q[1]],
                   [q[0], y, q[1]],
                 ],
                 [0, 1, 0],

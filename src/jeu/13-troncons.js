@@ -89,6 +89,7 @@ function unloadFar() {
     dropMesh(k);
     CHK.delete(k);
     SPEC.delete(k);
+    LUM.delete(k);
     meshQ.delete(k);
     for (const v of [...vals.keys()]) {
       const [x, , z] = v.split(',').map(Number);

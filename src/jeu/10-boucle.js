@@ -182,9 +182,11 @@ function frame(now) {
   camera.updateMatrixWorld();
   sky.position.copy(camera.position);
   stars.position.copy(camera.position);
+  // les nuages suivent la caméra (le plan ne finit jamais) mais leur motif reste fixe dans le monde, et dérive doucement
   clouds.position.x = camera.position.x;
   clouds.position.z = camera.position.z;
-  cloudTex.offset.x += dt * 0.0015;
+  cloudDrift += dt * 0.0015;
+  cloudTex.offset.set(camera.position.x / 300 + cloudDrift, -camera.position.z / 300);
   waterTex.offset.x += dt * 0.03;
   waterTex.offset.y += dt * 0.012;
   applyDay();
@@ -256,6 +258,7 @@ function frame(now) {
   if (booted) {
     stream(dt);
     computePower(dt);
+    lumieres(dt);
     updateAnimals(dt);
     if (playing) updateQuest(dt);
   }

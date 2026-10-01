@@ -5,7 +5,60 @@
 // Rien n'est enregistré : chaque client recalcule le courant à partir des blocs et de la position des joueurs.
 const SPEC = new Map(),
   isSpecial = id => id >= 48 && id <= 68;
+// ---------- lumières : lanternes, éther pur, lampes ----------
+// Index des sources par tronçon ; les plus proches du joueur reçoivent une vraie lumière (voir lumieres()).
+const LUM = new Map(),
+  LUM_COL = { 14: 0xffc27a, 70: 0x9fd8ff, 68: 0xffe08a, 13: 0xb7a6ff },
+  isLum = id => id === 14 || id === 70 || id === 68 || id === 13;
+function lumSet(x, y, z, id) {
+  const k = ckey(cOf(x), cOf(z));
+  let s = LUM.get(k);
+  const key = coordKey(x, y, z);
+  if (isLum(id)) {
+    if (!s) LUM.set(k, (s = new Set()));
+    s.add(key);
+  } else if (s) s.delete(key);
+}
+const NB_LUM = touch ? 2 : 4,
+  LAMPES = [];
+for (let i = 0; i < NB_LUM; i++) {
+  const l = new THREE.PointLight(0xffc27a, 0, 9, 1.6);
+  scene.add(l);
+  LAMPES.push(l);
+}
+let lumT = 0;
+function lumieres(dt) {
+  lumT -= dt;
+  if (lumT > 0) return;
+  lumT = 0.25;
+  const pcx = cOf(P.x),
+    pcz = cOf(P.z),
+    near = [];
+  for (let dz = -1; dz <= 1; dz++)
+    for (let dx = -1; dx <= 1; dx++) {
+      const s = LUM.get(ckey(pcx + dx, pcz + dz));
+      if (s)
+        for (const k of s) {
+          const [x, y, z] = k.split(',').map(Number),
+            id = get(x, y, z);
+          if (id === 68 && !POWERED.has(k)) continue; // lampe éteinte
+          const d = (x + 0.5 - P.x) ** 2 + (y + 0.5 - P.y) ** 2 + (z + 0.5 - P.z) ** 2;
+          if (d < 400) near.push([d, x, y, z, id]);
+        }
+    }
+  near.sort((a, b) => a[0] - b[0]);
+  // plus visible la nuit ; le jour, un simple halo
+  const force = 0.25 + 0.85 * skyU.night.value;
+  LAMPES.forEach((l, i) => {
+    const n = near[i];
+    if (!n) return void (l.intensity = 0);
+    l.position.set(n[1] + 0.5, n[2] + 0.5, n[3] + 0.5);
+    l.color.setHex(LUM_COL[n[4]]);
+    l.intensity = force;
+  });
+}
 function specSet(x, y, z, id) {
+  lumSet(x, y, z, id);
   const k = ckey(cOf(x), cOf(z));
   let s = SPEC.get(k);
   const key = coordKey(x, y, z);
@@ -17,12 +70,18 @@ function specSet(x, y, z, id) {
 function indexChunk(cx, cz) {
   const arr = CHK.get(ckey(cx, cz));
   if (!arr) return;
-  const s = new Set();
+  const s = new Set(),
+    l = new Set();
   for (let i = 0; i < CV; i++) {
     const v = arr[i];
-    if (v >= 48 && v <= 68) s.add(coordKey(cx * CH + (i % CH), Math.floor(i / (CH * CH)), cz * CH + (Math.floor(i / CH) % CH)));
+    if ((v >= 48 && v <= 68) || isLum(v)) {
+      const k = coordKey(cx * CH + (i % CH), Math.floor(i / (CH * CH)), cz * CH + (Math.floor(i / CH) % CH));
+      if (v >= 48 && v <= 68) s.add(k);
+      if (isLum(v)) l.add(k);
+    }
   }
   SPEC.set(ckey(cx, cz), s);
+  LUM.set(ckey(cx, cz), l);
 }
 const N6 = [
   [1, 0, 0],

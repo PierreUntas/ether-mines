@@ -52,7 +52,7 @@ const sky = new THREE.Mesh(
     fog: false,
     vertexShader: 'varying vec3 vD;void main(){vD=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
     fragmentShader:
-      'uniform vec3 top,hor,sunCol,sunDir;uniform float night;varying vec3 vD;void main(){float h=vD.y;vec3 c=mix(hor,top,pow(clamp(h,0.,1.),.55));c=mix(c,hor*.8,clamp(-h*3.,0.,1.));float s=max(dot(vD,sunDir),0.);c+=sunCol*(smoothstep(.9985,.9992,s)*1.4+pow(s,14.)*.35);float m=max(dot(vD,-sunDir),0.);c+=vec3(.95,.95,1.)*smoothstep(.9990,.9994,m)*night;gl_FragColor=vec4(c,1.);}',
+      'uniform vec3 top,hor,sunCol,sunDir;uniform float night;varying vec3 vD;void main(){float h=vD.y;vec3 c=mix(hor,top,pow(clamp(h,0.,1.),.55));c=mix(c,hor*.8,clamp(-h*3.,0.,1.));float s=max(dot(vD,sunDir),0.);c+=sunCol*(smoothstep(.9985,.9992,s)*1.4+pow(s,14.)*.35+pow(s,4.)*.3*(1.-abs(sunDir.y))*step(0.,h+.1));float m=max(dot(vD,-sunDir),0.);c+=vec3(.95,.95,1.)*smoothstep(.9990,.9994,m)*night;gl_FragColor=vec4(c,1.);}',
   }),
 );
 sky.renderOrder = -1;
@@ -98,6 +98,7 @@ cloudTex.magFilter = THREE.NearestFilter;
 cloudTex.minFilter = THREE.NearestFilter;
 cloudTex.wrapS = cloudTex.wrapT = THREE.RepeatWrapping;
 cloudTex.repeat.set(3, 3);
+let cloudDrift = 0;
 const clouds = new THREE.Mesh(
   new THREE.PlaneGeometry(900, 900),
   new THREE.MeshBasicMaterial({ map: cloudTex, transparent: true, opacity: 0.85, depthWrite: false, fog: false, side: THREE.DoubleSide }),
@@ -155,19 +156,43 @@ const glMat = new THREE.MeshLambertMaterial({
   transparent: true,
   depthWrite: false,
 });
-const waMat = new THREE.MeshLambertMaterial({ map: waterTex, transparent: true, opacity: 0.78, depthWrite: false, color: 0xdcefff });
+// eau : reflets du soleil (Phong) sur des vagues dont la normale suit l'ondulation
+const waMat = new THREE.MeshPhongMaterial({
+  map: waterTex,
+  transparent: true,
+  opacity: 0.8,
+  depthWrite: false,
+  color: 0xdcefff,
+  specular: 0x8a8aa0,
+  shininess: 70,
+});
 // la surface de l'eau (sommets à 0,86 d'un bloc) ondule ; le fond et l'eau pleine restent fixes
 const waterU = { value: 0 };
 waMat.onBeforeCompile = sh => {
   sh.uniforms.wtime = waterU;
   sh.vertexShader =
     'uniform float wtime;\n' +
-    sh.vertexShader.replace(
-      '#include <begin_vertex>',
-      '#include <begin_vertex>\nif(fract(position.y)>.5){transformed.y+=(sin(position.x*1.3+wtime*1.7)+sin(position.z*1.1-wtime*1.3)+sin((position.x+position.z)*.6+wtime*.9))*.022-.035;}',
-    );
+    sh.vertexShader
+      .replace(
+        '#include <beginnormal_vertex>',
+        '#include <beginnormal_vertex>\nif(fract(position.y)>.5&&objectNormal.y>.5){float dx=(1.3*cos(position.x*1.3+wtime*1.7)+.6*cos((position.x+position.z)*.6+wtime*.9))*.022,dz=(1.1*cos(position.z*1.1-wtime*1.3)+.6*cos((position.x+position.z)*.6+wtime*.9))*.022;objectNormal=normalize(vec3(-dx*6.,1.,-dz*6.));}',
+      )
+      .replace(
+        '#include <begin_vertex>',
+        '#include <begin_vertex>\nif(fract(position.y)>.5){transformed.y+=(sin(position.x*1.3+wtime*1.7)+sin(position.z*1.1-wtime*1.3)+sin((position.x+position.z)*.6+wtime*.9))*.022-.035;}',
+      );
 };
 const plMat = new THREE.MeshLambertMaterial({ map: atlasTex, alphaTest: 0.5, side: THREE.DoubleSide });
+// herbes et fleurs ondulent au vent (seuls les sommets du haut bougent, voir maillage.js)
+plMat.onBeforeCompile = sh => {
+  sh.uniforms.wtime = waterU;
+  sh.vertexShader =
+    'uniform float wtime;\n' +
+    sh.vertexShader.replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\nif(fract(position.y)>.5){float w=sin(wtime*1.6+position.x*.7+position.z*.5)+.5*sin(wtime*2.7+position.z*1.3);transformed.x+=w*.06;transformed.z+=w*.04;}',
+    );
+};
 const MESH = new Map();
 function dropMesh(k) {
   const ch = MESH.get(k);
