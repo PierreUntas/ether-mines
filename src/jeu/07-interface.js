@@ -456,7 +456,7 @@ const REG_CHOIX = [
   },
   {
     k: 'lucioles',
-    t: 'Lucioles la nuit',
+    t: 'Petites bêtes (lucioles, papillons, pétales)',
     o: [
       [false, 'Non'],
       [true, 'Oui'],

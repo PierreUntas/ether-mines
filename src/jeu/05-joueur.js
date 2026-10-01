@@ -582,6 +582,114 @@ function updateFireflies(dt, night, t) {
   ffMat.size = 0.28 + Math.sin(t * 3) * 0.05;
   ffGeo.attributes.position.needsUpdate = true;
 }
+// papillons : le jour, autour des fleurs proches du joueur
+const PAP_COUL = ['#ffb8d9', '#fff0a0', '#b3dcff', '#c9b8ff', '#ffcfae'],
+  papTex = PAP_COUL.map(c => {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 8;
+    const x = cv.getContext('2d');
+    x.fillStyle = c;
+    for (const [a, b, w, h] of [
+      [0, 1, 3, 3],
+      [5, 1, 3, 3],
+      [1, 4, 2, 3],
+      [5, 4, 2, 3],
+    ])
+      x.fillRect(a, b, w, h);
+    x.fillStyle = '#3a2f5c';
+    x.fillRect(3, 2, 2, 5);
+    const t = new THREE.CanvasTexture(cv);
+    t.magFilter = t.minFilter = THREE.NearestFilter;
+    return t;
+  }),
+  PAPS = [];
+for (let i = 0; i < 12; i++) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: papTex[i % papTex.length], transparent: true, depthWrite: false }));
+  s.scale.set(0.32, 0.32, 1);
+  s.visible = false;
+  scene.add(s);
+  PAPS.push({ s, ph: Math.random() * 9, sp: 0.5 + Math.random() * 0.5, x: 0, y: 0, z: 0, ok: false });
+}
+// cherche une fleur (ou de l'herbe) en surface près du joueur
+function papSpawn(p) {
+  for (let tr = 0; tr < 10; tr++) {
+    const a = Math.random() * Math.PI * 2,
+      r = 4 + Math.random() * 14,
+      x = Math.floor(P.x + Math.cos(a) * r),
+      z = Math.floor(P.z + Math.sin(a) * r);
+    let y = Math.min(SY - 2, Math.floor(P.y) + 8);
+    while (y > 1 && !get(x, y, z)) y--;
+    const id = get(x, y, z);
+    if ((id >= 17 && id <= 19) || (tr > 6 && (id === 20 || id === 1))) {
+      Object.assign(p, { x: x + 0.5, y: y + 0.6 + Math.random() * 1.2, z: z + 0.5, ok: true });
+      return;
+    }
+  }
+  p.ok = false;
+}
+let papReady = false;
+function updatePapillons(dt, night, t) {
+  const on = REG.lucioles && night < 0.4;
+  for (const p of PAPS) {
+    if (!on) {
+      p.s.visible = false;
+      continue;
+    }
+    if (!papReady || !p.ok || Math.hypot(p.x - P.x, p.z - P.z) > 24) papSpawn(p);
+    p.ph += dt * p.sp;
+    p.s.visible = p.ok;
+    p.s.position.set(p.x + Math.sin(p.ph * 0.9) * 1.4, p.y + Math.abs(Math.sin(p.ph * 2.3)) * 0.4, p.z + Math.cos(p.ph * 0.7) * 1.4);
+    p.s.scale.x = 0.32 * (0.25 + Math.abs(Math.sin(t * 14 + p.ph * 5))); // battement d'ailes
+  }
+  papReady = on;
+}
+// pétales qui tombent des arbres roses
+const PET = 90,
+  petPos = new Float32Array(PET * 3),
+  petData = [];
+const petGeo = new THREE.BufferGeometry();
+petGeo.setAttribute('position', new THREE.BufferAttribute(petPos, 3));
+const petMat = new THREE.PointsMaterial({ color: 0xffb8d9, size: 0.09, transparent: true, opacity: 0.9, depthWrite: false });
+const petales = new THREE.Points(petGeo, petMat);
+petales.frustumCulled = false;
+scene.add(petales);
+for (let i = 0; i < PET; i++) petData.push({ x: 0, y: -99, z: 0, ph: Math.random() * 9, vie: 0 });
+function petSpawn(d) {
+  d.y = -99;
+  for (let tr = 0; tr < 3; tr++) {
+    const x = Math.floor(P.x + (Math.random() - 0.5) * 36),
+      z = Math.floor(P.z + (Math.random() - 0.5) * 36);
+    for (let y = Math.min(SY - 2, Math.floor(P.y) + 14); y > Math.floor(P.y) - 6 && y > 1; y--) {
+      const id = get(x, y, z);
+      if (id === 7 && !get(x, y - 1, z)) {
+        Object.assign(d, { x: x + Math.random(), y: y - 0.05, z: z + Math.random(), vie: 6 + Math.random() * 6 });
+        return;
+      }
+      if (id && id !== 7) break;
+    }
+  }
+}
+function updatePetales(dt) {
+  petales.visible = REG.lucioles;
+  if (!petales.visible) return;
+  for (let i = 0; i < PET; i++) {
+    const d = petData[i];
+    d.vie -= dt;
+    if (d.vie <= 0 || isSolid(get(Math.floor(d.x), Math.floor(d.y), Math.floor(d.z))) || Math.hypot(d.x - P.x, d.z - P.z) > 26) {
+      if (Math.random() < dt * 2)
+        petSpawn(d); // apparitions étalées dans le temps
+      else d.y = -99;
+    }
+    d.ph += dt;
+    d.y -= dt * 0.55;
+    d.x += Math.sin(d.ph * 1.7) * dt * 0.5 + dt * 0.15;
+    d.z += Math.cos(d.ph * 1.3) * dt * 0.4;
+    petPos[i * 3] = d.x;
+    petPos[i * 3 + 1] = d.y;
+    petPos[i * 3 + 2] = d.z;
+  }
+  petGeo.attributes.position.needsUpdate = true;
+}
 function burst(x, y, z, id) {
   const ti = B[id].x != null ? B[id].x : B[id].t[1];
   const c = pMats[ti] || (pMats[ti] = new THREE.MeshLambertMaterial({ color: avgColor(ti) }));

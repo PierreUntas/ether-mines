@@ -679,6 +679,7 @@ if (location.hash === '#debug')
     decodeChunk,
     genChunk,
     loadChunks,
+    rebuildAt,
     get P() {
       return P;
     },

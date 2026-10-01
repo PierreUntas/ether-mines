@@ -136,13 +136,44 @@
     { out: 67, n: 8, need: { 101: 1 }, d: 'Transmet le signal, bloc après bloc', cat: 'Contrats' },
     { out: 68, n: 1, need: { 10: 1, 101: 2 }, d: "S'allume quand elle est alimentée", cat: 'Contrats' },
   );
+  // v4 : nature (générée dans le monde) et décoration. t = [dessus, côtés, dessous]
+  B[75] = { n: "Champignon d'éther", x: 61, h: 0.05 }; // tapis des grottes, lumineux
+  B[76] = { n: 'Roseaux', x: 62, h: 0.05 }; // au bord de l'eau
+  B[77] = { n: 'Nénuphar', t: [63, 63, 63], h: 0.05, shape: 'plate', icon: 63, pass: 1 };
+  B[78] = { n: 'Pierre moussue', t: [64, 64, 64], h: 2, stone: 1 };
+  B[79] = { n: "Briques d'éther", t: [65, 65, 65], h: 2, stone: 1 };
+  B[80] = { n: 'Granite poli', t: [66, 66, 66], h: 2, stone: 1 };
+  B[81] = { n: 'Marbre en damier', t: [67, 67, 67], h: 2.2, stone: 1 };
+  B[82] = { n: 'Bibliothèque', t: [10, 68, 10], h: 1.1 };
+  B[83] = { n: 'Bloc de cristal', t: [69, 69, 69], h: 1.5, glass: 1 };
+  B[84] = { n: 'Lanterne rose', t: [70, 70, 70], h: 0.5 };
+  B[85] = { n: 'Lanterne champignon', t: [71, 71, 71], h: 0.5 };
+  B[86] = { n: 'Natte de roseaux', t: [72, 72, 72], h: 0.6 };
+  B[87] = { n: 'Dalle de briques', t: [65, 65, 65], h: 1.2, stone: 1, shape: 'slab' };
+  for (let o = 0; o < 4; o++) B[88 + o] = { n: 'Escalier de briques', t: [65, 65, 65], h: 2, stone: 1, shape: 'stairs', o, drop: 88 };
+  RECIPES.push(
+    { out: 79, n: 4, need: { 3: 2, 4: 1 }, d: 'Granite cuit avec du sable', cat: 'Décoration' },
+    { out: 87, n: 4, need: { 79: 2 }, d: 'Demi-bloc', cat: 'Décoration' },
+    { out: 88, n: 4, need: { 79: 3 }, d: "S'oriente selon ton regard", cat: 'Décoration' },
+    { out: 80, n: 4, need: { 3: 4 }, d: 'Granite taillé et lissé', cat: 'Décoration' },
+    { out: 81, n: 4, need: { 15: 2, 3: 2 }, d: 'Dallage noir et blanc', cat: 'Décoration' },
+    { out: 78, n: 2, need: { 3: 2, 76: 1 }, d: 'Granite couvert de mousse', cat: 'Décoration' },
+    { out: 86, n: 2, need: { 76: 4 }, d: 'Roseaux tressés', cat: 'Décoration' },
+    { out: 82, n: 1, need: { 9: 6, 76: 3 }, d: 'Des registres reliés en roseau', cat: 'Décoration' },
+    { out: 83, n: 1, need: { 101: 9 }, d: 'Cristal pur, brille doucement', cat: 'Décoration' },
+    { out: 84, n: 1, need: { 14: 1, 17: 1 }, d: 'Lumière rose', cat: 'Décoration' },
+    { out: 85, n: 1, need: { 10: 1, 75: 2 }, d: 'Lumière bleue des grottes', cat: 'Décoration' },
+  );
   const TOOLS = { 102: 1, 201: 1, 202: 1 };
   // ce que devient un objet posé : bloc de même numéro, sauf escaliers (4 orientations) et portes (4 orientations, 2 moitiés)
   function placeIds(it) {
     it = +it;
     if (!B[it]) return [];
     const b = B[it];
-    if (b.shape === 'stairs') return [it, it + 1, it + 2, it + 3];
+    if (b.shape === 'stairs') {
+      const base = b.drop ?? it; // les 4 orientations partent de la première
+      return [base, base + 1, base + 2, base + 3];
+    }
     if (b.shape === 'door') return [48, 52, 56, 60];
     return [it];
   }

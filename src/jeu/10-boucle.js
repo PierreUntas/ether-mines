@@ -242,7 +242,11 @@ function frame(now) {
   updatePops(dt);
   {
     const nt = skyU.night.value;
-    if (booted) updateFireflies(dt, nt, now / 1000);
+    if (booted) {
+      updateFireflies(dt, nt, now / 1000);
+      updatePapillons(dt, nt, now / 1000);
+      updatePetales(dt);
+    }
     if (playing) {
       const cx = Math.floor(P.x),
         cz = Math.floor(P.z);

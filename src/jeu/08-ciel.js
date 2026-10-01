@@ -60,6 +60,7 @@ function applyDay() {
   emisBoost = 0.6 + night * 0.8;
   opMat.emissiveIntensity = emisBoost;
   glMat.emissiveIntensity = emisBoost;
+  plMat.emissiveIntensity = emisBoost;
   beamMat.opacity = 0.25 + night * 0.45;
   const h = Math.floor(t * 24),
     m = Math.floor((t * 24 - h) * 60);

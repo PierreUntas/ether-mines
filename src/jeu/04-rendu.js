@@ -182,7 +182,13 @@ waMat.onBeforeCompile = sh => {
         '#include <begin_vertex>\nif(fract(position.y)>.5){transformed.y+=(sin(position.x*1.3+wtime*1.7)+sin(position.z*1.1-wtime*1.3)+sin((position.x+position.z)*.6+wtime*.9))*.022-.035;}',
       );
 };
-const plMat = new THREE.MeshLambertMaterial({ map: atlasTex, alphaTest: 0.5, side: THREE.DoubleSide });
+const plMat = new THREE.MeshLambertMaterial({
+  map: atlasTex,
+  emissiveMap: emisTex, // champignons lumineux
+  emissive: 0xffffff,
+  alphaTest: 0.5,
+  side: THREE.DoubleSide,
+});
 // herbes et fleurs ondulent au vent (seuls les sommets du haut bougent, voir maillage.js)
 plMat.onBeforeCompile = sh => {
   sh.uniforms.wtime = waterU;

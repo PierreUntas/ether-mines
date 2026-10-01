@@ -667,6 +667,137 @@ tile(60, (P, E, i) => {
     E(x + 1, y, '#ffd27a');
   }
 });
+// ---------- v4 : nature et décoration ----------
+const vide = P => {
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
+};
+// champignon d'éther : pied pâle, chapeau cyan lumineux
+tile(61, (P, E) => {
+  vide(P);
+  const champ = (cx, h, r) => {
+    for (let y = 16 - h; y < 16; y++) P(cx, y, '#e8e2f7');
+    for (let dx = -r; dx <= r; dx++)
+      for (let dy = 0; dy < 2 + (Math.abs(dx) < r ? 1 : 0); dy++) {
+        const x = cx + dx,
+          y = 16 - h - 1 - dy + (Math.abs(dx) === r ? 1 : 0),
+          c = dy === 0 && hash(x, y, 61) < 0.3 ? '#ffffff' : dx < 0 ? '#5fd8ff' : '#9eeaff';
+        P(x, y, c);
+        E(x, y, c);
+      }
+  };
+  champ(5, 6, 3);
+  champ(11, 4, 2);
+});
+// roseaux : tiges et massettes
+tile(62, P => {
+  vide(P);
+  for (const [x, h, tete] of [
+    [3, 13, 1],
+    [6, 10, 0],
+    [8, 15, 1],
+    [11, 11, 1],
+    [13, 8, 0],
+  ]) {
+    for (let y = 16 - h; y < 16; y++) P(x, y, y < 16 - h + 2 ? '#b6efd6' : '#6fbf8f');
+    if (tete) for (let y = 16 - h + 2; y < 16 - h + 6; y++) (P(x, y, '#9a6b4f'), P(x + 1, y, '#80553d'));
+  }
+});
+// nénuphar vu de dessus, avec une fleur
+tile(63, P => {
+  vide(P);
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const d = Math.hypot(x - 7.5, y - 7.5),
+        encoche = x > 7 && Math.abs(y - 7.5) < 1.2;
+      if (d < 7 && !encoche) P(x, y, d > 5.8 ? '#5fae7f' : hash(x, y, 63) < 0.2 ? '#86d4b1' : '#71c493');
+    }
+  for (const [x, y, c] of [
+    [4, 5, '#ffb8d9'],
+    [5, 5, '#ffffff'],
+    [4, 4, '#ff8fc8'],
+    [5, 4, '#ffb8d9'],
+  ])
+    P(x, y, c);
+});
+// pierre moussue
+tile(64, (P, E, i) => {
+  noise(P, i, ...ST);
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) if (vn2(x / 4, y / 4, 64) > 0.55) P(x, y, hash(x, y, 64) < 0.3 ? '#86d4b1' : '#6fbf8f');
+});
+// briques d'éther
+tile(65, P => {
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const rang = y >> 2,
+        joint = y % 4 === 3 || (x + (rang % 2) * 4) % 8 === 7;
+      P(x, y, joint ? '#c9c2e0' : hash(x >> 3, rang, 65) < 0.5 ? (hash(x, y, 66) < 0.2 ? '#b98aa6' : '#c99bb6') : '#b48aa8');
+    }
+});
+// granite poli
+tile(66, P => {
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const bord = x === 0 || y === 0 || x === 15 || y === 15;
+      P(x, y, bord ? '#8a8db3' : hash(x, y, 67) < 0.08 ? '#c3c6e2' : vn2(x / 5, y / 5, 66) > 0.6 ? '#b2b6d6' : '#a9adcf');
+    }
+});
+// marbre en damier
+tile(67, P => {
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const blanc = ((x >> 2) + (y >> 2)) % 2 === 0;
+      P(x, y, blanc ? (hash(x, y, 68) < 0.15 ? '#e7e3f2' : '#f4f2fa') : hash(x, y, 69) < 0.15 ? '#5b4f8c' : '#4b4078');
+    }
+});
+// bibliothèque : cadre en planches, livres colorés
+tile(68, P => {
+  const cols = ['#ff9f9a', '#b3dcff', '#aeeccb', '#ffcfae', '#c9b8ff', '#fff0a0'];
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const planche = y === 0 || y === 7 || y === 8 || y === 15 || x === 0 || x === 15;
+      if (planche) P(x, y, y === 8 || y === 15 ? '#a5764f' : '#c4956a');
+      else {
+        const ligne = y < 7 ? 0 : 1,
+          k = Math.floor((x - 1 + ligne * 3) / 2),
+          haut = hash(k, ligne, 70) < 0.3 ? 2 : 1;
+        P(x, y, (y < 7 ? y : y - 8) < haut ? '#3a2f5c' : cols[Math.floor(hash(k, ligne, 71) * cols.length)]);
+      }
+    }
+});
+// bloc de cristal : facettes cyan, lumineux
+tile(69, (P, E) => {
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const f = (x + y) % 8 < 1 || (x - y + 16) % 8 < 1,
+        c = f ? '#e6fbff' : (x + y) % 16 < 8 ? '#7fe8ff' : '#5fd0f2';
+      P(x, y, c);
+      E(x, y, f ? '#bff6ff' : '#2f8fb0');
+    }
+});
+// lanternes de couleur (même dessin que la lanterne)
+function lanterneTile(P, E, coeur, halo, bord) {
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const b = x < 2 || y < 2 || x > 13 || y > 13,
+        d = Math.hypot(x - 7.5, y - 7.5),
+        c = b ? bord : d < 3 ? '#ffffff' : d < 5 ? coeur : halo;
+      P(x, y, c);
+      if (!b) E(x, y, c);
+    }
+  for (const k of [2, 13]) for (let y = 2; y < 14; y++) P(k, y, '#6a58e0');
+}
+tile(70, (P, E) => lanterneTile(P, E, '#ffd6ea', '#ff8fc8', '#c06a9a'));
+tile(71, (P, E) => lanterneTile(P, E, '#bfe9ff', '#5fb8ff', '#3a5fa8'));
+// natte de roseaux tressés
+tile(72, P => {
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const sens = ((x >> 2) + (y >> 2)) % 2 === 0,
+        fil = sens ? y % 4 === 0 : x % 4 === 0;
+      P(x, y, fil ? '#b58f5e' : sens ? '#d9bb84' : '#ccad78');
+    }
+});
 const atlasTex = new THREE.CanvasTexture(atlas),
   emisTex = new THREE.CanvasTexture(emis);
 for (const t of [atlasTex, emisTex]) {

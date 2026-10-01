@@ -47,7 +47,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP : sous cette couche, géodes et grandes grottes
-  const GEN = 1; // version du générateur : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
+  const GEN = 2; // version du générateur (2 : champignons, roseaux, nénuphars, rochers moussus) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -154,6 +154,17 @@
           if (id === 3 && (y <= 2 || (y <= 4 && vn3(x / 5, y / 3, z / 5, 17) > 0.5))) id = 72; // roche de genèse, tout au fond
           if (id) a[li(lx, y, lz)] = id;
         }
+        // champignons d'éther sur le sol des grottes (une seule colonne : rien ne déborde sur le tronçon voisin)
+        for (let y = 2; y < h - 4; y++) {
+          const i = li(lx, y, lz),
+            sol = a[li(lx, y - 1, lz)];
+          if (!a[i] && (sol === 3 || sol === 8 || sol === 72) && hash(x * 7 + y, z, 130) < (y < DEEP ? 0.04 : 0.015)) a[i] = 75;
+        }
+        if (h >= SEA && h <= SEA + 2 && !islandZone(x, z)) {
+          // roseaux sur les rives : une colonne voisine est sous l'eau
+          const rive = Math.min(heightAt(x + 1, z), heightAt(x - 1, z), heightAt(x, z + 1), heightAt(x, z - 1)) < SEA;
+          if (rive && hash(x, z, 131) < 0.3) a[li(lx, h + 1, lz)] = 76;
+        } else if (h < SEA && h >= SEA - 4 && hash(x, z, 132) < 0.035 && !a[li(lx, SEA + 1, lz)]) a[li(lx, SEA + 1, lz)] = 77; // nénuphars en eau peu profonde
         if (islandZone(x, z)) {
           let depth = 0;
           for (let y = DY + 45; y >= DY + 31; y--) {
@@ -189,6 +200,18 @@
                 if (rr <= 2.5 - (hash(x + dx, z + dz, dy + 50) < 0.3 ? 0.6 : 0)) put(x + dx, h + th + dy, z + dz, leaf, true);
               }
           put(x, h + th + 2, z, leaf, true);
+          continue;
+        }
+        if (bi !== 'foret' && r >= 0.01 && r < 0.0125) {
+          // rocher moussu de 1 à 4 blocs, posé sur le relief de chaque colonne
+          for (const [dx, dz, dy, p] of [
+            [0, 0, 1, 1],
+            [1, 0, 1, 0.6],
+            [0, 1, 1, 0.5],
+            [0, 0, 2, 0.4],
+          ])
+            if (hash(x + dx * 3, z + dz * 5 + dy, 133) < p)
+              put(x + dx, heightAt(x + dx, z + dz) + dy, z + dz, hash(x + dx, z + dz, 134) < 0.7 ? 78 : 3, true);
           continue;
         }
         if (at(x, h + 1, z) === 0) {
