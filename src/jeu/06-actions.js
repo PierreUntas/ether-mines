@@ -35,7 +35,7 @@ const REFUS = {
   protégé: () => 'zone protégée',
   'coffre vide': () => 'plus rien de cet objet',
   support: () => 'il faut un support',
-  'case occupée': () => null,
+  'case occupée': () => 'la case est occupée',
   'trop vite': () => null,
   'rien à miner': () => null,
   'trop loin': () => 'hors de portée de main',
@@ -409,13 +409,14 @@ function place() {
     ouvrirMalle(target);
     return;
   }
-  if (tb && tb.shape === 'door' && inWorld(target.x, target.z)) {
+  // accroupi : on pose contre une porte ou un levier au lieu de l'actionner
+  if (tb && tb.shape === 'door' && !accroupi && inWorld(target.x, target.z)) {
     const t = target,
       rec = record(() => toggleDoor(t));
     if (SERVER()) serverAct('toggle', { px: t.x, py: t.y, pz: t.z }, rec);
     return;
   }
-  if (tb && tb.shape === 'lever' && inWorld(target.x, target.z)) {
+  if (tb && tb.shape === 'lever' && !accroupi && inWorld(target.x, target.z)) {
     const t = target,
       rec = record(() => commit(tk, tb.on ? 64 : 65, OWN.get(tk) || null));
     Sound.click();
@@ -427,6 +428,12 @@ function place() {
   if (!target.prev) return;
   const it = S.bar[S.sel];
   if (!it || !B[it] || !(S.inv[it] > 0)) return;
+  const refus = m => {
+    if (hintT > 0) return;
+    hintT = 2;
+    logEv('burn', `Impossible de poser ${B[it].n.toLowerCase()}`, m);
+    Sound.hit('pierre');
+  };
   let id = +it;
   const face = ((Math.round(yaw / (Math.PI / 2)) % 4) + 4) % 4;
   if (B[id].shape === 'stairs' || B[id].shape === 'ladder' || B[id].gate) id = id + face;
@@ -435,15 +442,19 @@ function place() {
   if (!inWorld(x, z)) return;
   const cur = get(x, y, z);
   if (cur && cur !== 11 && !isCross(cur)) return;
-  if (isSolid(id) && x + 1 > P.x - PW && x < P.x + PW && y + 1 > P.y && y < P.y + PH && z + 1 > P.z - PW && z < P.z + PW) return;
-  if (isCross(id) && ![1, 2].includes(get(x, y - 1, z))) return;
   const sh = B[id].shape;
-  if ((sh === 'plate' || sh === 'cable' || sh === 'lever') && !isSolid(get(x, y - 1, z))) return;
   if (sh === 'door') {
     const up = get(x, y + 1, z);
-    if (y + 1 >= SY || (up && up !== 11 && !isCross(up))) return;
+    if (y + 1 >= SY || (up && up !== 11 && !isCross(up))) return refus('il faut deux cases libres l’une au-dessus de l’autre');
     id = 48 + face * 4;
-  }
+    // une porte n'est qu'un panneau sur un côté de la case : on ne refuse que si ce panneau touche le joueur
+    const [a, , c, d, , f] = DOORB[B[id].f];
+    if (x + d > P.x - PW && x + a < P.x + PW && y + 2 > P.y && y < P.y + PH && z + f > P.z - PW && z + c < P.z + PW)
+      return refus('tu es dans le passage : recule d’un pas');
+  } else if (isSolid(id) && x + 1 > P.x - PW && x < P.x + PW && y + 1 > P.y && y < P.y + PH && z + 1 > P.z - PW && z < P.z + PW)
+    return refus('tu es sur cette case : recule d’un pas');
+  if (isCross(id) && ![1, 2].includes(get(x, y - 1, z))) return refus('les plantes se posent sur l’herbe ou la terre');
+  if ((sh === 'plate' || sh === 'cable' || sh === 'lever') && !isSolid(get(x, y - 1, z))) return refus('il faut un bloc plein dessous');
   if (SERVER() && !canBuildHere(x, z)) {
     protectHint(x, z);
     return;
