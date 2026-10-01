@@ -680,6 +680,10 @@ if (location.hash === '#debug')
     genChunk,
     loadChunks,
     rebuildAt,
+    forcePower() {
+      powT = 0;
+      computePower(0);
+    },
     POWERED,
     ouvrirMalle,
     deplacerMalle,
