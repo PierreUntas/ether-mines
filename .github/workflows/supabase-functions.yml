@@ -6,7 +6,7 @@ name: Fonctions Supabase
 on:
   push:
     branches: [main]
-    paths: ['supabase/functions/**']
+    paths: ['supabase/functions/**', '.github/workflows/supabase-functions.yml']
   workflow_dispatch:
 jobs:
   deployer:
