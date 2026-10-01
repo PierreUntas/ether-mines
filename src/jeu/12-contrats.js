@@ -4,7 +4,7 @@
 // ---------- contrats en blocs : leviers, plaques, câbles, lampes, portes ----------
 // Rien n'est enregistré : chaque client recalcule le courant à partir des blocs et de la position des joueurs.
 const SPEC = new Map(),
-  isSpecial = id => id >= 48 && id <= 68;
+  isSpecial = id => (id >= 48 && id <= 68) || (id >= 99 && id <= 111); // contrats : portes, leviers, plaques, câbles, lampes, portes logiques, horloge
 // ---------- lumières : lanternes, éther pur, lampes ----------
 // Index des sources par tronçon ; les plus proches du joueur reçoivent une vraie lumière (voir lumieres()).
 const LUM = new Map(),
@@ -74,9 +74,9 @@ function indexChunk(cx, cz) {
     l = new Set();
   for (let i = 0; i < CV; i++) {
     const v = arr[i];
-    if ((v >= 48 && v <= 68) || isLum(v)) {
+    if (isSpecial(v) || isLum(v)) {
       const k = coordKey(cx * CH + (i % CH), Math.floor(i / (CH * CH)), cz * CH + (Math.floor(i / CH) % CH));
-      if (v >= 48 && v <= 68) s.add(k);
+      if (isSpecial(v)) s.add(k);
       if (isLum(v)) l.add(k);
     }
   }
@@ -92,6 +92,75 @@ const N6 = [
   [0, 0, -1],
 ];
 let powT = 0;
+// ---------- portes logiques ----------
+// La sortie est devant (direction du regard à la pose) ; les entrées : côtés gauche et droit, et l'arrière.
+const GATE_ON = new Set(),
+  DEVANT = [
+    [0, 0, -1],
+    [-1, 0, 0],
+    [0, 0, 1],
+    [1, 0, 0],
+  ];
+// une case voisine alimente-t-elle la porte en k ? (câble, levier, plaque ou horloge sous tension, ou porte tournée vers elle)
+function entree(k, d, nodes, pw) {
+  const [x, y, z] = k.split(',').map(Number),
+    nk = coordKey(x + d[0], y, z + d[2]),
+    nid = nodes.get(nk);
+  if (nid === undefined) return false;
+  if (B[nid]?.gate) {
+    const f = DEVANT[B[nid].o];
+    return GATE_ON.has(nk) && f[0] === -d[0] && f[2] === -d[2];
+  }
+  return pw.has(nk) && (nid === 67 || nid === 65 || nid === 66 || nid === 111);
+}
+function porteActive(k, id, nodes, pw) {
+  const f = DEVANT[B[id].o],
+    arriere = [-f[0], 0, -f[2]],
+    gauche = [f[2], 0, -f[0]],
+    droite = [-f[2], 0, f[0]];
+  const g = B[id].gate;
+  if (g === 'et') return entree(k, gauche, nodes, pw) && entree(k, droite, nodes, pw);
+  if (g === 'ou') return entree(k, gauche, nodes, pw) || entree(k, droite, nodes, pw) || entree(k, arriere, nodes, pw);
+  return !entree(k, arriere, nodes, pw); // non
+}
+// Propage le courant depuis les sources (leviers, plaques pressées, horloges, portes logiques actives) à travers les câbles.
+function propager(nodes, feet, horloge) {
+  const pw = new Set(),
+    q = [];
+  const alimenter = (x, y, z) => {
+    const nk = coordKey(x, y, z);
+    if (pw.has(nk)) return;
+    const nid = nodes.get(nk);
+    if (nid === undefined) return;
+    if (nid === 67) {
+      pw.add(nk);
+      q.push(nk);
+    } else if (nid === 68) pw.add(nk);
+    else if (nid >= 48 && nid <= 63) {
+      pw.add(nk);
+      pw.add(coordKey(x, y + (B[nid].top ? -1 : 1), z));
+    }
+  };
+  for (const [k, id] of nodes) {
+    const [x, y, z] = k.split(',').map(Number);
+    let src = id === 65 || (id === 111 && horloge);
+    if (id === 66) src = feet.some(([a, b, c]) => Math.floor(a) === x && Math.floor(c) === z && b >= y - 0.2 && b < y + 0.7);
+    if (src) {
+      pw.add(k);
+      q.push(k);
+    } else if (B[id]?.gate && GATE_ON.has(k)) {
+      pw.add(k); // allumée (texture)
+      const f = DEVANT[B[id].o];
+      alimenter(x + f[0], y, z + f[2]);
+    }
+  }
+  for (let n = 0; q.length && n < 5000; n++) {
+    const k = q.shift(),
+      [x, y, z] = k.split(',').map(Number);
+    for (const [a, b, c] of N6) alimenter(x + a, y + b, z + c);
+  }
+  return pw;
+}
 function computePower(dt) {
   powT -= dt;
   if (powT > 0) return;
@@ -110,38 +179,19 @@ function computePower(dt) {
     }
   const feet = [[P.x, P.y, P.z]];
   for (const o of others.values()) if (o.t) feet.push([o.g.position.x, o.g.position.y, o.g.position.z]);
-  const pw = new Set(),
-    q = [];
-  for (const [k, id] of nodes) {
-    let src = id === 65;
-    if (id === 66) {
-      const [x, y, z] = k.split(',').map(Number);
-      src = feet.some(([a, b, c]) => Math.floor(a) === x && Math.floor(c) === z && b >= y - 0.2 && b < y + 0.7);
-    }
-    if (src) {
-      pw.add(k);
-      q.push(k);
-    }
-  }
-  for (let n = 0; q.length && n < 5000; n++) {
-    const k = q.shift(),
-      [x, y, z] = k.split(',').map(Number),
-      fromCable = nodes.get(k) === 67 || nodes.get(k) === 65 || nodes.get(k) === 66;
-    if (!fromCable) continue;
-    for (const [a, b, c] of N6) {
-      const nk = coordKey(x + a, y + b, z + c);
-      if (pw.has(nk)) continue;
-      const nid = nodes.get(nk);
-      if (nid === undefined) continue;
-      if (nid === 67) {
-        pw.add(nk);
-        q.push(nk);
-      } else if (nid === 68) pw.add(nk);
-      else if (nid >= 48 && nid <= 63) {
-        pw.add(nk);
-        pw.add(coordKey(x + a, y + b + (B[nid].top ? -1 : 1), z + c));
-      }
-    }
+  const horloge = Math.floor(performance.now() / 1000) % 2 === 0;
+  // Les portes logiques dépendent du courant, qui dépend d'elles : on recalcule jusqu'à stabilité (3 passes au plus ;
+  // une boucle qui oscille, comme une porte NON reliée à elle-même, bat alors d'elle-même).
+  let pw = propager(nodes, feet, horloge);
+  for (let pass = 0; pass < 3; pass++) {
+    const on = new Set();
+    for (const [k, id] of nodes) if (B[id]?.gate && porteActive(k, id, nodes, pw)) on.add(k);
+    let pareil = on.size === [...GATE_ON].filter(k => nodes.has(k)).length;
+    if (pareil) for (const k of on) if (!GATE_ON.has(k)) pareil = false;
+    for (const k of [...GATE_ON]) if (nodes.has(k)) GATE_ON.delete(k);
+    for (const k of on) GATE_ON.add(k);
+    if (pareil) break;
+    pw = propager(nodes, feet, horloge);
   }
   const changed = [];
   for (const k of pw) if (!POWERED.has(k)) changed.push(k);

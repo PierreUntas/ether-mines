@@ -294,7 +294,7 @@
             continue;
           }
           const G = b.glass ? A.gl : A.op,
-            lit = id === 68 && pw(coordKey(x, y, z));
+            lit = (id === 68 || b.tOn) && pw(coordKey(x, y, z)); // lampe allumée, porte logique active
           for (const f of FACES) {
             const nx = x + f.n[0],
               ny = y + f.n[1],
@@ -303,7 +303,7 @@
             if (ny < 0) continue;
             if (isOpaque(nb)) continue;
             if (nb === id && (b.leaf || b.glass)) continue;
-            const [u0, u1, v0, v1] = uvRect(lit ? 46 : b.t[f.s]);
+            const [u0, u1, v0, v1] = uvRect(lit ? (b.tOn ? b.tOn[f.s] : 46) : b.t[f.s]);
             const u = (f.a + 1) % 3,
               w = (f.a + 2) % 3,
               ao = [],

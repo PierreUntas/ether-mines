@@ -86,6 +86,17 @@ const malle = await page.evaluate(async () => {
 if (malle.dedans !== 3 || malle.sac !== 2 || !malle.onglet) await fail('malle : ' + JSON.stringify(malle));
 await page.screenshot({ path: process.env.CAPTURE_MALLE || '/dev/null' }).catch(() => {});
 await page.evaluate(() => document.getElementById('closeP').click());
+// portes logiques : un ET entre deux leviers allume une lampe seulement quand les deux sont levés
+const circuit = async (levier2) =>
+  page.evaluate(async (l2) => {
+    const Y = 47, y = Y + 1, c = (x, yy, z, id) => mines.commit(x + ',' + yy + ',' + z, id, null);
+    for (let x = 16; x <= 22; x++) for (let z = 2; z <= 6; z++) c(x, Y, z, 80);
+    c(16, y, 5, 65); c(17, y, 5, 67); c(18, y, 5, 99); c(19, y, 5, 67); c(20, y, 5, l2); c(18, y, 4, 67); c(18, y, 3, 68);
+    await new Promise(r => setTimeout(r, 2500));
+    return mines.POWERED.has('18,' + y + ',3');
+  }, levier2);
+const [eteinte, allumee] = [await circuit(64), await circuit(65)];
+if (eteinte || !allumee) await fail(`porte ET : lampe ${eteinte} avec un levier, ${allumee} avec deux`);
 const m = await page.evaluate(() => ({ actif: mines.mailleur, n: mines.nbMaillages }));
 if (!m.actif) await fail('le maillage en arrière-plan ne s\'est pas lancé');
 if (m.n < 20) await fail('trop peu de tronçons affichés : ' + m.n);

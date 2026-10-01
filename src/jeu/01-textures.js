@@ -835,6 +835,96 @@ function malleTile(P, face) {
 }
 tile(75, P => malleTile(P, false));
 tile(76, P => malleTile(P, true));
+// ---------- portes logiques et horloge ----------
+// Dessus : le nom de la porte et une flèche vers la sortie (dessinée vers le bas, puis tournée selon l'orientation).
+// Sur la face du dessus, x de la tuile = x du monde, et le haut de la tuile = +z.
+const LETTRES = {
+  E: ['111', '100', '110', '100', '111'],
+  T: ['111', '010', '010', '010', '010'],
+  O: ['111', '101', '101', '101', '111'],
+  U: ['101', '101', '101', '101', '111'],
+  N: ['101', '111', '111', '101', '101'],
+};
+function socle(P, E, on) {
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const bord = x === 0 || y === 0 || x === 15 || y === 15;
+      P(x, y, bord ? '#3a2f5c' : hash(x, y, 80) < 0.12 ? '#4b4078' : '#433870');
+    }
+}
+function porteTile(P, E, mot, o, on) {
+  socle(P, E, on);
+  const lum = on ? '#7fe8ff' : '#b8b0e6',
+    pt = (x, y, c) => {
+      P(x, y, c);
+      if (on) E(x, y, c);
+    };
+  // flèche vers le bas (o = 0 : sortie vers -z, en bas de la tuile), tournée pour les autres orientations
+  const rot = (x, y) => (o === 0 ? [x, y] : o === 1 ? [15 - y, x] : o === 2 ? [15 - x, 15 - y] : [y, 15 - x]);
+  for (const [x, y] of [
+    [6, 13],
+    [7, 13],
+    [8, 13],
+    [9, 13],
+    [7, 14],
+    [8, 14],
+  ]) {
+    const [rx, ry] = rot(x, y);
+    pt(rx, ry, on ? '#ffd95e' : '#9a8cf5');
+  }
+  // le mot, au centre, lisible depuis l'arrière de la porte (là où l'on se tient pour la poser).
+  // Sur le dessus, la ligne 0 de la tuile est du côté +z : on retourne le texte, puis on le tourne comme la flèche.
+  const w = mot.length * 4 - 1;
+  [...mot].forEach((l, i) =>
+    LETTRES[l].forEach((ligne, dy) =>
+      [...ligne].forEach((b, dx) => {
+        if (b !== '1') return;
+        const [rx, ry] = rot(Math.floor((16 - w) / 2) + i * 4 + dx, 15 - (6 + dy));
+        pt(rx, ry, lum);
+      }),
+    ),
+  );
+}
+['ET', 'OU', 'NON'].forEach((mot, gi) => {
+  for (let o = 0; o < 4; o++) for (const on of [0, 1]) tile(80 + gi * 8 + o * 2 + on, (P, E) => porteTile(P, E, mot, o, !!on));
+});
+// côtés : une veine d'éther, allumée quand la porte est active
+for (const on of [0, 1])
+  tile(104 + on, (P, E) => {
+    socle(P, E, on);
+    for (let x = 1; x < 15; x++) {
+      P(x, 8, on ? '#7fe8ff' : '#6a58e0');
+      if (on) E(x, 8, '#7fe8ff');
+    }
+  });
+// horloge : un cadran et une aiguille
+for (const on of [0, 1])
+  tile(106 + on, (P, E) => {
+    socle(P, E, on);
+    for (let y = 0; y < 16; y++)
+      for (let x = 0; x < 16; x++) {
+        const d = Math.hypot(x - 7.5, y - 7.5);
+        if (d > 4.6 && d < 5.8) {
+          P(x, y, on ? '#ffd95e' : '#9a8cf5');
+          if (on) E(x, y, '#ffd95e');
+        }
+      }
+    for (const [x, y] of on
+      ? [
+          [8, 7],
+          [9, 6],
+          [10, 5],
+        ]
+      : [
+          [7, 7],
+          [7, 6],
+          [7, 5],
+          [7, 4],
+        ]) {
+      P(x, y, '#ffffff');
+      if (on) E(x, y, '#ffffff');
+    }
+  });
 const atlasTex = new THREE.CanvasTexture(atlas),
   emisTex = new THREE.CanvasTexture(emis);
 for (const t of [atlasTex, emisTex]) {

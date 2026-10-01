@@ -680,6 +680,7 @@ if (location.hash === '#debug')
     genChunk,
     loadChunks,
     rebuildAt,
+    POWERED,
     ouvrirMalle,
     deplacerMalle,
     keys,
