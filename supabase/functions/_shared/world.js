@@ -47,7 +47,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP : sous cette couche, géodes et grandes grottes
-  const GEN = 3; // version du générateur (2 : champignons, roseaux, nénuphars, rochers moussus ; 3 : palmiers, améthystes) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
+  const GEN = 4; // version du générateur (2 : champignons, roseaux… ; 3 : palmiers, améthystes ; 4 : atrium, temples, jardins, cyprès) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -97,6 +97,26 @@
       sea = DY + 5 + vn2(x / 9, z / 9, 11) * 5;
     return Math.floor(lerp(DY + 20, lerp(land, sea, oc), flat));
   }
+  // jardin d'une région de 64 × 64 (ou null) : sur un sol d'herbe assez plat, loin du sanctuaire et des ruines
+  function jardinAt(gx, gz) {
+    if (hash(gx * 3 + 1, gz * 5 + 2, 155) > 0.45) return null;
+    const x = gx * 64 + 12 + Math.floor(hash(gx, gz, 156) * 40),
+      z = gz * 64 + 12 + Math.floor(hash(gx, gz, 157) * 40),
+      y = heightAt(x, z);
+    if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 40 || y <= SEA + 1 || y >= DY + 31 || biome(x, z) === 'dunes') return null;
+    for (const [dx, dz] of [
+      [-4, -4],
+      [4, -4],
+      [-4, 4],
+      [4, 4],
+      [0, 0],
+    ])
+      if (Math.abs(heightAt(x + dx, z + dz) - y) > 2) return null;
+    const rg = ruinAt(Math.floor(x / RUIN), Math.floor(z / RUIN));
+    if (rg && Math.hypot(rg.x - x, rg.z - z) < 14) return null;
+    if (islandZone(x, z)) return null;
+    return { x, z, y };
+  }
   // îles flottantes : nuages de roche entre DY+31 et DY+45, loin du sanctuaire, jamais au-dessus des montagnes
   const islandZone = (x, z) =>
     vn2(x / 90 + 7, z / 90 - 3, 14) > 0.56 && Math.hypot(x - SPAWN.x, z - SPAWN.z) > 36 && heightAt(x, z) < DY + 29 && contAt(x, z) > 0.42;
@@ -118,8 +138,8 @@
   SPAWN.y = heightAt(SPAWN.x, SPAWN.z) + 1;
   function genChunk(cx, cz) {
     // palmier de tronc en (x, z) posé sur le sol h ; ses palmes tiennent dans la marge de 3 colonnes du décor
-    const palmier = (x, h, z) => {
-      const th = 5 + Math.floor(hash(x, z, 141) * 3);
+    const palmier = (x, h, z, hauteur) => {
+      const th = hauteur || 5 + Math.floor(hash(x, z, 141) * 3);
       for (let k = 1; k <= th; k++) put(x, h + k, z, 124);
       const t = h + th;
       put(x, t + 1, z, 125, true);
@@ -211,7 +231,7 @@
       for (let x = x0 - 3; x < x0 + CH + 3; x++) {
         const h = heightAt(x, z),
           bi = biome(x, z);
-        if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 8) continue;
+        if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 16) continue; // esplanade dégagée autour de l'Atrium
         // palmiers sur les plages et dans les dunes
         if (topAt(h, bi) === 4 && h > SEA && h < DY + 31 && hash(x, z, 140) < (bi === 'dunes' ? 0.006 : 0.014)) {
           palmier(x, h, z);
@@ -224,9 +244,27 @@
           for (let k = 1; k <= t; k++) put(x, h + k, z, 8);
           continue;
         }
+        if (bi !== 'foret' && r < 0.01 && hash(x, z, 150) < 0.55) {
+          // cyprès : fin et haut, comme dans le jardin d'Éther
+          const th = 5 + Math.floor(hash(x, z, 151) * 3);
+          put(x, h + 1, z, 5);
+          put(x, h + 2, z, 5);
+          for (let k = 3; k <= th + 2; k++) {
+            put(x, h + k, z, 6, true);
+            if (k > 3 && k < th + 1)
+              for (const [dx, dz] of [
+                [1, 0],
+                [-1, 0],
+                [0, 1],
+                [0, -1],
+              ])
+                put(x + dx, h + k, z + dz, 6, true);
+          }
+          continue;
+        }
         if (r < (bi === 'foret' ? 0.028 : 0.01)) {
           const th = 4 + Math.floor(hash(x, z, 42) * 3),
-            leaf = bi === 'foret' ? 7 : 6;
+            leaf = bi === 'foret' && hash(x, z, 44) < 0.65 ? 7 : 6; // forêts roses mêlées d'arbres bleu lavande
           for (let k = 1; k <= th; k++) put(x, h + k, z, 5);
           for (let dy = -2; dy <= 2; dy++)
             for (let dx = -2; dx <= 2; dx++)
@@ -283,7 +321,7 @@
         for (let dx = -2; dx <= 2; dx++)
           for (let dz = -2; dz <= 2; dz++) {
             const hh = hash(rx0 + dx, rz0 + dz, 121);
-            put(rx0 + dx, ry, rz0 + dz, hh < 0.2 ? 3 : 15);
+            put(rx0 + dx, ry, rz0 + dz, hh < 0.15 ? 78 : (dx + dz) % 2 ? 15 : 81); // dallage usé
             for (let k = 1; k <= 6; k++) put(rx0 + dx, ry + k, rz0 + dz, 0);
             put(rx0 + dx, ry - 1, rz0 + dz, 3);
           }
@@ -294,47 +332,91 @@
           [2, 2],
         ]) {
           const hp = 1 + Math.floor(hash(rx0 + dx, rz0 + dz, 122) * 3);
-          for (let k = 1; k <= hp; k++) put(rx0 + dx, ry + k, rz0 + dz, hash(rx0 + dx, k, 123) < 0.25 ? 3 : 15);
+          for (let k = 1; k <= hp; k++) put(rx0 + dx, ry + k, rz0 + dz, hash(rx0 + dx, k, 123) < 0.2 ? 78 : 127); // colonnes brisées
           if (hp === 3) put(rx0 + dx, ry + 4, rz0 + dz, 14);
         }
         put(rx0, ry + 1, rz0, 73);
+      }
+    // jardins d'Éther : terrasse de marbre, fontaine et colonne à lanterne, cyprès aux coins (un par région de 64 × 64 au plus)
+    for (let gz = Math.floor((z0 - 6) / 64); gz <= Math.floor((z0 + CH + 6) / 64); gz++)
+      for (let gx = Math.floor((x0 - 6) / 64); gx <= Math.floor((x0 + CH + 6) / 64); gx++) {
+        const j = jardinAt(gx, gz);
+        if (!j) continue;
+        const { x: jx, z: jz, y: jy } = j;
+        for (let dx = -4; dx <= 4; dx++)
+          for (let dz = -4; dz <= 4; dz++) {
+            const bord = Math.abs(dx) === 4 || Math.abs(dz) === 4;
+            for (let k = 1; k <= 7; k++) put(jx + dx, jy + k, jz + dz, 0);
+            for (let k = 1; k <= 3; k++) put(jx + dx, jy - k, jz + dz, 3);
+            put(jx + dx, jy, jz + dz, bord ? 1 : Math.max(Math.abs(dx), Math.abs(dz)) === 1 ? 11 : (dx + dz) % 2 ? 15 : 80);
+            if (bord && (dx + dz) % 2 === 0 && !(Math.abs(dx) === 4 && Math.abs(dz) === 4)) put(jx + dx, jy + 1, jz + dz, 7); // haie rose
+            if (bord && (dx + dz) % 2 && hash(jx + dx, jz + dz, 160) < 0.7)
+              put(jx + dx, jy + 1, jz + dz, 17 + Math.floor(hash(jx + dx, jz + dz, 161) * 3));
+          }
+        for (let k = 1; k <= 3; k++) put(jx, jy + k, jz, 127);
+        put(jx, jy + 4, jz, 84);
+        for (const [dx, dz] of [
+          [-4, -4],
+          [4, -4],
+          [-4, 4],
+          [4, 4],
+        ]) {
+          put(jx + dx, jy + 1, jz + dz, 5);
+          for (let k = 2; k <= 6; k++) put(jx + dx, jy + k, jz + dz, 6);
+        }
       }
     // le sanctuaire du validateur, au point d'apparition
     const sx = SPAWN.x,
       sz = SPAWN.z,
       sy = SPAWN.y - 1;
-    // quatre palmiers aux coins de la zone protégée du sanctuaire
-    if (x0 <= sx + 7 && x0 + CH > sx - 7 && z0 <= sz + 7 && z0 + CH > sz - 7)
-      for (const [dx, dz] of [
-        [-4, -4],
-        [4, -4],
-        [-4, 4],
-        [4, 4],
-      ])
-        palmier(sx + dx, heightAt(sx + dx, sz + dz), sz + dz);
-    if (x0 <= sx + 3 && x0 + CH > sx - 3 && z0 <= sz + 3 && z0 + CH > sz - 3) {
-      for (let dx = -3; dx <= 3; dx++)
-        for (let dz = -3; dz <= 3; dz++) {
-          put(sx + dx, sy, sz + dz, 15);
-          for (let k = 1; k < 7; k++) put(sx + dx, sy + k, sz + dz, 0);
+    // l'Atrium : sol de marbre, fontaine, colonnes, dôme ajouré de néons, palmiers en jardinières.
+    // Tout tient dans le tronçon du sanctuaire (x et z de 1 à 15).
+    if (x0 <= sx + 8 && x0 + CH > sx - 8 && z0 <= sz + 8 && z0 + CH > sz - 8) {
+      for (let dx = -7; dx <= 7; dx++)
+        for (let dz = -7; dz <= 7; dz++) {
+          const d = Math.hypot(dx, dz);
+          if (d > 7.5) continue;
+          const x = sx + dx,
+            z = sz + dz;
+          for (let k = 1; k <= 12; k++) put(x, sy + k, z, 0);
+          for (let k = 1; k <= 3; k++) if (!at(x, sy - k, z) || at(x, sy - k, z) === 11) put(x, sy - k, z, 3); // fondations
+          put(x, sy, z, d > 5.5 ? 81 : (Math.abs(dx) + Math.abs(dz)) % 2 ? 15 : 80);
+          if (d >= 2.9 && d <= 3.7 && dx && dz) put(x, sy, z, 11); // bassin, coupé par quatre allées
         }
+      // colonnes et anneau du toit
+      for (let k = 0; k < 8; k++) {
+        const an = (k / 8) * Math.PI * 2,
+          x = sx + Math.round(Math.cos(an) * 6),
+          z = sz + Math.round(Math.sin(an) * 6);
+        for (let h = 1; h <= 5; h++) put(x, sy + h, z, 127);
+        if (k % 2) put(x, sy + 6, z, 84); // lanterne rose au sommet
+      }
+      for (let dx = -7; dx <= 7; dx++)
+        for (let dz = -7; dz <= 7; dz++) {
+          const d = Math.hypot(dx, dz);
+          if (d >= 5.6 && d <= 6.6) put(sx + dx, sy + 6, sz + dz, at(sx + dx, sy + 6, sz + dz) === 84 ? 84 : 34);
+        }
+      // dôme : quatre arcs de marbre blanc qui se croisent au-dessus du validateur, un bloc diamant au sommet
+      for (let t = -6; t <= 6; t++) {
+        const hy = sy + 6 + Math.round(Math.sqrt(Math.max(0, 36 - t * t)) * 0.55);
+        put(sx + t, hy, sz, 15);
+        put(sx, hy, sz + t, 15);
+        const dd = Math.round(t * 0.7071);
+        put(sx + dd, hy, sz + dd, 15);
+        put(sx + dd, hy, sz - dd, 15);
+      }
+      put(sx, sy + 10, sz, 130);
+      // palmiers en jardinières
       for (const [dx, dz] of [
-        [-3, -3],
-        [3, -3],
-        [-3, 3],
-        [3, 3],
-      ])
-        for (let k = 1; k <= 4; k++) put(sx + dx, sy + k, sz + dz, 15);
-      for (let dx = -3; dx <= 3; dx++)
-        for (let dz = -3; dz <= 3; dz++) if (Math.abs(dx) === 3 || Math.abs(dz) === 3) put(sx + dx, sy + 5, sz + dz, 15);
+        [-4, -2],
+        [4, -2],
+        [-4, 2],
+        [4, 2],
+      ]) {
+        put(sx + dx, sy, sz + dz, 1);
+        palmier(sx + dx, sy, sz + dz, 5);
+      }
       put(sx, sy + 1, sz, 13);
-      for (const [dx, dz] of [
-        [-2, -2],
-        [2, -2],
-        [-2, 2],
-        [2, 2],
-      ])
-        put(sx + dx, sy + 4, sz + dz, 14);
     }
     return a;
   }
@@ -399,6 +481,7 @@
     li,
     inWorld,
     ruinAt,
+    jardinAt,
     contAt,
     heightAt,
     islandZone,

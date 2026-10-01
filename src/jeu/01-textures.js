@@ -46,27 +46,27 @@ function noise(P, i, base, list) {
     }
 }
 const GR = [
-  '#9fe3c4',
+  '#a6ecd8',
   [
-    ['#b6efd6', 0.2],
-    ['#86d4b1', 0.2],
-    ['#cdf7e3', 0.05],
+    ['#bff5e6', 0.2],
+    ['#8edcca', 0.2],
+    ['#d6fbf1', 0.05],
   ],
 ];
 const DI = [
-  '#c9a9dc',
+  '#c3b6ee',
   [
-    ['#b793cc', 0.25],
-    ['#dbc1ea', 0.15],
-    ['#a784bd', 0.06],
+    ['#b0a2e3', 0.25],
+    ['#d6ccf6', 0.15],
+    ['#9d8fd6', 0.06],
   ],
 ];
 const ST = [
-  '#a9adcf',
+  '#aab6e6',
   [
-    ['#9699bf', 0.25],
-    ['#bcc0de', 0.2],
-    ['#8a8db3', 0.06],
+    ['#97a3d8', 0.25],
+    ['#bfc9f0', 0.2],
+    ['#8a95cc', 0.06],
   ],
 ];
 tile(0, (P, E, i) => noise(P, i, ...GR));
@@ -75,8 +75,8 @@ tile(1, (P, E, i) => {
   noise(P, 2, ...DI);
   for (let x = 0; x < 16; x++) {
     const d = 3 + (hash(x, 1, 9) < 0.45 ? 1 : 0) + (hash(x, 2, 9) < 0.15 ? 1 : 0);
-    for (let y = 0; y < d; y++) P(x, y, hash(x, y, 3) < 0.25 ? '#b6efd6' : '#9fe3c4');
-    P(x, d, '#86d4b1');
+    for (let y = 0; y < d; y++) P(x, y, hash(x, y, 3) < 0.25 ? '#bff5e6' : '#a6ecd8');
+    P(x, d, '#8edcca');
   }
 });
 tile(3, (P, E, i) => noise(P, i, ...ST));
@@ -102,9 +102,9 @@ tile(6, (P, E, i) => {
     }
 });
 tile(7, (P, E, i) => {
-  noise(P, i, '#8fdcb0', [
-    ['#a8e8c4', 0.22],
-    ['#74c99a', 0.22],
+  noise(P, i, '#8fd0e6', [
+    ['#b0e4f2', 0.22],
+    ['#a99cf0', 0.22],
     [null, 0.1],
   ]);
 });
@@ -1049,6 +1049,36 @@ tile(116, (P, E) => {
       }
   }),
 );
+// ---------- trait d'encre ----------
+// Les illustrations d'ethereum.org sont dessinées au trait bleu marine : chaque tuile pleine (sans transparence)
+// reçoit un contour, mêlé à la couleur d'origine pour rester doux. Les tuiles ajourées (feuilles, verre, plantes) n'en ont pas.
+{
+  const SANS = new Set([11, 39, 40, 43, 44, 22, 19, 20, 21, 24, 25, 26, 61, 62, 63, 73, 74, 111, 115, 116]);
+  const ENCRE = [58, 52, 128],
+    NATUREL = new Set([0, 1, 2, 3, 4, 9, 12, 17, 18, 47, 60, 64]); // terrain : trait plus léger, sinon le sol ressemble à un carrelage
+  for (let t = 0; t < AN * AN; t++) {
+    if (SANS.has(t)) continue;
+    const ox = (t % AN) * AT,
+      oy = Math.floor(t / AN) * AT,
+      img = ag.getImageData(ox, oy, AT, AT),
+      d = img.data;
+    let plein = true,
+      vide = true;
+    for (let i = 3; i < d.length; i += 4) {
+      if (d[i] < 255) plein = false;
+      if (d[i] > 0) vide = false;
+    }
+    if (!plein || vide) continue;
+    for (let y = 0; y < AT; y++)
+      for (let x = 0; x < AT; x++) {
+        if (x && y && x < AT - 1 && y < AT - 1) continue;
+        const i = (y * AT + x) * 4;
+        const k = NATUREL.has(t) ? 0.2 : 0.42;
+        for (let c = 0; c < 3; c++) d[i + c] = Math.round(d[i + c] * (1 - k) + ENCRE[c] * k);
+      }
+    ag.putImageData(img, ox, oy);
+  }
+}
 const atlasTex = new THREE.CanvasTexture(atlas),
   emisTex = new THREE.CanvasTexture(emis);
 for (const t of [atlasTex, emisTex]) {
@@ -1063,7 +1093,7 @@ waterC.width = waterC.height = 32;
   for (let y = 0; y < 32; y++)
     for (let x = 0; x < 32; x++) {
       const r = hash(x, y, 77);
-      w.fillStyle = r < 0.18 ? '#a9dcf7' : r < 0.3 ? '#6fb6e8' : '#86c7ee';
+      w.fillStyle = r < 0.18 ? '#b8f0f6' : r < 0.3 ? '#7fcbe8' : '#93dcef';
       w.fillRect(x, y, 1, 1);
     }
   for (let k = 0; k < 10; k++) {

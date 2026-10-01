@@ -5,14 +5,14 @@
 // [heure, ciel en haut, horizon, couleur du soleil, intensité du soleil, lumière ambiante, brouillard]
 // Le soleil et l'ambiance additionnés restent proches de 1 en plein jour : les blocs clairs ne saturent plus en blanc.
 const KF = [
-  [0, '#0f1030', '#2a2458', '#000000', 0.0, 0.2, '#1d1a40'],
-  [0.22, '#3a3f8f', '#ff9fb8', '#ff9a7a', 0.15, 0.36, '#6a5a9e'],
-  [0.28, '#8fa8ff', '#ffd6e8', '#ffcfa6', 0.6, 0.42, '#e8d6f2'],
-  [0.5, '#86aaff', '#e6e6ff', '#fff4e0', 0.68, 0.46, '#e6e2ff'],
-  [0.72, '#8fa0f0', '#f3dcff', '#ffd6b0', 0.62, 0.5, '#eadcf6'],
-  [0.78, '#6a5fc8', '#ffa98a', '#ff8a6a', 0.4, 0.48, '#c59ab8'],
-  [0.85, '#1a1a48', '#3a2f70', '#000000', 0, 0.2, '#26214e'],
-  [1, '#0f1030', '#2a2458', '#000000', 0, 0.2, '#1d1a40'],
+  [0, '#141048', '#2e2870', '#000000', 0.0, 0.2, '#231d55'],
+  [0.22, '#3a3f8f', '#ffa0a8', '#ff9a6a', 0.15, 0.36, '#7a62a8'],
+  [0.28, '#9cc4ff', '#ffd9ec', '#ffcfa6', 0.6, 0.42, '#eadcf6'],
+  [0.5, '#8fbaff', '#f2e6ff', '#fff4e0', 0.68, 0.46, '#e8e4ff'],
+  [0.72, '#93a8f4', '#ffd6ec', '#ffd6b0', 0.62, 0.5, '#f2dcf2'],
+  [0.78, '#5f56c0', '#ffa45e', '#ff8a4c', 0.4, 0.48, '#d79a8c'],
+  [0.85, '#1c1a52', '#4a3a7a', '#000000', 0, 0.2, '#2a2160'],
+  [1, '#141048', '#2e2870', '#000000', 0, 0.2, '#231d55'],
 ];
 const cA = new THREE.Color(),
   cB = new THREE.Color();
