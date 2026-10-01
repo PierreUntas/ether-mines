@@ -44,6 +44,12 @@ Les joueurs ne peuvent rien écrire directement : ni blocs, ni terrain, ni coffr
 | `act_rewards` | validateurs signés par le joueur, temps écoulé (30 minutes rattrapées au plus) |
 | `act_claim`, `act_unclaim`, `act_member` | parcelles : coût, limite, propriétaire |
 
+En plus, toutes les actions passent un contrôle commun (`supabase/migrations/002_securite.sql`) :
+
+- **Rythme** : chaque joueur a une réserve de jetons par type d'action (miner et poser : 8 par seconde, portes 4, fabrication 4, parcelles et invitations 1 toutes les 2 s, codes de sauvegarde 1 toutes les 5 s). Au-delà : « trop d'actions ».
+- **Position et portée** : miner, poser, ouvrir, rallumer et revendiquer envoient la position du joueur. Le bloc visé doit être à portée de main (6,5 blocs depuis les yeux), on ne pose pas un bloc dans son propre corps, et la position doit être atteignable depuis la précédente (course, avec de la marge pour le réseau ; chutes libres). Retour au sanctuaire et `/rejoindre` (à côté d'un joueur actif) restent permis. Pour revendiquer une parcelle, il faut s'y trouver. Le jeu envoie aussi un signal de position toutes les 15 s quand on bouge.
+- **Chat** : un message par seconde (rafale de 4), limité dans le jeu (le chat ne passe pas par la base).
+
 Le terrain d'origine d'un tronçon est généré **côté serveur** par la fonction Edge `figer`, avec le même générateur que le jeu (`supabase/functions/_shared/world.js`) : impossible d'inventer du terrain. Les règles (blocs, outils, recettes) viennent de `supabase/functions/_shared/rules.js`, partagé par le jeu ; `node tools/regles.mjs > supabase/regles.sql` les transforme en tables SQL.
 
 Le jeu montre le résultat tout de suite et le serveur confirme : en cas de refus, le bloc revient et le coffre est relu depuis le serveur.
@@ -86,7 +92,7 @@ tools/regles.mjs        génère supabase/regles.sql
 
 1. **Supabase** : crée un projet gratuit sur supabase.com.
 2. **Comptes invités** : dans *Authentication → Sign In / Providers*, active *Allow anonymous sign-ins*. Chaque joueur reçoit un compte automatiquement, sans email ni mot de passe.
-3. **Base** : dans *SQL Editor*, lance `supabase/migrations/001_schema.sql`, puis `supabase/regles.sql`.
+3. **Base** : dans *SQL Editor*, lance dans l'ordre `supabase/migrations/001_schema.sql`, `supabase/migrations/002_securite.sql`, puis `supabase/regles.sql`. Chaque migration se relance sans risque ; une nouvelle migration (`003_…`) se lance simplement après les autres.
 4. **Fonction `figer`** (une fois, puis à chaque changement du générateur) :
    ```
    npx supabase login
@@ -100,7 +106,7 @@ tools/regles.mjs        génère supabase/regles.sql
 Sans clés dans `src/config.js`, le jeu tourne en solo et sauvegarde dans le navigateur.
 
 Pour tout effacer et repartir de zéro :
-1. lancer `supabase/reset.sql`, puis `001_schema.sql` et `regles.sql` ;
+1. lancer `supabase/reset.sql`, puis les migrations dans l'ordre et `regles.sql` ;
 2. augmenter `SAISON` dans `src/jeu/03-etat.js` et publier : les parties gardées dans les navigateurs sont effacées au prochain chargement (pseudo et réglage du son conservés).
 
 ## Ce qui est sauvegardé où
@@ -163,14 +169,14 @@ Au chargement d'un tronçon : terrain figé s'il existe, sinon générateur ; pu
 Les tests tournent automatiquement sur GitHub à chaque push (onglet *Actions*, workflow *Tests*). Un push qui casse quelque chose apparaît en rouge.
 
 - **Générateur et règles** (sans base) : `node --test tests/*.test.mjs`. Vérifie que le monde est déterministe, l'encodage des tronçons, le sanctuaire et la première ruine, la cohérence des recettes, et que `supabase/regles.sql` est à jour avec `rules.js`.
-- **Schéma et arbitrage** : `PGHOST=… PGUSER=postgres tests/sql/run.sh` sur un Postgres 16 vide (une base `mines_test` est recréée). Installe le schéma deux fois, les règles, des tronçons générés par le vrai générateur, puis joue une quarantaine de scénarios : lecture du terrain par le serveur identique au générateur, minage, paliers d'outils, rythme, pose, portes, fabrication, parcelles, invitations, ruines, cadeaux, récompenses, récupération de partie, et toutes les tentatives de triche directe (écrire un bloc, se donner des objets, inventer du terrain…). Vérifie enfin que `reset.sql` efface tout.
+- **Schéma et arbitrage** : `PGHOST=… PGUSER=postgres tests/sql/run.sh` sur un Postgres 16 vide (une base `mines_test` est recréée). Installe toutes les migrations deux fois, les règles, des tronçons générés par le vrai générateur, puis joue une quarantaine de scénarios : lecture du terrain par le serveur identique au générateur, minage, paliers d'outils, rythme, pose, portes, fabrication, parcelles, invitations, ruines, cadeaux, récompenses, récupération de partie, limites de rythme, portée de main, déplacements impossibles, et toutes les tentatives de triche directe (écrire un bloc, se donner des objets, inventer du terrain…). Vérifie enfin que `reset.sql` efface tout.
 - **Mise en forme** : `npx prettier@3 --write "src/jeu/*.js" "src/*.js" "supabase/functions/_shared/*.js"` (vérifiée par les tests).
 - **Partie dans un navigateur** (mode solo, Chromium) : `npm i --no-save playwright@1.56.0 three@0.128.0 && npx playwright install chromium && node tests/navigateur.mjs`.
 - **À la main** : ouvrir `index.html#debug` expose `window.mines` dans la console (dont `serverAct(nom, arguments)`, `syncInventory()`, `get(x, y, z)`, `P` le joueur, `S.day` l'heure).
 
 ## Limites connues
 
-- Le serveur ne connaît pas la position des joueurs : il ne vérifie pas qu'un bloc miné est à portée de main. Un tricheur peut miner à distance (au rythme normal, avec ses outils, hors des parcelles des autres).
+- Le serveur vérifie que les positions annoncées sont vraisemblables, pas la physique fine : un tricheur peut traverser un mur ou voler à vitesse de course. Il ne peut ni miner à distance, ni se téléporter, ni agir plus vite qu'un humain.
 - Les objectifs sont suivis dans le navigateur ; ils ne donnent aucune récompense, donc rien à y gagner en trichant.
 - Les animaux et les cadeaux ne sont pas vérifiés un par un (le serveur limite à 15 cadeaux par jour).
 - Le chat n'est pas modéré.

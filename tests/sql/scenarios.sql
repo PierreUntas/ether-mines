@@ -37,14 +37,18 @@ select pg_temp.ok('décodage SQL du terrain = générateur JS (' || count(*) || 
 -- ---------- joueur A ----------
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
-select pg_temp.ok('miner de l''herbe à la main', (act_mine('w', 20, :gy, 3, null) ->> 'ok')::boolean);
+select pg_temp.ok('miner de l''herbe à la main', (act_mine('w', 20, :gy, 3, null, 20.5, :gy + 1, 6.5) ->> 'ok')::boolean);
 select pg_temp.ok('l''herbe donne de la terre', (select n from inventory where item = 2) = 1);
-select pg_temp.ok('granite refusé à la main', act_mine('w', 20, :s1, 3, null) ->> 'err' = 'outil');
-do $$ begin perform act_mine('w', 500, 30, 500, null); raise exception 'ÉCHEC : tronçon non figé accepté';
+select pg_temp.ok('granite refusé à la main', act_mine('w', 20, :s1, 3, null, 20.5, :s1 + 1, 4.5) ->> 'err' = 'outil');
+reset role;
+update players set pos_at = now() - interval '1 hour';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+do $$ begin perform act_mine('w', 500, 30, 500, null, 500.5, 31, 502.5); raise exception 'ÉCHEC : tronçon non figé accepté';
 exception when raise_exception then if sqlerrm not like 'figer:%' then raise; end if; raise notice 'ok : tronçon non figé → demande « figer »'; end $$;
 
 reset role;
-update players set name = 'Pierre' where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+update players set name = 'Pierre', pos_x = 20.5, pos_y = :s1 + 1, pos_z = 4.5, pos_at = now() where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
 insert into inventory values ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 9, 5), ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 101, 10),
   ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 48, 1), ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 13, 1), ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 105, 1);
 set role authenticated;
@@ -54,20 +58,33 @@ select pg_temp.ok('fabriquer une pioche en bois', act_craft('w', 102) -> 'inv' -
 select pg_temp.ok('fabriquer la pioche de cristal (objet unique n°1)', act_craft('w', 201) -> 'unique' ->> 'serial' = '1');
 select pg_temp.ok('recette inconnue refusée', act_craft('w', 999) ->> 'err' = 'recette inconnue');
 select pg_sleep(1.2);
-select pg_temp.ok('granite avec la pioche de cristal', (act_mine('w', 20, :s1, 3, 'nft1') ->> 'ok')::boolean);
-select pg_temp.ok('granite aussitôt après : trop vite', act_mine('w', 20, :s2, 3, '102') ->> 'err' = 'trop vite');
-select pg_temp.ok('pioche unique d''un autre (nft9) : palier main', (select act_mine('w', 20, :s3, 3, 'nft9') ->> 'err') in ('outil', 'trop vite'));
+select pg_temp.ok('granite avec la pioche de cristal', (act_mine('w', 20, :s1, 3, 'nft1', 20.5, :s1 + 1, 4.5) ->> 'ok')::boolean);
+select pg_temp.ok('granite aussitôt après : trop vite', act_mine('w', 20, :s2, 3, '102', 20.5, :s1 + 1, 4.5) ->> 'err' = 'trop vite');
+select pg_temp.ok('pioche unique d''un autre (nft9) : palier main', (select act_mine('w', 20, :s3, 3, 'nft9', 20.5, :s1 + 1, 4.5) ->> 'err') in ('outil', 'trop vite'));
 select pg_temp.ok('compteur de minage de la pioche unique', (select mined from uniques where serial = 1) = 1);
 
-select pg_temp.ok('poser une porte (deux moitiés)', jsonb_array_length(act_place('w', 20, :gy, 3, 48, 52) -> 'changes') = 2);
-select pg_temp.ok('ouvrir la porte', act_toggle('w', 20, :gy, 3) -> 'changes' -> 0 ->> 'id' = '54');
-select pg_temp.ok('poser un objet absent du coffre', act_place('w', 21, :gy + 1, 3, 70, 70) ->> 'err' = 'coffre vide');
-select pg_temp.ok('transformer un objet en autre chose', act_place('w', 21, :gy + 1, 3, 48, 13) ->> 'err' = 'objet non posable');
-select pg_temp.ok('miner le sanctuaire', act_mine('w', 8, 32, 8, null) ->> 'err' = 'protégé');
-select pg_temp.ok('revendiquer une parcelle', (act_claim('w', 1, 0) ->> 'ok')::boolean);
+select pg_temp.ok('poser une porte (deux moitiés)', jsonb_array_length(act_place('w', 20, :gy, 3, 48, 52, 20.5, :gy + 1, 6.5) -> 'changes') = 2);
+select pg_temp.ok('ouvrir la porte', act_toggle('w', 20, :gy, 3, 20.5, :gy + 1, 6.5) -> 'changes' -> 0 ->> 'id' = '54');
+select pg_temp.ok('poser un objet absent du coffre', act_place('w', 21, :gy + 1, 3, 70, 70, 20.5, :gy + 1, 6.5) ->> 'err' = 'coffre vide');
+select pg_temp.ok('transformer un objet en autre chose', act_place('w', 21, :gy + 1, 3, 48, 13, 20.5, :gy + 1, 6.5) ->> 'err' = 'objet non posable');
+select pg_temp.ok('bloc hors de portée', act_mine('w', 30, :gy, 3, null, 20.5, :gy + 1, 6.5) ->> 'err' = 'trop loin');
+select pg_temp.ok('téléportation refusée', act_mine('w', 300, 30, 300, null, 300.5, 31, 302.5) ->> 'err' = 'déplacement impossible');
+select pg_temp.ok('retour au sanctuaire permis', act_mine('w', 8, 32, 8, null, 8.5, 33, 10.5) ->> 'err' = 'protégé');
+select pg_temp.ok('signal de position', (act_pos('w', 10.5, 33, 10.5) ->> 'ok')::boolean);
+select pg_temp.ok('ancienne fonction sans position fermée', not exists (select 1 from pg_proc where proname = 'act_mine' and pronargs = 5));
+reset role;
+update players set pos_at = now() - interval '1 minute';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('revendiquer une parcelle à distance', act_claim('w', 2, 0, 20.5, :gy + 1, 6.5) ->> 'err' = 'il faut se trouver dans la parcelle');
+select pg_temp.ok('revendiquer une parcelle', (act_claim('w', 1, 0, 20.5, :gy + 1, 6.5) ->> 'ok')::boolean);
 select pg_temp.ok('la parcelle coûte 2 cristaux', (select n from inventory where item = 101) = 5);
-select pg_temp.ok('revendiquer le sanctuaire', act_claim('w', 0, 0) ->> 'ok' = 'false');
-select pg_temp.ok('rallumer la ruine', act_relight('w', :rx, :ry, :rz) -> 'unique' ->> 'id' = '203');
+select pg_temp.ok('revendiquer le sanctuaire', act_claim('w', 0, 0, 8.5, 33, 10.5) ->> 'ok' = 'false');
+reset role;
+update players set pos_at = now() - interval '1 minute';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('rallumer la ruine', act_relight('w', :rx, :ry, :rz, :rx + 0.5, :ry, :rz + 2.5) -> 'unique' ->> 'id' = '203');
 select pg_temp.ok('le validateur ancien est signé', (select placed_by from blocks where x = :rx and y = :ry and z = :rz) = 'aaaaaaaa-0000-0000-0000-000000000001');
 select pg_temp.ok('cadeau du mouton', act_gift('w', '3,4:0', 'mouton') -> 'inv' ->> '71' = '1');
 select pg_temp.ok('même cadeau deux fois', act_gift('w', '3,4:0', 'mouton') ->> 'ok' = 'false');
@@ -94,19 +111,18 @@ select pg_temp.ok('récompenses versées : 15 cristaux', (select n from inventor
 -- ---------- joueur B ----------
 select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
 select pg_temp.ok('B ne voit pas le coffre de A', (select count(*) from inventory) = 0);
-select pg_temp.ok('B mine dans la parcelle de A', act_mine('w', 21, :gy, 4, null) ->> 'err' = 'protégé');
-select pg_temp.ok('B ouvre la porte de A', act_toggle('w', 20, :gy, 3) ->> 'err' = 'protégé');
+select pg_temp.ok('B mine dans la parcelle de A', act_mine('w', 21, :gy, 4, null, 20.5, :gy + 1, 6.5) ->> 'err' = 'protégé');
+select pg_temp.ok('B ouvre la porte de A', act_toggle('w', 20, :gy, 3, 20.5, :gy + 1, 6.5) ->> 'err' = 'protégé');
 reset role;
 insert into players (user_id, world, name) values ('bbbbbbbb-0000-0000-0000-000000000002', 'w', 'Lea') on conflict (user_id, world) do update set name = 'Lea';
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 select pg_temp.ok('A invite Lea', (act_member('w', 'lea', true) ->> 'ok')::boolean);
 select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
-select pg_temp.ok('B mine chez A après invitation', (act_mine('w', 21, :gy, 4, null) ->> 'ok')::boolean);
+select pg_temp.ok('B mine chez A après invitation', (act_mine('w', 21, :gy, 4, null, 20.5, :gy + 1, 6.5) ->> 'ok')::boolean);
 
 -- ---------- récupération de partie par code ----------
-do $$ begin perform claim_recovery('0000-0000-0000-0000'); raise exception 'ÉCHEC : code inconnu accepté';
-exception when raise_exception then if sqlerrm <> 'code inconnu' then raise; end if; raise notice 'ok : code inconnu refusé'; end $$;
+select pg_temp.ok('code inconnu refusé', claim_recovery('0000-0000-0000-0000') = -1);
 select pg_temp.ok('B récupère la partie de A', claim_recovery(:'code') = 1);
 select pg_temp.ok('le coffre a déménagé, sans doublon', (select n from inventory where item = 101) = 20 and (select count(*) from inventory where item = 2) = 1);
 select pg_temp.ok('les objets uniques ont suivi', (select count(*) from uniques) = 2);
@@ -114,4 +130,20 @@ reset role;
 select pg_temp.ok('A n''a plus rien', (select count(*) from inventory where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 0);
 select pg_temp.ok('les blocs signés ont suivi', (select placed_by from blocks where x = :rx and y = :ry and z = :rz) = 'bbbbbbbb-0000-0000-0000-000000000002');
 select pg_temp.ok('la parcelle a suivi', (select owner from claims where cx = 1 and cz = 0) = 'bbbbbbbb-0000-0000-0000-000000000002');
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('rythme : 20 fabrications d''affilée, une partie refusée', (select count(*) filter (where act_craft('w', 999) ->> 'err' = 'trop d''actions') from generate_series(1, 20)) >= 5);
+do $$ declare i int; n int := 0; begin
+  for i in 1..6 loop
+    begin
+      if claim_recovery('0000-0000-0000-000' || i) <> -1 then raise exception 'ÉCHEC : code inventé accepté'; end if;
+    exception when raise_exception then
+      if sqlerrm like 'ÉCHEC%' then raise; end if;
+      if sqlerrm like 'trop d''essais%' then n := n + 1; end if;
+    end;
+  end loop;
+  if n < 3 then raise exception 'ÉCHEC : pas de limite sur les codes (% refus)', n; end if;
+  raise notice 'ok : essais de codes en masse freinés';
+end $$;
+reset role;
 \echo Tous les scénarios SQL passent.

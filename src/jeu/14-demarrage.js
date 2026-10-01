@@ -196,8 +196,16 @@ setInterval(() => {
   lastPos = p;
   lastPosT = now;
   Net.sendPos(p);
+  // position serveur : un signal toutes les 15 s quand on a bougé (sert à /rejoindre et à la vérification des déplacements)
+  if (SERVER() && booted && (!lastSrvPos || (now - lastSrvPos.t > 15000 && Math.hypot(p.x - lastSrvPos.x, p.z - lastSrvPos.z) > 2))) {
+    lastSrvPos = { t: now, x: p.x, z: p.z };
+    Net.act('pos', position()).catch(() => {});
+  }
 }, 200);
-let chatOpen = false;
+let lastSrvPos = null;
+let chatOpen = false,
+  chatJetons = 4,
+  chatT = 0;
 function addChat(name, color, text) {
   const d = document.createElement('div');
   d.className = 'msg';
@@ -267,8 +275,16 @@ $('chatForm').addEventListener('submit', e => {
   $('chatIn').value = '';
   if (v.startsWith('/')) command(v);
   else if (v) {
-    Net.chat(v);
-    addChat(ME.name, ME.color, v);
+    // pas plus d'un message par seconde en moyenne (rafale de 4)
+    const t = performance.now();
+    chatJetons = Math.min(4, chatJetons + (t - chatT) / 1000);
+    chatT = t;
+    if (chatJetons < 1) addChat('Monde', '#7fe8ff', 'Doucement : un message par seconde.');
+    else {
+      chatJetons -= 1;
+      Net.chat(v);
+      addChat(ME.name, ME.color, v);
+    }
   }
   closeChat();
 });
@@ -343,6 +359,7 @@ $('useCode').onclick = async () => {
   $('useCode').disabled = true;
   try {
     const n = await Net.claimRecovery(c);
+    if (n < 0) throw new Error('code inconnu');
     $('acctMsg').textContent = `Partie retrouvée (${n} monde${n > 1 ? 's' : ''}). Rechargement…`;
     for (const k of Object.keys(localStorage))
       if (
@@ -355,7 +372,11 @@ $('useCode').onclick = async () => {
         localStorage.removeItem(k);
     setTimeout(() => location.reload(), 900);
   } catch (e) {
-    $('acctMsg').textContent = /inconnu/.test(e.message) ? 'Code inconnu.' : 'Impossible : ' + e.message;
+    $('acctMsg').textContent = /inconnu/.test(e.message)
+      ? 'Code inconnu.'
+      : /essais/.test(e.message)
+        ? 'Trop d’essais : patiente quelques secondes.'
+        : 'Impossible : ' + e.message;
     $('useCode').disabled = false;
   }
 };

@@ -38,7 +38,14 @@ const REFUS = {
   'case occupée': () => null,
   'trop vite': () => null,
   'rien à miner': () => null,
+  'trop loin': () => 'hors de portée de main',
+  'déplacement impossible': () => 'position refusée par le serveur, attends un instant',
+  "trop d'actions": () => 'trop rapide, ralentis un peu',
+  'il faut se trouver dans la parcelle': () => 'place-toi dans la parcelle à revendiquer',
 };
+// Actions qui envoient la position du joueur : le serveur vérifie la portée et la vraisemblance du déplacement.
+const AVEC_POSITION = new Set(['mine', 'place', 'toggle', 'relight', 'claim', 'pos']);
+const position = () => ({ ex: +P.x.toFixed(2), ey: +P.y.toFixed(2), ez: +P.z.toFixed(2) });
 const noRules = r => r && r.err === 'rien à miner' && r.cell > 0 && B[r.cell] && B[r.cell].h !== Infinity;
 function setInv(inv, why) {
   if (!inv) return;
@@ -83,7 +90,7 @@ function applyServer(r) {
 }
 async function serverAct(name, args, rec, why) {
   try {
-    const r = await Net.act(name, args);
+    const r = await Net.act(name, AVEC_POSITION.has(name) ? { ...args, ...position() } : args);
     if (r && r.ok) {
       applyServer(r);
       setInv(r.inv, why);
