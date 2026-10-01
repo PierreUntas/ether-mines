@@ -813,6 +813,28 @@ tile(74, P => {
   for (const y of [4, 5, 10, 11])
     for (let x = 0; x < 16; x++) if (x < 2 || x > 3) if (x < 12 || x > 13) P(x, y, y % 2 ? '#a5764f' : '#c4956a');
 });
+// malle : dessus en planches cerclées, face avec serrure dorée
+function malleTile(P, face) {
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const bord = x === 0 || y === 0 || x === 15 || y === 15,
+        cercle = !face && (x === 3 || x === 12),
+        joint = face && y === 6;
+      P(x, y, bord || cercle || joint ? '#7a5238' : y % 4 === 0 ? '#a5764f' : hash(x, y, 75) < 0.15 ? '#b8875c' : '#c4956a');
+    }
+  if (face)
+    for (const [x, y] of [
+      [7, 5],
+      [8, 5],
+      [7, 6],
+      [8, 6],
+      [7, 7],
+      [8, 7],
+    ])
+      P(x, y, y === 7 ? '#c9a23a' : '#ffd95e');
+}
+tile(75, P => malleTile(P, false));
+tile(76, P => malleTile(P, true));
 const atlasTex = new THREE.CanvasTexture(atlas),
   emisTex = new THREE.CanvasTexture(emis);
 for (const t of [atlasTex, emisTex]) {

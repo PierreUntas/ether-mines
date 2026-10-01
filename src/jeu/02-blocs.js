@@ -12,7 +12,7 @@ const MAT_OF = id =>
         ? 'sable'
         : id === 16 || id === 71
           ? 'neige'
-          : [5, 9, 33, 36, 37, 38, 39].includes(id) || (id >= 48 && id <= 63)
+          : [5, 9, 33, 36, 37, 38, 39, 82, 92, 94, 95, 96, 97, 98].includes(id) || (id >= 48 && id <= 63)
             ? 'bois'
             : [10, 14, 68].includes(id) || (id >= 29 && id <= 32)
               ? 'verre'

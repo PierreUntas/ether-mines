@@ -211,3 +211,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .reg strong{display:block;font-size:15px}.reg span{display:block;font-size:12px;color:var(--muted)}
 .reg .opts{display:flex;gap:6px;flex-wrap:wrap}
 .astuce{font-size:13px;color:var(--gold,#ffd95e);margin:6px 0}
+/* malle ouverte */
+.qte{display:flex;gap:6px;align-items:center;margin:0 0 10px}
+.qte span{font-family:var(--mono);font-size:12px;color:var(--muted);margin-right:4px}
+.grid.malle{margin-bottom:12px}

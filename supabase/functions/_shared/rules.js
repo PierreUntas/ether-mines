@@ -124,6 +124,7 @@
     { out: 92, n: 3, need: { 9: 3 }, d: 'Se relie aux barrières et aux murs voisins', cat: 'Construction' },
     { out: 93, n: 8, need: { 10: 3 }, d: 'Verre fin, se relie aux vitres voisines', cat: 'Construction' },
     { out: 94, n: 3, need: { 9: 4 }, d: 'Avance contre elle pour grimper', cat: 'Construction' },
+    { out: 98, n: 1, need: { 9: 8 }, d: 'Range tes objets (clic droit) ; partagée avec les invités de ta parcelle', cat: 'Construction' },
   );
   // couleurs : sable et granite teintés par une fleur, des feuilles ou du marbre
   [[17], [7], [6], [19], [4], [18], [17, 18], [15]].forEach((col, i) => {
@@ -173,6 +174,7 @@
   B[92] = { n: 'Barrière', t: [10, 10, 10], h: 1.1, shape: 'fence', icon: 74 };
   B[93] = { n: 'Vitre', t: [11, 11, 11], h: 0.3, shape: 'pane', icon: 11 };
   for (let o = 0; o < 4; o++) B[94 + o] = { n: 'Échelle', t: [73, 73, 73], h: 0.5, shape: 'ladder', o, drop: 94, icon: 73, pass: 1 };
+  B[98] = { n: 'Malle', t: [75, 76, 75], h: 1.2 }; // contenu gardé par le serveur (005_coffres.sql)
   const TOOLS = { 102: 1, 201: 1, 202: 1 };
   // ce que devient un objet posé : bloc de même numéro, sauf escaliers (4 orientations) et portes (4 orientations, 2 moitiés)
   function placeIds(it) {

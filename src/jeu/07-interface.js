@@ -250,6 +250,57 @@ function renderQuests(body) {
     `<div class="stats"><div><b>${S.relit || 0}</b><span>validateurs rallumés</span></div><div><b>${TIER_NAME[Math.max(0, ...S.nfts.map(n => ITEM[n.id || 201]?.tier || 0), S.got[102] ? 1 : 0)].replace(/^(la |une )/, '')}</b><span>meilleur outil</span></div></div>`,
   );
 }
+// ---------- malle ouverte ----------
+let quantiteMalle = 1; // 1, 10 ou 0 (= tout)
+function renderMalle(body) {
+  if (!MALLE) {
+    body.innerHTML = '<p class="qintro">Aucune malle ouverte : clic droit (ou toucher) sur une malle posée.</p>';
+    return;
+  }
+  const m = MALLE;
+  body.insertAdjacentHTML(
+    'beforeend',
+    `<p class="qintro">Malle en ${m.x}, ${m.y}, ${m.z}. Touche un objet pour le déplacer. Dans une parcelle, seuls toi et tes invités peuvent l'ouvrir ; ailleurs, tout le monde.</p>`,
+  );
+  const q = document.createElement('div');
+  q.className = 'qte';
+  q.insertAdjacentHTML('beforeend', '<span>Quantité</span>');
+  for (const [v, t] of [
+    [1, '1'],
+    [10, '10'],
+    [0, 'Tout'],
+  ]) {
+    const b = document.createElement('button');
+    b.textContent = t;
+    b.className = 'b' + (quantiteMalle === v ? ' primary' : '');
+    b.onclick = () => {
+      quantiteMalle = v;
+      renderPanel();
+    };
+    q.appendChild(b);
+  }
+  body.appendChild(q);
+  const zone = (titre, items, sens) => {
+    body.insertAdjacentHTML('beforeend', `<h3 class="rcat">${titre}</h3>`);
+    const grid = document.createElement('div');
+    grid.className = 'grid malle';
+    const liste = Object.entries(items).filter(([, n]) => n > 0);
+    if (!liste.length)
+      grid.innerHTML = `<p style="color:var(--muted);font-size:14px">${sens < 0 ? 'La malle est vide.' : 'Rien à déposer.'}</p>`;
+    for (const [it, n] of liste) {
+      const b = document.createElement('button');
+      b.className = 'it';
+      b.title = nameOf(+it);
+      b.appendChild(cloneIcon(+it));
+      b.insertAdjacentHTML('beforeend', `<b>${n}</b>`);
+      b.onclick = () => deplacerMalle(it, sens * (quantiteMalle ? Math.min(quantiteMalle, n) : n));
+      grid.appendChild(b);
+    }
+    body.appendChild(grid);
+  };
+  zone('Dans la malle', m.items, -1);
+  zone('Dans ton sac', S.inv, 1);
+}
 function renderPanel() {
   const body = $('pbody');
   body.innerHTML = '';
@@ -328,7 +379,8 @@ function renderPanel() {
       'beforeend',
       '<p class="note">Simulation locale : rien n\'est inscrit sur une vraie blockchain. C\'est une maquette de ce que donneraient des blocs tokenisés.</p>',
     );
-  } else if (tab === 'quest') renderQuests(body);
+  } else if (tab === 'malle') renderMalle(body);
+  else if (tab === 'quest') renderQuests(body);
   else if (tab === 'reglages') renderReglages(body);
   else if (tab === 'craft') {
     let cat = '';

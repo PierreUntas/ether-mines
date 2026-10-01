@@ -680,6 +680,8 @@ if (location.hash === '#debug')
     genChunk,
     loadChunks,
     rebuildAt,
+    ouvrirMalle,
+    deplacerMalle,
     keys,
     get playing() {
       return playing;

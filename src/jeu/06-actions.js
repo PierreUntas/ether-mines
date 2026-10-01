@@ -42,9 +42,12 @@ const REFUS = {
   'déplacement impossible': () => 'position refusée par le serveur, attends un instant',
   "trop d'actions": () => 'trop rapide, ralentis un peu',
   'il faut se trouver dans la parcelle': () => 'place-toi dans la parcelle à revendiquer',
+  'pas assez dans ton sac': () => 'tu n’en as pas assez',
+  'malle pleine': () => 'malle pleine (27 sortes d’objets au plus)',
+  'pas de malle ici': () => 'cette malle a disparu',
 };
 // Actions qui envoient la position du joueur : le serveur vérifie la portée et la vraisemblance du déplacement.
-const AVEC_POSITION = new Set(['mine', 'place', 'toggle', 'relight', 'claim', 'pos']);
+const AVEC_POSITION = new Set(['mine', 'place', 'toggle', 'relight', 'claim', 'pos', 'chest', 'chest_move']);
 const position = () => ({ ex: +P.x.toFixed(2), ey: +P.y.toFixed(2), ez: +P.z.toFixed(2) });
 const noRules = r => r && r.err === 'rien à miner' && r.cell > 0 && B[r.cell] && B[r.cell].h !== Infinity;
 function setInv(inv, why) {
@@ -324,6 +327,10 @@ function breakBlock(t) {
             : `jeton #${B[id].drop ?? id}`,
     ).then(r => {
       if (!r) return;
+      if (id === 98) {
+        syncInventory();
+        fermerMalle(t);
+      }
       const g = r.got || {};
       if ([101, 103, 104].includes(g.item) && g.n) Sound.chime();
       if (g.item === 104 && !g.n) logEv('burn', "La roche de genèse s'effrite", 'pas de fragment cette fois');
@@ -347,6 +354,11 @@ function breakBlock(t) {
   } else if (ab && (ab.shape === 'plate' || ab.shape === 'cable' || ab.shape === 'lever')) {
     commit(coordKey(t.x, t.y + 1, t.z), 0, null);
     give(ab.drop || above, 1, 'décroché');
+  }
+  if (id === 98) {
+    for (const [it, n] of Object.entries(S.malles?.[k] || {})) give(+it, n, 'sorti de la malle');
+    if (S.malles) delete S.malles[k];
+    fermerMalle(t);
   }
   const drop = B[id].drop !== undefined ? B[id].drop : id;
   if (drop === 101) {
@@ -389,6 +401,12 @@ function place() {
   }
   if (tb && (tb.shape === 'door' || tb.shape === 'lever') && SERVER() && !canBuildHere(target.x, target.z)) {
     protectHint(target.x, target.z);
+    return;
+  }
+  const accroupi = sneakHeld || keys.has('KeyC') || keys.has('ControlLeft');
+  if (target.id === 98 && !accroupi && inWorld(target.x, target.z)) {
+    if (SERVER() && !canBuildHere(target.x, target.z)) return protectHint(target.x, target.z);
+    ouvrirMalle(target);
     return;
   }
   if (tb && tb.shape === 'door' && inWorld(target.x, target.z)) {
@@ -516,4 +534,64 @@ function toggleDoor(t) {
   Sound.door();
   swing = 0.6;
   rebuildAt(t.x, t.z);
+}
+
+// ---------- malles : coffres posés dans le monde ----------
+// En ligne, le contenu est gardé par le serveur (005_coffres.sql) ; en solo, dans la partie (S.malles).
+let MALLE = null; // { x, y, z, items }
+async function ouvrirMalle(t) {
+  const k = coordKey(t.x, t.y, t.z);
+  if (SERVER()) {
+    const r = await serverAct('chest', { px: t.x, py: t.y, pz: t.z });
+    if (!r) return;
+    MALLE = { x: t.x, y: t.y, z: t.z, items: r.items || {} };
+  } else MALLE = { x: t.x, y: t.y, z: t.z, items: { ...(S.malles?.[k] || {}) } };
+  Sound.door();
+  openTab('malle');
+}
+function fermerMalle(t) {
+  if (MALLE && MALLE.x === t.x && MALLE.y === t.y && MALLE.z === t.z) {
+    MALLE = null;
+    if (tab === 'malle' && !$('panel').hidden) togglePanel();
+  }
+}
+// n > 0 : déposer depuis le sac ; n < 0 : reprendre
+async function deplacerMalle(it, n) {
+  if (!MALLE || !n) return;
+  const m = MALLE;
+  if (Math.hypot(m.x + 0.5 - P.x, m.z + 0.5 - P.z) > 6) {
+    logEv('burn', 'Malle trop loin', 'rapproche-toi');
+    return;
+  }
+  if (SERVER()) {
+    const r = await serverAct(
+      'chest_move',
+      { px: m.x, py: m.y, pz: m.z, item: +it, n },
+      null,
+      n > 0 ? 'déposé dans la malle' : 'repris de la malle',
+    );
+    if (!r) return;
+    m.items = r.items || {};
+  } else {
+    const k = coordKey(m.x, m.y, m.z),
+      have = m.items[it] || 0;
+    if (n > 0) {
+      n = Math.min(n, S.inv[it] || 0);
+      if (!n) return;
+      if (!have && Object.keys(m.items).length >= 27) return logEv('burn', 'Malle pleine', '27 sortes d’objets au plus');
+      take(+it, n);
+    } else {
+      n = -Math.min(-n, have);
+      if (!n) return;
+      give(+it, -n, 'repris de la malle');
+    }
+    if (have + n > 0) m.items[it] = have + n;
+    else delete m.items[it];
+    S.malles = S.malles || {};
+    S.malles[k] = { ...m.items };
+    dirty = true;
+  }
+  Sound.click();
+  ui();
+  if (tab === 'malle' && !$('panel').hidden) renderPanel();
 }

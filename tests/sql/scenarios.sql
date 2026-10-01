@@ -180,4 +180,30 @@ select pg_temp.ok('erreurs illisibles par les joueurs', (select count(*) from cl
 reset role;
 select pg_temp.ok('erreur répétée comptée une fois', (select n from client_errors where msg = 'TypeError: x is undefined') = 2);
 select pg_temp.ok('muet pour une heure', (select muted_until between now() + interval '59 minutes' and now() + interval '61 minutes' from players where name = 'Pierre'));
+-- ---------- malles (005) ----------
+reset role;
+update players set pos_at = now() - interval '1 minute', mine_at = now() - interval '1 minute';
+insert into inventory (user_id, world, item, n) values ('bbbbbbbb-0000-0000-0000-000000000002', 'w', 98, 1), ('bbbbbbbb-0000-0000-0000-000000000002', 'w', 3, 10)
+  on conflict (user_id, world, item) do update set n = excluded.n;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('poser une malle', (act_place('w', 21, :gy, 4, 98, 98, 20.5, :gy + 1, 6.5) ->> 'ok')::boolean);
+select pg_temp.ok('malle neuve vide', act_chest('w', 21, :gy, 4, 20.5, :gy + 1, 6.5) -> 'items' = '{}'::jsonb);
+select pg_temp.ok('déposer 3 granites', act_chest_move('w', 21, :gy, 4, 3, 3, 20.5, :gy + 1, 6.5) -> 'items' ->> '3' = '3');
+select pg_temp.ok('le sac a perdu 3 granites', (select n from inventory where item = 3) = 7);
+select pg_temp.ok('déposer plus qu''on n''a', act_chest_move('w', 21, :gy, 4, 3, 50, 20.5, :gy + 1, 6.5) ->> 'err' = 'pas assez dans ton sac');
+select pg_temp.ok('reprendre 2 granites', act_chest_move('w', 21, :gy, 4, 3, -2, 20.5, :gy + 1, 6.5) -> 'items' ->> '3' = '1');
+select pg_temp.ok('reprendre plus qu''il n''y a : seulement le reste', act_chest_move('w', 21, :gy, 4, 3, -9, 20.5, :gy + 1, 6.5) -> 'items' = '{}'::jsonb);
+select pg_temp.ok('déposer à nouveau', act_chest_move('w', 21, :gy, 4, 3, 4, 20.5, :gy + 1, 6.5) -> 'items' ->> '3' = '4');
+select pg_temp.ok('ouvrir une malle qui n''existe pas', act_chest('w', 20, :gy, 4, 20.5, :gy + 1, 6.5) ->> 'err' = 'pas de malle ici');
+select pg_temp.ok('malle hors de portée', act_chest('w', 21, :gy, 4, 20.5, :gy + 1, 12.5) ->> 'err' = 'trop loin');
+select pg_temp.ok('les malles ne se lisent pas directement', (select count(*) from chests) = 0);
+select set_config('request.jwt.claim.sub', 'dddddddd-0000-0000-0000-000000000004', false) \g /dev/null
+select pg_temp.ok('malle dans la parcelle d''un autre : fermée', act_chest('w', 21, :gy, 4, 20.5, :gy + 1, 6.5) ->> 'err' = 'protégé');
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('casser la malle', (act_mine('w', 21, :gy, 4, null, 20.5, :gy + 1, 6.5) ->> 'ok')::boolean);
+select pg_temp.ok('son contenu revient dans le sac', (select n from inventory where item = 3) = 10);
+select pg_temp.ok('la malle cassée revient aussi', (select n from inventory where item = 98) = 1);
+reset role;
+select pg_temp.ok('plus de malle enregistrée', (select count(*) from chests) = 0);
 \echo Tous les scénarios SQL passent.

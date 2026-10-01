@@ -10,7 +10,7 @@ Un monde en blocs aux couleurs d'Ethereum, à construire entre amis dans le navi
 - **Se retrouver** : dans le chat, `/rejoindre pseudo` téléporte près d'un ami en ligne, `/sanctuaire` ramène au point de départ.
 - **Nature** : champignons d'éther lumineux sur le sol des grottes, roseaux sur les rives, nénuphars en eau peu profonde, rochers moussus dans les plaines et les dunes. Le jour, des papillons volent autour des fleurs et des pétales tombent des arbres roses ; la nuit, des lucioles.
 - **Décoration** (Atelier) : briques d'éther (avec dalles et escaliers), granite poli, marbre en damier, pierre moussue, natte de roseaux, bibliothèque, bloc de cristal, lanterne rose et lanterne champignon. Les lanternes, le bloc de cristal, l'éther pur et les champignons éclairent autour d'eux.
-- **Construction** : béton pastel (8 couleurs), vitraux (4), dalles, escaliers orientés selon le regard, portes sur deux blocs (clic droit pour ouvrir), barrières et vitres qui se relient à leurs voisines, échelles (avancer ou sauter contre elles pour grimper, s'accroupir pour s'y tenir). On monte sur les dalles et les marches sans sauter.
+- **Construction** : béton pastel (8 couleurs), vitraux (4), dalles, escaliers orientés selon le regard, portes sur deux blocs (clic droit pour ouvrir), barrières et vitres qui se relient à leurs voisines, échelles (avancer ou sauter contre elles pour grimper, s'accroupir pour s'y tenir), malles pour ranger ses objets (clic droit pour ouvrir, accroupi pour poser un bloc contre ; dans une parcelle, seuls le propriétaire et ses invités les ouvrent). On monte sur les dalles et les marches sans sauter.
 - **Contrats en blocs** : levier et plaque de pression (sources), câble d'éther, lampe et porte alimentées. Le courant est recalculé en continu autour du joueur et n'est jamais enregistré : seul l'état des leviers l'est. Une plaque s'active sous n'importe quel joueur, y compris un ami.
 - **Progression** : un fil d'objectifs (bouton en haut de l'écran, touche O ou onglet Objectifs) et quatre paliers d'outils. La main ne taille pas la pierre ; la pioche en bois taille la pierre et le minerai ; la pioche de cristal (objet unique) ouvre les géodes ; la pioche d'éther pur (objet unique) taille la roche de genèse, au fond du monde, qui donne des fragments de genèse. Avec un fragment, des éclats et des cristaux, on forge un cœur de validateur.
 - **Validateurs anciens** : une ruine avec un validateur éteint par région de 80 × 80 blocs (la première à une quarantaine de mètres du sanctuaire). La boussole de l'objectif mène à la plus proche. Le rallumer avec un cœur le met à ton nom : 3 cristaux par slot de 12 s, et un sceau de validateur (objet unique) en souvenir.
@@ -45,6 +45,7 @@ Les joueurs ne peuvent rien écrire directement : ni blocs, ni terrain, ni coffr
 | `act_gift` | une fois par jour et par animal, 15 cadeaux par jour au plus |
 | `act_rewards` | validateurs signés par le joueur, temps écoulé (30 minutes rattrapées au plus) |
 | `act_claim`, `act_unclaim`, `act_member` | parcelles : coût, limite, propriétaire |
+| `act_chest`, `act_chest_move` | malles : bloc malle réel, à portée de main, droit de construire à cet endroit, objets présents dans le sac ou la malle ; une malle cassée rend son contenu à celui qui la casse |
 
 En plus, toutes les actions passent un contrôle commun (`supabase/migrations/002_securite.sql`) :
 
@@ -97,7 +98,7 @@ tools/regles.mjs        génère supabase/regles.sql
 
 1. **Supabase** : crée un projet gratuit sur supabase.com.
 2. **Comptes invités** : dans *Authentication → Sign In / Providers*, active *Allow anonymous sign-ins*. Chaque joueur reçoit un compte automatiquement, sans email ni mot de passe.
-3. **Base** : dans *SQL Editor*, lance dans l'ordre `supabase/migrations/001_schema.sql`, `supabase/migrations/002_securite.sql`, `supabase/migrations/003_moderation.sql`, puis `supabase/regles.sql`. Chaque migration se relance sans risque ; une nouvelle migration (`004_…`) se lance simplement après les autres.
+3. **Base** : dans *SQL Editor*, lance dans l'ordre `supabase/migrations/001_schema.sql`, `supabase/migrations/002_securite.sql`, `supabase/migrations/003_moderation.sql`, `supabase/migrations/005_coffres.sql`, puis `supabase/regles.sql`. Chaque migration se relance sans risque ; une nouvelle migration se lance simplement après les autres (le numéro 004 n'est pas utilisé).
 4. **Fonction `figer`** (une fois, puis à chaque changement du générateur) :
    ```
    npx supabase login

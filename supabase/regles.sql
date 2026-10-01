@@ -99,7 +99,8 @@ insert into public.rule_blocks (id, name, hard, tier, drop_item, kind, solid, to
 (94,'Échelle',0.5,0,94,'ladder',false,false),
 (95,'Échelle',0.5,0,94,'ladder',false,false),
 (96,'Échelle',0.5,0,94,'ladder',false,false),
-(97,'Échelle',0.5,0,94,'ladder',false,false);
+(97,'Échelle',0.5,0,94,'ladder',false,false),
+(98,'Malle',1.2,0,98,'cube',true,false);
 insert into public.rule_place (item, block) values
 (2,2),
 (3,3),
@@ -173,7 +174,8 @@ insert into public.rule_place (item, block) values
 (94,94),
 (94,95),
 (94,96),
-(94,97);
+(94,97),
+(98,98);
 insert into public.rule_items (id, name, tool, tier, uniq) values
 (101,'Cristal d''éther',1,0,false),
 (102,'Pioche en bois',2.2,1,false),
@@ -204,6 +206,7 @@ insert into public.rule_recipes (out_item, n, need, uniq) values
 (92,3,'{"9":3}'::jsonb,false),
 (93,8,'{"10":3}'::jsonb,false),
 (94,3,'{"9":4}'::jsonb,false),
+(98,1,'{"9":8}'::jsonb,false),
 (21,4,'{"3":1,"4":2,"17":1}'::jsonb,false),
 (22,4,'{"3":1,"4":2,"7":1}'::jsonb,false),
 (23,4,'{"3":1,"4":2,"6":1}'::jsonb,false),

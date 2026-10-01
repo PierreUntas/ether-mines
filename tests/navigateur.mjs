@@ -72,6 +72,20 @@ await page.waitForTimeout(1200);
 const vivant = await Promise.race([page.evaluate(() => performance.now()), new Promise(r => setTimeout(() => r(null), 5000))]);
 if (vivant === null) await fail('le jeu ne répond plus après avoir marché sur une plaque de pression');
 if (errors.length) await fail('erreurs avec les blocs de forme');
+// malle : déposer puis reprendre des planches
+const malle = await page.evaluate(async () => {
+  const P = mines.P, x = Math.floor(P.x) - 3, z = Math.floor(P.z) + 2;
+  let y = 63; while (y > 0 && !mines.get(x, y, z)) y--;
+  mines.commit(`${x},${y + 1},${z}`, 98, null);
+  await mines.ouvrirMalle({ x, y: y + 1, z, id: 98 });
+  await mines.deplacerMalle('9', 3);
+  const dedans = mines.S.malles?.[`${x},${y + 1},${z}`]?.[9];
+  await mines.deplacerMalle('9', -1);
+  return { dedans, sac: mines.S.inv[9], onglet: !!document.querySelector('.grid.malle') };
+});
+if (malle.dedans !== 3 || malle.sac !== 2 || !malle.onglet) await fail('malle : ' + JSON.stringify(malle));
+await page.screenshot({ path: process.env.CAPTURE_MALLE || '/dev/null' }).catch(() => {});
+await page.evaluate(() => document.getElementById('closeP').click());
 const m = await page.evaluate(() => ({ actif: mines.mailleur, n: mines.nbMaillages }));
 if (!m.actif) await fail('le maillage en arrière-plan ne s\'est pas lancé');
 if (m.n < 20) await fail('trop peu de tronçons affichés : ' + m.n);
