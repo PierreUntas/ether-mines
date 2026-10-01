@@ -380,6 +380,7 @@ function record(fn){REC=[];try{fn()}catch(e){REC=null;throw e}const r=REC;REC=nu
 function revert(rec){for(const[k,id,own]of rec.slice().reverse()){const[x,y,z]=k.split(',').map(Number);setW(x,y,z,id);editSet(x,y,z,id);if(own)OWN.set(k,own);else OWN.delete(k);
  if(id===13||id===74)addVal(x,y,z);else delVal(k);rebuildAt(x,z)}if(regView)buildRegView()}
 const REFUS={'outil':()=>`il faut ${target?TIER_NAME[reqTier(target.id)]:'un meilleur outil'}`,'protégé':()=>'zone protégée','coffre vide':()=>'plus rien de cet objet','support':()=>'il faut un support','case occupée':()=>null,'trop vite':()=>null,'rien à miner':()=>null};
+const noRules=r=>r&&r.err==='rien à miner'&&r.cell>0&&B[r.cell]&&B[r.cell].h!==Infinity;
 function setInv(inv,why){if(!inv)return;for(const[k,n]of Object.entries(inv)){const old=S.inv[k]||0;if(n>0)S.inv[k]=n;else{delete S.inv[k];if(!ITEM[k]?.nft){const b=S.bar.indexOf(String(k));if(b>=0)S.bar[b]=null}}
   if(n>old){S.got[k]=1;S.supply[k]=(S.supply[k]||0)+n-old;S.totalMint+=n-old;if(!S.bar.includes(String(k))){const e=S.bar.indexOf(null);if(e>=0)S.bar[e]=String(k)}if(why)logEv('mint',`${n-old} ${nameOf(+k)}`,why)}}
  dirty=true;ui()}
@@ -388,10 +389,10 @@ function addUnique(u){if(!u||S.nfts.some(n=>n.serial===u.serial))return;S.nfts.p
 function applyServer(r){for(const c of r.changes||[])applyBlock(c)}
 async function serverAct(name,args,rec,why){
  try{const r=await Net.act(name,args);if(r&&r.ok){applyServer(r);setInv(r.inv,why);return r}
-  if(rec)revert(rec);if(r&&r.inv)setInv(r.inv);const m=r&&REFUS[r.err]?REFUS[r.err]():r&&r.err;if(m)logEv('burn','Refusé',m);
+  if(rec)revert(rec);if(r&&r.inv)setInv(r.inv);const m=noRules(r)?'règles du jeu absentes du serveur : lance supabase/regles.sql':r&&REFUS[r.err]?REFUS[r.err]():r&&r.err;if(m)logEv('burn','Refusé',m);
   if(r&&r.cell!==undefined&&args.px!==undefined){applyBlock({x:args.px,y:args.py,z:args.pz,id:r.cell,by:OWN.get(coordKey(args.px,args.py,args.pz))?.by,name:OWN.get(coordKey(args.px,args.py,args.pz))?.name,serial:OWN.get(coordKey(args.px,args.py,args.pz))?.serial})}
   if(rec)syncInventory();return null}
- catch(e){console.error(e);if(rec)revert(rec);logEv('burn','Le serveur ne répond pas',/act_|function/i.test(e.message)&&/not find|does not exist|Could not/i.test(e.message)?'schéma SQL à mettre à jour':'réessaie dans un instant');syncInventory();return null}}
+ catch(e){console.error(e);if(rec)revert(rec);const msg=e.message||'';logEv('burn','Le serveur refuse',/^figer/i.test(msg)?'la fonction « figer » n\'est pas déployée sur Supabase':/act_|function/i.test(msg)&&/not find|does not exist|Could not/i.test(msg)?'schéma SQL à lancer (001_schema.sql)':'réessaie dans un instant');syncInventory();return null}}
 let syncing=null;
 function syncInventory(){if(!SERVER())return Promise.resolve();if(syncing)return syncing;
  syncing=Net.loadInventory().then(({inv,uniques})=>{S.inv={};for(const r of inv)if(r.n>0)S.inv[r.item]=r.n;
