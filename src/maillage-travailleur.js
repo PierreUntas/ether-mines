@@ -11,6 +11,13 @@ onmessage = e => {
       c = chunks[kx + ',' + kz];
     return c ? c[li(x - kx * CH, y, z - kz * CH)] : 0;
   };
-  const mesh = Maillage.pack(Maillage.meshChunk(cx, cz, get, k => pw.has(k)));
+  // une erreur sur un tronçon ne doit pas arrêter le travailleur : on la renvoie, le jeu maille ce tronçon sur place
+  let mesh;
+  try {
+    mesh = Maillage.pack(Maillage.meshChunk(cx, cz, get, k => pw.has(k)));
+  } catch (err) {
+    postMessage({ id, cx, cz, err: String((err && err.message) || err) });
+    return;
+  }
   postMessage({ id, cx, cz, mesh }, Maillage.buffers(mesh));
 };

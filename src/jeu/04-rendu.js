@@ -188,12 +188,17 @@ const maillageDernier = new Map(),
 try {
   mailleur = new Worker('src/maillage-travailleur.js');
   mailleur.onmessage = e => {
-    const { id, cx, cz, mesh } = e.data,
+    const { id, cx, cz, mesh, err } = e.data,
       k = ckey(cx, cz);
     enVol--;
     const fin = maillageAttente.get(id);
     maillageAttente.delete(id);
-    if (maillageDernier.get(k) === id && CHK.has(k)) applyMesh(cx, cz, mesh);
+    if (maillageDernier.get(k) === id && CHK.has(k)) {
+      if (err) {
+        if (window.noterErreur) noterErreur('maillage ' + k + ' : ' + err);
+        maillerSurPlace(cx, cz);
+      } else applyMesh(cx, cz, mesh);
+    }
     if (fin) fin();
   };
   mailleur.onerror = e => {
@@ -208,6 +213,20 @@ try {
   mailleur = null;
 }
 const maillageLibre = () => !mailleur || enVol < 4;
+// Maillage dans le fil principal. Un tronçon qui échoue garde son ancien affichage au lieu de bloquer la partie.
+function maillerSurPlace(cx, cz, pw) {
+  if (!pw) {
+    pw = [];
+    for (const key of POWERED) pw.push(key);
+  }
+  const ps = new Set(pw);
+  try {
+    applyMesh(cx, cz, Maillage.pack(Maillage.meshChunk(cx, cz, get, key => ps.has(key))));
+  } catch (e) {
+    console.error(e);
+    if (window.noterErreur) noterErreur('maillage sur place ' + ckey(cx, cz) + ' : ' + e.message, e.stack);
+  }
+}
 function buildChunk(cx, cz) {
   const k = ckey(cx, cz);
   if (!CHK.has(k)) return Promise.resolve();
@@ -217,8 +236,7 @@ function buildChunk(cx, cz) {
     if (Math.abs(cOf(x) - cx) <= 1 && Math.abs(cOf(z) - cz) <= 1) pw.push(key);
   }
   if (!mailleur) {
-    const ps = new Set(pw);
-    applyMesh(cx, cz, Maillage.pack(Maillage.meshChunk(cx, cz, get, key => ps.has(key))));
+    maillerSurPlace(cx, cz, pw);
     return Promise.resolve();
   }
   const id = ++maillageSeq,

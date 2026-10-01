@@ -84,3 +84,16 @@ test('maillage : triangles valides et identiques d\'un calcul à l\'autre', () =
   }
   assert.deepEqual(a.op.pos, b.op.pos);
 });
+
+test('maillage : chaque bloc de forme (plaque, escalier, porte, câble, levier…) se maille, alimenté ou non', () => {
+  const M = globalThis.Maillage, B = globalThis.Rules.B;
+  const formes = Object.keys(B).map(Number).filter(id => B[id] && B[id].shape);
+  assert.ok(formes.includes(66), 'la plaque de pression est une forme');
+  for (const id of formes)
+    for (const on of [false, true]) {
+      // un sol de pierre et le bloc posé dessus, au milieu du tronçon
+      const get = (x, y, z) => (x >= 0 && x < 16 && z >= 0 && z < 16 ? (y === 10 ? 3 : y === 11 && x === 8 && z === 8 ? id : 0) : 0);
+      const m = M.pack(M.meshChunk(0, 0, get, () => on));
+      assert.ok(m.op && m.op.idx.length > 0, `bloc ${id} (${B[id].n}) maillé`);
+    }
+});

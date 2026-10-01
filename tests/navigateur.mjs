@@ -32,6 +32,7 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
+page.on('console', (m) => { if ((m.type() === 'error' && !/Failed to load resource/.test(m.text())) || /maillage/.test(m.text())) errors.push(m.text()); });
 await page.addInitScript(() => localStorage.setItem('ether-mines:profil', JSON.stringify({ id: 'test', name: 'Testeur', color: '#8a7bef' })));
 await page.route('**/three.min.js', (r) => r.fulfill({ path: three, contentType: 'application/javascript' }));
 await page.route('**/supabase.js', (r) => r.fulfill({ body: '', contentType: 'application/javascript' }));
@@ -52,6 +53,21 @@ const res = await page.evaluate((y) => ({ bloc: mines.get(20, y, 20), inv: mines
 if (res.bloc !== 0) await fail('le bloc miné est toujours là');
 if (res.inv[9] !== 4) await fail('les planches n\'ont pas été fabriquées : ' + JSON.stringify(res.inv));
 if (errors.length) await fail('erreurs pendant la partie');
+// blocs de forme : une plaque de pression sur laquelle on marche, un escalier, un câble
+const plaque = await page.evaluate(() => {
+  const P = mines.P, x = Math.floor(P.x) + 6, z = Math.floor(P.z) + 6;
+  let y = 63; while (y > 0 && !mines.get(x, y, z)) y--;
+  mines.commit(`${x},${y + 1},${z}`, 66, null);
+  mines.commit(`${x + 1},${y + 1},${z}`, 67, null);
+  mines.commit(`${x},${y + 1},${z + 1}`, 36, null);
+  return { x, y: y + 1, z };
+});
+await page.waitForTimeout(400);
+await page.evaluate(({ x, y, z }) => { const P = mines.P; P.x = x + 0.5; P.z = z + 0.5; P.y = y + 0.1; }, plaque);
+await page.waitForTimeout(1200);
+const vivant = await Promise.race([page.evaluate(() => performance.now()), new Promise(r => setTimeout(() => r(null), 5000))]);
+if (vivant === null) await fail('le jeu ne répond plus après avoir marché sur une plaque de pression');
+if (errors.length) await fail('erreurs avec les blocs de forme');
 const m = await page.evaluate(() => ({ actif: mines.mailleur, n: mines.nbMaillages }));
 if (!m.actif) await fail('le maillage en arrière-plan ne s\'est pas lancé');
 if (m.n < 20) await fail('trop peu de tronçons affichés : ' + m.n);

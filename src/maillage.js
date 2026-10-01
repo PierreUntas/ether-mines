@@ -231,7 +231,7 @@
           }
           if (b.shape) {
             const key = coordKey(x, y, z),
-              pw = pw(key);
+              on = pw(key);
             shapeBoxes(id, key, pw).forEach((bb, bi) =>
               emitBox(
                 A.op,
@@ -239,7 +239,7 @@
                 y,
                 z,
                 bb,
-                b.shape === 'cable' ? (pw ? [44, 44, 44] : [43, 43, 43]) : b.shape === 'lever' && bi === 1 ? [10, 10, 10] : b.t,
+                b.shape === 'cable' ? (on ? [44, 44, 44] : [43, 43, 43]) : b.shape === 'lever' && bi === 1 ? [10, 10, 10] : b.t,
                 b.shape === 'door' ? (b.top ? 40 : 39) : null,
               ),
             );
