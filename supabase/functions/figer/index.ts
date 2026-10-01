@@ -1,5 +1,5 @@
 // Fonction « figer » : génère côté serveur le terrain d'origine d'un tronçon et l'enregistre une fois pour toutes.
-// Les joueurs ne peuvent pas écrire dans la table chunks : le terrain vient toujours du générateur officiel.
+// Les joueurs ne peuvent pas écrire dans la table chunks : le terrain vient toujours du générateur officiel (GEN 5 : la Cité).
 import '../_shared/world.js';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
