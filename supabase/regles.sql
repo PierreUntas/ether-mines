@@ -93,7 +93,13 @@ insert into public.rule_blocks (id, name, hard, tier, drop_item, kind, solid, to
 (88,'Escalier de briques',2,1,88,'stairs',true,false),
 (89,'Escalier de briques',2,1,88,'stairs',true,false),
 (90,'Escalier de briques',2,1,88,'stairs',true,false),
-(91,'Escalier de briques',2,1,88,'stairs',true,false);
+(91,'Escalier de briques',2,1,88,'stairs',true,false),
+(92,'Barrière',1.1,0,92,'fence',true,false),
+(93,'Vitre',0.3,0,93,'pane',true,false),
+(94,'Échelle',0.5,0,94,'ladder',false,false),
+(95,'Échelle',0.5,0,94,'ladder',false,false),
+(96,'Échelle',0.5,0,94,'ladder',false,false),
+(97,'Échelle',0.5,0,94,'ladder',false,false);
 insert into public.rule_place (item, block) values
 (2,2),
 (3,3),
@@ -161,7 +167,13 @@ insert into public.rule_place (item, block) values
 (88,88),
 (88,89),
 (88,90),
-(88,91);
+(88,91),
+(92,92),
+(93,93),
+(94,94),
+(94,95),
+(94,96),
+(94,97);
 insert into public.rule_items (id, name, tool, tier, uniq) values
 (101,'Cristal d''éther',1,0,false),
 (102,'Pioche en bois',2.2,1,false),
@@ -189,6 +201,9 @@ insert into public.rule_recipes (out_item, n, need, uniq) values
 (35,4,'{"3":2}'::jsonb,false),
 (44,4,'{"3":3}'::jsonb,false),
 (48,1,'{"9":4}'::jsonb,false),
+(92,3,'{"9":3}'::jsonb,false),
+(93,8,'{"10":3}'::jsonb,false),
+(94,3,'{"9":4}'::jsonb,false),
 (21,4,'{"3":1,"4":2,"17":1}'::jsonb,false),
 (22,4,'{"3":1,"4":2,"7":1}'::jsonb,false),
 (23,4,'{"3":1,"4":2,"6":1}'::jsonb,false),

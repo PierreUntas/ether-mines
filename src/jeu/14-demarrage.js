@@ -680,6 +680,13 @@ if (location.hash === '#debug')
     genChunk,
     loadChunks,
     rebuildAt,
+    keys,
+    get playing() {
+      return playing;
+    },
+    set playing(v) {
+      playing = v;
+    },
     get P() {
       return P;
     },

@@ -798,6 +798,21 @@ tile(72, P => {
       P(x, y, fil ? '#b58f5e' : sens ? '#d9bb84' : '#ccad78');
     }
 });
+// échelle : deux montants et des barreaux, fond transparent
+tile(73, P => {
+  vide(P);
+  for (let y = 0; y < 16; y++) {
+    for (const x of [2, 3, 12, 13]) P(x, y, x === 2 || x === 12 ? '#a5764f' : '#c4956a');
+    if (y % 4 === 1) for (let x = 4; x < 12; x++) P(x, y, hash(x, y, 73) < 0.3 ? '#a5764f' : '#c4956a');
+  }
+});
+// icône de barrière
+tile(74, P => {
+  vide(P);
+  for (const x of [2, 3, 12, 13]) for (let y = 1; y < 16; y++) P(x, y, x % 2 ? '#c4956a' : '#a5764f');
+  for (const y of [4, 5, 10, 11])
+    for (let x = 0; x < 16; x++) if (x < 2 || x > 3) if (x < 12 || x > 13) P(x, y, y % 2 ? '#a5764f' : '#c4956a');
+});
 const atlasTex = new THREE.CanvasTexture(atlas),
   emisTex = new THREE.CanvasTexture(emis);
 for (const t of [atlasTex, emisTex]) {

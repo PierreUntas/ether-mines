@@ -76,8 +76,12 @@ function frame(now) {
       }
     }
     const jump = keys.has('Space') || jumpHeld;
+    // échelle : on grimpe en sautant ou en avançant contre elle, on s'y tient accroupi, on y descend doucement
+    const echelle = [0, 1].some(d => B[get(Math.floor(P.x), Math.floor(P.y + 0.2 + d), Math.floor(P.z))]?.shape === 'ladder');
     if (inW) {
       P.vy = jump ? 2.6 : sneak ? -3 : Math.max(P.vy - 9 * dt, -2.2);
+    } else if (echelle) {
+      P.vy = jump || (bumped && l > 0.1) || (l > 0.1 && fz > 0) ? 3.2 : sneak ? 0 : Math.max(P.vy - 24 * dt, -2.4);
     } else {
       if (jump && was) P.vy = 8.2;
       else if (touch && bumped && was && l > 0.3) P.vy = 8.2;

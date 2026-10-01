@@ -411,7 +411,7 @@ function place() {
   if (!it || !B[it] || !(S.inv[it] > 0)) return;
   let id = +it;
   const face = ((Math.round(yaw / (Math.PI / 2)) % 4) + 4) % 4;
-  if (B[id].shape === 'stairs') id = id + face;
+  if (B[id].shape === 'stairs' || B[id].shape === 'ladder') id = id + face;
   const [x, y, z] = target.prev;
   if (y < 0 || y >= SY || !loaded(x, z)) return;
   if (!inWorld(x, z)) return;

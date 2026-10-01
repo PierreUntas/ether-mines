@@ -60,6 +60,10 @@ const plaque = await page.evaluate(() => {
   mines.commit(`${x},${y + 1},${z}`, 66, null);
   mines.commit(`${x + 1},${y + 1},${z}`, 67, null);
   mines.commit(`${x},${y + 1},${z + 1}`, 36, null);
+  mines.commit(`${x - 1},${y + 1},${z}`, 92, null);
+  mines.commit(`${x - 2},${y + 1},${z}`, 92, null);
+  mines.commit(`${x - 1},${y + 1},${z + 1}`, 93, null);
+  mines.commit(`${x + 2},${y + 1},${z}`, 94, null);
   return { x, y: y + 1, z };
 });
 await page.waitForTimeout(400);

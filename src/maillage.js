@@ -26,9 +26,50 @@
     [0.8125, 0, 0, 1, 1, 1],
   ];
   const doorOpen = (id, key, pw) => !!(B[id].open || pw(key));
-  function shapeBoxes(id, key, pw) {
+  // voisins pour les barrières et les vitres : [dx, dz] dans l'ordre +x, -x, +z, -z
+  const COTES = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ];
+  const LADDER = [
+    [0, 0, 0, 1, 1, 0.125],
+    [0, 0, 0, 0.125, 1, 1],
+    [0, 0, 0.875, 1, 1, 1],
+    [0.875, 0, 0, 1, 1, 1],
+  ];
+  // un bras de a à b (de 0,5 vers le bord) selon le côté
+  const bras = (c, a, b, y0, y1) =>
+    c === 0
+      ? [0.5 + a, y0, 0.5 - b, 1, y1, 0.5 + b]
+      : c === 1
+        ? [0, y0, 0.5 - b, 0.5 - a, y1, 0.5 + b]
+        : c === 2
+          ? [0.5 - b, y0, 0.5 + a, 0.5 + b, y1, 1]
+          : [0.5 - b, y0, 0, 0.5 + b, y1, 0.5 - a];
+  // get (facultatif) : bloc du monde, pour relier barrières et vitres à leurs voisins
+  function shapeBoxes(id, key, pw, get) {
     const b = B[id];
+    const lies = relie => {
+      if (!get) return [];
+      const [x, y, z] = key.split(',').map(Number);
+      return COTES.map(([dx, dz], c) => (relie(get(x + dx, y, z + dz)) ? c : -1)).filter(c => c >= 0);
+    };
     switch (b.shape) {
+      case 'fence': {
+        const out = [[0.375, 0, 0.375, 0.625, 1, 0.625]];
+        for (const c of lies(n => isOpaque(n) || (B[n] && B[n].shape === 'fence')))
+          out.push(bras(c, 0.125, 0.0625, 0.375, 0.5625), bras(c, 0.125, 0.0625, 0.75, 0.9375));
+        return out;
+      }
+      case 'pane': {
+        let c = lies(n => isOpaque(n) || (B[n] && (B[n].shape === 'pane' || B[n].glass)));
+        if (!c.length) c = [0, 1]; // seule : une vitre droite
+        return [[0.4375, 0, 0.4375, 0.5625, 1, 0.5625], ...c.map(k => bras(k, 0.0625, 0.0625, 0, 1))];
+      }
+      case 'ladder':
+        return [LADDER[b.o]];
       case 'slab':
         return [[0, 0, 0, 1, 0.5, 1]];
       case 'stairs':
@@ -238,9 +279,9 @@
           if (b.shape) {
             const key = coordKey(x, y, z),
               on = pw(key);
-            shapeBoxes(id, key, pw).forEach((bb, bi) =>
+            shapeBoxes(id, key, pw, get).forEach((bb, bi) =>
               emitBox(
-                A.op,
+                b.shape === 'pane' ? A.gl : A.op, // vitre : verre translucide
                 x,
                 y,
                 z,

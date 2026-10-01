@@ -20,7 +20,7 @@ const MAT_OF = id =>
 const nameOf = id => (B[id] ? B[id].n : ITEM[id] ? ITEM[id].n : 'Objet inconnu');
 const { isCross, isTransp, isSolid, isOpaque, isShaped, STAIR_HI, DOORB } = Maillage; // src/maillage.js
 const POWERED = new Set(); // blocs alimentés (calculés, jamais enregistrés)
-const shapeBoxes = (id, key) => Maillage.shapeBoxes(id, key, k => POWERED.has(k));
+const shapeBoxes = (id, key) => Maillage.shapeBoxes(id, key, k => POWERED.has(k), get);
 function collBoxes(id, key) {
   if (!isSolid(id)) return [];
   return isShaped(id) ? shapeBoxes(id, key) : [[0, 0, 0, 1, 1, 1]];
