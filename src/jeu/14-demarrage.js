@@ -130,8 +130,17 @@ const sauverIgnores = () => localStorage.setItem('ether-mines:ignores', JSON.str
 Net.on('chat', m => {
   if (!IGNORES.has(String(m.name).toLowerCase())) addChat(m.name, m.color, m.text);
 });
+let pseudoSignale = false;
 Net.on('status', s => {
   if (s === 'SAVE_ERROR') logEv('burn', 'Sauvegarde refusée par le serveur', 'vérifie le schéma Supabase');
+  if (s === 'PSEUDO_PRIS' && !pseudoSignale) {
+    pseudoSignale = true;
+    logEv(
+      'burn',
+      `Le pseudo « ${ME.name} » est déjà pris dans ce monde`,
+      'choisis-en un autre (Échap, puis le menu) pour sauvegarder ta partie',
+    );
+  }
   if (s === 'CLOSED' || s === 'CHANNEL_ERROR') $('onlineTxt').textContent = 'Connexion perdue · reconnexion…';
 });
 function updateOthers(dt) {
@@ -477,7 +486,11 @@ $('play').onclick = async () => {
   pleinEcran();
   Sound.init();
   if (!booted) {
-    const name = $('pseudo').value.trim().slice(0, 16);
+    // mêmes caractères que le serveur (008_durcissement.sql) : lettres, chiffres, espace, _ . -
+    const name = $('pseudo')
+      .value.replace(/[^A-Za-z0-9À-ÖØ-öø-ÿ _.-]/g, '')
+      .trim()
+      .slice(0, 16);
     if (!name) {
       $('pseudo').focus();
       $('netStatus').textContent = 'Choisis un pseudo pour que tes amis te reconnaissent.';

@@ -86,6 +86,11 @@ set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 select pg_temp.ok('rallumer la ruine', act_relight('w', :rx, :ry, :rz, :rx + 0.5, :ry, :rz + 2.5) -> 'unique' ->> 'id' = '203');
 select pg_temp.ok('le validateur ancien est signé', (select placed_by from blocks where x = :rx and y = :ry and z = :rz) = 'aaaaaaaa-0000-0000-0000-000000000001');
+select pg_temp.ok('compte tout neuf : pas de cadeau', act_gift('w', '3,4:0', 'mouton') ->> 'err' = 'les animaux ne te connaissent pas encore');
+reset role;
+update players set created_at = now() - interval '1 day';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 select pg_temp.ok('cadeau du mouton', act_gift('w', '3,4:0', 'mouton') -> 'inv' ->> '71' = '1');
 select pg_temp.ok('même cadeau deux fois', act_gift('w', '3,4:0', 'mouton') ->> 'ok' = 'false');
 
@@ -103,13 +108,14 @@ select set_recovery_code() as code \gset
 -- ---------- récompenses de validateur ----------
 reset role;
 update players set rewards_at = now() - interval '60 seconds';
+update blocks set updated_at = now() - interval '1 hour' where id = 74; -- rallumé avant la période payée
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 select pg_temp.ok('récompenses : un validateur ancien, 1 minute → 1 cristal', act_rewards('w') ->> 'n' = '1');
 select pg_temp.ok('récompense versée', (select n from inventory where item = 101) = 6);
 reset role;
 -- 8 validateurs posés : seuls 5 comptent ; 10 minutes → (5 + 5) parts × 50 slots / 25 = 20 cristaux
-insert into blocks (world, x, y, z, id, placed_by) select 'w', 100 + k, 40, 100, 13, 'aaaaaaaa-0000-0000-0000-000000000001' from generate_series(1, 8) k;
+insert into blocks (world, x, y, z, id, placed_by, updated_at) select 'w', 100 + k, 40, 100, 13, 'aaaaaaaa-0000-0000-0000-000000000001', now() - interval '1 day' from generate_series(1, 8) k;
 update players set rewards_at = now() - interval '10 minutes' where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
@@ -180,8 +186,8 @@ set role authenticated;
 select set_config('request.jwt.claim.sub', 'cccccccc-0000-0000-0000-000000000003', false) \g /dev/null
 select pg_temp.ok('compte neuf : signalement refusé', act_report('w', 'pierre') ->> 'err' = 'il faut avoir joué un peu');
 reset role;
-update players set mine_at = now() where user_id in ('cccccccc-0000-0000-0000-000000000003', 'dddddddd-0000-0000-0000-000000000004', 'eeeeeeee-0000-0000-0000-000000000005');
-insert into players (user_id, world, mine_at) values ('dddddddd-0000-0000-0000-000000000004', 'w', now()), ('eeeeeeee-0000-0000-0000-000000000005', 'w', now()) on conflict do nothing;
+update players set mine_at = now(), serial = 20, created_at = now() - interval '1 day' where user_id in ('cccccccc-0000-0000-0000-000000000003', 'dddddddd-0000-0000-0000-000000000004', 'eeeeeeee-0000-0000-0000-000000000005');
+insert into players (user_id, world, mine_at, serial, created_at) values ('dddddddd-0000-0000-0000-000000000004', 'w', now(), 20, now() - interval '1 day'), ('eeeeeeee-0000-0000-0000-000000000005', 'w', now(), 20, now() - interval '1 day') on conflict do nothing;
 set role authenticated;
 select pg_temp.ok('signaler un inconnu', act_report('w', 'personne') ->> 'err' = 'joueur inconnu');
 select pg_temp.ok('premier signalement', act_report('w', 'pierre') ->> 'muted' = 'false');
@@ -224,4 +230,38 @@ select pg_temp.ok('son contenu revient dans le sac', (select n from inventory wh
 select pg_temp.ok('la malle cassée revient aussi', (select n from inventory where item = 98) = 1);
 reset role;
 select pg_temp.ok('plus de malle enregistrée', (select count(*) from chests) = 0);
+-- ---------- durcissement (008) ----------
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.refused('effacer sa fiche pour remettre ses compteurs à zéro', $q$delete from players where user_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$);
+do $$ begin
+  update players set world = 'ailleurs' where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and world = 'w';
+  raise exception 'ÉCHEC : fiche déplacée dans un autre monde';
+exception when raise_exception then
+  if sqlerrm like 'ÉCHEC%' then raise; end if;
+  raise notice 'ok : déplacer sa fiche (refusé)';
+end $$;
+select set_config('request.jwt.claim.sub', 'cccccccc-0000-0000-0000-000000000003', false) \g /dev/null
+do $$ begin
+  update players set name = 'pierre' where user_id = 'cccccccc-0000-0000-0000-000000000003' and world = 'w';
+  raise exception 'ÉCHEC : pseudo d''un autre accepté';
+exception when raise_exception then
+  if sqlerrm like 'ÉCHEC%' then raise; end if;
+  raise notice 'ok : prendre le pseudo d''un autre (refusé)';
+end $$;
+select set_config('request.jwt.claim.sub', 'cccccccc-0000-0000-0000-000000000003', false) \g /dev/null
+update players set name = '  ' || repeat('x', 500) || chr(8203) || '  ', color = 'javascript:alert(1)' where user_id = 'cccccccc-0000-0000-0000-000000000003' and world = 'w';
+select pg_temp.ok('pseudo coupé à 20 caractères, couleur corrigée', (select char_length(name) = 20 and color = '#8a7bef' from players where world = 'w'));
+select pg_temp.ok('nouvelle partie sans effacer la fiche', (act_new_game('w') ->> 'ok')::boolean and (select state = '{}'::jsonb and serial = 20 from players where world = 'w'));
+select pg_temp.ok('la méduse offre un cristal', act_gift('w', '9,9:1', 'meduse') ->> 'item' = '101');
+select pg_temp.ok('message de chat énorme refusé', act_chat('w', repeat('a', 5000)) ->> 'err' = 'message trop long');
+reset role;
+-- un validateur posé à l'instant ne compte pas pour le temps passé
+insert into blocks (world, x, y, z, id, placed_by) values ('w', 120, 40, 120, 13, 'cccccccc-0000-0000-0000-000000000003');
+update players set rewards_at = now() - interval '20 minutes' where user_id = 'cccccccc-0000-0000-0000-000000000003';
+delete from rate_limits where kind = 'rewards';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'cccccccc-0000-0000-0000-000000000003', false) \g /dev/null
+select pg_temp.ok('validateur posé après coup : rien pour le passé', (act_rewards('w') ->> 'n')::int = 0);
+reset role;
 \echo Tous les scénarios SQL passent.

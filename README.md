@@ -99,7 +99,7 @@ tools/regles.mjs        génère supabase/regles.sql
 
 1. **Supabase** : crée un projet gratuit sur supabase.com.
 2. **Comptes invités** : dans *Authentication → Sign In / Providers*, active *Allow anonymous sign-ins*. Chaque joueur reçoit un compte automatiquement, sans email ni mot de passe.
-3. **Base** : dans *SQL Editor*, lance dans l'ordre `supabase/migrations/001_schema.sql`, `supabase/migrations/002_securite.sql`, `supabase/migrations/003_moderation.sql`, `supabase/migrations/005_coffres.sql`, `supabase/migrations/006_renumerotation.sql`, `supabase/migrations/007_economie.sql`, puis `supabase/regles.sql`. Chaque migration se relance sans risque ; une nouvelle migration se lance simplement après les autres (le numéro 004 n'est pas utilisé).
+3. **Base** : dans *SQL Editor*, lance dans l'ordre `supabase/migrations/001_schema.sql`, `supabase/migrations/002_securite.sql`, `supabase/migrations/003_moderation.sql`, `supabase/migrations/005_coffres.sql`, `supabase/migrations/006_renumerotation.sql`, `supabase/migrations/007_economie.sql`, `supabase/migrations/008_durcissement.sql`, puis `supabase/regles.sql`. Chaque migration se relance sans risque ; une nouvelle migration se lance simplement après les autres (le numéro 004 n'est pas utilisé).
 4. **Fonction `figer`** (une fois, puis à chaque changement du générateur) :
    ```
    npx supabase login

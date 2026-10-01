@@ -23,7 +23,11 @@ Deno.serve(async (req) => {
     if (authErr || !who?.user) return json({ error: 'non connecté' }, 401);
 
     const { world, cx, cz } = await req.json();
-    if (typeof world !== 'string' || world.length < 1 || world.length > 32) return json({ error: 'monde invalide' }, 400);
+    if (typeof world !== 'string' || !/^[a-z0-9-]{1,32}$/.test(world)) return json({ error: 'monde invalide' }, 400);
+    // limite de rythme par joueur (008_durcissement.sql ouvre _rate au rôle de service) : contre le remplissage de la base
+    const lim = await admin.rpc('_rate', { me: who.user.id, kind_: 'figer', per_s: 3, burst: 80 });
+    if (lim.error) return json({ error: 'limite de rythme indisponible (lancer 008_durcissement.sql)' }, 500);
+    if (lim.data === false) return json({ error: 'trop de terrain demandé, patiente un instant' }, 429);
     if (!Number.isInteger(cx) || !Number.isInteger(cz) || Math.abs(cx * World.CH) >= World.LIMITE || Math.abs(cz * World.CH) >= World.LIMITE)
       return json({ error: 'tronçon invalide' }, 400);
 

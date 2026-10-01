@@ -11,7 +11,15 @@ const AK = {
   lapin: { n: 'Lapin des dunes', D: 5, walk: 0.38, R: 5, sp: 1, hit: [0.45, 0.55, 0.55] },
   renard: { n: 'Renard rose', D: 6.5, walk: 0.5, R: 8, sp: 1, hit: [0.55, 0.75, 1], gift: 'fleur' },
   poisson: { n: 'Poisson prisme', D: 6, walk: 0.85, R: 5, sp: 1, hit: [0.3, 0.35, 0.55] },
-  meduse: { n: 'Méduse céleste', D: 12, walk: 1, R: 6, sp: 1, hit: [0.8, 1.2, 0.8], gift: [103, 1, 'éclat laissé par une méduse céleste'] },
+  meduse: {
+    n: 'Méduse céleste',
+    D: 12,
+    walk: 1,
+    R: 6,
+    sp: 1,
+    hit: [0.8, 1.2, 0.8],
+    gift: [101, 1, 'cristal laissé par une méduse céleste'],
+  },
 };
 const aniMat = {};
 const AM = (c, basic, op) => {

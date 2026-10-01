@@ -58,13 +58,14 @@ window.Net = (() => {
       .upsert({ user_id: userId, world: w, name, color, state, updated_at: new Date().toISOString() }, { onConflict: 'user_id,world' });
     if (error) {
       console.error(error);
-      emit('status', 'SAVE_ERROR');
+      emit('status', /pseudo déjà pris|players_pseudo/.test(error.message || '') ? 'PSEUDO_PRIS' : 'SAVE_ERROR');
       return false;
     }
     return true;
   }
+  // nouvelle partie : le serveur efface l'état de jeu de la fiche (la fiche elle-même reste, avec ses compteurs)
   async function deletePlayer(w) {
-    const { error } = await client().from('players').delete().eq('user_id', userId).eq('world', w);
+    const { error } = await client().rpc('act_new_game', { w });
     if (error) throw error;
   }
   async function rpc(fn, args) {
