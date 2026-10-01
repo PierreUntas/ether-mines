@@ -171,24 +171,4 @@ insert into public.rule_recipes (out_item, n, need, uniq) values
 (66,2,'{"15":2}'::jsonb,false),
 (67,8,'{"101":1}'::jsonb,false),
 (68,1,'{"10":1,"101":2}'::jsonb,false);
--- défis du jour (table créée par 004_objectifs.sql)
-delete from public.rule_defis;
-insert into public.rule_defis (id, counter, n, title, reward) values
-(1,'mine',60,'Mine 60 blocs',4),
-(2,'got:5',12,'Récolte 12 bûches',3),
-(3,'got:101',8,'Extrais 8 cristaux',6),
-(4,'got:3',40,'Taille 40 blocs de granite',4),
-(5,'got:2',30,'Creuse 30 blocs de terre',3),
-(6,'got:4',20,'Ramasse 20 blocs de sable',3),
-(7,'place',40,'Pose 40 blocs',4),
-(8,'place',120,'Grand chantier : pose 120 blocs',9),
-(9,'craft',6,'Fabrique 6 fois à l’atelier',3),
-(10,'craft:14',2,'Fabrique 2 lanternes',4),
-(11,'craft:48',1,'Fabrique une porte',2),
-(12,'gift',2,'Reçois 2 cadeaux d’animaux',4),
-(13,'toggle',10,'Actionne 10 fois une porte ou un levier',2),
-(14,'got:103',2,'Extrais 2 éclats purs',8),
-(15,'craft:9',4,'Fabrique 4 fois des planches',2),
-(16,'place:14',3,'Pose 3 lanternes',4),
-(17,'mine',150,'Grande journée : mine 150 blocs',10);
 commit;

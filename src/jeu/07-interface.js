@@ -211,8 +211,6 @@ function updateQuest(dt) {
     const goal = RELIT_GOALS.find(g => g > (S.relit || 0)) || S.relit + 10;
     html = `<b>${S.relit}/${goal}</b> Validateurs rallumés`;
   }
-  const prets = DEFIS_JOUR ? DEFIS_JOUR.defis.filter(d => !d.claimed && d.have >= d.n).length : 0;
-  if (prets) html += `<span class="compass">◆ ${prets} défi${prets > 1 ? 's' : ''} à toucher</span>`;
   if (i >= QUESTS.length - 2) {
     const r = nearestRuin();
     if (r) html += `<span class="compass">${arrowTo(r.x + 0.5, r.z + 0.5)} ruine à ${Math.round(r.d)} m</span>`;
@@ -227,8 +225,6 @@ function flashQuest() {
 }
 function renderQuests(body) {
   const i = questIndex();
-  renderDefis(body);
-  body.insertAdjacentHTML('beforeend', `<h3 class="qtitre">Histoire <small>${Math.min(i, QUESTS.length)} / ${QUESTS.length}</small></h3>`);
   body.insertAdjacentHTML(
     'beforeend',
     `<p class="qintro">Les anciens validateurs de ce monde se sont éteints. Deviens assez fort pour descendre jusqu'à la roche de genèse, forge un cœur de validateur et rallume-les, un par un.</p>`,
@@ -251,9 +247,8 @@ function renderQuests(body) {
   }
   body.insertAdjacentHTML(
     'beforeend',
-    `<div class="stats"><div><b>${S.relit || 0}</b><span>validateurs rallumés</span></div><div><b>${TIER_NAME[Math.max(0, ...S.nfts.map(n => ITEM[n.id || 201]?.tier || 0), S.got[102] ? 1 : 0)].replace(/^(la |une )/, '')}</b><span>meilleur outil</span></div><div><b>${(S.stats?.mine || 0).toLocaleString('fr')}</b><span>blocs minés</span></div><div><b>${((S.stats?.dist || 0) / 1000).toFixed(1).replace('.', ',')} km</b><span>parcourus</span></div></div>`,
+    `<div class="stats"><div><b>${S.relit || 0}</b><span>validateurs rallumés</span></div><div><b>${TIER_NAME[Math.max(0, ...S.nfts.map(n => ITEM[n.id || 201]?.tier || 0), S.got[102] ? 1 : 0)].replace(/^(la |une )/, '')}</b><span>meilleur outil</span></div></div>`,
   );
-  renderSucces(body);
 }
 function renderPanel() {
   const body = $('pbody');
@@ -395,13 +390,9 @@ function craft(r) {
         `→ ${r.n} ${nameOf(r.out)}`,
       );
       if (res.unique) addUnique(res.unique);
-      stat('craft');
-      stat('craft:' + r.out);
     });
     return;
   }
-  stat('craft');
-  stat('craft:' + r.out);
   for (const [k, n] of Object.entries(r.need)) take(+k, n);
   logEv(
     'craft',

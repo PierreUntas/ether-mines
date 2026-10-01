@@ -146,33 +146,5 @@
     if (b.shape === 'door') return [48, 52, 56, 60];
     return [it];
   }
-  // ---------- défis du jour ----------
-  // Trois défis par jour (jour UTC), les mêmes pour tout le monde, récompensés en cristaux par le serveur.
-  // Compteurs tenus par le serveur : mine (blocs minés), got:<objet> (objets obtenus en minant), place, place:<bloc>,
-  // craft, craft:<objet>, gift (cadeaux d'animaux), toggle (portes et leviers), relight.
-  // AJOUTER À LA FIN seulement : l'ordre fixe le tirage de chaque jour. Garder un nombre premier de défis (17, 19, 23…).
-  const DEFIS = [
-    { c: 'mine', n: 60, t: 'Mine 60 blocs', r: 4 },
-    { c: 'got:5', n: 12, t: 'Récolte 12 bûches', r: 3 },
-    { c: 'got:101', n: 8, t: 'Extrais 8 cristaux', r: 6 },
-    { c: 'got:3', n: 40, t: 'Taille 40 blocs de granite', r: 4 },
-    { c: 'got:2', n: 30, t: 'Creuse 30 blocs de terre', r: 3 },
-    { c: 'got:4', n: 20, t: 'Ramasse 20 blocs de sable', r: 3 },
-    { c: 'place', n: 40, t: 'Pose 40 blocs', r: 4 },
-    { c: 'place', n: 120, t: 'Grand chantier : pose 120 blocs', r: 9 },
-    { c: 'craft', n: 6, t: 'Fabrique 6 fois à l’atelier', r: 3 },
-    { c: 'craft:14', n: 2, t: 'Fabrique 2 lanternes', r: 4 },
-    { c: 'craft:48', n: 1, t: 'Fabrique une porte', r: 2 },
-    { c: 'gift', n: 2, t: 'Reçois 2 cadeaux d’animaux', r: 4 },
-    { c: 'toggle', n: 10, t: 'Actionne 10 fois une porte ou un levier', r: 2 },
-    { c: 'got:103', n: 2, t: 'Extrais 2 éclats purs', r: 8 },
-    { c: 'craft:9', n: 4, t: 'Fabrique 4 fois des planches', r: 2 },
-    { c: 'place:14', n: 3, t: 'Pose 3 lanternes', r: 4 },
-    { c: 'mine', n: 150, t: 'Grande journée : mine 150 blocs', r: 10 },
-  ].map((d, i) => ({ id: i + 1, ...d }));
-  const JOUR0 = Date.UTC(2026, 0, 1);
-  const jourDefis = (t = Date.now()) => Math.floor((t - JOUR0) / 864e5);
-  // les trois défis d'un jour : même calcul que _defis_du_jour() côté serveur
-  const defisDuJour = (d = jourDefis()) => [0, 1, 2].map(j => DEFIS[(((d * 7 + j * 5) % DEFIS.length) + DEFIS.length) % DEFIS.length]);
-  root.Rules = { PASTELS, VITRAUX, B, ITEM, RECIPES, reqTier, placeIds, DEFIS, jourDefis, defisDuJour };
+  root.Rules = { PASTELS, VITRAUX, B, ITEM, RECIPES, reqTier, placeIds };
 })(globalThis);

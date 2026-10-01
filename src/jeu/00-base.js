@@ -36,5 +36,5 @@ const {
 } = World;
 const encodeChunk = (cx, cz) => World.encodeChunk(CHK.get(ckey(cx, cz))),
   decodeChunk = World.decodeChunk;
-const { PASTELS, VITRAUX, B, ITEM, RECIPES, reqTier, jourDefis, defisDuJour } = Rules;
+const { PASTELS, VITRAUX, B, ITEM, RECIPES, reqTier } = Rules;
 const touch = matchMedia('(pointer:coarse)').matches;

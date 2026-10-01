@@ -257,10 +257,7 @@ async function claimCmd(c, arg) {
     say = t => addChat('Monde', '#7fe8ff', t);
   if (c === 'parcelle') {
     const r = await serverAct('claim', { qx, qz }, null, 'parcelle');
-    if (r) {
-      say(`Parcelle ${qx}, ${qz} revendiquée (2 cristaux). Toi et tes invités seuls pouvez y construire.`);
-      stat('parcelle');
-    }
+    if (r) say(`Parcelle ${qx}, ${qz} revendiquée (2 cristaux). Toi et tes invités seuls pouvez y construire.`);
     return;
   }
   if (c === 'liberer') {
@@ -328,8 +325,6 @@ function breakBlock(t) {
     ).then(r => {
       if (!r) return;
       const g = r.got || {};
-      stat('mine');
-      if (g.n) stat('got:' + g.item, g.n);
       if ([101, 103, 104].includes(g.item) && g.n) Sound.chime();
       if (g.item === 104 && !g.n) logEv('burn', "La roche de genèse s'effrite", 'pas de fragment cette fois');
       const u = held && nftOf(held);
@@ -354,29 +349,22 @@ function breakBlock(t) {
     give(ab.drop || above, 1, 'décroché');
   }
   const drop = B[id].drop !== undefined ? B[id].drop : id;
-  stat('mine');
   if (drop === 101) {
     const n = 1 + (hash(t.x * 7 + t.y, t.z, 5) < 0.4 ? 1 : 0);
     give(101, n, 'extrait du minerai');
-    stat('got:101', n);
     Sound.chime();
     if (!S.seen.cry) {
       S.seen.cry = 1;
     }
   } else if (drop === 103) {
     give(103, 1, 'extrait de la géode');
-    stat('got:103');
     Sound.chime();
   } else if (drop === 104) {
     if (hash(t.x * 3 + t.y, t.z * 5, 124) < 0.4) {
       give(104, 1, 'arraché à la roche de genèse');
-      stat('got:104');
       Sound.chime();
     } else logEv('burn', "La roche de genèse s'effrite", 'pas de fragment cette fois');
-  } else if (drop) {
-    give(drop, 1, owned ? `bloc #${owned} repris` : `jeton #${drop}`);
-    stat('got:' + drop);
-  }
+  } else if (drop) give(drop, 1, owned ? `bloc #${owned} repris` : `jeton #${drop}`);
   if (id === 13) delVal(k);
   for (const nft of S.nfts) if (S.bar[S.sel] === 'nft' + nft.serial) nft.mined = (nft.mined || 0) + 1;
   dirty = true;
@@ -406,8 +394,7 @@ function place() {
   if (tb && tb.shape === 'door' && inWorld(target.x, target.z)) {
     const t = target,
       rec = record(() => toggleDoor(t));
-    if (SERVER()) serverAct('toggle', { px: t.x, py: t.y, pz: t.z }, rec).then(r => r && stat('toggle'));
-    else stat('toggle');
+    if (SERVER()) serverAct('toggle', { px: t.x, py: t.y, pz: t.z }, rec);
     return;
   }
   if (tb && tb.shape === 'lever' && inWorld(target.x, target.z)) {
@@ -416,8 +403,7 @@ function place() {
     Sound.click();
     swing = 0.6;
     rebuildAt(t.x, t.z);
-    if (SERVER()) serverAct('toggle', { px: t.x, py: t.y, pz: t.z }, rec).then(r => r && stat('toggle'));
-    else stat('toggle');
+    if (SERVER()) serverAct('toggle', { px: t.x, py: t.y, pz: t.z }, rec);
     return;
   }
   if (!target.prev) return;
@@ -458,16 +444,9 @@ function place() {
   if (SERVER()) {
     const name = B[id].n;
     serverAct('place', { px: x, py: y, pz: z, it: +it, bid: id }, rec).then(r => {
-      if (!r) return;
-      logEv('burn', `1 ${name}`, `→ bloc posé #${r.serial}`);
-      stat('place');
-      stat('place:' + id);
+      if (r) logEv('burn', `1 ${name}`, `→ bloc posé #${r.serial}`);
     });
-  } else {
-    logEv('burn', `1 ${B[id].n}`, `→ bloc posé #${S.serial}`);
-    stat('place');
-    stat('place:' + id);
-  }
+  } else logEv('burn', `1 ${B[id].n}`, `→ bloc posé #${S.serial}`);
   if (id === 13) {
     addVal(x, y, z);
     if (!S.seen.val) {
@@ -495,7 +474,6 @@ function relight(t) {
       if (!r) return;
       addUnique(r.unique);
       syncInventory();
-      stat('relight');
       logEv('burn', '1 Cœur de validateur', '→ validateur ancien rallumé');
       toastInfo('Validateur ancien rallumé : 3 cristaux par slot, à ton nom.');
       Sound.chime();
@@ -510,7 +488,6 @@ function relight(t) {
   commit(k, 74, own);
   addVal(t.x, t.y, t.z);
   S.relit = (S.relit || 0) + 1;
-  stat('relight');
   S.relitAt = S.relitAt || {};
   S.relitAt[k] = 1;
   mintNft(203, `${t.x}, ${t.y}, ${t.z}`);

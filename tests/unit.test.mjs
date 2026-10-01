@@ -97,15 +97,3 @@ test('maillage : chaque bloc de forme (plaque, escalier, porte, câble, levier�
       assert.ok(m.op && m.op.idx.length > 0, `bloc ${id} (${B[id].n}) maillé`);
     }
 });
-
-test('défis du jour : trois défis différents chaque jour, liste de taille première', () => {
-  const R = globalThis.Rules;
-  const n = R.DEFIS.length;
-  assert.ok(n > 10 && [...Array(n).keys()].slice(2).every(k => n % k !== 0), `${n} défis : il faut un nombre premier`);
-  for (let d = -5; d < 800; d++) {
-    const ids = R.defisDuJour(d).map(x => x.id);
-    assert.equal(new Set(ids).size, 3, `jour ${d}`);
-  }
-  const compteurs = /^(mine|place|craft|gift|toggle|relight|(got|place|craft):\d+)$/;
-  for (const x of R.DEFIS) assert.match(x.c, compteurs, `compteur inconnu : ${x.c}`);
-});

@@ -327,11 +327,8 @@ $('chatForm').addEventListener('submit', e => {
       chatJetons -= 1;
       Net.chat(v)
         .then(r => {
-          if ((r && r.ok) || (r && r.err === 'hors ligne')) {
-            addChat(ME.name, ME.color, (r.ok && r.text) || v);
-            stat('chat');
-          } else if (r && r.err === 'muet')
-            addChat('Monde', '#7fe8ff', `Tu es muet encore ${r.minutes} min (signalé par d'autres joueurs).`);
+          if ((r && r.ok) || (r && r.err === 'hors ligne')) addChat(ME.name, ME.color, (r.ok && r.text) || v);
+          else if (r && r.err === 'muet') addChat('Monde', '#7fe8ff', `Tu es muet encore ${r.minutes} min (signalé par d'autres joueurs).`);
           else if (r && r.err === "trop d'actions") addChat('Monde', '#7fe8ff', 'Doucement : un message par seconde.');
           else if (r && r.err) addChat('Monde', '#7fe8ff', 'Message refusé : ' + r.err);
         })
@@ -592,7 +589,6 @@ async function boot(world) {
     await Net.join(world, ME);
     if (Net.userId) {
       await syncInventory();
-      chargerDefis();
       try {
         for (const c of await Net.loadClaims()) CLAIMS.set(ckey(c.cx, c.cz), c);
       } catch (e) {

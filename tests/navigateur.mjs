@@ -52,12 +52,6 @@ await page.waitForTimeout(500);
 const res = await page.evaluate((y) => ({ bloc: mines.get(20, y, 20), inv: mines.S.inv }), y);
 if (res.bloc !== 0) await fail('le bloc miné est toujours là');
 if (res.inv[9] !== 4) await fail('les planches n\'ont pas été fabriquées : ' + JSON.stringify(res.inv));
-const obj = await page.evaluate(() => ({ mine: mines.S.stats?.mine, craft: mines.S.daily?.counts?.craft, n: document.querySelectorAll('.defi').length || (mines.openTab('quest'), document.querySelectorAll('.defi').length), succes: document.querySelectorAll('.badge').length }));
-if (obj.mine !== 1 || obj.craft !== 1) await fail('compteurs des objectifs : ' + JSON.stringify(obj));
-if (obj.n !== 3 || obj.succes < 20) await fail('onglet Objectifs incomplet : ' + JSON.stringify(obj));
-await page.evaluate(() => mines.openTab('quest'));
-await page.screenshot({ path: process.env.CAPTURE_OBJECTIFS || '/dev/null' }).catch(() => {});
-await page.evaluate(() => document.getElementById('closeP').click());
 if (errors.length) await fail('erreurs pendant la partie');
 // blocs de forme : une plaque de pression sur laquelle on marche, un escalier, un câble
 const plaque = await page.evaluate(() => {
