@@ -78,8 +78,17 @@ function frame(now) {
     const jump = keys.has('Space') || jumpHeld;
     // échelle : on grimpe en sautant ou en avançant contre elle, on s'y tient accroupi, on y descend doucement
     const echelle = [0, 1].some(d => B[get(Math.floor(P.x), Math.floor(P.y + 0.2 + d), Math.floor(P.z))]?.shape === 'ladder');
-    if (inW) {
+    // sortir de l'eau : nager contre la berge (en sautant, ou en avançant sur mobile) donne un élan pour monter dessus.
+    // Les pieds peuvent encore tremper alors que le corps est déjà hors de l'eau : on regarde aussi la case des pieds.
+    const pieds =
+      get(Math.floor(P.x), Math.floor(P.y), Math.floor(P.z)) === 11 || get(Math.floor(P.x), Math.floor(P.y - 0.2), Math.floor(P.z)) === 11;
+    if ((inW || pieds) && bumped && l > 0.1 && (jump || touch) && !sneak && P.vy < 6) {
+      P.vy = 7.6;
+    } else if (inW) {
       P.vy = jump ? 2.6 : sneak ? -3 : Math.max(P.vy - 9 * dt, -2.2);
+    } else if (pieds && jump && P.vy <= 0) {
+      P.vy = 5; // à la surface, le saut reste possible
+      P.vy = Math.max(P.vy - 24 * dt, -30);
     } else if (echelle) {
       P.vy = jump || (bumped && l > 0.1) || (l > 0.1 && fz > 0) ? 3.2 : sneak ? 0 : Math.max(P.vy - 24 * dt, -2.4);
     } else {

@@ -97,6 +97,21 @@ const circuit = async (levier2) =>
   }, levier2);
 const [eteinte, allumee] = [await circuit(64), await circuit(65)];
 if (eteinte || !allumee) await fail(`porte ET : lampe ${eteinte} avec un levier, ${allumee} avec deux`);
+// sortir de l'eau : nager contre une berge d'un bloc en sautant suffit
+const eau = await page.evaluate(async () => {
+  const Y = 47, c = (x, y, z, id) => mines.commit(x + ',' + y + ',' + z, id, null);
+  for (let x = 24; x <= 34; x++) for (let z = 14; z <= 24; z++) { c(x, Y, z, 80); for (let k = 1; k <= 2; k++) c(x, Y + k, z, z < 20 ? 15 : 11); for (let k = 3; k < 6; k++) c(x, Y + k, z, 0); }
+  for (const x of [24, 32]) for (const z of [14, 22]) mines.rebuildAt(x, z);
+  await new Promise(r => setTimeout(r, 1500));
+  const P = mines.P; P.x = 29.5; P.z = 21.5; P.y = Y + 1.5; P.vy = 0;
+  mines.yaw = 0; mines.pitch = 0; mines.playing = true;
+  mines.keys.add('KeyW'); mines.keys.add('Space');
+  const t0 = performance.now();
+  while (performance.now() - t0 < 15000 && !(P.z < 19.7 && P.y >= Y + 2.9)) await new Promise(r => setTimeout(r, 200));
+  mines.keys.clear();
+  return P.z < 19.7 && P.y >= Y + 2.9;
+});
+if (!eau) await fail('impossible de sortir de l\'eau sur une berge d\'un bloc');
 const m = await page.evaluate(() => ({ actif: mines.mailleur, n: mines.nbMaillages }));
 if (!m.actif) await fail('le maillage en arrière-plan ne s\'est pas lancé');
 if (m.n < 20) await fail('trop peu de tronçons affichés : ' + m.n);
