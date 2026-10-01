@@ -329,6 +329,12 @@ function spawnChunk(cx, cz) {
     add('shiba', 1);
     return;
   }
+  // la Cité : robots validateurs et chats dans les rues
+  if (dansCite(x0 + 8, z0 + 8)) {
+    if (r < 0.5) add('robot', 1);
+    if (hash(cx, cz, 68) < 0.4) add('chat', 1);
+    return;
+  }
   const bi = biome(x0 + 8, z0 + 8);
   const r3 = hash(cx * 11 - 5, cz * 3 + 9, 67);
   if (r3 < 0.05) add('chat', 1 + (r3 < 0.02 ? 1 : 0));

@@ -155,6 +155,44 @@ anneau.rotation.x = 0.35;
   }
 }
 scene.add(anneau);
+// vaisseaux en disque qui tournent au-dessus de la Cité, comme dans l'illustration de la ville la nuit
+const VAISSEAUX = [];
+{
+  const coque = new THREE.MeshLambertMaterial({ color: 0xd6ccf6 }),
+    lum = new THREE.MeshBasicMaterial({ color: 0x7fe8ff, fog: false }),
+    bulle = new THREE.MeshLambertMaterial({ color: 0xa6f4ee, transparent: true, opacity: 0.85 });
+  for (let i = 0; i < 3; i++) {
+    const g = new THREE.Group(),
+      t = 1 + i * 0.35;
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(3.2 * t, 2.2 * t, 0.7, 20), coque));
+    const anneauLum = new THREE.Mesh(new THREE.CylinderGeometry(3.25 * t, 3.25 * t, 0.18, 20, 1, true), lum);
+    g.add(anneauLum);
+    const d = new THREE.Mesh(new THREE.SphereGeometry(1.2 * t, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), bulle);
+    d.position.y = 0.3;
+    g.add(d);
+    g.userData = { r: 22 + i * 12, h: SY + 8 + i * 5, v: (i % 2 ? -1 : 1) * (0.05 + i * 0.02), a: i * 2.1 };
+    scene.add(g);
+    VAISSEAUX.push(g);
+  }
+}
+// vols d'oiseaux (le jour) : petits « v » qui traversent le ciel en groupe
+const OISEAUX = [];
+{
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute([-0.6, 0.25, 0, 0, 0, 0, 0, 0, 0, 0.6, 0.25, 0], 3));
+  const mat = new THREE.LineBasicMaterial({ color: 0x6a58e0, transparent: true, opacity: 0.8 });
+  for (let v = 0; v < 3; v++) {
+    const vol = new THREE.Group();
+    for (let k = 0; k < 6; k++) {
+      const o = new THREE.LineSegments(geo, mat);
+      o.position.set((k % 3) * 1.6 - 1.6, Math.floor(k / 3) * 0.8 + Math.random() * 0.4, Math.floor(k / 3) * 1.4);
+      vol.add(o);
+    }
+    vol.userData = { a: v * 2, r: 40 + v * 15, h: SY + 2 + v * 4, v: 0.04 + v * 0.01 };
+    scene.add(vol);
+    OISEAUX.push(vol);
+  }
+}
 // ---------- maillage par tronçons ----------
 const { FACES, AOF, uvRect } = Maillage; // src/maillage.js
 const opMat = new THREE.MeshLambertMaterial({

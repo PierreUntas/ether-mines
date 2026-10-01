@@ -47,7 +47,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP : sous cette couche, géodes et grandes grottes
-  const GEN = 4; // version du générateur (2 : champignons, roseaux… ; 3 : palmiers, améthystes ; 4 : atrium, temples, jardins, cyprès) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
+  const GEN = 5; // version du générateur (2 : champignons, roseaux… ; 3 : palmiers, améthystes ; 4 : atrium, temples, jardins, cyprès ; 5 : la Cité) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -58,6 +58,23 @@
   const inWorld = (x, z) => Math.abs(x) < LIMITE && Math.abs(z) < LIMITE;
   const RUIN = 80;
   // position de la ruine d'une région (ou null : océan, sommet) ; la région du sanctuaire en a une à portée de vue
+  // ---------- la Cité : quartier futuriste sous le grand diamant, au nord du sanctuaire ----------
+  const CITE = { x: SPAWN.x, z: SPAWN.z - 64, R: 30, Y: 32, PAS: 12 };
+  const dansCite = (x, z, marge = 0) => Math.hypot(x - CITE.x, z - CITE.z) <= CITE.R + marge;
+  // parcelle de la grille (12 × 12) : type de bâtiment et ses mesures, tirés de la graine
+  function citeLot(i, j) {
+    const cx = CITE.x - 42 + i * CITE.PAS + 6,
+      cz = CITE.z - 42 + j * CITE.PAS + 6,
+      d = Math.hypot(cx - CITE.x, cz - CITE.z),
+      h = hash(i * 7 + 3, j * 11 + 5, 170);
+    if (d < 4) return { cx, cz, t: 'ronde', r: 4, H: 24, centre: true };
+    if (d > CITE.R - 4) return null;
+    if (d > CITE.R - 9) return { cx, cz, t: 'place' };
+    if (h < 0.34) return { cx, cz, t: 'ronde', r: 3 + (hash(i, j, 171) < 0.5 ? 1 : 0), H: 12 + 5 * Math.floor(hash(i, j, 172) * 3) };
+    if (h < 0.6) return { cx, cz, t: 'gradins', H: 15 + Math.floor(hash(i, j, 173) * 7) };
+    if (h < 0.8) return { cx, cz, t: 'dome' };
+    return { cx, cz, t: 'place' };
+  }
   function ruinAt(rx, rz) {
     for (let k = 0; k < 4; k++) {
       let x, z;
@@ -69,6 +86,7 @@
         z = rz * RUIN + 10 + Math.floor(hash(rz, rx, 130 + k) * 60);
       }
       if (
+        dansCite(x, z, 12) ||
         Math.hypot(x - SPAWN.x, z - SPAWN.z) < (rx || rz ? 50 : 20) ||
         ((rx || rz) && Math.hypot(x - SPAWN.x - 38, z - SPAWN.z + 22) < 40)
       )
@@ -114,12 +132,16 @@
       if (Math.abs(heightAt(x + dx, z + dz) - y) > 2) return null;
     const rg = ruinAt(Math.floor(x / RUIN), Math.floor(z / RUIN));
     if (rg && Math.hypot(rg.x - x, rg.z - z) < 14) return null;
-    if (islandZone(x, z)) return null;
+    if (islandZone(x, z) || dansCite(x, z, 16)) return null;
     return { x, z, y };
   }
   // îles flottantes : nuages de roche entre DY+31 et DY+45, loin du sanctuaire, jamais au-dessus des montagnes
   const islandZone = (x, z) =>
-    vn2(x / 90 + 7, z / 90 - 3, 14) > 0.56 && Math.hypot(x - SPAWN.x, z - SPAWN.z) > 36 && heightAt(x, z) < DY + 29 && contAt(x, z) > 0.42;
+    vn2(x / 90 + 7, z / 90 - 3, 14) > 0.56 &&
+    Math.hypot(x - SPAWN.x, z - SPAWN.z) > 36 &&
+    heightAt(x, z) < DY + 29 &&
+    contAt(x, z) > 0.42 &&
+    !dansCite(x, z, 14);
   const isIsland = (x, y, z) => {
     if (y < DY + 31 || y > DY + 45) return false;
     const band = 1 - Math.abs(y - DY - 38) / 7;
@@ -231,7 +253,7 @@
       for (let x = x0 - 3; x < x0 + CH + 3; x++) {
         const h = heightAt(x, z),
           bi = biome(x, z);
-        if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 16) continue; // esplanade dégagée autour de l'Atrium
+        if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 16 || dansCite(x, z, 4)) continue; // esplanade de l'Atrium, la Cité
         // palmiers sur les plages et dans les dunes
         if (topAt(h, bi) === 4 && h > SEA && h < DY + 31 && hash(x, z, 140) < (bi === 'dunes' ? 0.006 : 0.014)) {
           palmier(x, h, z);
@@ -337,6 +359,114 @@
         }
         put(rx0, ry + 1, rz0, 73);
       }
+    // la Cité, colonne par colonne (chaque colonne ne dépend que de x et z)
+    if (dansCite(x0 + 8, z0 + 8, 12)) {
+      const Y = CITE.Y,
+        ox = CITE.x - 42, // grille de 7 × 7 parcelles centrée sur la Cité (la grande tour au milieu)
+        oz = CITE.z - 42;
+      for (let lz = 0; lz < CH; lz++)
+        for (let lx = 0; lx < CH; lx++) {
+          const x = x0 + lx,
+            z = z0 + lz,
+            dc = Math.hypot(x - CITE.x, z - CITE.z);
+          if (dc > CITE.R) continue;
+          const set = (y, id) => (a[li(lx, y, lz)] = id);
+          for (let y = Y + 1; y < SY; y++) set(y, 0);
+          for (let y = Y - 4; y < Y; y++) if (!a[li(lx, y, lz)] || a[li(lx, y, lz)] === 11) set(y, 3);
+          const gx = (((x - ox) % CITE.PAS) + CITE.PAS) % CITE.PAS,
+            gz = (((z - oz) % CITE.PAS) + CITE.PAS) % CITE.PAS,
+            rue = gx === 0 || gz === 0 || gx === 11 || gz === 11;
+          // sol : rues de granite poli, lignes de néon au milieu des rues, dalles de marbre ailleurs
+          set(Y, dc > CITE.R - 1 ? 81 : rue ? ((gx === 0 || gz === 0) && (x + z) % 3 === 0 ? 128 : 80) : (gx + gz) % 2 ? 15 : 81);
+          // passerelle circulaire suspendue, sur colonnes
+          const dp = Math.abs(dc - 19);
+          if (dp < 1.2) {
+            set(Y + 8, dp > 0.75 ? 128 : 15);
+            if (dp < 0.6 && Math.round(Math.atan2(z - CITE.z, x - CITE.x) * 6) % 3 === 0) for (let y = Y + 1; y < Y + 8; y++) set(y, 127);
+          }
+          // bâtiment de la parcelle
+          const L = citeLot(Math.floor((x - ox) / CITE.PAS), Math.floor((z - oz) / CITE.PAS));
+          if (!L) continue;
+          const dx = x - L.cx,
+            dz = z - L.cz,
+            rd = Math.hypot(dx, dz);
+          if (L.t === 'ronde') {
+            const { r, H } = L,
+              mur = L.centre ? 15 : [15, 22, 24, 28][Math.floor(hash(L.cx, L.cz, 174) * 4)];
+            if (rd <= r + 0.5) {
+              for (let k = 1; k <= H; k++) {
+                const y = Y + k;
+                if (rd > r - 0.5) {
+                  // mur : bande de néon tous les 5 niveaux, fenêtres entre les deux, porte au sud
+                  let id = k % 5 === 0 ? 128 : k % 5 >= 2 && k % 5 <= 3 && (dx + dz) % 2 ? 10 : mur;
+                  if (dx === 0 && dz > 0 && k <= 2) id = 0;
+                  set(y, id);
+                } else if (k % 5 === 0)
+                  set(y, dx === -(r - 1) && dz === 0 ? 95 : 15); // planchers, trappe à échelle
+                else if (dx === -(r - 1) && dz === 0) set(y, 95); // échelle contre le mur ouest
+              }
+            }
+            // disque du toit, plus large que la tour, cerclé de néon
+            if (rd <= r + 2.5) set(Y + H + 1, rd > r + 1.5 ? 128 : 15);
+            if (dx === 0 && dz === 0) {
+              const top = L.centre ? 4 : 2;
+              for (let k = 2; k <= top; k++) set(Y + H + k, 127);
+              set(Y + H + top + 1, L.centre ? 130 : 84);
+            }
+          } else if (L.t === 'gradins') {
+            // tour en cloche : trois étages de plus en plus étroits, rebords de néon
+            const H = L.H,
+              coul = [21, 22, 24, 25][Math.floor(hash(L.cx, L.cz, 175) * 4)];
+            for (let k = 1; k <= H; k++) {
+              const r = k <= H / 3 ? 4 : k <= (2 * H) / 3 ? 3 : 2;
+              if (rd > r + 0.5) continue;
+              const bord = rd > r - 0.5,
+                rebord = k === Math.floor(H / 3) || k === Math.floor((2 * H) / 3);
+              set(Y + k, rebord && bord ? 128 : bord && k % 4 === 2 && (dx + dz) % 2 ? 10 : coul);
+            }
+            if (dx === 0 && dz === 0) set(Y + H + 1, 84);
+          } else if (L.t === 'dome') {
+            // dôme de verre sur socle de marbre
+            for (let k = 0; k <= 6; k++) {
+              const e = Math.hypot(rd, k) - 5;
+              if (k >= 1 && Math.abs(e) < 0.55) set(Y + k, k === 1 ? 15 : 10);
+            }
+            if (rd < 4.5 && (dx + dz) % 2 === 0) set(Y, 1);
+          } else if (L.t === 'place') {
+            if (rd <= 2) set(Y, 11);
+            else if (rd <= 2.9) set(Y + 1, 34);
+            if (dx === 0 && dz === 0) {
+              set(Y, 15);
+              set(Y + 1, 127);
+              set(Y + 2, 127);
+              set(Y + 3, 84);
+            }
+          }
+        }
+    }
+    // palmiers de la Cité (sous les dômes et sur les places), dans la marge de 3 colonnes
+    if (dansCite(x0 + 8, z0 + 8, 16))
+      for (let j = 0; j < 7; j++)
+        for (let i = 0; i < 7; i++) {
+          const L = citeLot(i, j);
+          if (!L || (L.t !== 'dome' && L.t !== 'place')) continue;
+          const pts =
+            L.t === 'dome'
+              ? [[0, 0]]
+              : [
+                  [-4, -4],
+                  [4, -4],
+                  [-4, 4],
+                  [4, 4],
+                ];
+          for (const [dx, dz] of pts) {
+            const x = L.cx + dx,
+              z = L.cz + dz;
+            if (x < x0 - 3 || x >= x0 + CH + 3 || z < z0 - 3 || z >= z0 + CH + 3) continue;
+            put(x, CITE.Y, z, 1);
+            palmier(x, CITE.Y, z, L.t === 'dome' ? 3 : 5);
+          }
+        }
     // jardins d'Éther : terrasse de marbre, fontaine et colonne à lanterne, cyprès aux coins (un par région de 64 × 64 au plus)
     for (let gz = Math.floor((z0 - 6) / 64); gz <= Math.floor((z0 + CH + 6) / 64); gz++)
       for (let gx = Math.floor((x0 - 6) / 64); gx <= Math.floor((x0 + CH + 6) / 64); gx++) {
@@ -482,6 +612,8 @@
     inWorld,
     ruinAt,
     jardinAt,
+    CITE,
+    dansCite,
     contAt,
     heightAt,
     islandZone,

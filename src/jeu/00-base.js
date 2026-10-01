@@ -17,6 +17,8 @@ const {
   DEEP,
   GEN,
   SPAWN,
+  CITE,
+  dansCite,
   LIMITE,
   RUIN,
   ckey,

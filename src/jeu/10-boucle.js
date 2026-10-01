@@ -248,6 +248,20 @@ function frame(now) {
   }
   bigEth.rotation.y += dt * 0.12;
   anneau.rotation.y -= dt * 0.05;
+  for (const g of VAISSEAUX) {
+    const u = g.userData;
+    u.a += dt * u.v;
+    g.position.set(CITE.x + Math.cos(u.a) * u.r, u.h + Math.sin(u.a * 3) * 0.6, CITE.z + Math.sin(u.a) * u.r);
+    g.rotation.y += dt * 0.3;
+  }
+  for (const vol of OISEAUX) {
+    const u = vol.userData;
+    u.a += dt * u.v;
+    vol.visible = skyU.night.value < 0.5;
+    vol.position.set(P.x + Math.cos(u.a) * u.r, u.h, P.z + Math.sin(u.a) * u.r);
+    vol.rotation.y = -u.a;
+    vol.children.forEach((o, k) => (o.scale.y = 0.6 + Math.abs(Math.sin(now / 180 + k))));
+  }
   waterU.value = now / 1000;
   updatePops(dt);
   {
