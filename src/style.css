@@ -243,3 +243,17 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .paliers .ok{color:var(--gold,#ffd95e)}.paliers b{margin-left:auto;color:var(--text);font-weight:400}
 .veilleurs{margin:0;padding-left:22px;font-size:14px}
 .grid p{grid-column:1/-1}
+/* échanges */
+.offre{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;display:grid;gap:6px}
+.offre h4{margin:4px 0 0;font-size:14px}.offre p{margin:0;font-size:14px}
+.offre .btnrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.puces{display:flex;gap:6px;flex-wrap:wrap}
+.puce{border:1px solid var(--line);background:rgba(255,255,255,.06);border-radius:999px;padding:4px 10px;font-size:13px;color:var(--text)}
+.puce.sel{background:var(--violet);border-color:transparent}
+.echAj{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.echAj select,.echL input,.echQ{background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:6px 8px;font:inherit;font-size:14px}
+.echAj select{max-width:230px}.echAj select option{color:#1c163a}
+.echQ{width:76px}
+.echL{font-size:14px;display:flex;gap:8px;align-items:center}
+.echMsg{color:var(--pink,#ff9ab8);font-size:14px;margin:0 0 10px}
+.muet{color:var(--muted);font-size:13px}

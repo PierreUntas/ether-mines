@@ -512,8 +512,6 @@ function relight(t) {
       toastInfo('Validateur ancien rallumé : un cristal par minute, à ton nom.');
       Sound.chime();
       popAt(t.x, t.y, t.z, 1);
-      S.relit = (S.relit || 0) + 1;
-      dirty = true;
       majReseau();
     });
     return;

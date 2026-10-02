@@ -460,6 +460,12 @@ function command(v) {
       .catch(() => addChat('Monde', '#7fe8ff', 'Signalement indisponible (schéma 003 à lancer).'));
     return;
   }
+  if (c === 'echanger' || c === 'échanger') {
+    if (rest.length) ECH.b.pseudo = rest.join(' ').trim();
+    closeChat();
+    openTab('echanges');
+    return;
+  }
   if (['parcelle', 'liberer', 'libérer', 'inviter', 'exclure', 'parcelles'].includes(c)) {
     claimCmd(c === 'libérer' ? 'liberer' : c, rest.join(' ').trim());
     return;
@@ -467,7 +473,7 @@ function command(v) {
   addChat(
     'Monde',
     '#7fe8ff',
-    'Commandes : /rejoindre pseudo · /sanctuaire · /parcelle · /liberer · /inviter pseudo · /exclure pseudo · /parcelles · /ignorer pseudo · /ecouter pseudo · /signaler pseudo',
+    'Commandes : /rejoindre pseudo · /sanctuaire · /parcelle · /liberer · /inviter pseudo · /exclure pseudo · /parcelles · /echanger pseudo · /ignorer pseudo · /ecouter pseudo · /signaler pseudo',
   );
 }
 $('chatForm').addEventListener('submit', e => {

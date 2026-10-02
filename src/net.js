@@ -3,7 +3,7 @@
 window.Net = (() => {
   const cfg = window.CONFIG || {};
   const enabled = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
-  const handlers = { block: [], pos: [], chat: [], peers: [], status: [], claim: [], frozen: [] };
+  const handlers = { block: [], pos: [], chat: [], peers: [], status: [], claim: [], frozen: [], offer: [] };
   let sb = null,
     ch = null,
     world = 'principal',
@@ -125,6 +125,8 @@ window.Net = (() => {
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'claims', filter: 'world=eq.' + w }, p =>
       emit('claim', p.eventType, p.new, p.old),
     );
+    // offres d'échange (011_echanges.sql) : chacun ne reçoit que celles qui le concernent
+    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'offers', filter: 'world=eq.' + w }, p => emit('offer', p.new));
     ch.on('broadcast', { event: 'chat' }, ({ payload }) => emit('chat', payload));
     // chat arbitré par le serveur (003_moderation.sql) : pseudo et couleur viennent de la base
     ch.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat', filter: 'world=eq.' + w }, p => {

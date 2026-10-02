@@ -94,7 +94,7 @@ const HABITANTS = [
     tenue: ['#ff9ab8', '#ffd95e', '#5a3a80', '#e8b890'],
     coiffe: 'chapeau',
     dit: [
-      "Ici tout se fabrique, rien ne s'achète : ouvre l'Atelier.",
+      "Ici tout se fabrique et tout s'échange : l'onglet Échanges de ton coffre sert à proposer un troc à un autre joueur.",
       'Fleurs, cristaux, roseaux : presque tout ce que tu ramasses sert à une recette de décoration.',
       'Caresse les moutons : ils offrent leur laine une fois par jour.',
     ],

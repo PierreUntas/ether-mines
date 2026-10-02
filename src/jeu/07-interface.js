@@ -211,6 +211,265 @@ function animerEtoiles(dt) {
     e.rotation.y += dt * 0.8;
   }
 }
+// ---------- échanges entre joueurs (011_echanges.sql) ----------
+// Une offre : « je donne » et « je demande » (ressources, objets uniques, parcelles). Le serveur revérifie tout à l'acceptation.
+const coteVide = () => ({ items: {}, uniques: [], parcels: [] });
+const ECH = { offres: [], charge: false, t: 0, msg: '', b: { pseudo: '', give: coteVide(), want: coteVide() } };
+const ECH_ERR = {
+  'joueur inconnu dans ce monde': 'aucun joueur ne porte ce pseudo dans ce monde',
+  "tu n'as pas tout ce que tu donnes": "tu n'as pas (ou plus) tout ce que tu donnes",
+  "ce joueur n'a pas ce que tu demandes": "ce joueur n'a pas ce que tu demandes",
+  "l'autre joueur n'a plus ce qu'il proposait": "l'autre joueur n'a plus ce qu'il proposait",
+  "tu n'as pas ce qui est demandé": "tu n'as pas ce qui est demandé",
+  "trop d'actions": 'trop rapide, attends un instant',
+};
+async function majOffres() {
+  ECH.t = 120;
+  if (!SERVER()) return;
+  try {
+    const r = await Net.act('offers', {});
+    if (!r || !r.ok) return;
+    const vues = new Set(ECH.offres.map(o => o.id));
+    for (const o of r.offers)
+      if (!o.mine && !vues.has(o.id)) {
+        logEv('nft', `${o.from} te propose un échange`, 'ouvre ton coffre, onglet Échanges');
+        Sound.chime();
+      }
+    ECH.offres = r.offers;
+    ECH.charge = true;
+  } catch (e) {
+    console.error(e);
+  }
+  const n = ECH.offres.filter(o => !o.mine).length,
+    ong = document.querySelector('.tab[data-tab="echanges"]');
+  if (ong) ong.textContent = n ? `Échanges (${n})` : 'Échanges';
+  if (tab === 'echanges' && !$('panel').hidden && document.activeElement?.tagName !== 'INPUT') renderPanel();
+}
+Net.on('offer', () => {
+  majOffres();
+  syncInventory();
+});
+const parcelleTxt = ([cx, cz]) => `parcelle en x ${cx * CH + 8}, z ${cz * CH + 8}`;
+// un côté d'offre, en clair ; objets : description des objets uniques proposés, donnée par le serveur
+function coteTxt(p, parType, objets) {
+  const l = [];
+  for (const [k, n] of Object.entries(p.items || {})) l.push(`${n} × ${nameOf(+k)}`);
+  for (const u of p.uniques || []) {
+    if (parType) l.push(`une ${nameOf(u)}`);
+    else {
+      const o = (objets || []).find(x => x.serial === u) || S.nfts.find(x => x.serial === u);
+      l.push(o ? `${nameOf(o.item || o.id || 201)} (${o.mined || 0} blocs minés)` : 'un objet unique');
+    }
+  }
+  for (const c of p.parcels || []) l.push(parcelleTxt(c));
+  return l.length ? l.join(', ') : 'rien';
+}
+async function agirOffre(nom, args, ok) {
+  ECH.msg = '';
+  try {
+    const r = await Net.act(nom, args);
+    if (r && r.ok) {
+      ok(r);
+      Sound.chime();
+      await syncInventory();
+    } else ECH.msg = (r && (ECH_ERR[r.err] || r.err)) || 'refusé par le serveur';
+  } catch (e) {
+    ECH.msg = /act_offer|function/i.test(e.message || '')
+      ? 'échanges absents du serveur : lance supabase/installation.sql'
+      : 'le serveur ne répond pas';
+  }
+  await majOffres();
+  if (tab === 'echanges' && !$('panel').hidden) renderPanel();
+}
+function renderEchanges(body) {
+  if (!SERVER()) {
+    body.innerHTML =
+      '<p class="qintro">Les échanges se font entre joueurs d’un même monde en ligne. En solo, il n’y a personne avec qui échanger.</p>';
+    return;
+  }
+  const el = (tag, cls, txt) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt !== undefined) e.textContent = txt;
+    return e;
+  };
+  const bouton = (txt, fn, cls) => {
+    const b = el('button', 'b' + (cls ? ' ' + cls : ''), txt);
+    b.onclick = fn;
+    return b;
+  };
+  body.appendChild(
+    el(
+      'p',
+      'qintro',
+      'Propose un troc à un autre joueur : ressources, pioches uniques, parcelles. Rien ne bouge tant qu’il n’a pas accepté, et tout change de main d’un seul coup. Les sceaux de validateur ne s’échangent pas.',
+    ),
+  );
+  if (ECH.msg) body.appendChild(el('p', 'echMsg', ECH.msg));
+  const recues = ECH.offres.filter(o => !o.mine),
+    envoyees = ECH.offres.filter(o => o.mine);
+  const carte = o => {
+    const c = el('div', 'offre');
+    c.appendChild(el('h4', '', o.mine ? `À ${o.to}` : `${o.from} te propose`));
+    c.appendChild(el('p', '', `${o.mine ? 'Tu donnes' : 'Tu reçois'} : ${coteTxt(o.give, false, o.objets)}`));
+    c.appendChild(el('p', '', `${o.mine ? 'Tu reçois' : 'Tu donnes'} : ${coteTxt(o.want, true)}`));
+    const br = el('div', 'btnrow');
+    if (o.mine)
+      br.appendChild(bouton('Annuler', () => agirOffre('offer_close', { oid: o.id }, () => logEv('burn', 'Offre annulée', `à ${o.to}`))));
+    else {
+      br.appendChild(
+        bouton(
+          'Accepter',
+          () =>
+            agirOffre('offer_accept', { oid: o.id }, () => logEv('nft', `Échange conclu avec ${o.from}`, coteTxt(o.give, false, o.objets))),
+          'primary',
+        ),
+      );
+      br.appendChild(
+        bouton('Refuser', () => agirOffre('offer_close', { oid: o.id }, () => logEv('burn', 'Offre refusée', `de ${o.from}`))),
+      );
+    }
+    c.appendChild(br);
+    return c;
+  };
+  if (recues.length) {
+    body.appendChild(el('h3', 'rcat', 'Offres reçues'));
+    recues.forEach(o => body.appendChild(carte(o)));
+  }
+  if (envoyees.length) {
+    body.appendChild(el('h3', 'rcat', 'Offres envoyées'));
+    envoyees.forEach(o => body.appendChild(carte(o)));
+  }
+  // ----- nouvelle offre -----
+  const b = ECH.b;
+  body.appendChild(el('h3', 'rcat', 'Nouvelle offre'));
+  const form = el('div', 'offre');
+  const ligne = el('label', 'echL', 'Pour ');
+  const ps = el('input');
+  ps.placeholder = 'pseudo du joueur';
+  ps.maxLength = 20;
+  ps.value = b.pseudo;
+  ps.setAttribute('list', 'echJoueurs');
+  ps.oninput = () => (b.pseudo = ps.value);
+  ligne.appendChild(ps);
+  const dl = el('datalist');
+  dl.id = 'echJoueurs';
+  for (const o of others.values()) dl.appendChild(new Option(o.name));
+  ligne.appendChild(dl);
+  form.appendChild(ligne);
+  const puce = (txt, actif, fn) => {
+    const p = el('button', 'puce' + (actif ? ' sel' : ''), txt);
+    p.onclick = () => {
+      fn();
+      renderPanel();
+    };
+    return p;
+  };
+  const bascule = (liste, v) => {
+    const i = liste.findIndex(x => String(x) === String(v));
+    if (i >= 0) liste.splice(i, 1);
+    else liste.push(v);
+  };
+  const bloc = (titre, cote, donne) => {
+    form.appendChild(el('h4', '', titre));
+    const zone = el('div', 'puces');
+    for (const [k, n] of Object.entries(cote.items)) zone.appendChild(puce(`${n} × ${nameOf(+k)}  ✕`, true, () => delete cote.items[k]));
+    // ressources : ce que j'ai (je donne) ou tout ce qui existe (je demande)
+    const ids = donne
+      ? Object.keys(S.inv).filter(k => S.inv[k] > 0 && +k < 200)
+      : [
+          ...Object.keys(B).filter(
+            k => +k > 0 && +k !== 11 && +k !== 12 && (B[k].drop === undefined || B[k].drop === +k) && B[k].h !== Infinity,
+          ),
+          ...Object.keys(ITEM).filter(k => +k < 200),
+        ];
+    const sel = el('select');
+    ids
+      .sort((x, y) => nameOf(+x).localeCompare(nameOf(+y), 'fr'))
+      .forEach(k => sel.appendChild(new Option(donne ? `${nameOf(+k)} (${S.inv[k]})` : nameOf(+k), k)));
+    const qte = el('input');
+    qte.type = 'number';
+    qte.min = 1;
+    qte.value = 1;
+    qte.className = 'echQ';
+    const aj = el('div', 'echAj');
+    if (ids.length) {
+      aj.appendChild(sel);
+      aj.appendChild(qte);
+      aj.appendChild(
+        bouton('Ajouter', () => {
+          const n = Math.max(1, Math.min(donne ? S.inv[sel.value] || 1 : 99999, Math.floor(+qte.value || 1)));
+          cote.items[sel.value] = n;
+          renderPanel();
+        }),
+      );
+    } else aj.appendChild(el('span', 'muet', 'Ton coffre est vide.'));
+    // objets uniques : les miens par numéro (je donne), par type (je demande)
+    if (donne)
+      for (const n of S.nfts.filter(n => (n.id || 201) !== 203))
+        zone.appendChild(
+          puce(`${nameOf(n.id || 201)} #${n.serial}`, cote.uniques.includes(n.serial), () => bascule(cote.uniques, n.serial)),
+        );
+    else for (const t of [201, 202]) zone.appendChild(puce(`une ${nameOf(t)}`, cote.uniques.includes(t), () => bascule(cote.uniques, t)));
+    // parcelles : les miennes (je donne) ; celle où je me trouve, si elle est à un autre (je demande)
+    if (donne) {
+      for (const c of [...CLAIMS.values()].filter(c => c.owner === ME.id))
+        zone.appendChild(
+          puce(
+            parcelleTxt([c.cx, c.cz]),
+            cote.parcels.some(p => p[0] === c.cx && p[1] === c.cz),
+            () => {
+              const i = cote.parcels.findIndex(p => p[0] === c.cx && p[1] === c.cz);
+              if (i >= 0) cote.parcels.splice(i, 1);
+              else cote.parcels.push([c.cx, c.cz]);
+            },
+          ),
+        );
+    } else {
+      for (const c of cote.parcels)
+        zone.appendChild(puce(`${parcelleTxt(c)}  ✕`, true, () => cote.parcels.splice(cote.parcels.indexOf(c), 1)));
+      const ici = claimAt(P.x, P.z);
+      if (ici && ici.owner !== ME.id && !cote.parcels.some(p => p[0] === ici.cx && p[1] === ici.cz))
+        zone.appendChild(
+          puce(`+ la parcelle où tu te trouves (${ici.owner_name || '?'})`, false, () => {
+            cote.parcels.push([ici.cx, ici.cz]);
+            if (!b.pseudo && ici.owner_name) b.pseudo = ici.owner_name;
+          }),
+        );
+    }
+    form.appendChild(zone);
+    form.appendChild(aj);
+  };
+  bloc('Je donne', b.give, true);
+  bloc('Je demande (rien : c’est un cadeau)', b.want, false);
+  const br = el('div', 'btnrow');
+  br.appendChild(
+    bouton(
+      'Envoyer l’offre',
+      () => {
+        const pseudo = b.pseudo.trim();
+        if (!pseudo) {
+          ECH.msg = 'indique le pseudo du joueur';
+          return renderPanel();
+        }
+        agirOffre('offer', { pseudo, give: b.give, want: b.want }, r => {
+          logEv('nft', `Offre envoyée à ${r.name}`, coteTxt(b.give, false));
+          ECH.b = { pseudo: '', give: coteVide(), want: coteVide() };
+        });
+      },
+      'primary',
+    ),
+  );
+  br.appendChild(
+    bouton('Effacer', () => {
+      ECH.b = { pseudo: '', give: coteVide(), want: coteVide() };
+      ECH.msg = '';
+      renderPanel();
+    }),
+  );
+  form.appendChild(br);
+  body.appendChild(form);
+}
 // ---------- lieux : le nom du lieu s'affiche quand on y entre ----------
 let lieuVu = null;
 function annoncer(titre, sous) {
@@ -279,6 +538,8 @@ function updateQuest(dt) {
   if (questT > 0) return;
   questT = 0.4;
   majLieu();
+  ECH.t -= 0.4;
+  if (ECH.t <= 0) majOffres();
   RESEAU.t -= 0.4;
   if (RESEAU.t <= 0) majReseau();
   const i = questIndex();
@@ -499,6 +760,7 @@ function renderPanel() {
     );
   } else if (tab === 'malle') renderMalle(body);
   else if (tab === 'quest') renderQuests(body);
+  else if (tab === 'echanges') renderEchanges(body);
   else if (tab === 'reglages') renderReglages(body);
   else if (tab === 'craft') {
     let cat = '';

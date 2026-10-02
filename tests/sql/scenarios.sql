@@ -276,3 +276,49 @@ select pg_temp.ok('revendiquer un tronçon de l''Atrium', act_claim('w', 0, 0, 1
 reset role;
 select pg_temp.ok('zone de la Cité protégée', _zone_publique(8, -56) and _zone_publique(30, -56) and not _zone_publique(8, -20) and not _zone_publique(20, 3));
 \echo Tous les scénarios SQL passent.
+
+-- ---------- échanges entre joueurs (011_echanges.sql) ----------
+reset role;
+insert into auth.users values ('f0000000-0000-0000-0000-000000000006'), ('f0000000-0000-0000-0000-000000000007');
+insert into players (user_id, world, name) values ('f0000000-0000-0000-0000-000000000006', 'w', 'Fanny'), ('f0000000-0000-0000-0000-000000000007', 'w', 'Gus');
+insert into inventory values ('f0000000-0000-0000-0000-000000000006', 'w', 101, 10), ('f0000000-0000-0000-0000-000000000007', 'w', 9, 30);
+insert into uniques (user_id, world, serial, item, place, mined) values
+  ('f0000000-0000-0000-0000-000000000006', 'w', 1, 201, 'forge de Fanny', 42),
+  ('f0000000-0000-0000-0000-000000000006', 'w', 2, 203, '1, 2, 3', 0),
+  ('f0000000-0000-0000-0000-000000000007', 'w', 1, 202, 'forge de Gus', 7);
+insert into claims (world, cx, cz, owner, owner_name) values ('w', 40, 40, 'f0000000-0000-0000-0000-000000000006', 'Fanny'), ('w', 41, 40, 'f0000000-0000-0000-0000-000000000007', 'Gus');
+delete from rate_limits;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'f0000000-0000-0000-0000-000000000006', false) \g /dev/null
+select pg_temp.ok('offre à un inconnu', act_offer('w', 'Personne', '{"items":{"101":1}}', '{}') ->> 'err' = 'joueur inconnu dans ce monde');
+select pg_temp.ok('offre sans rien donner', act_offer('w', 'Gus', '{}', '{"items":{"9":1}}') ->> 'err' = 'il faut donner quelque chose');
+select pg_temp.ok('donner plus que ce qu''on a', act_offer('w', 'gus', '{"items":{"101":11}}', '{}') ->> 'manque' = 'ressources');
+select pg_temp.ok('quantité négative', act_offer('w', 'Gus', '{"items":{"101":-5}}', '{}') ->> 'err' = 'offre invalide');
+reset role;
+delete from rate_limits;
+set role authenticated;
+select pg_temp.ok('un sceau ne s''échange pas', act_offer('w', 'Gus', '{"uniques":[2]}', '{}') ->> 'manque' = 'objet unique');
+select pg_temp.ok('donner la parcelle d''un autre', act_offer('w', 'Gus', '{"parcels":[[41,40]]}', '{}') ->> 'manque' = 'parcelle');
+select pg_temp.ok('demander ce que l''autre n''a pas', act_offer('w', 'Gus', '{"items":{"101":1}}', '{"uniques":[201]}') ->> 'err' = 'ce joueur n''a pas ce que tu demandes');
+reset role;
+delete from rate_limits;
+set role authenticated;
+select (act_offer('w', 'Gus', '{"items":{"101":4},"uniques":[1],"parcels":[[40,40]]}', '{"items":{"9":20},"uniques":[202],"parcels":[[41,40]]}') ->> 'id') as oid \gset
+select pg_temp.ok('offre créée', :oid > 0);
+select pg_temp.ok('accepter sa propre offre', act_offer_accept('w', :oid) ->> 'err' = 'offre introuvable');
+select pg_temp.ok('l''offre figure dans mes offres', jsonb_array_length(act_offers('w') -> 'offers') = 1);
+select pg_temp.refused('modifier une offre à la main', $q$update offers set status = 'acceptee'$q$);
+select (act_offer('w', 'Gus', '{"items":{"101":10}}', '{}') ->> 'id') as oid2 \gset
+select set_config('request.jwt.claim.sub', 'f0000000-0000-0000-0000-000000000007', false) \g /dev/null
+select pg_temp.ok('Gus voit ses deux offres', jsonb_array_length(act_offers('w') -> 'offers') = 2);
+select pg_temp.ok('échange accepté', (act_offer_accept('w', :oid) ->> 'ok')::boolean);
+select pg_temp.ok('accepter deux fois', act_offer_accept('w', :oid) ->> 'err' = 'cette offre n''est plus ouverte');
+select pg_temp.ok('le don promis deux fois ne passe plus', act_offer_accept('w', :oid2) ->> 'manque' = 'ressources');
+select pg_temp.ok('refuser une offre', (act_offer_close('w', :oid2) ->> 'ok')::boolean);
+reset role;
+select pg_temp.ok('ressources échangées', (select array_agg(right(user_id::text, 1) || ':' || item || ':' || n order by user_id, item) from inventory where user_id::text like 'f0%' and n > 0)
+  = array['6:9:20', '6:101:6', '7:9:10', '7:101:4']);
+select pg_temp.ok('objets uniques échangés, avec leur histoire', (select array_agg(right(user_id::text, 1) || ':' || item || ':' || mined order by user_id, item) from uniques where user_id::text like 'f0%')
+  = array['6:202:7', '6:203:0', '7:201:42']);
+select pg_temp.ok('parcelles échangées', (select owner_name from claims where world = 'w' and cx = 40 and cz = 40) = 'Gus' and (select owner_name from claims where world = 'w' and cx = 41 and cz = 40) = 'Fanny');
+select pg_temp.ok('offres closes', (select array_agg(status order by id) from offers) = array['acceptee', 'refusee']);
