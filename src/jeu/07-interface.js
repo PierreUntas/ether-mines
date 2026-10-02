@@ -252,9 +252,16 @@ async function relierWallet() {
     logEv('burn', 'Liaison du wallet refusée', e.message || String(e));
   }
 }
-async function frapperSceau(n) {
+// Une transaction Sepolia met facilement 10 à 30 s à confirmer : le bouton se fige tout de suite (texte +
+// désactivé) pour qu'il ne paraisse jamais inerte, et un nouveau rendu (renderPanel/majOnchain) le remplace
+// de toute façon dans tous les cas, donc pas besoin de le réactiver nous-mêmes en cas d'échec.
+function geler(btn, texte) {
+  btn.disabled = true;
+  btn.textContent = texte;
+}
+async function frapperSceau(n, btn) {
+  geler(btn, 'Frappe en cours sur Sepolia…');
   try {
-    toastInfo('Frappe en cours sur Sepolia…');
     const r = await Net.chaine('mint', { serial: n.serial });
     n.chainTx = r.hash;
     n.tokenId = r.tokenId;
@@ -266,7 +273,8 @@ async function frapperSceau(n) {
     if (tab === 'quest' && !$('panel').hidden) renderPanel();
   }
 }
-async function attesterSceau(n) {
+async function attesterSceau(n, btn) {
+  geler(btn, 'Attestation en cours sur Sepolia…');
   try {
     await Net.chaine('attester', { serial: n.serial });
     toastInfo('Attestation enregistrée pour cette époque');
@@ -276,7 +284,8 @@ async function attesterSceau(n) {
     majOnchain();
   }
 }
-async function reclamerSceau(n, epoque) {
+async function reclamerSceau(n, epoque, btn) {
+  geler(btn, 'Réclamation en cours sur Sepolia…');
   try {
     await Net.chaine('reclamer', { serial: n.serial, epoque: Number(epoque) });
     toastInfo('Récompense réclamée');
@@ -760,20 +769,20 @@ function renderOnchain(body) {
           const b = document.createElement('button');
           b.className = 'b primary';
           b.textContent = 'Frapper ce sceau';
-          b.onclick = () => frapperSceau(n);
+          b.onclick = () => frapperSceau(n, b);
           br.appendChild(b);
         }
       } else if (!etat.attesteActuelle) {
         const b = document.createElement('button');
         b.className = 'b';
         b.textContent = 'Attester cette époque';
-        b.onclick = () => attesterSceau(n);
+        b.onclick = () => attesterSceau(n, b);
         br.appendChild(b);
       } else if (precedente !== null && etat.attestePrecedente && !etat.dejaReclame) {
         const b = document.createElement('button');
         b.className = 'b primary';
         b.textContent = 'Réclamer';
-        b.onclick = () => reclamerSceau(n, precedente);
+        b.onclick = () => reclamerSceau(n, precedente, b);
         br.appendChild(b);
       }
       if (br.children.length) row.appendChild(br);
