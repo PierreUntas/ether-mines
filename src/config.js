@@ -8,7 +8,7 @@ window.CONFIG = {
   // Couche web3 (validateurs uniquement, Sepolia) : laisser vide tant que les contrats ne sont pas déployés
   // (étape 6) — les écrans correspondants se désactivent proprement. SEPOLIA_RPC_URL : un point d'accès
   // public (ex. https://ethereum-sepolia-rpc.publicnode.com), en lecture seule, jamais de clé privée ici.
-  SEPOLIA_RPC_URL: '',
-  SCEAU_ADDRESS: '',
-  RESEAU_ADDRESS: '',
+  SEPOLIA_RPC_URL: 'https://ethereum-sepolia-rpc.publicnode.com',
+  SCEAU_ADDRESS: '0x03263f1BeD1E0515d4B14d609f7eC8E9c23A8c04',
+  RESEAU_ADDRESS: '0x4D0024236EbAE357Be7D15cF22156BE3a5Bf3b92',
 };

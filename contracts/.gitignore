@@ -3,3 +3,4 @@
 /lib
 .env
 broadcast/*/*/run-*.json
+broadcast/*/*/*.lock
