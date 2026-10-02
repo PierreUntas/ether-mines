@@ -1,5 +1,5 @@
 -- REMISE À ZÉRO COMPLÈTE : supprime tous les mondes, tous les blocs, toutes les parties et les comptes invités.
--- Couvre aussi les tables des anciennes versions. Ensuite : lancer les migrations dans l'ordre puis regles.sql.
+-- Couvre aussi les tables des anciennes versions. Ensuite : lancer installation.sql (toutes les migrations et les règles en un seul fichier).
 
 drop table if exists public.players, public.inventory, public.uniques, public.claims, public.recovery,
   public.legacy_claims, public.blocks, public.chunks, public.worlds,

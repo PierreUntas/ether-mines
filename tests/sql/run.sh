@@ -18,5 +18,7 @@ psql -v ON_ERROR_STOP=1 -d $DB -f tests/sql/scenarios.sql 2>&1 | sed -e 's/^psql
 psql -q -d $DB -c "drop table fixtures, samples"
 run supabase/reset.sql
 test "$(psql -Atq -d $DB -c "select count(*) from pg_tables where schemaname = 'public'")" = "0" || { echo "ÉCHEC : reset.sql laisse des tables"; exit 1; }
-for m in supabase/migrations/*.sql; do run "$m"; done
+run supabase/installation.sql   # le fichier unique doit suffire après une remise à zéro
+run supabase/installation.sql   # … et se relancer sans erreur
+test "$(psql -Atq -d $DB -c "select count(*) from rule_blocks")" -gt 100 || { echo "ÉCHEC : règles absentes après installation.sql"; exit 1; }
 echo "Remise à zéro puis réinstallation : ok"

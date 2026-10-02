@@ -264,4 +264,14 @@ set role authenticated;
 select set_config('request.jwt.claim.sub', 'cccccccc-0000-0000-0000-000000000003', false) \g /dev/null
 select pg_temp.ok('validateur posé après coup : rien pour le passé', (act_rewards('w') ->> 'n')::int = 0);
 reset role;
+-- ---------- zones publiques (009) ----------
+reset role;
+update players set pos_at = now() - interval '1 hour', mine_at = now() - interval '1 minute';
+delete from rate_limits;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('miner une colonne de l''Atrium', act_mine('w', 14, 34, 8, null, 12.5, 33, 8.5) ->> 'err' = 'protégé');
+select pg_temp.ok('revendiquer un tronçon de l''Atrium', act_claim('w', 0, 0, 12.5, 33, 8.5) ->> 'ok' = 'false');
+reset role;
+select pg_temp.ok('zone de la Cité protégée', _zone_publique(8, -56) and _zone_publique(30, -56) and not _zone_publique(8, -20) and not _zone_publique(20, 3));
 \echo Tous les scénarios SQL passent.

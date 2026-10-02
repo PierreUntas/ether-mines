@@ -43,6 +43,7 @@ const REFUS = {
   'déplacement impossible': () => 'position refusée par le serveur, attends un instant',
   "trop d'actions": () => 'trop rapide, ralentis un peu',
   'il faut se trouver dans la parcelle': () => 'place-toi dans la parcelle à revendiquer',
+  'ce lieu appartient à tout le monde': () => 'pas de parcelle dans l’Atrium ni dans la Cité',
   'pas assez dans ton sac': () => 'tu n’en as pas assez',
   'malle pleine': () => 'malle pleine (27 sortes d’objets au plus)',
   'pas de malle ici': () => 'cette malle a disparu',
@@ -177,7 +178,10 @@ function syncInventory() {
 
 // ---------- parcelles ----------
 const CLAIMS = new Map();
-const sanctuary = (x, z) => x >= 4 && x <= 12 && z >= 4 && z <= 12;
+// zones publiques protégées (mêmes mesures que 009_zones.sql) : l'Atrium et la Cité
+const sanctuary = (x, z) =>
+  Math.hypot(Math.floor(x) - SPAWN.x, Math.floor(z) - SPAWN.z) <= 7.9 ||
+  Math.hypot(Math.floor(x) - CITE.x, Math.floor(z) - CITE.z) <= CITE.R + 0.5;
 const claimAt = (x, z) => CLAIMS.get(ckey(cOf(Math.floor(x)), cOf(Math.floor(z))));
 function canBuildHere(x, z) {
   if (!SERVER()) return true;
@@ -186,7 +190,7 @@ function canBuildHere(x, z) {
   return !c || c.owner === ME.id || (c.members || []).includes(ME.id);
 }
 function protectMsg(x, z) {
-  if (sanctuary(x, z)) return 'le sanctuaire est protégé';
+  if (sanctuary(x, z)) return dansCite(x, z, 1) ? 'la Cité appartient à tout le monde' : 'l’Atrium appartient à tout le monde';
   const c = claimAt(x, z);
   return `parcelle de ${c?.owner_name || "quelqu'un"}`;
 }

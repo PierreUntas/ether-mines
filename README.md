@@ -49,6 +49,7 @@ Les joueurs ne peuvent rien écrire directement : ni blocs, ni terrain, ni coffr
 | `act_gift` | une fois par jour et par animal, 15 cadeaux par jour au plus |
 | `act_rewards` | validateurs signés par le joueur (5 posés au plus : 1 cristal toutes les 5 minutes chacun ; anciens rallumés : 1 par minute), temps écoulé (30 minutes rattrapées au plus) |
 | `act_claim`, `act_unclaim`, `act_member` | parcelles : coût, limite, propriétaire |
+| toutes les actions sur un bloc | zones publiques (`009_zones.sql`) : l'Atrium et la Cité ne se minent pas, ne se construisent pas et ne se revendiquent pas |
 | `act_chest`, `act_chest_move` | malles : bloc malle réel, à portée de main, droit de construire à cet endroit, objets présents dans le sac ou la malle ; une malle cassée rend son contenu à celui qui la casse |
 
 En plus, toutes les actions passent un contrôle commun (`supabase/migrations/002_securite.sql`) :
@@ -102,7 +103,7 @@ tools/regles.mjs        génère supabase/regles.sql
 
 1. **Supabase** : crée un projet gratuit sur supabase.com.
 2. **Comptes invités** : dans *Authentication → Sign In / Providers*, active *Allow anonymous sign-ins*. Chaque joueur reçoit un compte automatiquement, sans email ni mot de passe.
-3. **Base** : dans *SQL Editor*, lance dans l'ordre `supabase/migrations/001_schema.sql`, `supabase/migrations/002_securite.sql`, `supabase/migrations/003_moderation.sql`, `supabase/migrations/005_coffres.sql`, `supabase/migrations/006_renumerotation.sql`, `supabase/migrations/007_economie.sql`, `supabase/migrations/008_durcissement.sql`, puis `supabase/regles.sql`. Chaque migration se relance sans risque ; une nouvelle migration se lance simplement après les autres (le numéro 004 n'est pas utilisé).
+3. **Base** : dans *SQL Editor*, lance `supabase/installation.sql` (toutes les migrations dans l'ordre puis les règles, en un seul fichier généré par `node tools/installation.mjs > supabase/installation.sql`). Il se relance sans risque : à chaque mise à jour du jeu qui touche la base ou les règles, relance-le.
 4. **Fonction `figer`** (une fois, puis à chaque changement du générateur) :
    ```
    npx supabase login
@@ -116,7 +117,7 @@ tools/regles.mjs        génère supabase/regles.sql
 Sans clés dans `src/config.js`, le jeu tourne en solo et sauvegarde dans le navigateur.
 
 Pour tout effacer et repartir de zéro :
-1. lancer `supabase/reset.sql`, puis les migrations dans l'ordre et `regles.sql` ;
+1. lancer `supabase/reset.sql`, puis `supabase/installation.sql` ;
 2. augmenter `SAISON` dans `src/jeu/03-etat.js` et publier : les parties gardées dans les navigateurs sont effacées au prochain chargement (pseudo et réglage du son conservés).
 
 ## Ce qui est sauvegardé où

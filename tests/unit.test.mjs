@@ -103,3 +103,9 @@ test('règles : aucun numéro n’est à la fois un bloc et un objet', () => {
   assert.deepEqual(doubles, [], `numéros en double : ${doubles.join(', ')}`);
   for (const id of Object.keys(R.B)) assert.ok(+id > 0 && +id < 256, `bloc ${id} : les tronçons stockent les blocs sur un octet`);
 });
+
+test('supabase/installation.sql est à jour avec les migrations et les règles', () => {
+  const gen = execFileSync('node', [new URL('../tools/installation.mjs', import.meta.url).pathname]).toString();
+  const file = readFileSync(new URL('../supabase/installation.sql', import.meta.url), 'utf8');
+  assert.equal(gen.trim(), file.trim(), 'relancer : node tools/installation.mjs > supabase/installation.sql');
+});
