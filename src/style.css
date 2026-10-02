@@ -257,3 +257,8 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .echL{font-size:14px;display:flex;gap:8px;align-items:center}
 .echMsg{color:var(--pink,#ff9ab8);font-size:14px;margin:0 0 10px}
 .muet{color:var(--muted);font-size:13px}
+/* validateurs sur la chaîne (Sepolia) */
+.sceauChaine{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;display:grid;gap:4px;font-size:14px}
+.sceauChaine b{font-family:var(--mono)}
+.sceauChaine a{color:var(--cyan,#7fe8ff)}
+.sceauChaine .btnrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}

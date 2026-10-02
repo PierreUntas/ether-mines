@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: 22
       # outil Supabase installé par npm (setup-cli@v1 en « latest » a cessé de s'installer le 1er octobre 2026)
-      - run: npx --yes supabase@2 functions deploy figer --project-ref "$SUPABASE_PROJECT_REF" --use-api
+      - run: npx --yes supabase@2 functions deploy figer lier-wallet chaine --project-ref "$SUPABASE_PROJECT_REF" --use-api
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}

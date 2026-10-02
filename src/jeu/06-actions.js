@@ -154,6 +154,12 @@ function syncInventory() {
         date: new Date(u.created_at).toLocaleDateString('fr-FR'),
         where: u.place || '',
         mined: u.mined,
+        // coordonnées structurées et état onchain du sceau (012/013 ; seulement pour l'objet 203)
+        vx: u.vx,
+        vy: u.vy,
+        vz: u.vz,
+        chainTx: u.chain_tx,
+        tokenId: u.token_id,
       }));
       for (const k of Object.keys(S.inv)) S.got[k] = 1;
       for (const n of S.nfts) S.got[n.id] = 1;

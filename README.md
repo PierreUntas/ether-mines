@@ -31,8 +31,9 @@ Un monde en blocs aux couleurs d'Ethereum, à construire entre amis dans le navi
 - **Son** : entièrement synthétisé dans `src/audio.js` (Web Audio, aucun fichier) : pas et coups selon la matière, cassures, poses, déclics des contrats, nappe musicale, oiseaux le jour, grillons la nuit, gouttes sous terre. Touche M ou bouton ♪ pour couper ; le choix est gardé dans le navigateur (`ether-mines:son`).
 - **Multijoueur** : les autres joueurs apparaissent avec leur pseudo, les blocs se synchronisent en direct, un chat (Entrée) et la liste des joueurs en ligne.
 - **Jetons (simulés)** : coffre avec fiches de jetons (ERC-1155 pour les ressources, ERC-721 pour la Pioche de cristal), atelier, registre des frappes et brûlages, vue registre (T) qui surligne tes blocs.
+- **Sceau de validateur, pour de vrai** : un sceau peut être frappé comme un vrai ERC-721 non transférable sur le testnet Sepolia, puis attesté et récompensé par époque. Voir « Couche web3 ».
 
-Rien n'est inscrit sur une vraie blockchain pour l'instant.
+Rien n'est inscrit sur une vraie blockchain, à l'exception des sceaux de validateur (optionnel, testnet, sans aucune valeur réelle — voir « Couche web3 »).
 
 ## Stack
 
@@ -98,10 +99,13 @@ src/audio.js            sons génératifs (Web Audio)
 supabase/functions/_shared/world.js   générateur du monde (jeu et serveur)
 supabase/functions/_shared/rules.js   blocs, objets, paliers, recettes (jeu et serveur)
 supabase/functions/figer/             fonction Edge : génère et fige le terrain d'un tronçon
+supabase/functions/lier-wallet/       fonction Edge : liaison d'un wallet par message signé (couche web3)
+supabase/functions/chaine/            fonction Edge : frappe/attestation/réclamation onchain (couche web3)
 supabase/migrations/    schéma de la base, fonctions d'arbitrage act_*
 supabase/regles.sql     règles du jeu en SQL (généré par tools/regles.mjs)
 supabase/reset.sql      remise à zéro complète (monde, parties, comptes invités)
 tools/regles.mjs        génère supabase/regles.sql
+contracts/              Sceau et Réseau (Foundry + OpenZeppelin) — voir « Couche web3 »
 ```
 
 ## Mise en ligne
@@ -191,13 +195,145 @@ Les tests tournent automatiquement sur GitHub à chaque push (onglet *Actions*, 
 - **Partie dans un navigateur** (mode solo, Chromium) : `npm i --no-save playwright@1.56.0 three@0.128.0 && npx playwright install chromium && node tests/navigateur.mjs`.
 - **À la main** : ouvrir `index.html#debug` expose `window.mines` dans la console (dont `serverAct(nom, arguments)`, `syncInventory()`, `get(x, y, z)`, `P` le joueur, `S.day` l'heure).
 
+## Couche web3 (validateurs, Sepolia)
+
+Une V1 web3, optionnelle, qui ne porte que sur les validateurs — pas les parcelles, pas les pioches, pas
+les ressources. **Le jeu reste jouable gratuitement, avec un simple pseudo, sans wallet.** La blockchain
+n'est qu'un miroir public et vérifiable d'un fait qui existe déjà dans la base : « ce joueur a rallumé ce
+validateur-là ». Ce n'est pas du play-to-earn : rien n'a de valeur réelle (Sepolia est un testnet), rien ne
+s'achète, et il n'existe aucun moyen de convertir quoi que ce soit en argent réel.
+
+```
+Joueur (pseudo, sans wallet)
+   │ rallume un validateur ancien — un acte de jeu inchangé, toujours arbitré par la base
+   ▼
+Base Supabase (uniques, item 203 : monde, x, y, z, date)
+   │ le joueur clique « Frapper », « Attester » ou « Réclamer »
+   ▼
+Edge Functions lier-wallet / chaine — clé opérateur, secret Supabase, jamais dans le dépôt
+   │ transaction simulée puis envoyée, gaz payé par l'opérateur, jamais par le joueur
+   ▼
+Sceau (ERC-721 / ERC-5192) et Réseau — Sepolia
+```
+
+### Les deux contrats (`contracts/`, Foundry + OpenZeppelin)
+
+- **`Sceau`** : ERC-721 non transférable (ERC-5192). Un sceau par validateur, jamais deux : son identifiant
+  (`tokenId`) est calculé par le contrat lui-même à partir de `(monde, x, y, z)`, pas fourni de l'extérieur.
+  Métadonnées et image générées entièrement onchain (`tokenURI`, aucun lien externe). `mint()` est réservé
+  au rôle opérateur.
+- **`Réseau`** : époques d'un jour. `attester()` enregistre la participation d'un sceau à l'époque en
+  cours ; à sa clôture, son nombre d'attestants (`n`) est figé pour toujours. La récompense par sceau suit
+  la même forme que la courbe d'émission d'Ethereum : émission totale d'une époque ∝ √n, donc 1/√n par
+  sceau. `reclamer()` verse du **vrai Sepolia ETH**, puisé dans le solde du contrat — réapprovisionné à la
+  main (voir plus bas), jamais déposé par un joueur. `attester()` et `reclamer()` sont eux aussi réservés au
+  rôle opérateur ; le versement va toujours au détenteur réel du sceau, jamais à qui envoie la transaction.
+
+Adresses sur Sepolia : *(remplies après le déploiement — voir « Mettre en route » plus bas)*.
+
+- Sceau : `0x…` — [Etherscan](https://sepolia.etherscan.io)
+- Réseau : `0x…` — [Etherscan](https://sepolia.etherscan.io)
+
+### Correspondance avec le vrai Ethereum
+
+| Mines d'Éther | Ethereum réel |
+| --- | --- |
+| Rallumer un validateur ancien, en jeu | Déposer 32 ETH dans le contrat de dépôt officiel |
+| Sceau (ERC-721 non transférable) | Le statut de validateur actif |
+| `attester()` une fois par époque | Attestation de validité à chaque créneau (~12 s), par comité |
+| Époque d'un jour | Époque réelle d'environ 6,4 minutes (32 créneaux) |
+| Émission d'une époque ∝ √n | Émission annuelle ∝ √(ETH total misé) |
+| `reclamer()` à la demande | Retrait des récompenses accumulées |
+| Solde de `Réseau` réapprovisionné à la main | Nouvelle émission d'ETH par le protocole |
+
+### Ce qui est simplifié
+
+- **Pas de slashing** : une époque manquée n'est simplement pas payée, il n'y a aucune pénalité au-delà.
+- **Époque d'un jour**, bien plus longue que les ~6,4 minutes réelles — plus commode à expliquer, mais plus
+  lente à observer en démonstration (prévoir de patienter entre deux époques, ou réduire `EPOCH_DURATION`
+  pour une démo).
+- **Pas de file d'activation** : un sceau participe dès l'époque en cours, alors qu'un vrai dépôt attend
+  parfois des mois avant de devenir un validateur actif.
+- **Récompense financée à la main**, pas une vraie émission protocolaire : sur un testnet, personne
+  n'émet de nouvel ETH ; le solde de `Réseau` vient de faucets publics, réapprovisionnés manuellement.
+- **`attester()` n'est qu'un enregistrement** : aucune vérification cryptographique d'un bloc ou d'un comité,
+  juste « ce sceau participe à cette époque ».
+
+### Choix techniques et limites
+
+- **Aucune garde** : aucun contrat ne détient jamais un jeton pour le compte d'un joueur, ni aucun dépôt
+  réel. Ça élimine toute la classe de risques des contrats de dépôt/retrait (la plus souvent piratée dans
+  le vrai Ethereum), au prix de ne pas pouvoir simuler un vrai staking avec capital à risque.
+- **Aucune synchronisation à double sens** : un échange en jeu ne bouge jamais le jeton onchain ; comme le
+  sceau est non transférable (ERC-5192), la question ne se pose même pas dans l'autre sens. La blockchain
+  reste un miroir, jamais le moteur du jeu.
+- **Tout passe par l'opérateur** (`mint`, `attester`, `reclamer` réservés à `OPERATOR_ROLE`) : le joueur ne
+  paie jamais de gaz, mais le jeu dépend de la disponibilité de l'Edge Function pour ces trois actions — un
+  compromis assumé, pas un oubli.
+- **Clé opérateur à bas privilège** : elle ne peut qu'appeler ces trois fonctions précises. Elle ne peut ni
+  changer de rôle, ni retirer le solde de `Réseau`, ni toucher à `Sceau` ou `Réseau` autrement. Une clé
+  d'administration séparée (`DEFAULT_ADMIN_ROLE`), utilisée une seule fois au déploiement puis gardée hors
+  ligne, est seule à pouvoir changer ça.
+- **Périmètre volontairement réduit** aux validateurs : les parcelles et les pioches sont restées en dehors.
+  Les tokeniser aurait demandé soit une garde (le contrat détient le jeton tant que le joueur n'a pas de
+  wallet), soit une synchronisation à double sens entre le jeu et la chaîne — les deux pistes explorées puis
+  écartées, pour un risque ajouté qui dépassait largement le bénéfice réel.
+
+### Mettre en route
+
+1. **Un wallet Sepolia pour déployer** (`DEPLOYER_PRIVATE_KEY`), avec un peu de Sepolia ETH (faucet public).
+   C'est lui qui devient l'administrateur des deux contrats — à garder hors ligne après le déploiement.
+2. **Une adresse pour l'opérateur** (`OPERATOR_ADDRESS`, juste l'adresse, pas sa clé privée). Sa clé privée
+   devient le secret Supabase `OPERATOR_PRIVATE_KEY` de la fonction `chaine` — jamais utilisée pour déployer.
+3. **Un point d'accès RPC Sepolia** (Alchemy, Infura, ou un public comme
+   `https://ethereum-sepolia-rpc.publicnode.com`).
+4. **Une clé Etherscan** (pour la vérification automatique du code source).
+5. **Déployer et vérifier** :
+   ```
+   cd contracts
+   forge install foundry-rs/forge-std OpenZeppelin/openzeppelin-contracts --no-git --no-commit
+   DEPLOYER_PRIVATE_KEY=0x… OPERATOR_ADDRESS=0x… \
+     forge script script/Deploy.s.sol:Deploy --rpc-url $SEPOLIA_RPC_URL --broadcast \
+       --verify --etherscan-api-key $ETHERSCAN_API_KEY
+   ```
+   `lib/` n'est pas versionné (voir `contracts/.gitignore`) : la première ligne le reconstruit à l'identique.
+6. **Reporter les deux adresses affichées** : dans `src/config.js` (`SCEAU_ADDRESS`, `RESEAU_ADDRESS`,
+   `SEPOLIA_RPC_URL` — un point d'accès public, en lecture seule, jamais de clé privée) et dans les secrets
+   Supabase des fonctions `lier-wallet`/`chaine` (`supabase secrets set SCEAU_ADDRESS=… RESEAU_ADDRESS=…
+   SEPOLIA_RPC_URL=… OPERATOR_PRIVATE_KEY=…`).
+7. **Lancer la migration** : `supabase/installation.sql` (déjà à jour) dans le SQL Editor.
+8. **Deux soldes à réapprovisionner de temps en temps, depuis des faucets Sepolia publics — pas le même usage** :
+   - **L'adresse opérateur elle-même** : c'est elle qui envoie les transactions (`mint`, `attester`,
+     `reclamer`), donc elle paie leur gaz de sa propre poche. Un simple envoi à `OPERATOR_ADDRESS` suffit
+     (depuis un portefeuille, ou `cast send $OPERATOR_ADDRESS --value 0.02ether --rpc-url $SEPOLIA_RPC_URL --private-key 0x…`).
+     Sans ça, la fonction `chaine` échoue dès la première transaction.
+   - **Le contrat `Réseau`** : c'est son solde qui paie les *récompenses* versées aux joueurs (distinct du
+     gaz ci-dessus) :
+     ```
+     cast send $RESEAU_ADDRESS --value 0.05ether --rpc-url $SEPOLIA_RPC_URL --private-key 0x…
+     ```
+   Dans les deux cas, un solde insuffisant fait simplement échouer l'action proprement (rien n'est perdu,
+   personne n'est bloqué) : à retenter après réapprovisionnement.
+9. **Si la vérification automatique échoue**, la relancer à la main, par exemple pour `Sceau` :
+   ```
+   forge verify-contract <adresse_sceau> src/Sceau.sol:Sceau --chain sepolia \
+     --etherscan-api-key $ETHERSCAN_API_KEY --constructor-args $(cast abi-encode "constructor(address)" <admin>)
+   ```
+
+### Tester les contrats
+
+`cd contracts && forge test` — 40 tests, dont du fuzzing (256 runs par propriété) sur le calcul de
+l'identifiant d'un sceau, les coordonnées extrêmes, et la courbe de récompense de `Réseau` (personne ne
+reçoit plus que sa part, la somme versée ne dépasse jamais l'émission prévue, aucun contournement de la
+clôture d'une époque). Lancés aussi sur GitHub à chaque push (workflow *Tests*, job *contracts*).
+
 ## Limites connues
 
 - Le serveur vérifie que les positions annoncées sont vraisemblables, pas la physique fine : un tricheur peut traverser un mur ou voler à vitesse de course. Il ne peut ni miner à distance, ni se téléporter, ni agir plus vite qu'un humain.
 - Les objectifs sont suivis dans le navigateur ; ils ne donnent aucune récompense, donc rien à y gagner en trichant.
 - Les animaux et les cadeaux ne sont pas vérifiés un par un (le serveur limite à 15 cadeaux par jour).
 - La modération du chat est automatique et simple : pas de modérateur humain, et le filtre ne voit que des mots entiers (« c0nnard » passe). Plusieurs joueurs peuvent porter le même pseudo ; `/signaler` vise le plus récent.
-- Pour aller vers de vrais jetons : ne frapper onchain que les objets qui ont de la valeur ou une histoire (objets uniques, parcelles), à partir des tables `uniques` et `claims`, qui sont déjà la source de vérité.
+- La couche web3 (« Couche web3 ») ne couvre que les sceaux de validateur, pas les pioches ni les parcelles — un choix de périmètre, pas une limite technique : voir « Choix techniques et limites » plus bas.
 - Offre gratuite de Supabase : projet mis en pause après une semaine sans activité, 2 millions de messages temps réel par mois (les positions sont limitées à 5 envois par seconde et par joueur, seulement quand il bouge).
 
 ## Surveiller le jeu

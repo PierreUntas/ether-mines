@@ -1,4 +1,5 @@
-# Tests à chaque push et pull request : syntaxe, générateur et règles, puis schéma SQL et scénarios de triche.
+# Tests à chaque push et pull request : syntaxe, générateur et règles, schéma SQL et scénarios de triche,
+# navigateur, et les contrats (Sceau, Réseau).
 name: Tests
 on:
   push:
@@ -49,3 +50,17 @@ jobs:
         run: npm i --no-save playwright@1.56.0 three@0.128.0 && npx playwright install --with-deps chromium
       - name: Partie en mode solo dans Chromium
         run: node tests/navigateur.mjs
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: Dépendances (forge-std, OpenZeppelin — non versionnées, voir contracts/remappings.txt)
+        run: |
+          cd contracts
+          forge install foundry-rs/forge-std --no-git --no-commit
+          forge install OpenZeppelin/openzeppelin-contracts --no-git --no-commit
+      - name: Mise en forme (forge fmt)
+        run: cd contracts && forge fmt --check
+      - name: Tests Foundry, dont le fuzzing (Sceau, Réseau)
+        run: cd contracts && forge test -vv

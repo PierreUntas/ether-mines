@@ -87,6 +87,20 @@ select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001
 select pg_temp.ok('rallumer la ruine', act_relight('w', :rx, :ry, :rz, :rx + 0.5, :ry, :rz + 2.5) -> 'unique' ->> 'id' = '203');
 select pg_temp.ok('le réseau compte le validateur rallumé', (act_reseau('w') ->> 'n')::int = 1 and act_reseau('w') -> 'top' -> 0 ->> 'n' = '1');
 select pg_temp.ok('le validateur ancien est signé', (select placed_by from blocks where x = :rx and y = :ry and z = :rz) = 'aaaaaaaa-0000-0000-0000-000000000001');
+
+-- ---------- coordonnées du sceau et liaison de wallet (012) ----------
+select pg_temp.ok('coordonnées du sceau enregistrées', (select (vx, vy, vz) from uniques where item = 203) = (:rx, :ry, :rz));
+select (act_wallet_nonce() ->> 'nonce') as nonce1 \gset
+select pg_temp.ok('nonce de liaison de wallet reçu', length(:'nonce1') = 32);
+select (act_wallet_nonce() ->> 'nonce') as nonce2 \gset
+select pg_temp.ok('un nouveau nonce remplace l''ancien', :'nonce1' <> :'nonce2');
+select pg_temp.ok('le nonce n''est pas lisible directement', (select count(*) from wallet_nonces) = 0);
+select pg_temp.refused('s''attribuer un wallet directement', $q$insert into wallets (user_id, address) values ('aaaaaaaa-0000-0000-0000-000000000001', '0xBAD')$q$);
+reset role;
+select pg_temp.ok('un seul nonce gardé par joueur', (select count(*) from wallet_nonces) = 1);
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+
 select pg_temp.ok('compte tout neuf : pas de cadeau', act_gift('w', '3,4:0', 'mouton') ->> 'err' = 'les animaux ne te connaissent pas encore');
 reset role;
 update players set created_at = now() - interval '1 day';

@@ -221,11 +221,36 @@ window.Net = (() => {
   async function loadInventory() {
     const [inv, uni] = await Promise.all([
       sb.from('inventory').select('item,n').eq('world', world).eq('user_id', userId),
-      sb.from('uniques').select('serial,item,place,mined,created_at').eq('world', world).eq('user_id', userId).order('serial'),
+      sb
+        .from('uniques')
+        .select('serial,item,place,mined,created_at,vx,vy,vz,chain_tx,token_id')
+        .eq('world', world)
+        .eq('user_id', userId)
+        .order('serial'),
     ]);
     if (inv.error) throw inv.error;
     if (uni.error) throw uni.error;
     return { inv: inv.data, uniques: uni.data };
+  }
+  // ---------- web3 (validateurs uniquement) : liaison de wallet, frappe, attestation, réclamation ----------
+  const walletNonce = () => rpc('act_wallet_nonce');
+  async function loadWallet() {
+    if (!userId) return null;
+    const { data, error } = await sb.from('wallets').select('address').eq('user_id', userId).maybeSingle();
+    if (error) throw error;
+    return data ? data.address : null;
+  }
+  async function linkWallet(address, signature) {
+    const { data, error } = await sb.functions.invoke('lier-wallet', { body: { address, signature } });
+    if (error) throw new Error('lier-wallet : ' + (error.message || error));
+    if (data && data.error) throw new Error(data.error);
+    return data;
+  }
+  async function chaine(action, args) {
+    const { data, error } = await sb.functions.invoke('chaine', { body: { action, world, ...args } });
+    if (error) throw new Error('chaine : ' + (error.message || error));
+    if (data && data.error) throw new Error(data.error);
+    return data;
   }
   const loadClaims = () => readAll('claims', 'cx,cz,owner,owner_name,members', world, ['cx', 'cz']);
 
@@ -259,6 +284,10 @@ window.Net = (() => {
     loadClaims,
     fetchChunk,
     loadArea,
+    walletNonce,
+    loadWallet,
+    linkWallet,
+    chaine,
     get online() {
       return online;
     },

@@ -211,6 +211,81 @@ function animerEtoiles(dt) {
     e.rotation.y += dt * 0.8;
   }
 }
+// ---------- validateurs sur la chaîne (Sceau + Réseau, Sepolia) ----------
+// Lecture seule tant que rien n'est cliqué : aucun wallet requis juste pour voir l'état onchain.
+const ONCHAIN = { wallet: null, epoque: null, recompensePrecedente: 0n, parSceau: new Map(), t: 0, chargement: false };
+async function majOnchain() {
+  if (!Chaine.enabled || !SERVER() || ONCHAIN.chargement) return;
+  ONCHAIN.t = 20;
+  ONCHAIN.chargement = true;
+  try {
+    ONCHAIN.wallet = await Net.loadWallet();
+    const epoque = await Chaine.epoqueActuelle();
+    ONCHAIN.epoque = epoque;
+    const precedente = epoque > 0n ? epoque - 1n : null;
+    ONCHAIN.recompensePrecedente = precedente !== null ? await Chaine.recompense(precedente) : 0n;
+    for (const n of S.nfts.filter(n => n.id === 203 && n.chainTx && n.tokenId)) {
+      const [attesteActuelle, attestePrecedente, dejaReclame] = await Promise.all([
+        Chaine.aAttest(epoque, n.tokenId),
+        precedente !== null ? Chaine.aAttest(precedente, n.tokenId) : Promise.resolve(false),
+        precedente !== null ? Chaine.reclame(precedente, n.tokenId) : Promise.resolve(false),
+      ]);
+      ONCHAIN.parSceau.set(n.serial, { attesteActuelle, attestePrecedente, dejaReclame });
+    }
+  } catch (e) {
+    console.error(e);
+  } finally {
+    ONCHAIN.chargement = false;
+    if (tab === 'quest' && !$('panel').hidden) renderPanel();
+  }
+}
+async function relierWallet() {
+  try {
+    const adresse = await Chaine.connecterWallet();
+    const n = await Net.walletNonce();
+    if (!n || !n.ok) throw new Error((n && n.err) || 'nonce indisponible');
+    const signature = await Chaine.signer(adresse, Chaine.message(n.nonce));
+    await Net.linkWallet(adresse, signature);
+    toastInfo('Wallet lié : ' + Chaine.courte(adresse));
+    majOnchain();
+  } catch (e) {
+    logEv('burn', 'Liaison du wallet refusée', e.message || String(e));
+  }
+}
+async function frapperSceau(n) {
+  try {
+    toastInfo('Frappe en cours sur Sepolia…');
+    const r = await Net.chaine('mint', { serial: n.serial });
+    n.chainTx = r.hash;
+    n.tokenId = r.tokenId;
+    toastInfo('Sceau frappé sur Sepolia');
+    majOnchain();
+  } catch (e) {
+    logEv('burn', 'Frappe refusée', e.message || String(e));
+  } finally {
+    if (tab === 'quest' && !$('panel').hidden) renderPanel();
+  }
+}
+async function attesterSceau(n) {
+  try {
+    await Net.chaine('attester', { serial: n.serial });
+    toastInfo('Attestation enregistrée pour cette époque');
+  } catch (e) {
+    logEv('burn', 'Attestation refusée', e.message || String(e));
+  } finally {
+    majOnchain();
+  }
+}
+async function reclamerSceau(n, epoque) {
+  try {
+    await Net.chaine('reclamer', { serial: n.serial, epoque: Number(epoque) });
+    toastInfo('Récompense réclamée');
+  } catch (e) {
+    logEv('burn', 'Réclamation refusée', e.message || String(e));
+  } finally {
+    majOnchain();
+  }
+}
 // ---------- échanges entre joueurs (011_echanges.sql) ----------
 // Une offre : « je donne » et « je demande » (ressources, objets uniques, parcelles). Le serveur revérifie tout à l'acceptation.
 const coteVide = () => ({ items: {}, uniques: [], parcels: [] });
@@ -542,6 +617,10 @@ function updateQuest(dt) {
   if (ECH.t <= 0) majOffres();
   RESEAU.t -= 0.4;
   if (RESEAU.t <= 0) majReseau();
+  if (tab === 'quest' && !$('panel').hidden) {
+    ONCHAIN.t -= 0.4;
+    if (ONCHAIN.t <= 0) majOnchain();
+  }
   const i = questIndex();
   if (S.qi === undefined) S.qi = i;
   while (S.qi < i) {
@@ -624,6 +703,84 @@ function renderQuests(body) {
     'beforeend',
     `<div class="stats"><div><b>${S.relit || 0}</b><span>validateurs rallumés</span></div><div><b>${TIER_NAME[Math.max(0, ...S.nfts.map(n => ITEM[n.id || 201]?.tier || 0), S.got[102] ? 1 : 0)].replace(/^(la |une )/, '')}</b><span>meilleur outil</span></div></div>`,
   );
+  if (Chaine.enabled) renderOnchain(body);
+}
+// ---------- validateurs sur la chaîne (Sepolia), dans l'onglet Objectifs ----------
+function renderOnchain(body) {
+  const box = document.createElement('div');
+  box.className = 'reseauBox';
+  box.insertAdjacentHTML(
+    'beforeend',
+    `<h3>Tes validateurs sur Sepolia</h3><p>${
+      ONCHAIN.wallet
+        ? `Wallet lié : <b>${Chaine.courte(ONCHAIN.wallet)}</b>. La chaîne n'est qu'un miroir : rien ici ne change ta partie.`
+        : 'Aucun wallet lié : relie-en un pour pouvoir frapper, attester et réclamer. Le jeu reste jouable sans ça.'
+    }</p>`,
+  );
+  if (!ONCHAIN.wallet) {
+    const b = document.createElement('button');
+    b.className = 'b primary';
+    b.textContent = 'Relier un wallet';
+    b.onclick = relierWallet;
+    box.appendChild(b);
+  }
+  const sceaux = S.nfts.filter(n => n.id === 203);
+  if (!sceaux.length) {
+    box.insertAdjacentHTML('beforeend', '<p class="qintro">Rallume un validateur ancien pour obtenir ton premier sceau.</p>');
+  } else if (ONCHAIN.epoque === null) {
+    box.insertAdjacentHTML('beforeend', '<p class="qintro">Chargement de l’état onchain…</p>');
+  } else {
+    const epoque = ONCHAIN.epoque;
+    const precedente = epoque > 0n ? epoque - 1n : null;
+    for (const n of sceaux) {
+      const etat = ONCHAIN.parSceau.get(n.serial) || {};
+      const row = document.createElement('div');
+      row.className = 'sceauChaine';
+      let html = `<b>${n.where}</b>`;
+      if (!n.chainTx) {
+        html += '<span class="muet">pas encore frappé sur la chaîne</span>';
+      } else {
+        html += `<a href="${Chaine.etherscanTx(n.chainTx)}" target="_blank" rel="noopener">voir sur Etherscan</a>`;
+        html += `<span>Époque ${epoque} : ${etat.attesteActuelle ? 'attesté' : 'pas encore attesté'}</span>`;
+        if (precedente !== null) {
+          html += `<span>Époque ${precedente} : ${
+            etat.dejaReclame
+              ? 'récompense déjà réclamée'
+              : etat.attestePrecedente
+                ? `${Chaine.eth(ONCHAIN.recompensePrecedente)} à réclamer`
+                : "pas attesté à l'époque, rien à réclamer"
+          }</span>`;
+        }
+      }
+      row.innerHTML = html;
+      const br = document.createElement('div');
+      br.className = 'btnrow';
+      if (!n.chainTx) {
+        if (ONCHAIN.wallet) {
+          const b = document.createElement('button');
+          b.className = 'b primary';
+          b.textContent = 'Frapper ce sceau';
+          b.onclick = () => frapperSceau(n);
+          br.appendChild(b);
+        }
+      } else if (!etat.attesteActuelle) {
+        const b = document.createElement('button');
+        b.className = 'b';
+        b.textContent = 'Attester cette époque';
+        b.onclick = () => attesterSceau(n);
+        br.appendChild(b);
+      } else if (precedente !== null && etat.attestePrecedente && !etat.dejaReclame) {
+        const b = document.createElement('button');
+        b.className = 'b primary';
+        b.textContent = 'Réclamer';
+        b.onclick = () => reclamerSceau(n, precedente);
+        br.appendChild(b);
+      }
+      if (br.children.length) row.appendChild(br);
+      box.appendChild(row);
+    }
+  }
+  body.appendChild(box);
 }
 // ---------- malle ouverte ----------
 let quantiteMalle = 1; // 1, 10 ou 0 (= tout)
