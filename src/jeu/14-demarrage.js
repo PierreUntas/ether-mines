@@ -652,6 +652,27 @@ $('play').onclick = async () => {
         .replace(/[̀-ͯ]/g, '')
         .replace(/[^a-z0-9-]+/g, '-')
         .slice(0, 32) || 'principal';
+    // un pseudo par joueur et par monde : on n'entre pas avec celui d'un autre
+    if (Net.enabled) {
+      $('play').disabled = true;
+      $('netStatus').textContent = 'Vérification du pseudo…';
+      let pris = false,
+        panne = null;
+      try {
+        pris = await Net.pseudoPris(world, name);
+      } catch (e) {
+        panne = e;
+      }
+      $('play').disabled = false;
+      $('netStatus').textContent = '';
+      if (pris || panne) {
+        $('netStatus').textContent = pris
+          ? `Le pseudo « ${name} » est déjà pris dans ce monde. Choisis-en un autre. Si c'est le tien sur un autre appareil, utilise ton code de sauvegarde.`
+          : 'Connexion impossible : ' + (panne.message || panne) + '. Vérifie src/config.js et le schéma.';
+        $('pseudo').focus();
+        return;
+      }
+    }
     profile.name = name;
     try {
       localStorage.setItem(PKEY, JSON.stringify(profile));

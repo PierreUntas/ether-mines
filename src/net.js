@@ -41,6 +41,13 @@ window.Net = (() => {
     userId = d2.user.id;
     return userId;
   }
+  // le pseudo est-il déjà celui d'un autre joueur de ce monde ? (pseudo_pris, 008_durcissement.sql)
+  async function pseudoPris(w, n) {
+    if (!enabled) return false;
+    await auth();
+    const { data, error } = await client().rpc('pseudo_pris', { w, n, uid: userId, ancien: null });
+    return !error && data === true;
+  }
   async function loadPlayer(w) {
     const { data, error } = await client()
       .from('players')
@@ -231,6 +238,7 @@ window.Net = (() => {
     enabled,
     auth,
     loadPlayer,
+    pseudoPris,
     savePlayer,
     deletePlayer,
     recoveryCode,
