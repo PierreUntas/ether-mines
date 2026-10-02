@@ -46,6 +46,7 @@ const S0 = () => ({
   relit: 0,
   totalMint: 0,
   totalBurn: 0,
+  hp: 10,
 });
 let S = S0(),
   ME = { id: 'moi', name: 'moi', color: '#8a7bef' };

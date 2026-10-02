@@ -143,6 +143,13 @@
       noise('bandpass', 3000, 4, 0.25, 0.03, T);
       tone(420, 'triangle', 0.08, 0.06, T + 0.03);
     },
+    // coup reçu d'un mob hostile
+    hurt() {
+      if (!ctx) return;
+      const T = now();
+      noise('bandpass', 700, 1.2, 0.4, 0.18, T);
+      tone(220, 'sawtooth', 0.12, 0.22, T, sfx, 0.5);
+    },
     plate() {
       if (!ctx) return;
       const T = now();
@@ -208,6 +215,12 @@
         [0, 3, -2, 5].forEach((d, i) => tone(300 * Math.pow(2, d / 12), 'triangle', 0.01, 0.07, T + i * 0.07, o, 0.6));
       } else if (type === 'meduse') {
         [0, 7, 12].forEach((s, i) => tone(660 * Math.pow(2, s / 12), 'sine', 0.05, 1.2, T + i * 0.12, o, 1, 0.05));
+      } else if (type === 'ombre') {
+        tone(180, 'sine', 0.06, 0.5, T, o, 0.55, 0.08);
+        noise('bandpass', 260, 2, 0.12, 0.4, T + 0.05, o);
+      } else if (type === 'gardien') {
+        [0, -3, -7].forEach((d, i) => tone(140 * Math.pow(2, d / 12), 'square', 0.05, 0.18, T + i * 0.09, o, 0.8));
+        noise('lowpass', 500, 1, 0.2, 0.3, T, o);
       }
     },
     // appelé chaque image : fondu de l'ambiance + petits évènements (oiseaux, grillons, gouttes)
