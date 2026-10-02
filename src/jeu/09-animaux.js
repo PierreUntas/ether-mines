@@ -24,7 +24,135 @@ const AK = {
   chat: { n: 'Chat', D: 7, walk: 0.42, R: 6, sp: 1, hit: [0.4, 0.6, 0.75] },
   shiba: { n: "Shiba de l'espace", D: 6, walk: 0.55, R: 9, sp: 1, hit: [0.6, 1.05, 0.9] },
   robot: { n: 'Robot validateur', D: 11, walk: 0.32, R: 6, sp: 1, hit: [0.8, 1.9, 0.7] },
+  habitant: { n: 'Habitant', D: 9, walk: 0.3, R: 2.2, sp: 1, hit: [0.6, 1.95, 0.6] },
 };
+// ---------- habitants ----------
+// Ils vivent à l'Atrium et dans la Cité, toujours au même endroit pour tout le monde. On leur parle comme on caresse un animal.
+// tenue : [habit, accent, cheveux, peau] ; coiffe : 'chapeau', 'diademe', 'capuche' ou rien.
+const HABITANTS = [
+  {
+    x: SPAWN.x,
+    z: SPAWN.z + 5,
+    nom: 'Solène',
+    role: "gardienne de l'Atrium",
+    tenue: ['#8a7bef', '#ffd95e', '#3a3480', '#f6d3b8'],
+    coiffe: 'diademe',
+    dit: [
+      "Bienvenue à l'Atrium. Ce validateur est le premier du réseau : tant qu'il brille, personne ne peut rien casser ici.",
+      () => ditReseau(),
+      'Suis la voie dallée vers le nord : elle mène à la Cité, sous le grand diamant.',
+    ],
+  },
+  {
+    x: SPAWN.x - 3,
+    z: SPAWN.z + 4,
+    nom: 'Noé',
+    role: 'bâtisseur',
+    tenue: ['#ffb37a', '#6a58e0', '#7a4a2a', '#e8b890'],
+    coiffe: 'chapeau',
+    dit: [
+      'Commence par du bois : un tronc donne quatre planches, et trois planches font une pioche.',
+      "Éloigne-toi un peu de l'Atrium et écris /parcelle dans le chat : le terrain sera à toi, personne d'autre n'y touchera.",
+      'Une malle garde tes trésors. Dans ta parcelle, seuls tes invités peuvent l’ouvrir.',
+    ],
+  },
+  {
+    x: SPAWN.x,
+    z: SPAWN.z - 11,
+    nom: 'Iris',
+    role: 'cartographe',
+    tenue: ['#9fe3c4', '#ff9ab8', '#2a2550', '#c98a64'],
+    dit: [
+      () => {
+        const r = nearestRuin();
+        return r
+          ? `La ruine la plus proche est à ${Math.round(r.d)} m, par là : ${arrowTo(r.x + 0.5, r.z + 0.5)}. Un validateur éteint y attend son cœur.`
+          : 'Toutes les ruines des environs sont rallumées. Il faut partir plus loin.';
+      },
+      "La mer est à l'est, les montagnes au nord-est. Parfois des îles flottent dans le ciel : les méduses célestes y dérivent.",
+      'Chaque région cache une ruine. La boussole de tes objectifs te guidera quand tu auras un cœur de validateur.',
+    ],
+  },
+  {
+    x: CITE.x + 1,
+    z: CITE.z + 24,
+    nom: 'Robin',
+    role: 'voyageur',
+    tenue: ['#7fe8ff', '#ffb37a', '#c96a3a', '#f6d3b8'],
+    coiffe: 'capuche',
+    dit: [
+      'Tu vois les vaisseaux au-dessus des halls ? Ils tournent autour du diamant depuis toujours.',
+      "La Cité et l'Atrium sont à tout le monde : on ne peut ni y miner ni y bâtir.",
+      'Appuie sur V pour te voir de dos, et encore une fois pour te voir de face.',
+    ],
+  },
+  {
+    x: CITE.x - 12,
+    z: CITE.z + 13,
+    nom: 'Lune',
+    role: 'marchande',
+    tenue: ['#ff9ab8', '#ffd95e', '#5a3a80', '#e8b890'],
+    coiffe: 'chapeau',
+    dit: [
+      "Ici tout se fabrique, rien ne s'achète : ouvre l'Atelier.",
+      'Fleurs, cristaux, roseaux : presque tout ce que tu ramasses sert à une recette de décoration.',
+      'Caresse les moutons : ils offrent leur laine une fois par jour.',
+    ],
+  },
+  {
+    x: CITE.x - 11,
+    z: CITE.z - 11,
+    nom: 'Maëlle',
+    role: 'bibliothécaire',
+    tenue: ['#b6a4ff', '#7fe8ff', '#8a5a3a', '#f6d3b8'],
+    dit: [
+      "Chaque bloc posé porte le nom de celui qui l'a posé. Le registre du monde garde tout.",
+      'Un levier, un câble d’éther, une lampe : voilà ton premier circuit.',
+      "Les portes ET, OU et NON et l'horloge : avec elles, on construit de vraies machines.",
+    ],
+  },
+  {
+    x: CITE.x + 12,
+    z: CITE.z - 10,
+    nom: 'Basile',
+    role: 'jardinier',
+    tenue: ['#9fe3c4', '#ffb37a', '#4a4a4a', '#c98a64'],
+    coiffe: 'chapeau',
+    dit: [
+      "Les champignons d'éther poussent dans les grottes, les améthystes tout au fond.",
+      'Les renards roses cueillent des fleurs pour ceux qui les caressent.',
+      'Les roseaux bordent les rives, les nénuphars flottent sur les eaux calmes.',
+    ],
+  },
+  {
+    x: CITE.x + 2,
+    z: CITE.z + 1,
+    nom: 'Céleste',
+    role: 'oracle du diamant',
+    tenue: ['#f4f1ff', '#8a7bef', '#ffd95e', '#f6d3b8'],
+    coiffe: 'diademe',
+    dit: [
+      () => ditReseau(),
+      'Pour rallumer un validateur ancien, il faut un cœur : un fragment de genèse, deux éclats purs, quatre cristaux.',
+      "La roche de genèse dort tout au fond du monde. Seule la pioche d'éther pur l'entame.",
+    ],
+  },
+  {
+    x: CITE.x + 2,
+    z: CITE.z - 11,
+    nom: 'Hector',
+    role: 'scribe du registre',
+    tenue: ['#6a58e0', '#ffd95e', '#d8d8e8', '#e8b890'],
+    dit: [
+      () =>
+        RESEAU.top[0]
+          ? `${RESEAU.top[0].name} veille sur ${RESEAU.top[0].n} validateur${RESEAU.top[0].n > 1 ? 's' : ''} : personne n'en a rallumé davantage.`
+          : "Personne n'a encore rallumé de validateur ancien. Le premier nom gravé ici pourrait être le tien.",
+      'Un validateur posé frappe un cristal toutes les cinq minutes. Un validateur ancien rallumé, un par minute.',
+      'Les objets uniques gardent leur histoire : qui les a forgés, où, et ce qu’ils ont accompli.',
+    ],
+  },
+];
 const aniMat = {};
 const AM = (c, basic, op) => {
   const k = c + (basic ? 'b' : '') + (op || '');
@@ -218,6 +346,44 @@ function buildAnimal(a) {
       abox(l, 0.2, 0.3, 0.22, bleu, 0, -0.6, 0.02);
       parts.legs.push(l);
     }
+  } else if (a.type === 'habitant') {
+    const [habit, accent, cheveux, peau] = a.h.tenue,
+      sombre = '#' + new THREE.Color(habit).multiplyScalar(0.72).getHexString();
+    abox(g, 0.5, 0.62, 0.3, habit, 0, 0.98, 0);
+    abox(g, 0.54, 0.3, 0.34, habit, 0, 0.6, 0); // bas de la tunique
+    abox(g, 0.52, 0.08, 0.32, accent, 0, 0.76, 0); // ceinture
+    abox(g, 0.2, 0.2, 0.04, accent, 0, 1.12, 0.16); // broche
+    for (const x of [-0.13, 0.13]) {
+      const l = pivot(g, x, 0.5, 0);
+      abox(l, 0.2, 0.5, 0.22, sombre, 0, -0.25, 0);
+      parts.legs.push(l);
+    }
+    for (const x of [-0.34, 0.34]) {
+      const b = pivot(g, x, 1.26, 0);
+      abox(b, 0.16, 0.5, 0.2, habit, 0, -0.25, 0);
+      abox(b, 0.14, 0.12, 0.18, peau, 0, -0.56, 0);
+      parts.legs.push(b);
+    }
+    const hd = (parts.head = pivot(g, 0, 1.3, 0));
+    abox(hd, 0.44, 0.44, 0.44, peau, 0, 0.24, 0);
+    abox(hd, 0.48, 0.14, 0.48, cheveux, 0, 0.42, 0);
+    abox(hd, 0.48, 0.3, 0.1, cheveux, 0, 0.24, -0.2);
+    abox(hd, 0.07, 0.09, 0.02, '#2a2550', -0.1, 0.26, 0.225, true);
+    abox(hd, 0.07, 0.09, 0.02, '#2a2550', 0.1, 0.26, 0.225, true);
+    abox(hd, 0.14, 0.03, 0.02, '#c96a6a', 0, 0.12, 0.225, true);
+    if (a.h.coiffe === 'chapeau') {
+      abox(hd, 0.74, 0.05, 0.74, accent, 0, 0.5, 0);
+      abox(hd, 0.4, 0.16, 0.4, accent, 0, 0.6, 0);
+    } else if (a.h.coiffe === 'diademe') {
+      abox(hd, 0.5, 0.06, 0.5, accent, 0, 0.44, 0);
+      abox(hd, 0.1, 0.12, 0.04, '#7fe8ff', 0, 0.48, 0.24, true);
+    } else if (a.h.coiffe === 'capuche') {
+      abox(hd, 0.52, 0.5, 0.4, habit, 0, 0.26, -0.08);
+    }
+    const tag = nameTag(a.h.nom, habit);
+    tag.position.y = 2.15;
+    tag.scale.multiplyScalar(0.8);
+    g.add(tag);
   } else if (a.type === 'meduse') {
     const c = r < 0.5 ? '#b6a4ff' : '#7fe8ff';
     abox(g, 0.7, 0.42, 0.7, c, 0, 0.55, 0, true, 0.55);
@@ -308,6 +474,39 @@ function spawnChunk(cx, cz) {
       list.push(a);
     }
   };
+  // à une place fixe (habitants, compagnons du sanctuaire) : sur le premier sol plein sous les toits
+  const fixe = (type, i, x, z, h) => {
+    const y0 = (dansCite(x, z) ? CITE.Y : heightAt(x, z)) + 3;
+    for (let y = y0; y >= y0 - 6; y--) {
+      const id = get(x, y, z);
+      if (!id || id === 11 || !isSolid(id)) continue;
+      const a = {
+        type,
+        k,
+        i,
+        h,
+        hx: x + 0.5,
+        hz: z + 0.5,
+        hy: y + 1,
+        y: y + 1,
+        r: hash(x, z, 80),
+        ph: hash(x, z, 81) * 60,
+        seed: ((x * 73856093) ^ (z * 19349663) ^ (i * 83492791)) | 0,
+      };
+      buildAnimal(a);
+      list.push(a);
+      return;
+    }
+  };
+  HABITANTS.forEach((h, n) => {
+    if (cOf(h.x) === cx && cOf(h.z) === cz) fixe('habitant', 40 + n, h.x, h.z, h);
+  });
+  // au sanctuaire : un robot validateur et le Shiba de l'espace, sur les dalles de l'Atrium
+  if (cx === cOf(SPAWN.x) && cz === cOf(SPAWN.z)) {
+    fixe('robot', 30, SPAWN.x - 5, SPAWN.z);
+    fixe('shiba', 31, SPAWN.x + 3, SPAWN.z - 5);
+    return;
+  }
   // îles flottantes : méduses célestes
   const r2 = hash(cx * 5 - 3, cz * 11 + 7, 65);
   for (let t = 0; t < 3; t++) {
@@ -321,12 +520,6 @@ function spawnChunk(cx, cz) {
   const hc = heightAt(x0 + 8, z0 + 8);
   if (hc < SEA) {
     if (r < 0.25) add('poisson', 2 + Math.floor(hash(cx, cz, 66) * 3));
-    return;
-  }
-  // au sanctuaire : un robot validateur et le Shiba de l'espace
-  if (cx === 0 && cz === 0) {
-    add('robot', 1);
-    add('shiba', 1);
     return;
   }
   // la Cité : robots validateurs et chats dans les rues
@@ -466,7 +659,14 @@ function updateAnimals(dt) {
         if (p.tail) p.tail.rotation.y = Math.sin(T * 3 + a.ph) * 0.25;
       }
       const d = Math.hypot(x - P.x, z - P.z);
-      if (d < nd) {
+      if (a.type === 'habitant' && !moving && d < 4.5) {
+        // un habitant se tourne vers le joueur qui s'approche
+        let dr = Math.atan2(P.x - x, P.z - z) - g.rotation.y;
+        dr = Math.atan2(Math.sin(dr), Math.cos(dr));
+        g.rotation.y += dr * Math.min(1, dt * 5);
+        p.head.rotation.y = 0;
+      }
+      if (d < nd && a.type !== 'habitant') {
         nd = d;
         near = a;
       }
@@ -551,9 +751,30 @@ const heartTex = (() => {
   return t;
 })();
 const hearts = [];
+// parler à un habitant : ses répliques défilent une à une, dans une bulle en bas de l'écran
+let ditT = 0;
+function parler(a) {
+  const h = a.h;
+  a.rep = ((a.rep ?? -1) + 1) % h.dit.length;
+  const t = typeof h.dit[a.rep] === 'function' ? h.dit[a.rep]() : h.dit[a.rep],
+    el = $('dialogue');
+  el.innerHTML = `<b style="color:${h.tenue[0]}">${h.nom}</b><i>${h.role}</i><p></p>`;
+  el.querySelector('p').textContent = t;
+  el.hidden = false;
+  clearTimeout(ditT);
+  ditT = setTimeout(() => (el.hidden = true), 3500 + t.length * 45);
+  a.pet = 0.25;
+  Sound.animal('habitant', 1);
+  S.vus = S.vus || {};
+  if (!S.vus[h.nom]) {
+    S.vus[h.nom] = 1;
+    dirty = true;
+  }
+}
 function petAnimal(a) {
   const K = AK[a.type],
     p = a.g.position;
+  if (a.type === 'habitant') return parler(a);
   a.pet = 0.6;
   Sound.animal(a.type, 1);
   for (let i = 0; i < (a.type === 'meduse' ? 5 : 3); i++) {

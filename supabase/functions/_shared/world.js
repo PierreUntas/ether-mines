@@ -6,8 +6,11 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v)),
     lerp = (a, b, t) => a + (b - a) * t,
     sm = t => t * t * (3 - 2 * t);
+  // Graine du monde : la changer donne un tout autre relief (à faire seulement avec une remise à zéro de la base).
+  // root.__GRAINE permet aux outils d'essayer d'autres graines (tools/graines.mjs).
+  const GRAINE = root.__GRAINE ?? 167212110;
   function hash(x, y, s = 0) {
-    let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(97 + s, 1442695041);
+    let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(97 + s, 1442695041) ^ GRAINE;
     h = Math.imul(h ^ (h >>> 13), 1274126177);
     h ^= h >>> 16;
     return (h >>> 0) / 4294967296;
@@ -47,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP : sous cette couche, géodes et grandes grottes
-  const GEN = 6; // version du générateur (2 : champignons… ; 3 : palmiers, améthystes ; 4 : atrium, temples, jardins ; 5 : la Cité ; 6 : la Cité en halls) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
+  const GEN = 7; // version du générateur (2 : champignons… ; 3 : palmiers, améthystes ; 4 : atrium, temples, jardins ; 5 : la Cité ; 6 : la Cité en halls) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -59,21 +62,30 @@
   const RUIN = 80;
   // position de la ruine d'une région (ou null : océan, sommet) ; la région du sanctuaire en a une à portée de vue
   // ---------- la Cité : quartier futuriste sous le grand diamant, au nord du sanctuaire ----------
-  const CITE = { x: SPAWN.x, z: SPAWN.z - 64, R: 30, Y: 32, PAS: 12 };
+  const CITE = { x: SPAWN.x, z: SPAWN.z - 64, R: 30, Y: 30, PAS: 12 };
   const k5 = (dx, dz) => (dx === 0 || dz === 0) && Math.abs(dx) + Math.abs(dz) === 5; // milieu d'une façade de hall
   const dansCite = (x, z, marge = 0) => Math.hypot(x - CITE.x, z - CITE.z) <= CITE.R + marge;
-  // parcelle de la grille (12 × 12) : type de bâtiment et ses mesures, tirés de la graine
+  // la voie des validateurs : allée dallée entre l'Atrium et la Cité
+  const surVoie = (x, z, marge = 1) => Math.abs(x - SPAWN.x) <= marge && z < SPAWN.z - 7 && z > CITE.z + CITE.R - 2;
+  // parcelle de la grille (12 × 12) : chaque bâtiment de la Cité a sa place et son allure
+  const LOTS = {
+    '0,0': { t: 'grand', H: 10 }, // le grand hall, sous sa pyramide de verre
+    '0,-1': { t: 'temple', H: 7 }, // le temple du registre, à fronton
+    '-1,-1': { t: 'biblio', H: 6 }, // la bibliothèque
+    '1,-1': { t: 'serre' }, // la serre
+    '-1,0': { t: 'rotonde', H: 6 }, // la rotonde et sa coupole
+    '1,0': { t: 'verriere', H: 9 }, // halls à colonnades sous verrière
+    '1,1': { t: 'verriere', H: 6 },
+    '-1,1': { t: 'marche' }, // le marché
+    '0,1': { t: 'place' },
+    '0,2': { t: 'parvis' }, // l'entrée, au bout de la voie qui vient du sanctuaire
+    '0,-2': { t: 'place' },
+    '2,0': { t: 'jardin' },
+    '-2,0': { t: 'jardin' },
+  };
   function citeLot(i, j) {
-    const cx = CITE.x - 42 + i * CITE.PAS + 6,
-      cz = CITE.z - 42 + j * CITE.PAS + 6,
-      d = Math.hypot(cx - CITE.x, cz - CITE.z),
-      h = hash(i * 7 + 3, j * 11 + 5, 170);
-    if (d < 4) return { cx, cz, t: 'hall', H: 9, grand: true };
-    if (d > CITE.R - 4) return null;
-    if (d > CITE.R - 9) return { cx, cz, t: h < 0.5 ? 'place' : 'jardin' };
-    if (h < 0.62) return { cx, cz, t: 'hall', H: 6 + (hash(i, j, 172) < 0.4 ? 3 : 0), toit: hash(i, j, 171) < 0.5 ? 'verre' : 'marbre' };
-    if (h < 0.82) return { cx, cz, t: 'place' };
-    return { cx, cz, t: 'jardin' };
+    const L = LOTS[i - 3 + ',' + (j - 3)];
+    return L ? { ...L, cx: CITE.x + (i - 3) * CITE.PAS, cz: CITE.z + (j - 3) * CITE.PAS } : null;
   }
   function ruinAt(rx, rz) {
     for (let k = 0; k < 4; k++) {
@@ -113,7 +125,9 @@
       oc = sm(clamp((0.4 - contAt(x, z)) / 0.1, 0, 1));
     const land = DY + 12 + c * 14 + m * 18 * vn2(x / 16, z / 16, 5),
       sea = DY + 5 + vn2(x / 9, z / 9, 11) * 5;
-    return Math.floor(lerp(DY + 20, lerp(land, sea, oc), flat));
+    const dc = Math.hypot(x - CITE.x, z - CITE.z),
+      cite = sm(clamp((dc - CITE.R) / 12, 0, 1)); // la Cité repose sur un plateau qui se fond dans le relief
+    return Math.floor(lerp(CITE.Y + 0.5, lerp(DY + 20, lerp(land, sea, oc), flat), cite));
   }
   // jardin d'une région de 64 × 64 (ou null) : sur un sol d'herbe assez plat, loin du sanctuaire et des ruines
   function jardinAt(gx, gz) {
@@ -253,7 +267,7 @@
       for (let x = x0 - 3; x < x0 + CH + 3; x++) {
         const h = heightAt(x, z),
           bi = biome(x, z);
-        if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 16 || dansCite(x, z, 4)) continue; // esplanade de l'Atrium, la Cité
+        if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 16 || dansCite(x, z, 4) || surVoie(x, z, 3)) continue; // esplanade de l'Atrium, la Cité, la voie
         // palmiers sur les plages et dans les dunes
         if (topAt(h, bi) === 4 && h > SEA && h < DY + 31 && hash(x, z, 140) < (bi === 'dunes' ? 0.006 : 0.014)) {
           palmier(x, h, z);
@@ -383,30 +397,163 @@
           if (!L) continue;
           const dx = x - L.cx,
             dz = z - L.cz,
+            ax = Math.abs(dx),
+            az = Math.abs(dz),
             rd = Math.hypot(dx, dz),
-            m = Math.max(Math.abs(dx), Math.abs(dz));
-          if (L.t === 'hall') {
-            // hall à colonnades : colonnes un rang sur deux, entablement de marbre, verrière ou toit à lanterneau,
-            // mezzanine intérieure dans les halls hauts ; le grand hall central a un diamant suspendu
-            const H = L.H;
+            m = Math.max(ax, az),
+            H = L.H,
+            dam = (dx + dz) % 2 ? 15 : 81,
+            col = n => {
+              for (let k = 1; k <= n; k++) set(Y + k, 127);
+            },
+            colonnade = () => {
+              // colonnes un rang sur deux, entablement de marbre, liseré de néon au milieu des façades
+              if ((dx + dz) % 2 === 0 || ax === az) col(H);
+              set(Y + H + 1, k5(dx, dz) ? 128 : 15);
+            };
+          if (L.t === 'grand') {
+            // le grand hall : double colonnade, mezzanine, pyramide de verre, le diamant d'Éther suspendu au centre
             if (m > 5) continue;
-            if (m <= 4) set(Y, (dx + dz) % 2 ? 15 : 81);
+            set(Y, dam);
             if (m === 5) {
-              if ((dx + dz) % 2 === 0 || Math.abs(dx) === Math.abs(dz)) for (let k = 1; k <= H; k++) set(Y + k, 127);
-              set(Y + H + 1, k5(dx, dz) ? 128 : 15); // entablement, liseré de néon au milieu des façades
-            } else {
-              const verre = L.grand || L.toit === 'verre';
-              set(Y + H + 1, verre ? (dx % 3 === 0 || dz % 3 === 0 ? 15 : 10) : m <= 1 ? 10 : 15);
-              if (H >= 9 && m === 4) set(Y + 5, 34); // mezzanine
-              if (H >= 9 && m === 4 && dx === -4 && dz === 0) for (let k = 1; k <= 5; k++) set(Y + k, 95); // échelle vers la mezzanine
+              colonnade();
+              continue;
             }
-            if (L.grand && dx === 0 && dz === 0) {
+            set(Y + H + 1 + (4 - m), m === 4 || dx === 0 || dz === 0 || ax === az ? 15 : 10);
+            if (m === 4) set(Y + 5, 34);
+            if (dx === -4 && dz === 0) for (let k = 1; k <= 5; k++) set(Y + k, 95); // échelle vers la mezzanine
+            if (ax === 3 && az === 3) col(H);
+            if (ax + az === 2 && m === 2) {
+              set(Y + 1, 80);
+              set(Y + 2, 129); // écrans du registre
+            }
+            if (m === 0) {
               set(Y + 1, 127);
               set(Y + 2, 84);
-              set(Y + 7, 130); // le diamant d'Éther flotte sous la verrière
+              set(Y + 7, 130);
             }
-            if (L.grand && m === 0) continue;
-            if (!L.grand && m <= 1 && (dx || dz)) set(Y, 11); // bassin autour du palmier central
+          } else if (L.t === 'temple') {
+            // temple à fronton : toit à deux pentes, écran du registre au centre, bancs et lampes
+            if (m > 5) continue;
+            set(Y, dam);
+            if (m === 5) colonnade();
+            else set(Y + H + 1, 15);
+            if (ax <= 3) set(Y + H + 2, az === 5 && dx === 0 ? 128 : 15);
+            else if (ax === 4) set(Y + H + 2, 34);
+            if (ax <= 1) set(Y + H + 3, 15);
+            else if (ax === 2) set(Y + H + 3, 34);
+            if (m === 0) {
+              set(Y + 1, 80);
+              set(Y + 2, 129);
+              set(Y + 3, 129);
+            }
+            if (ax === 3 && az === 3) {
+              set(Y + 1, 127);
+              set(Y + 2, 84);
+            }
+            if (az === 2 && ax <= 1) set(Y + 1, 34);
+          } else if (L.t === 'verriere') {
+            // hall à colonnades sous verrière, palmier dans son bassin, mezzanine dans les halls hauts
+            if (m > 5) continue;
+            set(Y, dam);
+            if (m === 5) {
+              colonnade();
+              continue;
+            }
+            set(Y + H + 1, dx % 3 === 0 || dz % 3 === 0 ? 15 : 10);
+            if (H >= 9 && m === 4) set(Y + 5, 34);
+            if (H >= 9 && dx === -4 && dz === 0) for (let k = 1; k <= 5; k++) set(Y + k, 95);
+            if (ax === 3 && az === 3) set(Y + H, 85); // lanternes suspendues
+            if (m <= 1 && (dx || dz)) set(Y, 11);
+          } else if (L.t === 'rotonde') {
+            // rotonde : douze colonnes en cercle, coupole de verre, bassin en anneau autour d'un cristal
+            if (rd > 5.5) continue;
+            set(Y, dam);
+            if (rd === 5) col(H);
+            if (rd >= 4.4) set(Y + H + 1, k5(dx, dz) ? 128 : 15);
+            else set(Y + H + 2 + Math.floor((4.4 - rd) / 1.1), dx === 0 || dz === 0 ? 15 : 10);
+            if (rd >= 2 && rd < 3.2 && dx && dz) set(Y, 11);
+            if (m === 0) {
+              set(Y + 1, 127);
+              set(Y + 2, 83);
+              set(Y + 3, 84);
+            }
+          } else if (L.t === 'biblio') {
+            // bibliothèque : murs de marbre sur un soubassement de briques, vitraux hauts, rayonnages tout autour
+            if (m > 5) continue;
+            if (m === 5) {
+              set(Y + H + 1, k5(dx, dz) ? 128 : 15);
+              if (ax === 5 && az === 5) col(H);
+              else {
+                const le = az === 5 ? dx : dz,
+                  porte = az === 5 && ax <= 1;
+                for (let k = 1; k <= H; k++)
+                  set(Y + k, porte && k <= 3 ? 0 : k === 1 ? 79 : (k === 4 || k === 5) && le % 2 === 0 ? 32 : 15);
+              }
+              continue;
+            }
+            set(Y, m <= 2 ? 86 : 9);
+            set(Y + H + 1, m <= 1 ? 10 : 15);
+            if (m === 4 && !(az === 4 && ax <= 1)) for (let k = 1; k <= 3; k++) set(Y + k, 82);
+            if (ax === 2 && az === 2) {
+              set(Y + 1, 82);
+              set(Y + 2, 82);
+              set(Y + 3, 85);
+            }
+            if (m === 0) {
+              set(Y + 1, 9);
+              set(Y + 2, 14);
+            }
+          } else if (L.t === 'serre') {
+            // serre : murs et toit de verre, allée centrale, fleurs, champignons et arbustes roses
+            if (m > 5) continue;
+            if (m === 5) {
+              if (ax === 5 && az === 5) col(5);
+              else {
+                const porte = az === 5 && dx === 0;
+                for (let k = 1; k <= 5; k++) set(Y + k, porte && k <= 2 ? 0 : k === 5 ? 15 : k === 1 ? 79 : 10);
+              }
+              continue;
+            }
+            set(Y + 5 + (m === 4 ? 1 : m >= 2 ? 2 : m === 1 ? 3 : 4), dx === 0 || dz === 0 ? 15 : 10);
+            if (dx === 0) set(Y, 80);
+            else if (ax === 2 && dz === 0) set(Y, 11);
+            else {
+              set(Y, 1);
+              const r = hash(x, z, 178);
+              if (ax === 3 && az === 3) {
+                set(Y + 1, 5);
+                set(Y + 2, 7);
+                set(Y + 3, 7);
+              } else if (r < 0.25) set(Y + 1, 17 + Math.floor(hash(x, z, 179) * 3));
+              else if (r < 0.4) set(Y + 1, 20);
+              else if (r < 0.48) set(Y + 1, 75);
+            }
+          } else if (L.t === 'marche') {
+            // marché : quatre étals sous des toiles de couleur, un réverbère au milieu
+            const ux = ax - 3,
+              uz = az - 3,
+              q = (dx > 0 ? 1 : 0) + (dz > 0 ? 2 : 0);
+            if (Math.abs(ux) <= 1 && Math.abs(uz) <= 1) {
+              set(Y + 3, 131 + q);
+              if (ux && uz) {
+                set(Y + 1, 92);
+                set(Y + 2, 92);
+              } else if (!ux && !uz) {
+                set(Y + 1, 9);
+                set(Y + 2, [83, 14, 75, 126][q]);
+              }
+            }
+            if (m === 0) {
+              col(2);
+              set(Y + 3, 84);
+            }
+          } else if (L.t === 'parvis') {
+            // l'entrée : une allée de colonnes à lanterne
+            if (ax === 3 && az <= 5 && (dz + 5) % 3 === 0) {
+              col(3);
+              set(Y + 4, 84);
+            }
           } else if (L.t === 'place') {
             if (rd <= 2) set(Y, 11);
             else if (rd <= 2.9) set(Y + 1, 34);
@@ -422,14 +569,31 @@
           }
         }
     }
+    // la voie des validateurs : dalles de granite poli, filet de néon, réverbères
+    for (let lz = 0; lz < CH; lz++)
+      for (let lx = 0; lx < CH; lx++) {
+        const x = x0 + lx,
+          z = z0 + lz;
+        if (!surVoie(x, z, 2)) continue;
+        const h = heightAt(x, z),
+          e = Math.abs(x - SPAWN.x);
+        if (h <= SEA) continue;
+        if (e <= 1) {
+          a[li(lx, h, lz)] = e === 0 && ((z % 4) + 4) % 4 === 0 ? 128 : 80;
+          for (let k = 1; k <= 3; k++) a[li(lx, h + k, lz)] = 0;
+        } else if (((z % 8) + 8) % 8 === 0) {
+          a[li(lx, h + 1, lz)] = a[li(lx, h + 2, lz)] = 127;
+          a[li(lx, h + 3, lz)] = 84;
+        }
+      }
     // palmiers de la Cité (sous les dômes et sur les places), dans la marge de 3 colonnes
     if (dansCite(x0 + 8, z0 + 8, 16))
       for (let j = 0; j < 7; j++)
         for (let i = 0; i < 7; i++) {
           const L = citeLot(i, j);
-          if (!L || (L.t === 'hall' && L.grand)) continue;
+          if (!L) continue;
           const pts =
-            L.t === 'hall'
+            L.t === 'verriere'
               ? [[0, 0]]
               : L.t === 'place'
                 ? [
@@ -438,16 +602,18 @@
                     [-4, 4],
                     [4, 4],
                   ]
-                : [
-                    [-2, -2],
-                    [2, 2],
-                  ];
+                : L.t === 'jardin'
+                  ? [
+                      [-2, -2],
+                      [2, 2],
+                    ]
+                  : [];
           for (const [dx, dz] of pts) {
             const x = L.cx + dx,
               z = L.cz + dz;
             if (x < x0 - 3 || x >= x0 + CH + 3 || z < z0 - 3 || z >= z0 + CH + 3) continue;
             put(x, CITE.Y, z, 1);
-            palmier(x, CITE.Y, z, L.t === 'hall' ? Math.min(5, L.H - 3) : 5);
+            palmier(x, CITE.Y, z, L.t === 'verriere' ? Math.min(5, L.H - 3) : 5);
           }
         }
     // jardins d'Éther : terrasse de marbre, fontaine et colonne à lanterne, cyprès aux coins (un par région de 64 × 64 au plus)
@@ -498,7 +664,7 @@
         }
       // colonnes et anneau du toit
       for (let k = 0; k < 8; k++) {
-        const an = (k / 8) * Math.PI * 2,
+        const an = ((k + 0.5) / 8) * Math.PI * 2, // décalées d'un demi-pas : les quatre allées restent ouvertes
           x = sx + Math.round(Math.cos(an) * 6),
           z = sz + Math.round(Math.sin(an) * 6);
         for (let h = 1; h <= 5; h++) put(x, sy + h, z, 127);
@@ -579,6 +745,7 @@
     DEEP,
     GEN,
     SPAWN,
+    GRAINE,
     LIMITE,
     RUIN,
     clamp,
@@ -597,6 +764,8 @@
     jardinAt,
     CITE,
     dansCite,
+    surVoie,
+    citeLot,
     contAt,
     heightAt,
     islandZone,

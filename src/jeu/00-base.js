@@ -19,6 +19,8 @@ const {
   SPAWN,
   CITE,
   dansCite,
+  surVoie,
+  jardinAt,
   LIMITE,
   RUIN,
   ckey,

@@ -235,7 +235,10 @@ function frame(now) {
       tg.hidden = false;
       tg.classList.remove('own');
       const g = K.gift && (S.pets || {})[an.k + ':' + an.i] !== new Date().toISOString().slice(0, 10);
-      tg.innerHTML = `${K.n}<span>${touch ? 'toucher' : 'clic droit'} : caresser${g ? ' · a un cadeau pour toi' : ''}</span>`;
+      tg.innerHTML =
+        an.type === 'habitant'
+          ? `${an.h.nom}<span>${an.h.role} · ${touch ? 'toucher' : 'clic droit'} : parler</span>`
+          : `${K.n}<span>${touch ? 'toucher' : 'clic droit'} : caresser${g ? ' · a un cadeau pour toi' : ''}</span>`;
     }
   }
   for (let i = parts.length - 1; i >= 0; i--) {
@@ -257,6 +260,7 @@ function frame(now) {
   }
   bigEth.rotation.y += dt * 0.12;
   anneau.rotation.y -= dt * 0.05;
+  animerEtoiles(dt);
   for (const g of VAISSEAUX) {
     const u = g.userData;
     u.a += dt * u.v;
@@ -300,9 +304,13 @@ function frame(now) {
     if (playing) updateQuest(dt);
   }
   updateOthers(dt);
+  const auxYeux = vueDehors(dt); // vue de dos ou de face : la caméra recule le temps du rendu
   renderer.clear();
   renderer.render(scene, camera);
-  renderer.clearDepth();
-  if (playing) renderer.render(handScene, handCam);
+  if (auxYeux) auxYeux();
+  else {
+    renderer.clearDepth();
+    if (playing) renderer.render(handScene, handCam);
+  }
   requestAnimationFrame(frame);
 }

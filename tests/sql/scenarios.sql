@@ -85,6 +85,7 @@ update players set pos_at = now() - interval '1 minute';
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 select pg_temp.ok('rallumer la ruine', act_relight('w', :rx, :ry, :rz, :rx + 0.5, :ry, :rz + 2.5) -> 'unique' ->> 'id' = '203');
+select pg_temp.ok('le réseau compte le validateur rallumé', (act_reseau('w') ->> 'n')::int = 1 and act_reseau('w') -> 'top' -> 0 ->> 'n' = '1');
 select pg_temp.ok('le validateur ancien est signé', (select placed_by from blocks where x = :rx and y = :ry and z = :rz) = 'aaaaaaaa-0000-0000-0000-000000000001');
 select pg_temp.ok('compte tout neuf : pas de cadeau', act_gift('w', '3,4:0', 'mouton') ->> 'err' = 'les animaux ne te connaissent pas encore');
 reset role;

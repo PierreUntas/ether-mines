@@ -215,3 +215,31 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .qte{display:flex;gap:6px;align-items:center;margin:0 0 10px}
 .qte span{font-family:var(--mono);font-size:12px;color:var(--muted);margin-right:4px}
 .grid.malle{margin-bottom:12px}
+
+/* nom du lieu, bulle des habitants, personnage dans le coffre, objectif commun */
+#lieu{position:absolute;left:50%;top:22%;transform:translateX(-50%);text-align:center;pointer-events:none;opacity:0;text-shadow:0 2px 14px rgba(28,22,58,.75)}
+#lieu b{display:block;font-size:clamp(26px,5vw,44px);font-weight:600;letter-spacing:.04em;color:#fff}
+#lieu span{font-family:var(--mono);font-size:13px;color:var(--cyan,#7fe8ff)}
+#lieu.vu{animation:lieu 4.2s ease-out}
+@keyframes lieu{0%{opacity:0;transform:translate(-50%,8px)}12%,70%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-6px)}}
+#dialogue{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 112px);transform:translateX(-50%);width:min(520px,calc(100% - 32px));padding:10px 14px;text-align:left;font-size:15px;line-height:1.4;white-space:normal}
+#dialogue b{font-size:15px}
+#dialogue i{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:8px}
+#dialogue p{margin:4px 0 0}
+#quest .reseau{font-family:var(--mono);font-size:12px;color:var(--gold,#ffd95e);border-left:1px solid var(--line);padding-left:8px}
+.cote{display:grid;gap:10px;align-content:start}
+.perso{border:1px solid var(--line);border-radius:14px;padding:8px 10px 10px;display:grid;justify-items:center;gap:6px;background:radial-gradient(circle at 50% 35%,rgba(138,123,239,.28),rgba(127,232,255,.08) 60%,transparent)}
+.perso canvas{width:100%;max-width:260px;aspect-ratio:13/10;cursor:grab;touch-action:none}
+.perso .pnom{font-weight:600}
+.perso .pcoul{display:flex;gap:6px}
+.perso .pcoul button{width:22px;height:22px;border-radius:50%;border:2px solid transparent;padding:0;cursor:pointer}
+.perso .pcoul button.sel{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.25)}
+.reseauBox{border:1px solid var(--gold,#ffd95e);border-radius:14px;padding:12px 14px;margin-bottom:14px;background:rgba(255,217,94,.06)}
+.reseauBox h3{margin:0 0 4px}.reseauBox p{margin:0 0 10px;font-size:14px}
+.reseauBox h4{margin:10px 0 4px;font-size:13px;color:var(--muted);font-weight:400}
+.jauge{height:8px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden}
+.jauge i{display:block;height:100%;background:linear-gradient(90deg,var(--violet,#8a7bef),var(--gold,#ffd95e))}
+.paliers{display:flex;gap:10px;align-items:center;margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--muted);flex-wrap:wrap}
+.paliers .ok{color:var(--gold,#ffd95e)}.paliers b{margin-left:auto;color:var(--text);font-weight:400}
+.veilleurs{margin:0;padding-left:22px;font-size:14px}
+.grid p{grid-column:1/-1}

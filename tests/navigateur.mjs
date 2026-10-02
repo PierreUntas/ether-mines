@@ -112,6 +112,29 @@ const eau = await page.evaluate(async () => {
   return P.z < 19.7 && P.y >= Y + 2.9;
 });
 if (!eau) await fail('impossible de sortir de l\'eau sur une berge d\'un bloc');
+// habitants et compagnons de l'Atrium, bulle de dialogue, vue de dos puis de face, personnage dans le coffre
+const vie = await page.evaluate(async () => {
+  const P = mines.P; P.x = 8.5; P.z = 15.5; P.y = 33.05; P.vy = 0;
+  const t0 = performance.now();
+  let l = [];
+  while (performance.now() - t0 < 30000) {
+    l = [...ANIMALS.values()].flat();
+    if (l.some(a => a.type === 'shiba') && l.some(a => a.h?.nom === 'Solène')) break;
+    await new Promise(r => setTimeout(r, 500));
+  }
+  const s = l.find(a => a.h?.nom === 'Solène');
+  if (s) petAnimal(s);
+  const bulle = !document.getElementById('dialogue').hidden && document.getElementById('dialogue').textContent;
+  changerVue();
+  await new Promise(r => setTimeout(r, 1200));
+  const dos = VUE === 1 && MOI.g.visible;
+  changerVue(); changerVue();
+  openTab('inv');
+  const perso = !!document.querySelector('.perso canvas');
+  togglePanel();
+  return { shiba: l.some(a => a.type === 'shiba'), bulle, dos, yeux: VUE === 0 && !MOI.g.visible, perso };
+});
+if (!vie.shiba || !vie.bulle || !vie.dos || !vie.yeux || !vie.perso) await fail('habitants, vue de dos ou personnage : ' + JSON.stringify(vie));
 const m = await page.evaluate(() => ({ actif: mines.mailleur, n: mines.nbMaillages }));
 if (!m.actif) await fail('le maillage en arrière-plan ne s\'est pas lancé');
 if (m.n < 20) await fail('trop peu de tronçons affichés : ' + m.n);

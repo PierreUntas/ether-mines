@@ -204,6 +204,8 @@
         tone(360, 'square', 0.02, 0.09, T + 0.18, o, 0.7);
       } else if (type === 'robot') {
         [0, 4, 7, 12].forEach((s, i) => tone(520 * Math.pow(2, s / 12), 'square', 0.01, 0.06, T + i * 0.08, o, 1));
+      } else if (type === 'habitant') {
+        [0, 3, -2, 5].forEach((d, i) => tone(300 * Math.pow(2, d / 12), 'triangle', 0.01, 0.07, T + i * 0.07, o, 0.6));
       } else if (type === 'meduse') {
         [0, 7, 12].forEach((s, i) => tone(660 * Math.pow(2, s / 12), 'sine', 0.05, 1.2, T + i * 0.12, o, 1, 0.05));
       }

@@ -512,6 +512,9 @@ function relight(t) {
       toastInfo('Validateur ancien rallumé : un cristal par minute, à ton nom.');
       Sound.chime();
       popAt(t.x, t.y, t.z, 1);
+      S.relit = (S.relit || 0) + 1;
+      dirty = true;
+      majReseau();
     });
     return;
   }
@@ -528,6 +531,7 @@ function relight(t) {
   logEv('burn', '1 Cœur de validateur', `→ validateur ancien rallumé (${S.relit})`);
   toastInfo('Validateur ancien rallumé : un cristal par minute, à ton nom.');
   Sound.chime();
+  majReseau();
   popAt(t.x, t.y, t.z, 1);
   swing = 1;
   dirty = true;

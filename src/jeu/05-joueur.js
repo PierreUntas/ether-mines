@@ -91,6 +91,10 @@ addEventListener('keydown', e => {
   if (/^Digit[1-9]$/.test(e.code)) select(+e.code.slice(5) - 1);
   if (e.code === 'KeyM') toggleSnd();
   if (e.code === 'KeyO') openTab('quest');
+  if (e.code === 'KeyV' || e.code === 'F5') {
+    e.preventDefault();
+    changerVue();
+  }
   if (e.code === 'KeyT') {
     regView = !regView;
     $('modeTag').hidden = !regView;

@@ -57,7 +57,7 @@ function nameTag(name, color) {
   s.renderOrder = 10;
   return s;
 }
-function makeAvatar(name, color) {
+function makeAvatar(name, color, horsScene) {
   const g = new THREE.Group(),
     M = c => new THREE.MeshLambertMaterial({ color: c }),
     col = new THREE.Color(color),
@@ -65,7 +65,7 @@ function makeAvatar(name, color) {
   const skin = M(0xf6d3b8),
     hair = M(dark),
     face = new THREE.MeshLambertMaterial({ map: faceTex('#' + dark.getHexString()) });
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), [skin, skin, hair, skin, skin, face]);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), [hair, hair, hair, skin, hair, face]);
   head.position.y = 1.52;
   head.castShadow = true;
   g.add(head);
@@ -89,8 +89,157 @@ function makeAvatar(name, color) {
   const tag = nameTag(name, color);
   tag.position.y = 2.1;
   g.add(tag);
-  scene.add(g);
+  if (!horsScene) scene.add(g);
   return { g, head, body, legs, arms, tag, name, color, walk: 0, t: null, seen: false, ph: Math.random() * 6 };
+}
+// ---------- se voir : vue de dos, vue de face (touche V), et personnage dans le coffre ----------
+let VUE = 0, // 0 : par ses yeux ; 1 : de dos ; 2 : de face
+  MOI = null;
+const vueO = new THREE.Vector3(),
+  vueD = new THREE.Vector3(),
+  vueP = new THREE.Vector3();
+function changerVue() {
+  VUE = (VUE + 1) % 3;
+  if (MOI && MOI.color !== ME.color) {
+    scene.remove(MOI.g);
+    MOI = null;
+  }
+  if (VUE && !MOI) {
+    MOI = makeAvatar(ME.name, ME.color);
+    MOI.tag.visible = false;
+    vueP.set(P.x, P.y, P.z);
+  }
+  if (MOI) MOI.g.visible = VUE > 0;
+  logEv('nft', ['Vue par tes yeux', 'Vue de dos', 'Vue de face'][VUE], touch ? '' : 'touche V pour changer');
+}
+// pose l'avatar du joueur et recule la caméra (sans traverser les murs) ; rend une fonction qui remet la caméra aux yeux
+function vueDehors(dt) {
+  if (!VUE || !MOI) return null;
+  const o = MOI,
+    sp = Math.hypot(P.x - vueP.x, P.z - vueP.z) / Math.max(dt, 0.001),
+    mv = Math.min(1, sp / 2);
+  vueP.set(P.x, P.y, P.z);
+  o.g.position.set(P.x, P.y, P.z);
+  o.g.rotation.y = yaw;
+  o.head.rotation.x = -pitch * 0.6;
+  o.walk += Math.min(sp, 8) * dt * 1.6;
+  o.ph += dt;
+  const a = mv * Math.sin(o.walk) * 0.7,
+    br = Math.sin(o.ph * 2.2),
+    hop = Math.abs(Math.sin(o.walk)) * 0.07 * mv;
+  o.legs[0].rotation.x = a;
+  o.legs[1].rotation.x = -a;
+  o.arms[0].rotation.x = -a;
+  o.arms[1].rotation.x = swing > 0 ? -1.3 + Math.sin(swing * Math.PI) * 0.8 : a;
+  o.body.scale.set(1 + br * 0.02, 1 + br * 0.012, 1 + br * 0.035);
+  o.body.position.y = 0.94 + hop;
+  o.head.position.y = 1.52 + hop + br * 0.012;
+  o.arms[0].position.y = o.arms[1].position.y = 1.26 + hop;
+  vueO.copy(camera.position);
+  vueD.set(0, 0, VUE === 1 ? 1 : -1).applyQuaternion(camera.quaternion);
+  let d = 0;
+  while (d < 4) {
+    const id = get(
+      Math.floor(vueO.x + vueD.x * (d + 0.3)),
+      Math.floor(vueO.y + vueD.y * (d + 0.3)),
+      Math.floor(vueO.z + vueD.z * (d + 0.3)),
+    );
+    if (id && id !== 11 && isSolid(id)) break;
+    d += 0.1;
+  }
+  camera.position.addScaledVector(vueD, Math.max(0.4, d));
+  if (VUE === 2) camera.rotation.set(-pitch, yaw + Math.PI, 0);
+  camera.updateMatrixWorld();
+  return () => {
+    camera.position.copy(vueO);
+    camera.rotation.set(pitch, yaw, 0);
+    camera.updateMatrixWorld();
+  };
+}
+$('vueBtn').onclick = () => playing && changerVue();
+// le personnage, dans le coffre : il tourne sur lui-même, on le fait pivoter du doigt, on choisit sa couleur
+let PERSO = null;
+function persoBox() {
+  if (!PERSO) {
+    const box = document.createElement('div');
+    box.className = 'perso';
+    box.innerHTML = '<canvas width="520" height="400"></canvas><div class="pnom"></div><div class="pcoul"></div>';
+    const c = box.querySelector('canvas');
+    let r = null;
+    try {
+      r = new THREE.WebGLRenderer({ canvas: c, alpha: true, antialias: true });
+    } catch (e) {}
+    const sc = new THREE.Scene(),
+      cam = new THREE.PerspectiveCamera(30, 520 / 400, 0.1, 20);
+    sc.add(new THREE.HemisphereLight(0xffffff, 0x8a7bef, 0.95));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.55);
+    dl.position.set(2, 3, 4);
+    sc.add(dl);
+    cam.position.set(0, 1.25, 5.4);
+    cam.lookAt(0, 1.05, 0);
+    PERSO = { box, c, r, sc, cam, av: null, rot: 0.5, glisse: false, en: false };
+    c.addEventListener('pointerdown', e => {
+      PERSO.glisse = true;
+      PERSO.x = e.clientX;
+      c.setPointerCapture(e.pointerId);
+    });
+    c.addEventListener('pointermove', e => {
+      if (!PERSO.glisse) return;
+      PERSO.rot += (e.clientX - PERSO.x) * 0.012;
+      PERSO.x = e.clientX;
+    });
+    c.addEventListener('pointerup', () => (PERSO.glisse = false));
+    c.addEventListener('pointercancel', () => (PERSO.glisse = false));
+  }
+  const p = PERSO;
+  if (!p.av || p.av.color !== ME.color || p.av.name !== ME.name) {
+    if (p.av) p.sc.remove(p.av.g);
+    p.av = makeAvatar(ME.name, ME.color, true);
+    p.av.tag.visible = false;
+    p.sc.add(p.av.g);
+  }
+  p.box.querySelector('.pnom').textContent = ME.name;
+  const pc = p.box.querySelector('.pcoul');
+  pc.innerHTML = '';
+  for (const col of COLORS) {
+    const b = document.createElement('button');
+    b.style.background = col;
+    b.setAttribute('aria-label', 'Couleur de la tenue');
+    if (col === ME.color) b.className = 'sel';
+    b.onclick = () => {
+      profile.color = ME.color = col;
+      try {
+        localStorage.setItem(PKEY, JSON.stringify(profile));
+      } catch (e) {}
+      if (MOI) {
+        scene.remove(MOI.g);
+        MOI = null;
+        if (VUE) {
+          VUE--;
+          changerVue();
+        }
+      }
+      dirty = cloudDirty = true;
+      renderPanel();
+    };
+    pc.appendChild(b);
+  }
+  if (!p.en && p.r) {
+    p.en = true;
+    const tour = () => {
+      if (!p.c.isConnected || $('panel').hidden) return (p.en = false);
+      if (!p.glisse) p.rot += 0.008;
+      const t = performance.now() / 1000;
+      p.av.g.rotation.y = Math.PI + p.rot;
+      p.av.arms[0].rotation.x = Math.sin(t * 1.6) * 0.12;
+      p.av.arms[1].rotation.x = -Math.sin(t * 1.6) * 0.12;
+      p.av.head.rotation.y = Math.sin(t * 0.8) * 0.25;
+      p.r.render(p.sc, p.cam);
+      requestAnimationFrame(tour);
+    };
+    requestAnimationFrame(tour);
+  }
+  return p.box;
 }
 function removeOther(id) {
   const o = others.get(id);

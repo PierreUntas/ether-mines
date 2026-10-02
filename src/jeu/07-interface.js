@@ -151,6 +151,96 @@ const QUESTS = [
   },
 ];
 const RELIT_GOALS = [3, 7, 12, 20, 30, 50, 75, 100];
+// ---------- le réseau : l'objectif commun ----------
+// Tous les joueurs du monde rallument les validateurs anciens ensemble. À chaque palier, le grand diamant du ciel s'éveille un peu plus.
+const RESEAU = { n: 0, top: [], t: 0, vu: -1 },
+  PALIERS = [3, 10, 25, 50, 100],
+  PALIER_NOM = ['une première étoile', 'deux étoiles', 'trois étoiles', 'quatre étoiles', 'le diamant pleinement éveillé'];
+const niveauReseau = () => PALIERS.filter(p => RESEAU.n >= p).length;
+function ditReseau() {
+  const g = PALIERS.find(p => p > RESEAU.n);
+  return g
+    ? `Le réseau compte ${RESEAU.n} validateur${RESEAU.n > 1 ? 's' : ''} ancien${RESEAU.n > 1 ? 's' : ''} rallumé${RESEAU.n > 1 ? 's' : ''}. À ${g}, le grand diamant du ciel s'éveillera un peu plus.`
+    : 'Le réseau est réveillé : le grand diamant brille de tous ses feux. Merci à tous les veilleurs.';
+}
+async function majReseau() {
+  RESEAU.t = 60;
+  let n = S.relit || 0,
+    top = n ? [{ name: ME.name, n }] : [];
+  if (SERVER()) {
+    try {
+      const r = await Net.act('reseau', {});
+      if (!r || !r.ok) return;
+      n = r.n;
+      top = r.top || [];
+    } catch (e) {
+      return;
+    }
+  }
+  const avant = niveauReseau();
+  RESEAU.n = n;
+  RESEAU.top = top;
+  const niv = niveauReseau();
+  if (RESEAU.vu >= 0 && niv > avant) {
+    logEv('nft', `Le réseau se réveille : ${n} validateurs rallumés`, `le grand diamant gagne ${PALIER_NOM[niv - 1]}`);
+    annoncer('Le réseau se réveille', `${n} validateurs anciens rallumés`);
+    Sound.chime();
+  }
+  RESEAU.vu = niv;
+  ETOILES.forEach((e, i) => (e.visible = i < niv));
+  if (tab === 'quest' && !$('panel').hidden) renderPanel();
+}
+// étoiles en orbite autour du grand diamant : une par palier atteint
+const ETOILES = PALIERS.map((p, i) => {
+  const e = new THREE.Mesh(ethGeo(2.2, 3.4, 2.4, 0.5, ['#fff3c2', '#ffd95e', '#ffb36b', '#ffe9a8']), ethMat);
+  e.visible = false;
+  e.userData = { a: (i / PALIERS.length) * Math.PI * 2, r: 26 + (i % 2) * 5, h: (i - 2) * 4 };
+  scene.add(e);
+  return e;
+});
+function animerEtoiles(dt) {
+  for (const e of ETOILES) {
+    if (!e.visible) continue;
+    const u = e.userData;
+    u.a += dt * 0.16;
+    e.position.set(
+      bigEth.position.x + Math.cos(u.a) * u.r,
+      bigEth.position.y + u.h + Math.sin(u.a * 2) * 1.5,
+      bigEth.position.z + Math.sin(u.a) * u.r,
+    );
+    e.rotation.y += dt * 0.8;
+  }
+}
+// ---------- lieux : le nom du lieu s'affiche quand on y entre ----------
+let lieuVu = null;
+function annoncer(titre, sous) {
+  const el = $('lieu');
+  el.innerHTML = `<b></b><span></span>`;
+  el.firstChild.textContent = titre;
+  el.lastChild.textContent = sous || '';
+  el.classList.remove('vu');
+  void el.offsetWidth;
+  el.classList.add('vu');
+}
+function lieuIci() {
+  if (Math.hypot(P.x - SPAWN.x - 0.5, P.z - SPAWN.z - 0.5) <= 8) return ["L'Atrium", 'sanctuaire du premier validateur'];
+  if (dansCite(P.x, P.z)) return ['La Cité', 'sous le grand diamant'];
+  if (surVoie(Math.floor(P.x), Math.floor(P.z), 2)) return ['La voie des validateurs', "de l'Atrium à la Cité"];
+  const r = ruinAt(Math.floor(P.x / RUIN), Math.floor(P.z / RUIN));
+  if (r && Math.hypot(r.x - P.x, r.z - P.z) < 7 && Math.abs(r.y - P.y) < 8) return ['Ruines anciennes', 'un validateur y attend son cœur'];
+  const j = jardinAt(Math.floor(P.x / 64), Math.floor(P.z / 64));
+  if (j && Math.hypot(j.x - P.x, j.z - P.z) < 6 && Math.abs(j.y - P.y) < 6) return ["Jardin d'Éther", 'un coin de calme'];
+  if (P.y > SY - 22 && islandTop(Math.floor(P.x), Math.floor(P.z)) > 0) return ['Îles célestes', 'le pays des méduses'];
+  if (P.y < DEEP - 2) return ['Les profondeurs', 'géodes et roche de genèse'];
+  return null;
+}
+function majLieu() {
+  const l = lieuIci(),
+    nom = l ? l[0] : null;
+  if (nom === lieuVu) return;
+  lieuVu = nom;
+  if (l) annoncer(l[0], l[1]);
+}
 function questIndex() {
   for (let i = 0; i < QUESTS.length; i++) if (!QUESTS[i].ok()) return i;
   return QUESTS.length;
@@ -188,6 +278,9 @@ function updateQuest(dt) {
   questT -= dt;
   if (questT > 0) return;
   questT = 0.4;
+  majLieu();
+  RESEAU.t -= 0.4;
+  if (RESEAU.t <= 0) majReseau();
   const i = questIndex();
   if (S.qi === undefined) S.qi = i;
   while (S.qi < i) {
@@ -211,6 +304,7 @@ function updateQuest(dt) {
     const goal = RELIT_GOALS.find(g => g > (S.relit || 0)) || S.relit + 10;
     html = `<b>${S.relit}/${goal}</b> Validateurs rallumés`;
   }
+  html += `<span class="reseau" title="Validateurs anciens rallumés par tous les joueurs">◈ ${RESEAU.n}/${PALIERS.find(p => p > RESEAU.n) || RESEAU.n}</span>`;
   if (i >= QUESTS.length - 2) {
     const r = nearestRuin();
     if (r) html += `<span class="compass">${arrowTo(r.x + 0.5, r.z + 0.5)} ruine à ${Math.round(r.d)} m</span>`;
@@ -229,6 +323,26 @@ function renderQuests(body) {
     'beforeend',
     `<p class="qintro">Les anciens validateurs de ce monde se sont éteints. Deviens assez fort pour descendre jusqu'à la roche de genèse, forge un cœur de validateur et rallume-les, un par un.</p>`,
   );
+  {
+    const g = PALIERS.find(p => p > RESEAU.n),
+      niv = niveauReseau(),
+      d = document.createElement('div');
+    d.className = 'reseauBox';
+    d.innerHTML = `<h3>Le réseau · objectif commun</h3><p>${g ? `Tous ensemble, rallumez <b>${g}</b> validateurs anciens pour offrir ${PALIER_NOM[niv]} au grand diamant du ciel.` : 'Le réseau est réveillé. Le grand diamant brille de tous ses feux.'}</p><div class="jauge"><i style="width:${Math.min(100, (RESEAU.n / (g || RESEAU.n || 1)) * 100)}%"></i></div><div class="paliers">${PALIERS.map(p => `<span class="${RESEAU.n >= p ? 'ok' : ''}">◆ ${p}</span>`).join('')}<b>${RESEAU.n} rallumé${RESEAU.n > 1 ? 's' : ''}</b></div>`;
+    if (RESEAU.top.length) {
+      const ol2 = document.createElement('ol');
+      ol2.className = 'veilleurs';
+      for (const t of RESEAU.top) {
+        const li2 = document.createElement('li');
+        li2.textContent = `${t.name} · ${t.n}`;
+        ol2.appendChild(li2);
+      }
+      d.insertAdjacentHTML('beforeend', '<h4>Les veilleurs</h4>');
+      d.appendChild(ol2);
+    }
+    body.appendChild(d);
+    body.insertAdjacentHTML('beforeend', '<h3 class="rcat">Ton parcours</h3>');
+  }
   const ol = document.createElement('ol');
   ol.className = 'quests';
   QUESTS.forEach((q, k) => {
@@ -373,7 +487,11 @@ function renderPanel() {
           ? 'Miner ce bloc frappe un jeton. Le poser le brûle, et le bloc posé porte ton numéro de série dans le registre.'
           : "Une ressource fongible : chaque unité vaut exactement la même chose qu'une autre.";
     } else card.innerHTML = '<p>Choisis un objet pour voir sa fiche de jeton.</p>';
-    wrap.appendChild(card);
+    const cote = document.createElement('div');
+    cote.className = 'cote';
+    cote.appendChild(persoBox());
+    cote.appendChild(card);
+    wrap.appendChild(cote);
     body.appendChild(wrap);
     body.insertAdjacentHTML(
       'beforeend',
