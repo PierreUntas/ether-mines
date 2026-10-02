@@ -240,15 +240,29 @@ window.Net = (() => {
     if (error) throw error;
     return data ? data.address : null;
   }
+  // sb.functions.invoke() ne lit pas le corps JSON d'une réponse en erreur : son message est le générique
+  // « Edge Function returned a non-2xx status code ». Le vrai message du serveur est dans error.context (la
+  // Response brute) — on va le chercher pour ne pas perdre la raison réelle d'un refus.
+  async function messageFonction(error) {
+    if (error && error.context && typeof error.context.json === 'function') {
+      try {
+        const corps = await error.context.json();
+        if (corps && corps.error) return corps.error;
+      } catch {
+        /* corps non lisible : on retombe sur error.message */
+      }
+    }
+    return (error && error.message) || String(error);
+  }
   async function linkWallet(address, signature) {
     const { data, error } = await sb.functions.invoke('lier-wallet', { body: { address, signature } });
-    if (error) throw new Error('lier-wallet : ' + (error.message || error));
+    if (error) throw new Error('lier-wallet : ' + (await messageFonction(error)));
     if (data && data.error) throw new Error(data.error);
     return data;
   }
   async function chaine(action, args) {
     const { data, error } = await sb.functions.invoke('chaine', { body: { action, world, ...args } });
-    if (error) throw new Error('chaine : ' + (error.message || error));
+    if (error) throw new Error('chaine : ' + (await messageFonction(error)));
     if (data && data.error) throw new Error(data.error);
     return data;
   }
