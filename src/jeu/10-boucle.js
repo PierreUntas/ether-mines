@@ -121,6 +121,7 @@ function frame(now) {
     tierHintT = Math.max(0, tierHintT - dt);
     hintT = Math.max(0, hintT - dt);
     buffT = Math.max(0, buffT - dt);
+    courseCheck();
     S.day += dt / 480;
     if (S.day >= 1) {
       S.day -= 1;
@@ -209,6 +210,7 @@ function frame(now) {
   cloudTex.offset.set(camera.position.x / 300 + cloudDrift, -camera.position.z / 300);
   waterTex.offset.x += dt * 0.03;
   waterTex.offset.y += dt * 0.012;
+  courseAnimate(now);
   applyDay();
   if (playing) {
     target = raycast(5.2, aim);

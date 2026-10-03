@@ -470,10 +470,14 @@ function command(v) {
     claimCmd(c === 'libérer' ? 'liberer' : c, rest.join(' ').trim());
     return;
   }
+  if (c === 'course') {
+    startCourse();
+    return;
+  }
   addChat(
     'Monde',
     '#7fe8ff',
-    'Commandes : /rejoindre pseudo · /sanctuaire · /parcelle · /liberer · /inviter pseudo · /exclure pseudo · /parcelles · /echanger pseudo · /ignorer pseudo · /ecouter pseudo · /signaler pseudo',
+    'Commandes : /rejoindre pseudo · /sanctuaire · /parcelle · /liberer · /inviter pseudo · /exclure pseudo · /parcelles · /echanger pseudo · /ignorer pseudo · /ecouter pseudo · /signaler pseudo · /course',
   );
 }
 $('chatForm').addEventListener('submit', e => {

@@ -801,3 +801,52 @@ function petAnimal(a) {
     Sound.chime();
   }
 }
+
+// ---------- course : balises à toucher dans l'ordre, purement cosmétique (comme les animaux, aucune valeur en jeu) ----------
+const COURSE = Array.from({ length: 6 }, (_, i) => {
+  const a = (i / 6) * Math.PI * 2,
+    x = SPAWN.x + Math.round(Math.cos(a) * 20),
+    z = SPAWN.z + Math.round(Math.sin(a) * 20);
+  return { x: x + 0.5, y: heightAt(x, z) + 1, z: z + 0.5 };
+});
+const courseGeo = new THREE.TorusGeometry(0.7, 0.08, 8, 20),
+  courseMat = new THREE.MeshBasicMaterial({ color: 0x7fe8ff, transparent: true, opacity: 0.55, depthWrite: false }),
+  courseMatOn = new THREE.MeshBasicMaterial({ color: 0xffd95e, transparent: true, opacity: 0.85, depthWrite: false }),
+  courseRings = COURSE.map(c => {
+    const m = new THREE.Mesh(courseGeo, courseMat);
+    m.position.set(c.x, c.y + 0.9, c.z);
+    scene.add(m);
+    return m;
+  });
+let RACE = null; // { i, t0 } : balise à atteindre, départ (performance.now())
+function raceMsg(text) {
+  Net.chat(text)
+    .then(r => {
+      if ((r && r.ok) || (r && r.err === 'hors ligne')) addChat(ME.name, ME.color, text);
+    })
+    .catch(() => addChat('Monde', '#7fe8ff', text));
+}
+function startCourse() {
+  RACE = { i: 0, t0: performance.now() };
+  raceMsg("s'élance sur la piste de course !");
+}
+function courseAnimate(now) {
+  for (let i = 0; i < courseRings.length; i++) {
+    const m = courseRings[i],
+      on = !!RACE && RACE.i === i;
+    m.material = on ? courseMatOn : courseMat;
+    m.rotation.y = now / 900 + i;
+    m.scale.setScalar(on ? 1 + Math.sin(now / 160) * 0.08 : 1);
+  }
+}
+function courseCheck() {
+  if (!RACE) return;
+  const c = COURSE[RACE.i];
+  if (Math.hypot(P.x - c.x, P.y - c.y, P.z - c.z) > 1.6) return;
+  Sound.chime();
+  RACE.i++;
+  if (RACE.i >= COURSE.length) {
+    raceMsg(`boucle la course en ${((performance.now() - RACE.t0) / 1000).toFixed(1)} s !`);
+    RACE = null;
+  }
+}
