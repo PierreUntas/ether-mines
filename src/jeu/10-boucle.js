@@ -124,14 +124,8 @@ function frame(now) {
       S.day -= 1;
       S.dayN++;
     }
-    // combat : viser un mob hostile avec le clic de minage attaque au lieu de miner
-    const mobCible = mining ? pickMob(aim, target) : null;
-    if (mobCible) {
-      crack.visible = false;
-      mineKey = -1;
-      mineT = 0;
-      attackMob(mobCible, dt);
-    } else if (mining && target && B[target.id].h !== Infinity && !canBuildHere(target.x, target.z)) {
+    // minage
+    if (mining && target && B[target.id].h !== Infinity && !canBuildHere(target.x, target.z)) {
       crack.visible = false;
       mineKey = -1;
       mineT = 0;
@@ -231,31 +225,20 @@ function frame(now) {
       sel.visible = false;
       $('target').hidden = true;
     }
-    const mb = pickMob(aim, target);
-    if (mb) {
+    const an = pickAnimal(aim, target);
+    if (an) {
       target = null;
       sel.visible = false;
       crack.visible = false;
-      const tg = $('target');
+      const K = AK[an.type],
+        tg = $('target');
       tg.hidden = false;
       tg.classList.remove('own');
-      tg.innerHTML = `${MK[mb.type].n}<span>${touch ? 'toucher long' : 'clic gauche'} : attaquer</span>`;
-    } else {
-      const an = pickAnimal(aim, target);
-      if (an) {
-        target = null;
-        sel.visible = false;
-        crack.visible = false;
-        const K = AK[an.type],
-          tg = $('target');
-        tg.hidden = false;
-        tg.classList.remove('own');
-        const g = K.gift && (S.pets || {})[an.k + ':' + an.i] !== new Date().toISOString().slice(0, 10);
-        tg.innerHTML =
-          an.type === 'habitant'
-            ? `${an.h.nom}<span>${an.h.role} · ${touch ? 'toucher' : 'clic droit'} : parler</span>`
-            : `${K.n}<span>${touch ? 'toucher' : 'clic droit'} : caresser${g ? ' · a un cadeau pour toi' : ''}</span>`;
-      }
+      const g = K.gift && (S.pets || {})[an.k + ':' + an.i] !== new Date().toISOString().slice(0, 10);
+      tg.innerHTML =
+        an.type === 'habitant'
+          ? `${an.h.nom}<span>${an.h.role} · ${touch ? 'toucher' : 'clic droit'} : parler</span>`
+          : `${K.n}<span>${touch ? 'toucher' : 'clic droit'} : caresser${g ? ' · a un cadeau pour toi' : ''}</span>`;
     }
   }
   for (let i = parts.length - 1; i >= 0; i--) {
@@ -318,7 +301,6 @@ function frame(now) {
     computePower(dt);
     lumieres(dt);
     updateAnimals(dt);
-    if (playing) updateMobs(dt);
     if (playing) updateQuest(dt);
   }
   updateOthers(dt);
