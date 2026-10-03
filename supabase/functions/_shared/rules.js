@@ -223,6 +223,13 @@
       cat: 'Décoration',
     })),
   );
+  // v8 : une pièce pour manger et dormir
+  B[135] = { n: 'Table', t: [10, 10, 10], h: 1, shape: 'slab' };
+  B[136] = { n: 'Lit', t: [53, 10, 10], h: 0.8, shape: 'slab' };
+  RECIPES.push(
+    { out: 135, n: 1, need: { 9: 4 }, d: 'Clic droit pour manger : vitesse accrue un moment', cat: 'Décoration' },
+    { out: 136, n: 1, need: { 9: 2, 71: 2 }, d: 'Clic droit pour dormir et passer à l’aube', cat: 'Décoration' },
+  );
   const TOOLS = { 102: 1, 201: 1, 202: 1 };
   // ce que devient un objet posé : bloc de même numéro, sauf escaliers (4 orientations) et portes (4 orientations, 2 moitiés)
   function placeIds(it) {

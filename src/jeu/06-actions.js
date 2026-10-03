@@ -420,6 +420,11 @@ function place() {
     ouvrirMalle(target);
     return;
   }
+  if ((target.id === 135 || target.id === 136) && !accroupi && inWorld(target.x, target.z)) {
+    if (target.id === 135) manger();
+    else dormir();
+    return;
+  }
   // accroupi : on pose contre une porte ou un levier au lieu de l'actionner
   if (tb && tb.shape === 'door' && !accroupi && inWorld(target.x, target.z)) {
     const t = target,
@@ -542,6 +547,32 @@ function relight(t) {
   rebuildAt(t.x, t.z);
   ui();
   if (regView) buildRegView();
+}
+// ---------- table et lit : manger et dormir (simulés côté client, aucune valeur en jeu) ----------
+function manger() {
+  if (S.repas === S.dayN) {
+    logEv('burn', 'Pas encore faim', 'un repas par jour suffit');
+    return;
+  }
+  S.repas = S.dayN;
+  buffT = 90;
+  dirty = true;
+  swing = 0.6;
+  Sound.chime();
+  toastInfo('Un bon repas : tu avances plus vite pendant 90 secondes.');
+}
+function dormir() {
+  const h = S.day % 1;
+  if (h > 0.25 && h < 0.78) {
+    logEv('burn', 'Il fait trop clair pour dormir', 'attends la nuit');
+    return;
+  }
+  if (h >= 0.78) S.dayN++;
+  S.day = 0.27;
+  dirty = true;
+  swing = 0.6;
+  Sound.door();
+  toastInfo('Une bonne nuit de sommeil : le jour se lève.');
 }
 function toggleDoor(t) {
   const b = B[t.id],

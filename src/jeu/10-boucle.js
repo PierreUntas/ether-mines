@@ -9,7 +9,8 @@ let last = performance.now(),
   bob = 0,
   crouch = 0,
   stepT = 0,
-  hitT = 0;
+  hitT = 0,
+  buffT = 0; // repas pris à la table : vitesse accrue pendant ce temps (secondes)
 let ipsN = 0,
   ipsT = 0;
 function frame(now) {
@@ -49,7 +50,7 @@ function frame(now) {
       }
     }
     const run = !sneak && (keys.has('ShiftLeft') || keys.has('ShiftRight') || sprintOn);
-    const sp = (run ? 6.6 : 4.4) * (inW ? 0.55 : 1) * (sneak && !inW ? 0.35 : 1),
+    const sp = (run ? 6.6 : 4.4) * (inW ? 0.55 : 1) * (sneak && !inW ? 0.35 : 1) * (buffT > 0 ? 1.3 : 1),
       sn = Math.sin(yaw),
       cs = Math.cos(yaw);
     const vx = (-sn * fz + cs * fx) * sp,
@@ -119,6 +120,7 @@ function frame(now) {
     crouch += ((sneak && !inW ? 0.22 : 0) - crouch) * Math.min(1, dt * 12);
     tierHintT = Math.max(0, tierHintT - dt);
     hintT = Math.max(0, hintT - dt);
+    buffT = Math.max(0, buffT - dt);
     S.day += dt / 480;
     if (S.day >= 1) {
       S.day -= 1;
@@ -220,7 +222,7 @@ function frame(now) {
       tg.hidden = false;
       tg.classList.toggle('own', !!(ow && ow.by === ME.id));
       const tid = B[target.id].drop !== undefined && B[target.id].drop ? B[target.id].drop : target.id;
-      tg.innerHTML = `${B[target.id].n}<span>${target.id === 73 ? `${touch ? 'toucher' : 'clic droit'} avec un cœur de validateur pour le rallumer` : target.id === 74 ? "rallumé · frappe un cristal par minute pour qui l'a rallumé" : !canBuildHere(target.x, target.z) && B[target.id].h !== Infinity ? `🔒 ${protectMsg(target.x, target.z)}` : !canMine(target.id) && B[target.id].h !== Infinity ? `⛏ il faut ${TIER_NAME[reqTier(target.id)]}` : !inWorld(target.x, target.z) ? 'bord du monde' : own ? `posé par ${ow && ow.by !== ME.id ? ow.name : 'toi'} · bloc #${own}` : `naturel · donne le jeton #${tid === 0 ? '—' : tid}`}</span>`;
+      tg.innerHTML = `${B[target.id].n}<span>${target.id === 73 ? `${touch ? 'toucher' : 'clic droit'} avec un cœur de validateur pour le rallumer` : target.id === 74 ? "rallumé · frappe un cristal par minute pour qui l'a rallumé" : target.id === 135 ? `${touch ? 'toucher' : 'clic droit'} pour manger : vitesse accrue un moment` : target.id === 136 ? `${touch ? 'toucher' : 'clic droit'} pour dormir : passe à l’aube` : !canBuildHere(target.x, target.z) && B[target.id].h !== Infinity ? `🔒 ${protectMsg(target.x, target.z)}` : !canMine(target.id) && B[target.id].h !== Infinity ? `⛏ il faut ${TIER_NAME[reqTier(target.id)]}` : !inWorld(target.x, target.z) ? 'bord du monde' : own ? `posé par ${ow && ow.by !== ME.id ? ow.name : 'toi'} · bloc #${own}` : `naturel · donne le jeton #${tid === 0 ? '—' : tid}`}</span>`;
     } else {
       sel.visible = false;
       $('target').hidden = true;

@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP : sous cette couche, géodes et grandes grottes
-  const GEN = 7; // version du générateur (2 : champignons… ; 3 : palmiers, améthystes ; 4 : atrium, temples, jardins ; 5 : la Cité ; 6 : la Cité en halls) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
+  const GEN = 8; // version du générateur (2 : champignons… ; 3 : palmiers, améthystes ; 4 : atrium, temples, jardins ; 5 : la Cité ; 6 : la Cité en halls ; 8 : le refuge, salle pour manger et dormir) : l'augmenter à chaque changement de terrain (les tronçons déjà figés ne bougent plus)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -82,6 +82,7 @@
     '0,-2': { t: 'place' },
     '2,0': { t: 'jardin' },
     '-2,0': { t: 'jardin' },
+    '2,1': { t: 'refuge', H: 3 }, // le refuge : une pièce pour manger et dormir
   };
   function citeLot(i, j) {
     const L = LOTS[i - 3 + ',' + (j - 3)];
@@ -566,6 +567,19 @@
           } else if (L.t === 'jardin') {
             if (m <= 4) set(Y, 1);
             if (m <= 4 && m >= 3 && (dx + dz) % 2 && hash(x, z, 176) < 0.6) set(Y + 1, 17 + Math.floor(hash(x, z, 177) * 3));
+          } else if (L.t === 'refuge') {
+            // le refuge : murs de briques d'éther, porte au sud, lanterne au nord, table et lit à l'intérieur
+            if (m > 2) continue;
+            if (m === 2) {
+              const porte = dz === 2 && ax === 0,
+                lanterne = dz === -2 && ax === 0;
+              for (let k = 1; k <= H; k++) set(Y + k, porte && k <= 2 ? 0 : lanterne && k === 2 ? 84 : 79);
+              continue;
+            }
+            set(Y, dam);
+            set(Y + H + 1, 9);
+            if (dx === -1 && dz === 0) set(Y + 1, 135);
+            if (dx === 1 && dz === 0) set(Y + 1, 136);
           }
         }
     }

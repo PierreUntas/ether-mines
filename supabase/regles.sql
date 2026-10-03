@@ -124,7 +124,9 @@ insert into public.rule_blocks (id, name, hard, tier, drop_item, kind, solid, to
 (131,'Brique de jeu lavande',1.2,0,131,'cube',true,false),
 (132,'Brique de jeu menthe',1.2,0,132,'cube',true,false),
 (133,'Brique de jeu bleue',1.2,0,133,'cube',true,false),
-(134,'Brique de jeu pêche',1.2,0,134,'cube',true,false);
+(134,'Brique de jeu pêche',1.2,0,134,'cube',true,false),
+(135,'Table',1,0,135,'slab',true,false),
+(136,'Lit',0.8,0,136,'slab',true,false);
 insert into public.rule_place (item, block) values
 (2,2),
 (3,3),
@@ -221,7 +223,9 @@ insert into public.rule_place (item, block) values
 (131,131),
 (132,132),
 (133,133),
-(134,134);
+(134,134),
+(135,135),
+(136,136);
 insert into public.rule_items (id, name, tool, tier, uniq) values
 (101,'Cristal d''éther',1,0,false),
 (102,'Pioche en bois',2.2,1,false),
@@ -291,5 +295,7 @@ insert into public.rule_recipes (out_item, n, need, uniq) values
 (131,4,'{"22":2}'::jsonb,false),
 (132,4,'{"23":2}'::jsonb,false),
 (133,4,'{"24":2}'::jsonb,false),
-(134,4,'{"25":2}'::jsonb,false);
+(134,4,'{"25":2}'::jsonb,false),
+(135,1,'{"9":4}'::jsonb,false),
+(136,1,'{"9":2,"71":2}'::jsonb,false);
 commit;

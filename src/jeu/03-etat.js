@@ -84,7 +84,7 @@ function migrateSave(s) {
   }
 }
 // Saison : changer SAISON efface les parties gardées dans les navigateurs (à faire avec une remise à zéro de la base).
-const SAISON = '5';
+const SAISON = '6';
 try {
   if (localStorage.getItem('ether-mines:saison') !== SAISON) {
     for (const k of Object.keys(localStorage))

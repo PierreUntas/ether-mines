@@ -508,6 +508,7 @@ $('chatIn').addEventListener('keydown', e => {
   }
 });
 $('chatBtn').onclick = () => (chatOpen ? closeChat() : openChat());
+$('chatBtnDesk').onclick = () => (chatOpen ? closeChat() : openChat());
 
 // ---------- démarrage ----------
 function nftOf(key) {

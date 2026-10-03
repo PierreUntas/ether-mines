@@ -356,6 +356,11 @@ function raycast(max, at) {
     d = at
       ? new THREE.Vector3(at.x, at.y, 0.5).unproject(camera).sub(o).normalize()
       : new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  // un regard quasi parfaitement aligné sur un axe laisse une composante infime (arrondi trigonométrique) au lieu de zéro :
+  // sans ce nettoyage, combinée à une position tombant juste sur une frontière de case, elle peut faire dérailler le rayon d'une case et rater le bloc visé.
+  if (Math.abs(d.x) < 1e-9) d.x = 0;
+  if (Math.abs(d.y) < 1e-9) d.y = 0;
+  if (Math.abs(d.z) < 1e-9) d.z = 0;
   let x = Math.floor(o.x),
     y = Math.floor(o.y),
     z = Math.floor(o.z);
@@ -370,6 +375,11 @@ function raycast(max, at) {
     tz = d.z > 0 ? (z + 1 - o.z) * tdz : (o.z - z) * tdz,
     prev = null,
     t = 0;
+  // position exactement sur une frontière de case avec une direction nulle sur cet axe : 0 × Infinity = NaN,
+  // qui ne perd jamais une comparaison et ferait avancer le rayon sur cet axe « gratuitement » (à coût nul) ; Infinity le neutralise bien.
+  if (Number.isNaN(tx)) tx = Infinity;
+  if (Number.isNaN(ty)) ty = Infinity;
+  if (Number.isNaN(tz)) tz = Infinity;
   while (t <= max) {
     const id = get(x, y, z);
     if (id && id !== 11) return { x, y, z, id, prev };

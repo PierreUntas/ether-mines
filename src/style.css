@@ -134,6 +134,8 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 #online span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #modeTag{top:calc(env(safe-area-inset-top,0px) + 92px)}
 #chat{position:absolute;left:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 84px);width:min(420px,calc(100% - 32px));display:grid;gap:6px;pointer-events:auto}
+#chatBtnDesk{justify-self:start}
+@media (pointer:coarse){#chatBtnDesk{display:none}}
 #chatLog{display:grid;gap:3px}
 .msg{font-size:15px;padding:3px 9px;border-radius:8px;background:rgba(28,22,58,.55);text-shadow:1px 1px 0 rgba(0,0,0,.5);transition:opacity .8s;justify-self:start;max-width:100%;overflow-wrap:anywhere}
 .msg.old{opacity:0}
