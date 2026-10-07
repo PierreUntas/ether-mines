@@ -45,7 +45,7 @@ window.Net = (() => {
   async function isUsernameTaken(w, name) {
     if (!enabled) return false;
     await auth();
-    const { data, error } = await client().rpc('is_username_taken', { w, name, uid: userId, previous: null });
+    const { data, error } = await client().rpc('is_username_taken', { w, uname: name, uid: userId, previous: null });
     return !error && data === true;
   }
   async function loadPlayer(w) {

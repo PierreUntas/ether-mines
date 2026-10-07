@@ -1014,9 +1014,9 @@ end $$;
 
 -- the player only sees their own record (RLS): the uniqueness check runs with the server's rights.
 -- No "_" prefix: the migrations' rights loops don't lock it down (it only reveals whether a username is taken).
-create or replace function public.is_username_taken(w text, name text, uid uuid, previous uuid) returns boolean
+create or replace function public.is_username_taken(w text, uname text, uid uuid, previous uuid) returns boolean
 language sql stable security definer set search_path = public as $$
-  select exists (select 1 from players p where p.world = w and lower(p.name) = lower(name)
+  select exists (select 1 from players p where p.world = w and lower(p.name) = lower(uname)
                  and p.user_id <> uid and p.user_id is distinct from previous)
 $$;
 
