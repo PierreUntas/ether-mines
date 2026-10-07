@@ -1,5 +1,5 @@
-# Configuration minimale pour le CLI Supabase (déploiement de la fonction « figer »).
+# Minimal config for the Supabase CLI (deploying the "freeze" function).
 project_id = "ether-mines"
 
-[functions.figer]
+[functions.freeze]
 verify_jwt = true

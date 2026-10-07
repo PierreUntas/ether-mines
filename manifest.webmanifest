@@ -1,7 +1,7 @@
 {
-  "name": "Mines d'Éther",
-  "short_name": "Mines d'Éther",
-  "description": "Un monde en blocs aux couleurs d'Ethereum, à construire entre amis.",
+  "name": "Ether Mines",
+  "short_name": "Ether Mines",
+  "description": "A block world in Ethereum's colors, built with friends.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
@@ -9,10 +9,10 @@
   "orientation": "landscape",
   "background_color": "#1c163a",
   "theme_color": "#1c163a",
-  "lang": "fr",
+  "lang": "en",
   "icons": [
-    { "src": "icones/icone-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icones/icone-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icones/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

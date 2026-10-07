@@ -1,6 +1,6 @@
-// Sons génératifs : tout est synthétisé avec Web Audio, aucun fichier audio.
-// window.Sound : init() au premier clic (exigence des navigateurs), puis des bruitages par matière
-// et une ambiance qui suit le jour, la nuit et la profondeur.
+// Generative sounds: everything is synthesized with Web Audio, no audio file.
+// window.Sound: init() on the first click (browser requirement), then sound effects per material
+// and an ambiance that follows the day, the night, and depth.
 (function () {
   const KEY = 'ether-mines:son';
   let ctx = null,
@@ -34,7 +34,7 @@
     amb = ctx.createGain();
     amb.gain.value = 0.0;
     amb.connect(master);
-    // bruit blanc réutilisé par tous les bruitages
+    // white noise reused by all the sound effects
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 1.5, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -47,7 +47,7 @@
     g.gain.linearRampToValueAtTime(peak, t + a);
     g.gain.exponentialRampToValueAtTime(0.0005, t + a + dec);
   }
-  // souffle filtré : la base des pas, coups et cassures
+  // filtered breath: the basis for footsteps, hits and breaks
   function noise(type, freq, q, peak, dec, t = now(), dest = sfx, rate = 1) {
     const s = ctx.createBufferSource();
     s.buffer = noiseBuf;
@@ -77,7 +77,7 @@
     o.stop(t + a + dec + 0.05);
   }
 
-  // chaque matière a sa couleur de bruit : [filtre, fréquence, Q, décroissance]
+  // each material has its own noise color: [filter, frequency, Q, decay]
   const MAT = {
     herbe: ['bandpass', 900, 0.8, 0.09],
     sable: ['highpass', 2400, 0.5, 0.1],
@@ -130,7 +130,7 @@
       noise(t, f * 0.8, q, 0.35, d * 1.4, T);
       tone(k === 'verre' ? 1400 : k === 'bois' ? 180 : 220, 'sine', 0.16, 0.1, T, sfx, 0.7);
     },
-    // éclat d'éther pur, cristal : arpège pentatonique
+    // pure ether shard, crystal: pentatonic arpeggio
     chime() {
       if (!ctx) return;
       const T = now();
@@ -156,14 +156,14 @@
       tone(110, 'sawtooth', 0.03, 0.25, T, sfx, 1.3, 0.03);
       noise('lowpass', 250, 1, 0.4, 0.08, T + 0.22);
     },
-    // cris des animaux (v : volume selon la distance)
+    // animal calls (v: volume based on distance)
     animal(type, v = 1) {
       if (!ctx) return;
       const T = now(),
         o = ctx.createGain();
       o.gain.value = Math.max(0.05, v);
       o.connect(sfx);
-      if (type === 'mouton') {
+      if (type === 'sheep') {
         for (let i = 0; i < 2; i++) {
           const s = ctx.createOscillator(),
             f = ctx.createBiquadFilter(),
@@ -188,15 +188,15 @@
           s.stop(T + i * 0.28 + 0.4);
           l.stop(T + i * 0.28 + 0.4);
         }
-      } else if (type === 'lapin') {
+      } else if (type === 'rabbit') {
         tone(1900, 'sine', 0.08, 0.07, T, o, 1.3);
         tone(2300, 'sine', 0.05, 0.05, T + 0.09, o, 1.2);
-      } else if (type === 'renard') {
+      } else if (type === 'fox') {
         tone(720, 'square', 0.05, 0.1, T, o, 1.5);
         tone(760, 'square', 0.05, 0.1, T + 0.16, o, 1.45);
-      } else if (type === 'poisson') {
+      } else if (type === 'fish') {
         for (let i = 0; i < 3; i++) tone(420 + i * 140, 'sine', 0.06, 0.06, T + i * 0.07, o, 2);
-      } else if (type === 'chat') {
+      } else if (type === 'cat') {
         tone(620, 'triangle', 0.05, 0.35, T, o, 1.35);
         tone(880, 'sine', 0.04, 0.25, T + 0.05, o, 0.75);
       } else if (type === 'shiba') {
@@ -204,13 +204,13 @@
         tone(360, 'square', 0.02, 0.09, T + 0.18, o, 0.7);
       } else if (type === 'robot') {
         [0, 4, 7, 12].forEach((s, i) => tone(520 * Math.pow(2, s / 12), 'square', 0.01, 0.06, T + i * 0.08, o, 1));
-      } else if (type === 'habitant') {
+      } else if (type === 'villager') {
         [0, 3, -2, 5].forEach((d, i) => tone(300 * Math.pow(2, d / 12), 'triangle', 0.01, 0.07, T + i * 0.07, o, 0.6));
-      } else if (type === 'meduse') {
+      } else if (type === 'jellyfish') {
         [0, 7, 12].forEach((s, i) => tone(660 * Math.pow(2, s / 12), 'sine', 0.05, 1.2, T + i * 0.12, o, 1, 0.05));
       }
     },
-    // appelé chaque image : fondu de l'ambiance + petits évènements (oiseaux, grillons, gouttes)
+    // called every frame: ambiance fade + small events (birds, crickets, drops)
     tick(dt, night, under, water) {
       if (!ctx || !on) return;
       const T = now();
@@ -225,7 +225,7 @@
       }
     },
   };
-  // ambiance : nappe en ré lydien, accords qui glissent lentement
+  // ambiance: pad in D Lydian, slowly sliding chords
   let padLP = null,
     birdT = 3;
   const ROOT = 146.83,
@@ -239,7 +239,7 @@
     pg.gain.value = 0.05;
     padLP.connect(pg);
     pg.connect(amb);
-    // écho léger pour l'espace
+    // light echo for space
     const dl = ctx.createDelay(1);
     dl.delayTime.value = 0.42;
     const fb = ctx.createGain();
@@ -283,7 +283,7 @@
         v.o2.frequency.setTargetAtTime(f * 2, T, 1.2);
         v.g.gain.setTargetAtTime(i === 0 ? 0.5 : 0.28, T, 2);
       });
-      // une note de mélodie de temps en temps
+      // a melody note every once in a while
       if (Math.random() < 0.6) {
         const deg = LYD[Math.floor(Math.random() * LYD.length)];
         tone(ROOT * 4 * Math.pow(2, deg / 12), 'sine', 0.035, 2.4, T + Math.random() * 3, amb, 1, 0.4);

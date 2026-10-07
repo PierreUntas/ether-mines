@@ -1,6 +1,6 @@
-// Test de fumée dans un vrai navigateur, en mode solo (sans Supabase) :
-// la page se charge sans erreur, on entre dans le monde, on mine un bloc, on fabrique des planches.
-// Usage : npm i --no-save playwright three@0.128.0 && npx playwright install chromium && node tests/navigateur.mjs
+// Smoke test in a real browser, in solo mode (no Supabase):
+// the page loads with no error, we enter the world, mine a block, craft planks.
+// Usage: npm i --no-save playwright three@0.128.0 && npx playwright install chromium && node tests/navigateur.mjs
 import { chromium } from 'playwright';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +10,7 @@ import { extname, join } from 'node:path';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const three = createRequire(import.meta.url).resolve('three/build/three.min.js');
-// petit serveur statique : les travailleurs (maillage en arrière-plan) ne démarrent pas depuis file://
+// small static server: the workers (background meshing) don't start from file://
 const types = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png' };
 const server = createServer(async (req, res) => {
   try {
@@ -32,29 +32,29 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
-page.on('console', (m) => { if ((m.type() === 'error' && !/Failed to load resource/.test(m.text())) || /maillage/.test(m.text())) errors.push(m.text()); });
-await page.addInitScript(() => localStorage.setItem('ether-mines:profil', JSON.stringify({ id: 'test', name: 'Testeur', color: '#8a7bef' })));
+page.on('console', (m) => { if ((m.type() === 'error' && !/Failed to load resource/.test(m.text())) || /mesh/i.test(m.text())) errors.push(m.text()); });
+await page.addInitScript(() => localStorage.setItem('ether-mines:profil', JSON.stringify({ id: 'test', name: 'Tester', color: '#8a7bef' })));
 await page.route('**/three.min.js', (r) => r.fulfill({ path: three, contentType: 'application/javascript' }));
 await page.route('**/supabase.js', (r) => r.fulfill({ body: '', contentType: 'application/javascript' }));
 await page.route('**/src/config.js', (r) => r.fulfill({ body: 'window.CONFIG={}', contentType: 'application/javascript' }));
 await page.route(/^https:\/\/fonts\./, (r) => r.abort());
-const fail = async (msg) => { console.error('ÉCHEC :', msg, errors); await browser.close(); server.close(); process.exit(1); };
+const fail = async (msg) => { console.error('FAILED:', msg, errors); await browser.close(); server.close(); process.exit(1); };
 
 await page.goto(base + 'index.html#debug');
 await page.waitForTimeout(800);
-if (errors.length) await fail('erreur au chargement de la page');
+if (errors.length) await fail('error while loading the page');
 await page.evaluate(() => document.getElementById('play').click());
 await page.waitForFunction(() => document.getElementById('title').hidden, null, { timeout: 240000 });
 const y = await page.evaluate(() => { for (let y = 63; y > 0; y--) { const v = mines.get(20, y, 20); if (v && ![5, 6, 7, 17, 18, 19, 20].includes(v)) return y; } });
 await page.evaluate((y) => mines.breakBlock({ x: 20, y, z: 20, id: mines.get(20, y, 20) }), y);
 await page.evaluate(() => { mines.give(5, 1, 'test'); mines.craft({ out: 9, n: 4, need: { 5: 1 } }); });
 await page.waitForTimeout(500);
-const res = await page.evaluate((y) => ({ bloc: mines.get(20, y, 20), inv: mines.S.inv }), y);
-if (res.bloc !== 0) await fail('le bloc miné est toujours là');
-if (res.inv[9] !== 4) await fail('les planches n\'ont pas été fabriquées : ' + JSON.stringify(res.inv));
-if (errors.length) await fail('erreurs pendant la partie');
-// blocs de forme : une plaque de pression sur laquelle on marche, un escalier, un câble
-const plaque = await page.evaluate(() => {
+const res = await page.evaluate((y) => ({ block: mines.get(20, y, 20), inv: mines.S.inv }), y);
+if (res.block !== 0) await fail('the mined block is still there');
+if (res.inv[9] !== 4) await fail('the planks were not crafted: ' + JSON.stringify(res.inv));
+if (errors.length) await fail('errors during play');
+// shaped blocks: a pressure plate you walk on, a staircase, a cable
+const plate = await page.evaluate(() => {
   const P = mines.P, x = Math.floor(P.x) + 6, z = Math.floor(P.z) + 6;
   let y = 63; while (y > 0 && !mines.get(x, y, z)) y--;
   mines.commit(`${x},${y + 1},${z}`, 66, null);
@@ -67,38 +67,38 @@ const plaque = await page.evaluate(() => {
   return { x, y: y + 1, z };
 });
 await page.waitForTimeout(400);
-await page.evaluate(({ x, y, z }) => { const P = mines.P; P.x = x + 0.5; P.z = z + 0.5; P.y = y + 0.1; }, plaque);
+await page.evaluate(({ x, y, z }) => { const P = mines.P; P.x = x + 0.5; P.z = z + 0.5; P.y = y + 0.1; }, plate);
 await page.waitForTimeout(1200);
-const vivant = await Promise.race([page.evaluate(() => performance.now()), new Promise(r => setTimeout(() => r(null), 5000))]);
-if (vivant === null) await fail('le jeu ne répond plus après avoir marché sur une plaque de pression');
-if (errors.length) await fail('erreurs avec les blocs de forme');
-// malle : déposer puis reprendre des planches
-const malle = await page.evaluate(async () => {
+const alive = await Promise.race([page.evaluate(() => performance.now()), new Promise(r => setTimeout(() => r(null), 5000))]);
+if (alive === null) await fail('the game stopped responding after stepping on a pressure plate');
+if (errors.length) await fail('errors with shaped blocks');
+// chest: deposit then take back planks
+const chest = await page.evaluate(async () => {
   const P = mines.P, x = Math.floor(P.x) - 3, z = Math.floor(P.z) + 2;
   let y = 63; while (y > 0 && !mines.get(x, y, z)) y--;
   mines.commit(`${x},${y + 1},${z}`, 98, null);
-  await mines.ouvrirMalle({ x, y: y + 1, z, id: 98 });
-  await mines.deplacerMalle('9', 3);
-  const dedans = mines.S.malles?.[`${x},${y + 1},${z}`]?.[9];
-  await mines.deplacerMalle('9', -1);
-  return { dedans, sac: mines.S.inv[9], onglet: !!document.querySelector('.grid.malle') };
+  await mines.openChest({ x, y: y + 1, z, id: 98 });
+  await mines.moveChest('9', 3);
+  const inside = mines.S.chests?.[`${x},${y + 1},${z}`]?.[9];
+  await mines.moveChest('9', -1);
+  return { inside, bag: mines.S.inv[9], tab: !!document.querySelector('.grid.malle') };
 });
-if (malle.dedans !== 3 || malle.sac !== 2 || !malle.onglet) await fail('malle : ' + JSON.stringify(malle));
+if (chest.inside !== 3 || chest.bag !== 2 || !chest.tab) await fail('chest: ' + JSON.stringify(chest));
 await page.screenshot({ path: process.env.CAPTURE_MALLE || '/dev/null' }).catch(() => {});
 await page.evaluate(() => document.getElementById('closeP').click());
-// portes logiques : un ET entre deux leviers allume une lampe seulement quand les deux sont levés
-const circuit = async (levier2) =>
+// logic gates: an AND between two levers lights a lamp only when both are up
+const circuit = async (lever2) =>
   page.evaluate(async (l2) => {
     const Y = 47, y = Y + 1, c = (x, yy, z, id) => mines.commit(x + ',' + yy + ',' + z, id, null);
     for (let x = 16; x <= 22; x++) for (let z = 2; z <= 6; z++) c(x, Y, z, 80);
     c(16, y, 5, 65); c(17, y, 5, 67); c(18, y, 5, 112); c(19, y, 5, 67); c(20, y, 5, l2); c(18, y, 4, 67); c(18, y, 3, 68);
     await new Promise(r => setTimeout(r, 2500));
     return mines.POWERED.has('18,' + y + ',3');
-  }, levier2);
-const [eteinte, allumee] = [await circuit(64), await circuit(65)];
-if (eteinte || !allumee) await fail(`porte ET : lampe ${eteinte} avec un levier, ${allumee} avec deux`);
-// sortir de l'eau : nager contre une berge d'un bloc en sautant suffit
-const eau = await page.evaluate(async () => {
+  }, lever2);
+const [off, on] = [await circuit(64), await circuit(65)];
+if (off || !on) await fail(`AND gate: lamp ${off} with one lever, ${on} with two`);
+// getting out of water: swimming against a one-block bank while jumping is enough
+const water = await page.evaluate(async () => {
   const Y = 47, c = (x, y, z, id) => mines.commit(x + ',' + y + ',' + z, id, null);
   for (let x = 24; x <= 34; x++) for (let z = 14; z <= 24; z++) { c(x, Y, z, 80); for (let k = 1; k <= 2; k++) c(x, Y + k, z, z < 20 ? 15 : 11); for (let k = 3; k < 6; k++) c(x, Y + k, z, 0); }
   for (const x of [24, 32]) for (const z of [14, 22]) mines.rebuildAt(x, z);
@@ -111,33 +111,33 @@ const eau = await page.evaluate(async () => {
   mines.keys.clear();
   return P.z < 19.7 && P.y >= Y + 2.9;
 });
-if (!eau) await fail('impossible de sortir de l\'eau sur une berge d\'un bloc');
-// habitants et compagnons de l'Atrium, bulle de dialogue, vue de dos puis de face, personnage dans le coffre
-const vie = await page.evaluate(async () => {
+if (!water) await fail('unable to get out of the water on a one-block bank');
+// villagers and companions of the Atrium, dialogue bubble, view from behind then from the front, character in the chest
+const life = await page.evaluate(async () => {
   const P = mines.P; P.x = 8.5; P.z = 15.5; P.y = 33.05; P.vy = 0;
   const t0 = performance.now();
   let l = [];
   while (performance.now() - t0 < 30000) {
     l = [...ANIMALS.values()].flat();
-    if (l.some(a => a.type === 'shiba') && l.some(a => a.h?.nom === 'Solène')) break;
+    if (l.some(a => a.type === 'shiba') && l.some(a => a.h?.name === 'Solène')) break;
     await new Promise(r => setTimeout(r, 500));
   }
-  const s = l.find(a => a.h?.nom === 'Solène');
+  const s = l.find(a => a.h?.name === 'Solène');
   if (s) petAnimal(s);
-  const bulle = !document.getElementById('dialogue').hidden && document.getElementById('dialogue').textContent;
-  changerVue();
+  const bubble = !document.getElementById('dialogue').hidden && document.getElementById('dialogue').textContent;
+  changeView();
   await new Promise(r => setTimeout(r, 1200));
-  const dos = VUE === 1 && MOI.g.visible;
-  changerVue(); changerVue();
+  const behind = VIEW === 1 && SELF.g.visible;
+  changeView(); changeView();
   openTab('inv');
-  const perso = !!document.querySelector('.perso canvas');
+  const preview = !!document.querySelector('.perso canvas');
   togglePanel();
-  return { shiba: l.some(a => a.type === 'shiba'), bulle, dos, yeux: VUE === 0 && !MOI.g.visible, perso };
+  return { shiba: l.some(a => a.type === 'shiba'), bubble, behind, eyes: VIEW === 0 && !SELF.g.visible, preview };
 });
-if (!vie.shiba || !vie.bulle || !vie.dos || !vie.yeux || !vie.perso) await fail('habitants, vue de dos ou personnage : ' + JSON.stringify(vie));
-const m = await page.evaluate(() => ({ actif: mines.mailleur, n: mines.nbMaillages }));
-if (!m.actif) await fail('le maillage en arrière-plan ne s\'est pas lancé');
-if (m.n < 20) await fail('trop peu de tronçons affichés : ' + m.n);
-console.log(`Navigateur : chargement, entrée dans le monde, minage et fabrication sans erreur ; ${m.n} tronçons maillés en arrière-plan.`);
+if (!life.shiba || !life.bubble || !life.behind || !life.eyes || !life.preview) await fail('villagers, view from behind, or character: ' + JSON.stringify(life));
+const m = await page.evaluate(() => ({ active: mines.meshWorker, n: mines.meshCount }));
+if (!m.active) await fail('background meshing did not start');
+if (m.n < 20) await fail('too few chunks displayed: ' + m.n);
+console.log(`Browser: loaded, entered the world, mined and crafted with no error; ${m.n} chunks meshed in the background.`);
 await browser.close();
 server.close();

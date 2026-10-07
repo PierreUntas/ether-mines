@@ -1,28 +1,28 @@
-# Mines d'Éther — repères pour Claude Code
+# Ether Mines — pointers for Claude Code
 
-Jeu de blocs façon Minecraft dans l'univers Ethereum. Site statique (ether-mines.vercel.app) + Supabase. Le README décrit tout le jeu ; ce fichier ne garde que les règles de travail.
+Minecraft-style block game set in the Ethereum universe. Static site (ether-mines.vercel.app) + Supabase. The README describes the whole game; this file only keeps the working rules.
 
 ## Architecture
-- **Client** : aucun build. Three.js r128, scripts classiques `src/jeu/NN-*.js` chargés dans l'ordre par `index.html` et partageant la portée globale (un test vérifie l'ordre). Modules partagés client/serveur : `supabase/functions/_shared/world.js` (générateur), `rules.js` (blocs, objets, recettes), `src/maillage.js`.
-- **Serveur** : Supabase. Auth anonyme, RLS, fonctions `act_*` (security definer) qui arbitrent tout ; les fonctions `_*` sont internes. Edge Function `figer` (terrain), déployée par GitHub Actions.
-- **Identité** : un pseudo unique par monde, lié à un compte anonyme Supabase (code de sauvegarde pour changer d'appareil). Pas de wallet obligatoire.
+- **Client**: no build. Three.js r128, classic scripts `src/game/NN-*.js` loaded in order by `index.html` and sharing the global scope (a test checks the order). Modules shared between client and server: `supabase/functions/_shared/world.js` (generator), `rules.js` (blocks, items, recipes), `src/mesh.js`.
+- **Server**: Supabase. Anonymous auth, RLS, `act_*` functions (security definer) that arbitrate everything; `_*` functions are internal. `freeze` Edge Function (terrain), deployed by GitHub Actions.
+- **Identity**: one unique nickname per world, linked to an anonymous Supabase account (recovery code to switch devices). No wallet required.
 
-## Règles à ne jamais casser
-- Les numéros de blocs sont **ajoutés à la fin, jamais réutilisés**, et un numéro de bloc ne doit jamais être celui d'un objet (objets : 101–105, 201–203).
-- Ne jamais renommer une clé `localStorage`.
-- Migrations SQL dans `supabase/migrations/NNN_*.sql` : **additives et rejouables** (create or replace, if not exists). Ne pas modifier une migration déjà publiée : en ajouter une.
-- Après tout changement de règles ou de migration : `node tools/regles.mjs > supabase/regles.sql` puis `node tools/installation.mjs > supabase/installation.sql`. Toute nouvelle table doit aussi être effacée par `supabase/reset.sql`.
-- Changer le terrain : augmenter `GEN` dans `world.js`. Changer `GRAINE` ou `SAISON` (`src/jeu/03-etat.js`) seulement avec une remise à zéro de la base.
-- Le serveur ne fait jamais confiance au client : toute action qui donne ou déplace de la valeur passe par une fonction `act_*` avec `_rate` et les vérifications de position.
-- Textes du jeu, commentaires et messages de commit en français. Réponses à Pierre en français, simples, sans jargon interne.
+## Rules to never break
+- Block numbers are **appended at the end, never reused**, and a block number must never be the same as an item's (items: 101–105, 201–203).
+- Never rename a `localStorage` key.
+- SQL migrations in `supabase/migrations/NNN_*.sql`: **additive and replayable** (create or replace, if not exists). Don't modify a migration that's already published: add a new one.
+- After any change to the rules or a migration: `node tools/rules.mjs > supabase/rules.sql` then `node tools/installation.mjs > supabase/installation.sql`. Any new table must also be wiped by `supabase/reset.sql`.
+- Changing the terrain: bump `GEN` in `world.js`. Change `SEED` or `SEASON` (`src/game/03-state.js`) only together with a database reset.
+- The server never trusts the client: every action that grants or moves value goes through an `act_*` function with `_rate` and position checks.
+- Game text, comments, and commit messages in English. Replies to Pierre in English, simple, no internal jargon.
 
-## Tests (tous doivent passer avant de pousser)
+## Tests (all must pass before pushing)
 - `node --test tests/*.test.mjs`
-- `tests/sql/run.sh` (Postgres 16 local ; variables PGHOST, PGPORT, PGUSER)
-- `node tests/navigateur.mjs` (Playwright + Chromium, mode solo)
-- `npx prettier@3 --check "src/jeu/*.js" "src/*.js" "supabase/functions/_shared/*.js"`
+- `tests/sql/run.sh` (local Postgres 16; PGHOST, PGPORT, PGUSER variables)
+- `node tests/navigateur.mjs` (Playwright + Chromium, solo mode)
+- `npx prettier@3 --check "src/game/*.js" "src/*.js" "supabase/functions/_shared/*.js"`
 
-## Déploiement
-- Pousser sur `main` déploie le site (Vercel) et la fonction `figer` (GitHub Actions).
-- La base n'est pas déployée automatiquement : Pierre lance `supabase/installation.sql` dans le SQL Editor de Supabase.
-- Ne jamais mettre de clé privée, de clé `service_role` ni de secret dans le dépôt. `src/config.js` ne contient que l'URL et la clé publique `anon`.
+## Deployment
+- Pushing to `main` deploys the site (Vercel) and the `freeze` function (GitHub Actions).
+- The database isn't deployed automatically: Pierre runs `supabase/installation.sql` in Supabase's SQL Editor.
+- Never put a private key, a `service_role` key, or a secret in the repo. `src/config.js` only contains the URL and the public `anon` key.

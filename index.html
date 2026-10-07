@@ -1,18 +1,18 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mines d'Éther</title>
-<meta name="description" content="Un monde en blocs aux couleurs d'Ethereum, à construire entre amis dans le navigateur.">
+<title>Ether Mines</title>
+<meta name="description" content="A block world in Ethereum's colors, built with friends in the browser.">
 <meta name="theme-color" content="#1c163a">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icones/icone-192.png">
-<link rel="apple-touch-icon" href="icones/icone-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Mines d'Éther">
+<meta name="apple-mobile-web-app-title" content="Ether Mines">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
@@ -22,31 +22,31 @@
 <div id="game"></div>
 <div id="vignette"></div>
 <div class="hud" id="hud">
-  <div id="clock" class="chip"><canvas id="sunIcon" width="9" height="9"></canvas><span id="clockTxt">Jour 1 · 08:00</span><span id="ips" hidden></span><button id="sndBtn" title="Son (M)" aria-label="Couper ou remettre le son">♪</button></div>
+  <div id="clock" class="chip"><canvas id="sunIcon" width="9" height="9"></canvas><span id="clockTxt">Day 1 · 08:00</span><span id="fps" hidden></span><button id="sndBtn" title="Sound (M)" aria-label="Mute or unmute sound">♪</button></div>
   <div id="border" class="chip"><span id="borderTxt">Position</span></div>
   <button id="quest" class="chip"></button>
   <div id="online" class="chip" hidden><i></i><span id="onlineTxt"></span></div>
-  <div id="modeTag" class="chip" hidden>Vue registre · tes blocs posés sont surlignés</div>
+  <div id="modeTag" class="chip" hidden>Ledger view · your placed blocks are highlighted</div>
   <div id="feed"></div>
   <div id="cross"></div>
   <div id="target" class="chip" hidden></div>
   <div id="lieu"></div>
   <div id="dialogue" class="chip" hidden></div>
   <div id="selname"></div>
-  <div id="chat"><button id="chatBtnDesk" class="tbtn" aria-label="Écrire dans le chat (Entrée)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12v8H7l-3 3v-3H2z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 7h1v1H5zm2.5 0h1v1h-1zM10 7h1v1h-1z" fill="currentColor"/></svg></button><div id="chatLog"></div><form id="chatForm" hidden><input id="chatIn" maxlength="140" autocomplete="off" placeholder="Message, /rejoindre pseudo, /sanctuaire, /parcelle, /inviter pseudo"></form></div>
+  <div id="chat"><button id="chatBtnDesk" class="tbtn" aria-label="Type in chat (Enter)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12v8H7l-3 3v-3H2z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 7h1v1H5zm2.5 0h1v1h-1zM10 7h1v1h-1z" fill="currentColor"/></svg></button><div id="chatLog"></div><form id="chatForm" hidden><input id="chatIn" maxlength="140" autocomplete="off" placeholder="Message, /join nickname, /sanctuary, /claim, /invite nickname"></form></div>
   <div id="bar" class="chip"></div>
   <div class="touch">
     <div class="stick" id="stick"><i id="knob"></i></div>
     <div id="topBtns">
-      <button id="invBtn" class="tbtn" aria-label="Coffre et atelier"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h12v8H2zM3 2h10v4H3z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 7h2v3H7z" fill="currentColor"/></svg></button>
+      <button id="invBtn" class="tbtn" aria-label="Chest and crafting"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h12v8H2zM3 2h10v4H3z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 7h2v3H7z" fill="currentColor"/></svg></button>
       <button id="chatBtn" class="tbtn" aria-label="Chat"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12v8H7l-3 3v-3H2z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 7h1v1H5zm2.5 0h1v1h-1zM10 7h1v1h-1z" fill="currentColor"/></svg></button>
-      <button id="vueBtn" class="tbtn" aria-label="Changer de vue : se voir de dos ou de face"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4.2" r="2.4" fill="currentColor"/><path d="M3.5 14c0-3 2-5 4.5-5s4.5 2 4.5 5z" fill="currentColor"/></svg></button>
+      <button id="vueBtn" class="tbtn" aria-label="Change view: see yourself from behind or in front"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4.2" r="2.4" fill="currentColor"/><path d="M3.5 14c0-3 2-5 4.5-5s4.5 2 4.5 5z" fill="currentColor"/></svg></button>
       <button id="menuBtn" class="tbtn" aria-label="Menu"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h10" stroke="currentColor" stroke-width="1.8"/></svg></button>
     </div>
     <div id="actBtns">
-      <button id="tJump" class="abtn" aria-label="Sauter"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2 3 7h3v4h4V7h3z M4 13h8v1.5H4z" fill="currentColor"/></svg></button>
-      <button id="tSprint" class="abtn" aria-label="Courir"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3l5 5-5 5V3zm6 0l5 5-5 5V3z" fill="currentColor"/></svg></button>
-      <button id="tSneak" class="abtn" aria-label="S'accroupir, descendre dans l'eau"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14l5-5h-3V5H6v4H3z M4 2h8v1.5H4z" fill="currentColor"/></svg></button>
+      <button id="tJump" class="abtn" aria-label="Jump"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2 3 7h3v4h4V7h3z M4 13h8v1.5H4z" fill="currentColor"/></svg></button>
+      <button id="tSprint" class="abtn" aria-label="Run"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3l5 5-5 5V3zm6 0l5 5-5 5V3z" fill="currentColor"/></svg></button>
+      <button id="tSneak" class="abtn" aria-label="Crouch, go down into water"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14l5-5h-3V5H6v4H3z M4 2h8v1.5H4z" fill="currentColor"/></svg></button>
     </div>
     <div id="press" hidden></div>
   </div>
@@ -55,13 +55,13 @@
 <div class="panel" id="panel" hidden>
   <div class="win">
     <header>
-      <button class="tab" data-tab="inv" aria-selected="true">Coffre</button>
-      <button class="tab" data-tab="craft" aria-selected="false">Atelier</button>
-      <button class="tab" data-tab="quest" aria-selected="false">Objectifs</button>
-      <button class="tab" data-tab="echanges" aria-selected="false">Échanges</button>
-      <button class="tab" data-tab="reglages" aria-selected="false">Réglages</button>
-      <button class="tab" data-tab="log" aria-selected="false">Registre</button>
-      <button class="x" id="closeP">Fermer · E</button>
+      <button class="tab" data-tab="inv" aria-selected="true">Chest</button>
+      <button class="tab" data-tab="craft" aria-selected="false">Crafting</button>
+      <button class="tab" data-tab="quest" aria-selected="false">Objectives</button>
+      <button class="tab" data-tab="trade" aria-selected="false">Trade</button>
+      <button class="tab" data-tab="settings" aria-selected="false">Settings</button>
+      <button class="tab" data-tab="log" aria-selected="false">Ledger</button>
+      <button class="x" id="closeP">Close · E</button>
     </header>
     <div class="body" id="pbody"></div>
   </div>
@@ -69,37 +69,37 @@
 
 <div class="title" id="title">
   <div class="box">
-    <h1>Mines<br>d'<em>Éther</em></h1>
-    <p>Un monde en blocs aux couleurs d'Ethereum, à construire entre amis. Chaque bloc et chaque objet est un jeton : ce que tu mines est frappé, ce que tu poses porte ton nom.</p>
+    <h1>Ether<br>Mines</h1>
+    <p>A block world in Ethereum's colors, built with friends. Every block and item is a token: what you mine is minted, what you place carries your name.</p>
     <div class="fields">
-      <label>Ton pseudo<input id="pseudo" maxlength="16" autocomplete="nickname" placeholder="Pierre"></label>
-      <label>Monde<input id="monde" maxlength="32" autocomplete="off" placeholder="principal"></label>
+      <label>Your nickname<input id="pseudo" maxlength="16" autocomplete="nickname" placeholder="Pierre"></label>
+      <label>World<input id="monde" maxlength="32" autocomplete="off" placeholder="principal"></label>
     </div>
     <p id="netStatus" class="status"></p>
-    <p id="astuceIos" class="astuce" hidden>Plein écran sur iPhone : bouton Partager de Safari, puis « Sur l'écran d'accueil », et lance le jeu depuis l'icône.</p>
+    <p id="astuceIos" class="astuce" hidden>Fullscreen on iPhone: Safari's Share button, then "Add to Home Screen," and launch the game from the icon.</p>
     <div class="prog"><i id="progBar"></i></div>
     <dl class="keys k-desk">
-      <dt>ZQSD · Maj</dt><dd>Marcher · courir · Espace pour sauter</dd>
-      <dt>Clic gauche</dt><dd>Maintenir pour miner</dd>
-      <dt>Clic droit</dt><dd>Poser le bloc choisi</dd>
-      <dt>1 – 9 · molette</dt><dd>Choisir dans la barre</dd>
-      <dt>E · T · Entrée</dt><dd>Coffre et atelier · vue registre · chat</dd>
-      <dt>Chat : /parcelle</dt><dd>Protéger le tronçon où tu es (2 cristaux) · /inviter pseudo</dd>
-      <dt>Chat : /course</dt><dd>Lance une course sur les balises autour du sanctuaire</dd>
+      <dt>WASD · Shift</dt><dd>Walk · run · Space to jump</dd>
+      <dt>Left click</dt><dd>Hold to mine</dd>
+      <dt>Right click</dt><dd>Place the selected block</dd>
+      <dt>1 – 9 · scroll</dt><dd>Choose from the bar</dd>
+      <dt>E · T · Enter</dt><dd>Chest and crafting · ledger view · chat</dd>
+      <dt>Chat: /claim</dt><dd>Protect the chunk you're in (2 crystals) · /invite nickname</dd>
+      <dt>Chat: /race</dt><dd>Start a race on the beacons around the sanctuary</dd>
     </dl>
     <dl class="keys k-touch">
-      <dt>Croix à gauche</dt><dd>Marcher</dd><dt>Glisser</dt><dd>Regarder</dd><dt>Toucher long</dt><dd>Miner</dd><dt>Toucher bref</dt><dd>Poser, ouvrir, actionner</dd><dt>Flèches à droite</dt><dd>Sauter · courir · s'accroupir</dd><dt>En haut · « … »</dt><dd>Coffre, chat, menu</dd><dt>Chat : /parcelle</dt><dd>Protéger le tronçon où tu es</dd><dt>Chat : /course</dt><dd>Lance une course sur les balises autour du sanctuaire</dd>
+      <dt>Stick on the left</dt><dd>Walk</dd><dt>Drag</dt><dd>Look around</dd><dt>Long press</dt><dd>Mine</dd><dt>Short tap</dt><dd>Place, open, activate</dd><dt>Buttons on the right</dt><dd>Jump · run · crouch</dd><dt>Top · "…"</dt><dd>Chest, chat, menu</dd><dt>Chat: /claim</dt><dd>Protect the chunk you're in</dd><dt>Chat: /race</dt><dd>Start a race on the beacons around the sanctuary</dd>
     </dl>
-    <div class="go"><button id="play">Entrer dans le monde</button></div>
+    <div class="go"><button id="play">Enter the world</button></div>
     <details class="acct" id="acct" hidden>
-      <summary>Compte · <span id="acctTxt">connexion…</span></summary>
-      <p>Ta partie (coffre, objets uniques, objectifs) est gardée sur le serveur, liée à ce navigateur. Pour la retrouver sur un autre appareil ou après avoir vidé le navigateur, garde ton code de sauvegarde.</p>
-      <div class="arow"><button class="b" id="showCode">Afficher mon code de sauvegarde</button><code id="myCode" hidden></code></div>
-      <div class="arow"><input id="codeIn" placeholder="Code d'un autre appareil" maxlength="19" autocomplete="off" spellcheck="false"><button class="b" id="useCode">Récupérer ma partie</button></div>
+      <summary>Account · <span id="acctTxt">connecting…</span></summary>
+      <p>Your progress (chest, unique items, objectives) is kept on the server, linked to this browser. To find it again on another device or after clearing your browser, keep your recovery code.</p>
+      <div class="arow"><button class="b" id="showCode">Show my recovery code</button><code id="myCode" hidden></code></div>
+      <div class="arow"><input id="codeIn" placeholder="Code from another device" maxlength="19" autocomplete="off" spellcheck="false"><button class="b" id="useCode">Recover my progress</button></div>
       <p id="acctMsg" class="status"></p>
     </details>
-    <div class="share" id="shareRow" hidden><span>Invite tes amis :</span><code id="shareUrl"></code><button class="b" id="copyUrl">Copier le lien</button></div>
-    <button id="reset">Effacer ma progression locale</button>
+    <div class="share" id="shareRow" hidden><span>Invite your friends:</span><code id="shareUrl"></code><button class="b" id="copyUrl">Copy the link</button></div>
+    <button id="reset">Erase my local progress</button>
   </div>
 </div>
 
@@ -107,26 +107,26 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="src/config.js"></script>
 <script src="src/net.js"></script>
-<script src="src/erreurs.js"></script>
+<script src="src/errors.js"></script>
 <script src="supabase/functions/_shared/world.js"></script>
 <script src="supabase/functions/_shared/rules.js"></script>
 <script src="src/audio.js"></script>
-<script src="src/maillage.js"></script>
-<script src="src/jeu/00-base.js"></script>
-<script src="src/jeu/01-textures.js"></script>
-<script src="src/jeu/02-blocs.js"></script>
-<script src="src/jeu/03-etat.js"></script>
-<script src="src/jeu/04-rendu.js"></script>
-<script src="src/jeu/05-joueur.js"></script>
-<script src="src/jeu/06-actions.js"></script>
-<script src="src/jeu/07-interface.js"></script>
-<script src="src/jeu/08-ciel.js"></script>
-<script src="src/jeu/09-animaux.js"></script>
-<script src="src/jeu/10-boucle.js"></script>
-<script src="src/jeu/11-multijoueur.js"></script>
-<script src="src/jeu/12-contrats.js"></script>
-<script src="src/jeu/13-troncons.js"></script>
-<script src="src/jeu/14-demarrage.js"></script>
-<script src="src/jeu/15-chaine.js"></script>
+<script src="src/mesh.js"></script>
+<script src="src/game/00-base.js"></script>
+<script src="src/game/01-textures.js"></script>
+<script src="src/game/02-blocks.js"></script>
+<script src="src/game/03-state.js"></script>
+<script src="src/game/04-render.js"></script>
+<script src="src/game/05-player.js"></script>
+<script src="src/game/06-actions.js"></script>
+<script src="src/game/07-interface.js"></script>
+<script src="src/game/08-sky.js"></script>
+<script src="src/game/09-animals.js"></script>
+<script src="src/game/10-loop.js"></script>
+<script src="src/game/11-multiplayer.js"></script>
+<script src="src/game/12-circuits.js"></script>
+<script src="src/game/13-chunks.js"></script>
+<script src="src/game/14-startup.js"></script>
+<script src="src/game/15-chain.js"></script>
 </body>
 </html>

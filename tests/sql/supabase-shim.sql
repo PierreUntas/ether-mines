@@ -1,4 +1,4 @@
--- Imitation minimale de Supabase pour tester le schéma sur un Postgres nu (CI, poste local).
+-- Minimal Supabase stand-in to test the schema on a bare Postgres (CI, local machine).
 do $$ begin create role anon nologin; exception when duplicate_object then null; end $$;
 do $$ begin create role authenticated nologin; exception when duplicate_object then null; end $$;
 do $$ begin create role service_role nologin bypassrls; exception when duplicate_object then null; end $$;

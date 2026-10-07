@@ -1,5 +1,5 @@
-# Tests à chaque push et pull request : syntaxe, générateur et règles, schéma SQL et scénarios de triche,
-# navigateur, et les contrats (Sceau, Réseau).
+# Tests on every push and pull request: syntax, generator and rules, SQL schema and cheating scenarios,
+# browser, and the contracts (Seal, Network).
 name: Tests
 on:
   push:
@@ -12,12 +12,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Syntaxe
-        run: for f in src/*.js src/jeu/*.js supabase/functions/_shared/*.js tools/*.mjs tests/*.mjs; do node --check "$f"; done
-      - name: Générateur et règles
+      - name: Syntax
+        run: for f in src/*.js src/game/*.js supabase/functions/_shared/*.js tools/*.mjs tests/*.mjs; do node --check "$f"; done
+      - name: Generator and rules
         run: node --test tests/*.test.mjs
-      - name: Mise en forme (Prettier)
-        run: npx --yes prettier@3 --check "src/jeu/*.js" "src/*.js" "supabase/functions/_shared/*.js"
+      - name: Formatting (Prettier)
+        run: npx --yes prettier@3 --check "src/game/*.js" "src/*.js" "supabase/functions/_shared/*.js"
   sql:
     runs-on: ubuntu-latest
     services:
@@ -37,30 +37,30 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Schéma, règles et scénarios de jeu et de triche
+      - name: Schema, rules, and game and cheating scenarios
         run: tests/sql/run.sh
-  navigateur:
+  browser:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Navigateur et three.js
+      - name: Browser and three.js
         run: npm i --no-save playwright@1.56.0 three@0.128.0 && npx playwright install --with-deps chromium
-      - name: Partie en mode solo dans Chromium
+      - name: Solo-mode playthrough in Chromium
         run: node tests/navigateur.mjs
   contracts:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: foundry-rs/foundry-toolchain@v1
-      - name: Dépendances (forge-std, OpenZeppelin — non versionnées, voir contracts/remappings.txt)
+      - name: Dependencies (forge-std, OpenZeppelin — not checked in, see contracts/remappings.txt)
         run: |
           cd contracts
           forge install foundry-rs/forge-std --no-git --no-commit
           forge install OpenZeppelin/openzeppelin-contracts --no-git --no-commit
-      - name: Mise en forme (forge fmt)
+      - name: Formatting (forge fmt)
         run: cd contracts && forge fmt --check
-      - name: Tests Foundry, dont le fuzzing (Sceau, Réseau)
+      - name: Foundry tests, including fuzzing (Seal, Network)
         run: cd contracts && forge test -vv

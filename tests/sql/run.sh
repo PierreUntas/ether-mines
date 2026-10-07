@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# Rejoue le schéma complet sur un Postgres vide puis les scénarios de jeu et de triche.
-# Usage : PGHOST=… PGPORT=… PGUSER=postgres tests/sql/run.sh   (base « mines_test » recréée à chaque fois)
+# Replays the full schema on an empty Postgres, then the game and cheating scenarios.
+# Usage: PGHOST=... PGPORT=... PGUSER=postgres tests/sql/run.sh   (the "mines_test" database is recreated each time)
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 DB=mines_test
 quiet() { grep -v -E "NOTICE|WARNING|HINT|wal_level|^$" || true; }
-run() { local out; out=$(psql -q -v ON_ERROR_STOP=1 -d $DB -f "$1" 2>&1) || { echo "$out"; echo "ÉCHEC dans $1"; exit 1; }; echo "$out" | quiet; }
+run() { local out; out=$(psql -q -v ON_ERROR_STOP=1 -d $DB -f "$1" 2>&1) || { echo "$out"; echo "FAILED in $1"; exit 1; }; echo "$out" | quiet; }
 psql -q -v ON_ERROR_STOP=1 -d postgres -c "drop database if exists $DB" -c "create database $DB" 2>&1 | quiet
 run tests/sql/supabase-shim.sql
 for m in supabase/migrations/*.sql; do run "$m"; done
-for m in supabase/migrations/*.sql; do run "$m"; done   # les migrations doivent être rejouables sans erreur
-run supabase/regles.sql
+for m in supabase/migrations/*.sql; do run "$m"; done   # migrations must be replayable without error
+run supabase/rules.sql
 node tests/fixtures.mjs > /tmp/mines_fixtures.sql
 run /tmp/mines_fixtures.sql
 psql -v ON_ERROR_STOP=1 -d $DB -f tests/sql/scenarios.sql 2>&1 | sed -e 's/^psql:[^ ]* NOTICE:  /  /' -e 's/^NOTICE:  /  /' | grep -v '^$'
-# la remise à zéro doit tout effacer, puis le schéma doit se réinstaller
+# the reset must wipe everything, then the schema must reinstall
 psql -q -d $DB -c "drop table fixtures, samples"
 run supabase/reset.sql
-test "$(psql -Atq -d $DB -c "select count(*) from pg_tables where schemaname = 'public'")" = "0" || { echo "ÉCHEC : reset.sql laisse des tables"; exit 1; }
-run supabase/installation.sql   # le fichier unique doit suffire après une remise à zéro
-run supabase/installation.sql   # … et se relancer sans erreur
-test "$(psql -Atq -d $DB -c "select count(*) from rule_blocks")" -gt 100 || { echo "ÉCHEC : règles absentes après installation.sql"; exit 1; }
-echo "Remise à zéro puis réinstallation : ok"
+test "$(psql -Atq -d $DB -c "select count(*) from pg_tables where schemaname = 'public'")" = "0" || { echo "FAILED: reset.sql leaves tables behind"; exit 1; }
+run supabase/installation.sql   # the single file must be enough after a reset
+run supabase/installation.sql   # ... and replay without error
+test "$(psql -Atq -d $DB -c "select count(*) from rule_blocks")" -gt 100 || { echo "FAILED: rules missing after installation.sql"; exit 1; }
+echo "Reset then reinstall: ok"

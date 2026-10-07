@@ -1,296 +1,297 @@
-# Mines d'Éther
+# Ether Mines
 
-Un monde en blocs aux couleurs d'Ethereum, à construire entre amis dans le navigateur. On mine, on fabrique, on bâtit, et chaque bloc et chaque objet se comporte comme un jeton : miner frappe, poser brûle, et chaque bloc posé porte le nom de son auteur. Le monde est infini : le terrain se génère au fur et à mesure qu'on avance.
+A block world in Ethereum's colors, built with friends in the browser. You mine, craft, and build, and every block and item behaves like a token: mining mints, placing burns, and every placed block carries its author's name. The world is infinite: the terrain generates as you go.
 
-## Ce qu'il y a dedans
+## What's in it
 
-- **Monde** : généré à partir d'une graine fixe (plaines, forêts roses, dunes, sommets, lacs, océans, îles flottantes entre 43 et 57 de haut, grottes profondes avec géodes d'éther pur sous la couche 20), chargé par tronçons de 16 × 16 colonnes autour de chaque joueur, sur 64 blocs de haut.
-- **Monde infini** : on peut marcher dans n'importe quelle direction jusqu'à 100 000 blocs du centre (bornes des règles de la base). La position et la distance au sanctuaire s'affichent en haut à gauche.
-- **Parcelles** : dans le chat, `/parcelle` revendique le tronçon (16 × 16) où l'on se trouve pour 2 cristaux (16 au plus). Seuls le propriétaire et ses invités (`/inviter pseudo`, `/exclure pseudo`) peuvent y miner, construire et ouvrir les portes. `/liberer` rend la parcelle, `/parcelles` les liste. Des poteaux verts (les tiennes) ou roses (celles des autres) marquent les coins. Le sanctuaire est intouchable.
-- **Se retrouver** : dans le chat, `/rejoindre pseudo` téléporte près d'un ami en ligne, `/sanctuaire` ramène au point de départ.
-- **Course** : `/course` dans le chat lance un chrono sur six balises lumineuses disposées autour du sanctuaire, à toucher dans l'ordre ; le départ et le temps final s'annoncent dans le chat, pour comparer avec ses amis. Purement amical, sans aucune récompense.
-- **Nature** : champignons d'éther lumineux sur le sol des grottes, roseaux sur les rives, nénuphars en eau peu profonde, rochers moussus dans les plaines et les dunes. Le jour, des papillons volent autour des fleurs et des pétales tombent des arbres roses ; la nuit, des lucioles.
-- **Décoration** (Atelier) : briques d'éther (avec dalles et escaliers), granite poli, marbre en damier, pierre moussue, natte de roseaux, bibliothèque, bloc de cristal, lanterne rose et lanterne champignon, table et lit. Les lanternes, le bloc de cristal, l'éther pur et les champignons éclairent autour d'eux.
-- **Manger et dormir** : clic droit (ou toucher) sur une table pour manger (un repas par jour, vitesse accrue pendant 90 secondes) et sur un lit pour dormir (seulement la nuit) et passer directement à l'aube. Table et lit se fabriquent à l'Atelier ; une pièce toute faite les réunit déjà au **refuge**, dans la Cité.
-- **Direction artistique** : l'univers des illustrations d'ethereum.org. Palette menthe, lavande, pervenche et pêche, trait d'encre bleu marine autour des blocs, ciel rose pâle le jour et couchant orangé. Le sanctuaire est un **Atrium** : sol en damier, bassin, huit colonnes (les quatre allées restent ouvertes), verrière en arcs de marbre blanc couronnée d'un bloc diamant, palmiers en jardinières, sur une esplanade dégagée. Les ruines sont de petits temples de colonnes brisées ; des **jardins d'Éther** (terrasse de marbre, fontaine, colonne à lanterne, haies, cyprès) parsèment les plaines ; cyprès bleu lavande et forêts roses mêlées.
-- **La Cité** : un quartier généré à 60 blocs au nord du sanctuaire, sous le grand diamant, relié à l'Atrium par la **voie des validateurs** (allée dallée bordée de réverbères). Chaque bâtiment a sa place : le grand hall du Registre sous sa pyramide de verre (un bloc diamant y flotte), le temple à fronton, la bibliothèque, la serre, la rotonde à coupole, le marché et ses étals, deux halls à colonnades sous verrière, des places à fontaine et des jardins, le **refuge** (une petite pièce où manger et dormir). La Cité repose sur un plateau qui se fond dans le relief. Robots validateurs et chats dans les rues, vaisseaux en disque au-dessus, vols d'oiseaux le jour.
-- **Habitants** : neuf personnages vivent à l'Atrium, sur la voie et dans la Cité (gardienne, bâtisseur, cartographe, marchande, bibliothécaire, jardinier, oracle, scribe, voyageur). On leur parle d'un clic droit : conseils, direction de la ruine la plus proche, état du réseau. Le robot validateur et le Shiba de l'espace ont leur place fixe dans l'Atrium.
-- **Le réseau, objectif commun** : tous les joueurs rallument ensemble les validateurs anciens. Le compteur du monde (`act_reseau`, `010_reseau.sql`) s'affiche en haut de l'écran et dans l'onglet Objectifs, avec les cinq meilleurs veilleurs ; à 3, 10, 25, 50 et 100 validateurs, une étoile de plus tourne autour du grand diamant.
-- **Échanges entre joueurs** (`011_echanges.sql`) : onglet Échanges du coffre, ou `/echanger pseudo`. Une offre dit « je donne » et « je demande » : ressources, pioches uniques, parcelles. Rien n'est bloqué à la création ; à l'acceptation, le serveur revérifie les deux côtés et fait tout passer d'un seul coup (ou rien). Un objet unique garde son histoire en changeant de main. Les sceaux de validateur ne s'échangent pas. 5 offres en attente au plus par joueur, valables 3 jours ; 16 parcelles au plus après l'échange.
-- **Se voir** : la touche V (ou le bouton en haut de l'écran sur mobile) passe en vue de dos puis de face ; le coffre montre son personnage, qu'on fait tourner et dont on choisit la couleur. Le nom du lieu s'affiche quand on entre à l'Atrium, dans la Cité, une ruine, un jardin, les îles ou les profondeurs.
-- **Graine du monde** : `GRAINE` dans `world.js` fixe tout le relief ; `node tools/graines.mjs` cherche des graines dont le départ est agréable (plaine, mer proche, terrain sain pour la Cité). La changer demande une remise à zéro de la base.
-- **Inspiré des illustrations d'ethereum.org** : palmiers sur les plages et les dunes (et aux coins du sanctuaire), amas d'améthyste lumineux dans les grottes profondes, chats, Shiba de l'espace en combinaison et robots validateurs au chapeau pointu (un robot et un Shiba gardent le sanctuaire), anneau de blocs orange en orbite autour du grand diamant. Atelier, Décoration : colonne de marbre, néon cyan, écran holographique, bloc diamant, briques de jeu à picots (4 couleurs).
-- **Construction** : béton pastel (8 couleurs), vitraux (4), dalles, escaliers orientés selon le regard, portes sur deux blocs (clic droit pour ouvrir), barrières et vitres qui se relient à leurs voisines, échelles (avancer ou sauter contre elles pour grimper, s'accroupir pour s'y tenir), malles pour ranger ses objets (clic droit pour ouvrir, accroupi pour poser un bloc contre ; dans une parcelle, seuls le propriétaire et ses invités les ouvrent). On monte sur les dalles et les marches sans sauter.
-- **Contrats en blocs** : levier et plaque de pression (sources), câble d'éther, lampe et porte alimentées. Le courant est recalculé en continu autour du joueur et n'est jamais enregistré : seul l'état des leviers l'est. Une plaque s'active sous n'importe quel joueur, y compris un ami.
-- **Portes logiques** (Atelier, Contrats) : ET (les deux côtés alimentés), OU (un côté ou l'arrière), NON (active tant que l'arrière ne l'est pas) et horloge (bat chaque seconde). Une porte se pose comme un escalier : sa sortie part dans la direction du regard, une flèche l'indique sur le dessus. Elles s'enchaînent entre elles et avec les câbles, ce qui permet des serrures à code, des clignotants ou des pièges.
-- **Progression** : un fil d'objectifs (bouton en haut de l'écran, touche O ou onglet Objectifs) et quatre paliers d'outils. La main ne taille pas la pierre ; la pioche en bois taille la pierre et le minerai ; la pioche de cristal (objet unique) ouvre les géodes ; la pioche d'éther pur (objet unique) taille la roche de genèse, au fond du monde, qui donne des fragments de genèse. Avec un fragment, des éclats et des cristaux, on forge un cœur de validateur.
-- **Validateurs anciens** : une ruine avec un validateur éteint par région de 80 × 80 blocs (la première à une quarantaine de mètres du sanctuaire). La boussole de l'objectif mène à la plus proche. Le rallumer avec un cœur le met à ton nom : un cristal par minute, et un sceau de validateur (objet unique) en souvenir. Un validateur posé soi-même frappe un cristal toutes les 5 minutes ; 5 au plus comptent par joueur (`007_economie.sql`).
-- **Animaux** : moutons d'éther (plaines), lapins (dunes, plaines, forêts), renards roses (forêts), poissons prisme (océans), méduses célestes (autour des îles flottantes). Clic droit ou toucher bref pour les caresser : une fois par jour, un mouton offre de la laine d'éther (bloc), un renard une fleur, une méduse un éclat pur. Ils sont placés et déplacés à partir de la graine et de l'heure : tous les joueurs les voient au même endroit, sans échange réseau.
-- **Rendu** : Three.js r128, textures pixel art générées en code, ombres portées (désactivées sur mobile), cycle jour et nuit de 8 minutes, blocs lumineux la nuit, eau qui ondule, lucioles la nuit, effet de pose, avatars qui respirent et se balancent en marchant.
-- **Réglages** (onglet Réglages du coffre, propres à chaque appareil) : distance de vue, netteté, ombres, lucioles, animaux, sensibilité de la caméra, compteur d'images par seconde.
-- **Performances** : le maillage des tronçons (≈ 18 ms par tronçon sur un serveur, sans doute 2 à 4 fois plus sur un téléphone) se fait dans un travailleur en arrière-plan, sans bloquer l'image ; retour automatique au calcul sur place si le navigateur ne le permet pas (page ouverte en `file://`).
-- **Plein écran** : sur Android, le jeu passe en plein écran et en paysage en lançant la partie. Sur iPhone, Safari ne le permet pas aux pages : l'écran titre propose d'ajouter le jeu à l'écran d'accueil (bouton Partager → « Sur l'écran d'accueil »), d'où il s'ouvre sans barres.
-- **Son** : entièrement synthétisé dans `src/audio.js` (Web Audio, aucun fichier) : pas et coups selon la matière, cassures, poses, déclics des contrats, nappe musicale, oiseaux le jour, grillons la nuit, gouttes sous terre. Touche M ou bouton ♪ pour couper ; le choix est gardé dans le navigateur (`ether-mines:son`).
-- **Multijoueur** : les autres joueurs apparaissent avec leur pseudo, les blocs se synchronisent en direct, un chat (Entrée, ou son icône à côté du journal de chat) et la liste des joueurs en ligne.
-- **Jetons (simulés)** : coffre avec fiches de jetons (ERC-1155 pour les ressources, ERC-721 pour la Pioche de cristal), atelier, registre des frappes et brûlages, vue registre (T) qui surligne tes blocs.
-- **Sceau de validateur, pour de vrai** : un sceau peut être frappé comme un vrai ERC-721 non transférable sur le testnet Sepolia, puis attesté et récompensé par époque. Voir « Couche web3 ».
+- **World**: generated from a fixed seed (plains, pink forests, dunes, peaks, lakes, oceans, floating islands between 43 and 57 high, deep caves with pure-ether geodes below layer 20), loaded in 16 × 16-column chunks around each player, 64 blocks tall.
+- **Infinite world**: you can walk in any direction up to 100,000 blocks from the center (bounds set by the base rules). Position and distance to the sanctuary show in the top left.
+- **Plots**: in chat, `/claim` claims the chunk (16 × 16) you're standing in for 2 crystals (16 at most). Only the owner and their invites (`/invite nickname`, `/kick nickname`) can mine, build, and open doors there. `/unclaim` releases the plot, `/claims` lists them. Green posts (yours) or pink posts (someone else's) mark the corners. The sanctuary is untouchable.
+- **Finding each other**: in chat, `/join nickname` teleports near an online friend, `/sanctuary` brings you back to the starting point.
+- **Race**: `/race` in chat starts a timer across six glowing beacons arranged around the sanctuary, to touch in order; the start and final time are announced in chat, to compare with friends. Purely for fun, no reward.
+- **Nature**: glowing ether mushrooms on cave floors, reeds on the banks, water lilies in shallow water, mossy rocks in plains and dunes. By day, butterflies fly around flowers and petals fall from pink trees; by night, fireflies.
+- **Decoration** (Crafting): ether bricks (with slabs and stairs), polished granite, checkered marble, mossy stone, woven reed mat, library, crystal block, pink lantern and mushroom lantern, table and bed. Lanterns, the crystal block, pure ether, and mushrooms light up their surroundings.
+- **Eating and sleeping**: right-click (or tap) a table to eat (one meal a day, increased speed for 90 seconds) and a bed to sleep (only at night) and skip straight to dawn. Table and bed are crafted at the workshop; a ready-made room already gathers them at the **refuge**, in the City.
+- **Art direction**: the world of ethereum.org's illustrations. Mint, lavender, periwinkle and peach palette, navy ink outline around blocks, pale pink sky by day and orange sunsets. The sanctuary is an **Atrium**: checkered floor, pool, eight columns (the four aisles stay open), a white marble arched glass roof crowned with a diamond block, potted palms, on an open esplanade. The ruins are small temples of broken columns; **Ether Gardens** (marble terrace, fountain, lantern column, hedges, cypresses) dot the plains; lavender-blue cypresses and pink forests mingle.
+- **The City**: a district generated 60 blocks north of the sanctuary, under the great diamond, linked to the Atrium by the **validators path** (a paved lane lined with lampposts). Every building has its place: the great Ledger hall under its glass pyramid (a diamond block floats inside), the pedimented temple, the library, the greenhouse, the domed rotunda, the market and its stalls, two colonnaded halls under glass roofs, fountain squares and gardens, the **refuge** (a small room to eat and sleep in). The City sits on a plateau that blends into the terrain. Validator robots and cats in the streets, disc ships overhead, flocks of birds by day.
+- **Villagers**: nine characters live in the Atrium, along the path, and in the City (guardian, builder, cartographer, merchant, librarian, gardener, oracle, scribe, traveler). Right-click to talk to them: tips, direction to the nearest ruin, state of the network. The validator robot and the space shiba have their fixed spot in the Atrium.
+- **The network, a shared goal**: all players relight the old validators together. The world's counter (`act_network`, `007_network.sql`) shows at the top of the screen and in the Objectives tab, with the five best watchers; at 3, 10, 25, 50, and 100 validators, one more star orbits the great diamond.
+- **Trades between players** (`008_trades.sql`): the chest's Trade tab, or `/trade nickname`. An offer says "I give" and "I want": resources, unique pickaxes, plots. Nothing is locked at creation; on acceptance, the server rechecks both sides and moves everything at once (or nothing). A unique item keeps its history as it changes hands. Validator seals can't be traded. 5 pending offers at most per player, valid for 3 days; 16 plots at most after a trade.
+- **Seeing yourself**: the V key (or the button at the top of the screen on mobile) switches to a view from behind, then from the front; the chest shows your character, which you can spin and recolor. The place's name shows up when you enter the Atrium, the City, a ruin, a garden, the islands, or the depths.
+- **World seed**: `SEED` in `world.js` fixes the whole terrain; `node tools/seeds.mjs` looks for seeds with a pleasant starting area (plains, sea nearby, healthy ground for the City). Changing it requires a database reset.
+- **Inspired by ethereum.org's illustrations**: palm trees on beaches and dunes (and at the sanctuary's corners), glowing amethyst clusters in deep caves, cats, space shibas in spacesuits, and validator robots with pointy lavender hats (a robot and a shiba guard the sanctuary), a ring of orange blocks orbiting the great diamond. Crafting, Decoration: marble column, cyan neon, holographic screen, diamond block, studded game bricks (4 colors).
+- **Construction**: pastel concrete (8 colors), stained glass (4), slabs, stairs oriented by your facing direction, doors spanning two blocks (right-click to open), fences and panes that connect to their neighbors, ladders (walk or jump into them to climb, crouch to hold still), chests to store items (right-click to open, crouch to place a block against one; inside a plot, only the owner and their invites can open them). You can step up onto slabs and stairs without jumping.
+- **Circuits made of blocks**: lever and pressure plate (sources), ether cable, lamp and powered door. The current is recomputed continuously around the player and is never saved: only the levers' state is. A plate activates under any player, including a friend.
+- **Logic gates** (Crafting, Circuits): AND (both sides powered), OR (one side or the back), NOT (active as long as the back isn't) and a clock (ticks every second). A gate is placed like a staircase: its output points in the direction you were facing, an arrow marks it on top. They chain together and with cables, enabling code locks, blinkers, or traps.
+- **Progression**: a thread of objectives (button at the top of the screen, O key or Objectives tab) and four tool tiers. Your hand can't cut stone; the wooden pickaxe cuts stone and ore; the crystal pickaxe (unique item) opens geodes; the pure ether pickaxe (unique item) cuts the genesis rock, at the bottom of the world, which gives genesis fragments. With a fragment, shards, and crystals, you forge a validator heart.
+- **Old validators**: a ruin with a dark validator per 80 × 80-block region (the first about forty meters from the sanctuary). Your objective's compass leads to the nearest one. Relighting it with a heart puts it under your name: one crystal a minute, and a validator seal (unique item) as a keepsake. A validator you place yourself mints a crystal every 5 minutes; 5 at most count per player (`002_security.sql`).
+- **Animals**: ether sheep (plains), rabbits (dunes, plains, forests), pink foxes (forests), prism fish (oceans), sky jellyfish (around floating islands). Right-click or short tap to pet them: once a day, a sheep offers ether wool (a block), a fox a flower, a jellyfish a pure shard. They're placed and moved based on the seed and the time: every player sees them in the same spot, with no network traffic.
+- **Rendering**: Three.js r128, pixel art textures generated in code, cast shadows (disabled on mobile), an 8-minute day/night cycle, blocks that glow at night, rippling water, fireflies at night, a placement effect, avatars that breathe and sway while walking.
+- **Settings** (chest's Settings tab, specific to each device): view distance, sharpness, shadows, fireflies, animals, camera sensitivity, frames-per-second counter.
+- **Performance**: chunk meshing (≈ 18 ms per chunk on a server, probably 2 to 4 times slower on a phone) happens in a background worker, without blocking the frame; automatic fallback to in-place computation if the browser doesn't allow it (page opened via `file://`).
+- **Fullscreen**: on Android, the game goes fullscreen and landscape when you start playing. On iPhone, Safari doesn't allow this for pages: the title screen offers to add the game to the home screen (Share button → "Add to Home Screen"), from where it opens without bars.
+- **Sound**: entirely synthesized in `src/audio.js` (Web Audio, no file): footsteps and hits per material, breaks, placements, circuit clicks, a musical pad, birds by day, crickets by night, drops underground. M key or ♪ button to mute; the choice is kept in the browser (`ether-mines:son`).
+- **Multiplayer**: other players appear with their nickname, blocks sync live, a chat (Enter, or its icon next to the chat log) and the list of online players.
+- **Tokens (simulated)**: a chest with token sheets (ERC-1155 for resources, ERC-721 for the crystal pickaxe), a workshop, a ledger of mints and burns, a ledger view (T) that highlights your blocks.
+- **Validator seal, for real**: a seal can be minted as a real non-transferable ERC-721 on the Sepolia testnet, then attested and rewarded per epoch. See "Web3 layer".
 
-Rien n'est inscrit sur une vraie blockchain, à l'exception des sceaux de validateur (optionnel, testnet, sans aucune valeur réelle — voir « Couche web3 »).
+Nothing is recorded on a real blockchain, except for validator seals (optional, testnet, no real value — see "Web3 layer").
 
 ## Stack
 
-- HTML, CSS et JavaScript natifs, sans framework ni étape de build.
-- [Supabase](https://supabase.com) : Auth (comptes invités), Realtime (présence, positions, changements de blocs et de parcelles), Postgres (monde, coffres, règles, fonctions d'arbitrage) et une fonction Edge (`figer`).
-- Hébergement statique sur Vercel.
+- Native HTML, CSS, and JavaScript, no framework or build step.
+- [Supabase](https://supabase.com): Auth (guest accounts), Realtime (presence, positions, block and claim changes), Postgres (world, chests, rules, arbitration functions), and one Edge Function (`freeze`).
+- Static hosting on Vercel.
 
-### Le serveur fait autorité
+### The server is authoritative
 
-Les joueurs ne peuvent rien écrire directement : ni blocs, ni terrain, ni coffre. Chaque action passe par une fonction SQL `act_*` qui vérifie les règles puis applique :
+Players can't write anything directly: no blocks, no terrain, no chest. Every action goes through a SQL `act_*` function that checks the rules then applies the change:
 
-| Action | Ce que le serveur vérifie |
+| Action | What the server checks |
 | --- | --- |
-| `act_mine` | bloc réel à cet endroit, outil possédé et de palier suffisant, rythme de minage plausible, zone non protégée ; tire le butin lui-même |
-| `act_place` | objet présent dans le coffre, transformation autorisée (escalier orienté, porte), case libre, support correct, zone non protégée |
-| `act_toggle` | porte ou levier réel, zone non protégée |
-| `act_craft` | recette connue du serveur, ingrédients présents |
-| `act_relight` | validateur éteint réel, cœur de validateur dans le coffre |
-| `act_gift` | une fois par jour et par animal, 15 cadeaux par jour au plus |
-| `act_rewards` | validateurs signés par le joueur (5 posés au plus : 1 cristal toutes les 5 minutes chacun ; anciens rallumés : 1 par minute), temps écoulé (30 minutes rattrapées au plus) |
-| `act_claim`, `act_unclaim`, `act_member` | parcelles : coût, limite, propriétaire |
-| toutes les actions sur un bloc | zones publiques (`009_zones.sql`) : l'Atrium et la Cité ne se minent pas, ne se construisent pas et ne se revendiquent pas |
-| `act_chest`, `act_chest_move` | malles : bloc malle réel, à portée de main, droit de construire à cet endroit, objets présents dans le sac ou la malle ; une malle cassée rend son contenu à celui qui la casse |
+| `act_mine` | a real block there, tool owned and of sufficient tier, plausible mining rate, zone not protected; draws the loot itself |
+| `act_place` | item present in the chest, allowed transform (oriented stairs, door), free cell, correct support, zone not protected |
+| `act_toggle` | a real door or lever, zone not protected |
+| `act_craft` | recipe known to the server, ingredients present |
+| `act_relight` | a real dark validator, validator heart in the chest |
+| `act_gift` | once a day per animal, 15 gifts a day at most |
+| `act_rewards` | validators signed by the player (5 placed at most: 1 crystal every 5 minutes each; old ones relit: 1 a minute), elapsed time (30 minutes caught up at most) |
+| `act_claim`, `act_unclaim`, `act_member` | plots: cost, limit, owner |
+| every action on a block | public zones (`006_public_zones.sql`): the Atrium and the City can't be mined, built on, or claimed |
+| `act_chest`, `act_chest_move` | chests: a real chest block, within reach, right to build there, items present in the bag or the chest; a broken chest returns its contents to whoever breaks it |
 
-En plus, toutes les actions passent un contrôle commun (`supabase/migrations/002_securite.sql`) :
+On top of that, every action passes a common check (`supabase/migrations/002_security.sql`):
 
-- **Rythme** : chaque joueur a une réserve de jetons par type d'action (miner et poser : 8 par seconde, portes 4, fabrication 4, parcelles et invitations 1 toutes les 2 s, codes de sauvegarde 1 toutes les 5 s). Au-delà : « trop d'actions ».
-- **Position et portée** : miner, poser, ouvrir, rallumer et revendiquer envoient la position du joueur. Le bloc visé doit être à portée de main (6,5 blocs depuis les yeux), on ne pose pas un bloc dans son propre corps, et la position doit être atteignable depuis la précédente (course, avec de la marge pour le réseau ; chutes libres). Retour au sanctuaire et `/rejoindre` (à côté d'un joueur actif) restent permis. Pour revendiquer une parcelle, il faut s'y trouver. Le jeu envoie aussi un signal de position toutes les 15 s quand on bouge.
-- **Chat** (`003_moderation.sql`) : chaque message passe par `act_chat`. Le pseudo et la couleur viennent de la partie, donc impossible de parler au nom d'un autre. Un message par seconde (rafale de 4), 140 caractères, mots bannis remplacés par des étoiles (liste dans la table `chat_mots_bannis`, à compléter à la main). Les messages de plus de 2 jours sont effacés.
-- **Signalements** : `/signaler pseudo`. Trois joueurs différents en 24 h rendent le joueur muet 1 h, puis 2 h, 4 h… à chaque récidive. Seuls les joueurs qui ont déjà miné ou posé un bloc peuvent signaler (contre les comptes jetables). `/ignorer pseudo` masque un joueur dans ton navigateur seulement.
-- **Erreurs du jeu** : les erreurs JavaScript des joueurs en ligne (et les refus inattendus du serveur) arrivent dans la table `client_errors`, une ligne par erreur avec un compteur, gardées 14 jours. Voir plus bas « Surveiller le jeu ».
+- **Rate**: each player has a token reserve per action type (mining and placing: 8 per second, doors 4, crafting 4, plots and invites 1 every 2 s, recovery codes 1 every 5 s). Beyond that: "too many actions".
+- **Position and reach**: mining, placing, opening, relighting, and claiming send the player's position. The targeted block must be within reach (6.5 blocks from the eyes), you can't place a block inside your own body, and the position must be reachable from the previous one (running speed, with some margin for the network; free falls). Returning to the sanctuary and `/join` (next to an active player) stay allowed. To claim a plot, you need to be standing in it. The game also sends a position ping every 15 s while moving.
+- **Chat** (`003_moderation.sql`): every message goes through `act_chat`. The nickname and color come from the save, so it's impossible to speak as someone else. One message per second (bursts of 4), 140 characters, banned words replaced with stars (list in the `chat_banned_words` table, to extend by hand). Messages older than 2 days are deleted.
+- **Reports**: `/report nickname`. Three different players within 24 h mute a player for 1 h, then 2 h, 4 h… on each repeat offense. Only players who have already mined or placed a block can report (against throwaway accounts). `/ignore nickname` hides a player in your browser only.
+- **Game errors**: JavaScript errors from online players (and unexpected server refusals) land in the `client_errors` table, one row per error with a counter, kept 14 days. See "Monitoring the game" below.
 
-Le terrain d'origine d'un tronçon est généré **côté serveur** par la fonction Edge `figer`, avec le même générateur que le jeu (`supabase/functions/_shared/world.js`) : impossible d'inventer du terrain. Les règles (blocs, outils, recettes) viennent de `supabase/functions/_shared/rules.js`, partagé par le jeu ; `node tools/regles.mjs > supabase/regles.sql` les transforme en tables SQL.
+A chunk's original terrain is generated **server-side** by the `freeze` Edge Function, with the same generator as the game (`supabase/functions/_shared/world.js`): no way to make up terrain. The rules (blocks, tools, recipes) come from `supabase/functions/_shared/rules.js`, shared with the game; `node tools/rules.mjs > supabase/rules.sql` turns them into SQL tables.
 
-Le jeu montre le résultat tout de suite et le serveur confirme : en cas de refus, le bloc revient et le coffre est relu depuis le serveur.
+The game shows the result right away and the server confirms: on refusal, the block reverts and the chest is reread from the server.
 
 ```
-index.html              structure de la page
+index.html              page structure
 src/style.css           interface
-src/config.js           URL et clé publique Supabase (vide = mode solo)
-src/net.js              couche réseau (Supabase)
-src/erreurs.js          remontée des erreurs des joueurs vers le serveur
-src/maillage.js         maillage des tronçons (fonction pure, partagée avec le travailleur)
-src/maillage-travailleur.js  maillage en arrière-plan (Web Worker)
-manifest.webmanifest, icones/   application installable (plein écran)
-src/jeu/                le jeu, en fichiers chargés dans l'ordre (portée globale partagée) :
-  00-base.js            raccourcis, générateur et règles partagés
-  01-textures.js        atlas pixel art généré en code
-  02-blocs.js           formes des blocs, accès au monde chargé
-  03-etat.js            état de la partie, sauvegardes, saisons
-  04-rendu.js           scène Three.js, maillage des tronçons, main, icônes
-  05-joueur.js          physique, entrées clavier / souris / tactile, visée
-  06-actions.js         miner, poser, fabriquer, arbitrage serveur, parcelles
-  07-interface.js       barre, coffre, atelier, registre, objectifs
-  08-ciel.js            jour et nuit
-  09-animaux.js         animaux
-  10-boucle.js          boucle principale
-  11-multijoueur.js     autres joueurs, chat
-  12-contrats.js        courant électrique (leviers, câbles, lampes, portes)
-  13-troncons.js        chargement des tronçons autour du joueur
-  14-demarrage.js       compte, écran titre, démarrage
-src/audio.js            sons génératifs (Web Audio)
-supabase/functions/_shared/world.js   générateur du monde (jeu et serveur)
-supabase/functions/_shared/rules.js   blocs, objets, paliers, recettes (jeu et serveur)
-supabase/functions/figer/             fonction Edge : génère et fige le terrain d'un tronçon
-supabase/functions/lier-wallet/       fonction Edge : liaison d'un wallet par message signé (couche web3)
-supabase/functions/chaine/            fonction Edge : frappe/attestation/réclamation onchain (couche web3)
-supabase/migrations/    schéma de la base, fonctions d'arbitrage act_*
-supabase/regles.sql     règles du jeu en SQL (généré par tools/regles.mjs)
-supabase/reset.sql      remise à zéro complète (monde, parties, comptes invités)
-tools/regles.mjs        génère supabase/regles.sql
-contracts/              Sceau et Réseau (Foundry + OpenZeppelin) — voir « Couche web3 »
+src/config.js           Supabase URL and public key (empty = solo mode)
+src/net.js              network layer (Supabase)
+src/errors.js           reports players' errors to the server
+src/mesh.js             chunk meshing (pure function, shared with the worker)
+src/mesh-worker.js      background meshing (Web Worker)
+manifest.webmanifest, icons/   installable app (fullscreen)
+src/game/               the game, in files loaded in order (shared global scope):
+  00-base.js            shared shortcuts, generator, and rules
+  01-textures.js        pixel art atlas generated in code
+  02-blocks.js          block shapes, access to the loaded world
+  03-state.js           game state, saves, seasons
+  04-render.js          Three.js scene, chunk meshing, hand, icons
+  05-player.js          physics, keyboard/mouse/touch input, aiming
+  06-actions.js         mine, place, craft, server arbitration, plots
+  07-interface.js       bar, chest, crafting, ledger, objectives
+  08-sky.js             day and night
+  09-animals.js         animals
+  10-loop.js            main loop
+  11-multiplayer.js     other players, chat
+  12-circuits.js        electrical current (levers, cables, lamps, doors)
+  13-chunks.js          loading chunks around the player
+  14-startup.js         account, title screen, startup
+  15-chain.js           web3 layer (validators, Sepolia)
+src/audio.js            generative sounds (Web Audio)
+supabase/functions/_shared/world.js   world generator (game and server)
+supabase/functions/_shared/rules.js   blocks, items, tiers, recipes (game and server)
+supabase/functions/freeze/            Edge Function: generates and freezes a chunk's terrain
+supabase/functions/link-wallet/       Edge Function: links a wallet via a signed message (web3 layer)
+supabase/functions/chain/             Edge Function: onchain mint/attest/claim (web3 layer)
+supabase/migrations/    database schema, act_* arbitration functions
+supabase/rules.sql      game rules in SQL (generated by tools/rules.mjs)
+supabase/reset.sql      full reset (world, saves, guest accounts)
+tools/rules.mjs         generates supabase/rules.sql
+contracts/              Seal and Network (Foundry + OpenZeppelin) — see "Web3 layer"
 ```
 
-## Mise en ligne
+## Deploying
 
-1. **Supabase** : crée un projet gratuit sur supabase.com.
-2. **Comptes invités** : dans *Authentication → Sign In / Providers*, active *Allow anonymous sign-ins*. Chaque joueur reçoit un compte automatiquement, sans email ni mot de passe.
-3. **Base** : dans *SQL Editor*, lance `supabase/installation.sql` (toutes les migrations dans l'ordre puis les règles, en un seul fichier généré par `node tools/installation.mjs > supabase/installation.sql`). Il se relance sans risque : à chaque mise à jour du jeu qui touche la base ou les règles, relance-le.
-4. **Fonction `figer`** (une fois, puis à chaque changement du générateur) :
+1. **Supabase**: create a free project on supabase.com.
+2. **Guest accounts**: in *Authentication → Sign In / Providers*, enable *Allow anonymous sign-ins*. Every player gets an account automatically, no email or password.
+3. **Database**: in the *SQL Editor*, run `supabase/installation.sql` (every migration in order, then the rules, in a single file generated by `node tools/installation.mjs > supabase/installation.sql`). It replays safely: re-run it whenever a game update touches the database or the rules.
+4. **`freeze` function** (once, then on every change to the generator):
    ```
    npx supabase login
-   npx supabase functions deploy figer --project-ref <identifiant du projet> --use-api
+   npx supabase functions deploy freeze --project-ref <project id> --use-api
    ```
-   Ou automatiquement : ajoute au dépôt GitHub les secrets `SUPABASE_ACCESS_TOKEN` (supabase.com → *Account → Access Tokens*) et `SUPABASE_PROJECT_REF` ; le workflow `.github/workflows/supabase-functions.yml` redéploie la fonction à chaque push qui la touche.
-5. **Clés** : dans *Project Settings → API*, copie l'URL du projet et la clé `anon` publique dans `src/config.js`. Cette clé est faite pour être publique : ce sont les règles des migrations qui protègent la base.
-6. **Vercel** : importe le dépôt (*Add New → Project*), sans réglage particulier (site statique). Chaque push sur `main` redéploie.
-7. **Jouer** : ouvre le site, choisis un pseudo. Le lien contient le nom du monde (`?monde=principal`) ; envoie-le à tes amis. Un autre nom de monde donne un monde vierge séparé.
+   Or automatically: add the GitHub secrets `SUPABASE_ACCESS_TOKEN` (supabase.com → *Account → Access Tokens*) and `SUPABASE_PROJECT_REF` to the repo; the `.github/workflows/supabase-functions.yml` workflow redeploys the function on every push that touches it.
+5. **Keys**: in *Project Settings → API*, copy the project URL and the public `anon` key into `src/config.js`. This key is meant to be public: the migrations' rules are what protects the database.
+6. **Vercel**: import the repo (*Add New → Project*), no special settings needed (static site). Every push to `main` redeploys.
+7. **Play**: open the site, pick a nickname. The link contains the world's name (`?monde=principal`); send it to your friends. A different world name gives a separate, blank world.
 
-Sans clés dans `src/config.js`, le jeu tourne en solo et sauvegarde dans le navigateur.
+Without keys in `src/config.js`, the game runs solo and saves in the browser.
 
-Pour tout effacer et repartir de zéro :
-1. lancer `supabase/reset.sql`, puis `supabase/installation.sql` ;
-2. augmenter `SAISON` dans `src/jeu/03-etat.js` et publier : les parties gardées dans les navigateurs sont effacées au prochain chargement (pseudo et réglage du son conservés).
+To wipe everything and start over:
+1. run `supabase/reset.sql`, then `supabase/installation.sql`;
+2. bump `SEASON` in `src/game/03-state.js` and publish: saves kept in browsers are cleared on the next load (nickname and sound setting kept).
 
-## Ce qui est sauvegardé où
+## What's saved where
 
-| Donnée | Où |
+| Data | Where |
 | --- | --- |
-| Terrain d'origine des tronçons touchés | Supabase, table `chunks` (généré et écrit par la fonction `figer`, jamais modifié) |
-| Blocs modifiés (x, y, z), auteur et numéro de série | Supabase, table `blocks` (écrite par les fonctions `act_*`) |
-| Parcelles | Supabase, table `claims` |
-| Coffre | Supabase, table `inventory` (lecture seule pour le joueur) |
-| Objets uniques (pioches, sceaux) | Supabase, table `uniques` (lecture seule pour le joueur) |
-| Règles du jeu | Supabase, tables `rule_*` (depuis `regles.sql`) |
-| Préférences de partie : barre, position, objectifs vus, registre | Supabase, table `players`, colonne `state` (seule partie modifiable par le joueur) ; copie dans le navigateur (`ether-mines:<monde>`) |
-| Positions, chat, présence | Supabase Realtime (rien n'est gardé) |
-| Compte invité | Supabase Auth ; la session est gardée par le navigateur (`ether-mines:session`) |
-| Codes de sauvegarde | Supabase, table `recovery` (empreinte SHA-256 seulement, jamais le code) |
-| Pseudo, couleur, identifiant | Navigateur (`ether-mines:profil`) |
-| Son activé ou coupé | Navigateur (`ether-mines:son`) |
-| Courant dans les câbles, lampes et portes | Nulle part : recalculé à partir des leviers et des plaques |
+| Original terrain of touched chunks | Supabase, `chunks` table (generated and written by the `freeze` function, never modified) |
+| Modified blocks (x, y, z), author, and serial number | Supabase, `blocks` table (written by the `act_*` functions) |
+| Plots | Supabase, `claims` table |
+| Chest | Supabase, `inventory` table (read-only for the player) |
+| Unique items (pickaxes, seals) | Supabase, `uniques` table (read-only for the player) |
+| Game rules | Supabase, `rule_*` tables (from `rules.sql`) |
+| Game preferences: bar, position, seen objectives, ledger | Supabase, `players` table, `state` column (the only part the player can modify); a copy in the browser (`ether-mines:<world>`) |
+| Positions, chat, presence | Supabase Realtime (nothing is kept) |
+| Guest account | Supabase Auth; the session is kept by the browser (`ether-mines:session`) |
+| Recovery codes | Supabase, `recovery` table (SHA-256 hash only, never the code) |
+| Nickname, color, id | Browser (`ether-mines:profil`) |
+| Sound on or off | Browser (`ether-mines:son`) |
+| Current in cables, lamps, and doors | Nowhere: recomputed from the levers and plates |
 
-## Faire évoluer le jeu sans perdre les parties
+## Evolving the game without losing saves
 
-Le monde d'un joueur, c'est trois couches superposées :
+A player's world is three layers stacked on top of each other:
 
-1. **Le générateur** (`genChunk()` dans `supabase/functions/_shared/world.js`), qui dessine un tronçon à partir de la graine et de ses coordonnées.
-2. **Les tronçons figés** (table `chunks`) : dès qu'un bloc est modifié dans un tronçon, son terrain d'origine est enregistré tel quel. Il ne dépend plus jamais du générateur.
-3. **Les modifications** (table `blocks`), en coordonnées x, y, z, par-dessus.
+1. **The generator** (`genChunk()` in `supabase/functions/_shared/world.js`), which draws a chunk from the seed and its coordinates.
+2. **Frozen chunks** (`chunks` table): as soon as a block is modified in a chunk, its original terrain is recorded as is. It never depends on the generator again.
+3. **Modifications** (`blocks` table), in x, y, z coordinates, layered on top.
 
-Au chargement d'un tronçon : terrain figé s'il existe, sinon générateur ; puis modifications. Les zones construites ne bougent jamais, et les zones vierges profitent du générateur le plus récent, comme les chunks de Minecraft.
+When a chunk loads: frozen terrain if it exists, otherwise the generator; then modifications. Built areas never move, and untouched areas benefit from the latest generator, like Minecraft chunks.
 
-### Ce qu'on peut changer librement
+### What you can change freely
 
-- **Le générateur** (relief, biomes, arbres, grottes, minerais) : augmenter `GEN` à chaque changement de terrain, puis redéployer la fonction `figer` (automatique avec le workflow GitHub). Seuls les tronçons jamais touchés changent. Un raccord peut apparaître entre un tronçon figé et un tronçon régénéré (petite marche, demi-arbre).
-- Nouveaux blocs, objets, recettes (dans `rules.js`) : relancer `node tools/regles.mjs > supabase/regles.sql` puis exécuter `regles.sql` dans Supabase, sinon le serveur refusera les nouveautés.
-- Mécaniques, interface, rendu.
+- **The generator** (terrain, biomes, trees, caves, ores): bump `GEN` on every terrain change, then redeploy the `freeze` function (automatic with the GitHub workflow). Only never-touched chunks change. A seam can appear between a frozen chunk and a regenerated one (a small step, half a tree).
+- New blocks, items, recipes (in `rules.js`): re-run `node tools/rules.mjs > supabase/rules.sql` then execute `rules.sql` in Supabase, otherwise the server will refuse the new content.
+- Mechanics, interface, rendering.
 
-### Ce qu'il ne faut jamais faire
+### What you must never do
 
-- **Renuméroter ou supprimer un type de bloc** (les numéros de `B` et `ITEM`) : seulement en ajouter.
-- **Déplacer l'origine** ou le point d'apparition (`SPAWN`) : les coordonnées enregistrées en dépendent.
-- **Changer la taille des tronçons** (`CH = 16`) ou la hauteur (`SY`) sans convertir la table `chunks`.
-- **Réécrire ou supprimer des lignes** de `chunks` ou `blocks` dans une migration.
-- **Renommer les clés `localStorage`** (`ether-mines:<monde>`, `ether-mines:profil`).
-- Donner à un bloc un numéro déjà pris par un objet (`ITEM`, ex. 101 à 105, 201 à 203) : le jeu et le serveur les confondraient. Un test le vérifie.
+- **Renumber or remove a block type** (the numbers in `B` and `ITEM`): only add to them.
+- **Move the origin** or the spawn point (`SPAWN`): recorded coordinates depend on it.
+- **Change the chunk size** (`CH = 16`) or the height (`SY`) without converting the `chunks` table.
+- **Rewrite or delete rows** of `chunks` or `blocks` in a migration.
+- **Rename the `localStorage` keys** (`ether-mines:<world>`, `ether-mines:profil`).
+- Give a block a number already taken by an item (`ITEM`, e.g. 101 to 105, 201 to 203): the game and server would confuse them. A test checks this.
 
-### Faire une mise à jour
+### Making an update
 
-1. **Base** : si la base change, ajouter `supabase/migrations/00N_description.sql`, uniquement additif (nouvelles tables, nouvelles colonnes avec valeur par défaut). Exporter les tables en CSV depuis le *Table Editor* avant une grosse migration.
-2. **Sauvegarde locale** : si la forme de l'état `S` change, augmenter `SAVE_V` et ajouter une étape dans `migrateSave()`. Les champs nouveaux peuvent simplement être ajoutés à `S0()`.
-3. **Tester** : pousser sur une branche. Vercel donne une URL de prévisualisation, à tester sur un monde jetable (`?monde=test`). La base est la même que la production : ne jamais tester sur `principal`.
-4. **Publier** : lancer la migration SQL s'il y en a une, puis fusionner dans `main`. Les joueurs déjà connectés doivent recharger la page.
+1. **Database**: if the database changes, add `supabase/migrations/00N_description.sql`, additive only (new tables, new columns with a default value). Export tables to CSV from the *Table Editor* before a big migration.
+2. **Local save**: if the shape of the `S` state changes, bump `SAVE_V` and add a step in `migrateSave()`. New fields can simply be added to `S0()`.
+3. **Test**: push to a branch. Vercel gives a preview URL, to test on a throwaway world (`?monde=test`). The database is the same as production: never test on `principal`.
+4. **Publish**: run the SQL migration if there is one, then merge into `main`. Players already connected need to reload the page.
 
-## Comptes et codes de sauvegarde
+## Accounts and recovery codes
 
-- Au premier passage, le jeu crée un compte invité et y enregistre la partie toutes les 5 secondes, à la pause et quand on quitte la page.
-- Sur l'écran titre, *Compte → Afficher mon code de sauvegarde* donne un code du type `4FC0-B18D-A98D-75EF`. Sur un autre appareil (ou après avoir vidé le navigateur), le saisir dans *Récupérer ma partie* rattache la partie et les blocs signés à ce nouvel appareil.
-- Le code rattache tout ce que possède l'ancien compte : parties, coffres, objets uniques, blocs signés, parcelles.
+- On first visit, the game creates a guest account and saves progress to it every 5 seconds, on pause, and when leaving the page.
+- On the title screen, *Account → Show my recovery code* gives a code like `4FC0-B18D-A98D-75EF`. On another device (or after clearing the browser), entering it in *Recover my progress* attaches the save and the signed blocks to this new device.
+- The code attaches everything the old account owns: saves, chests, unique items, signed blocks, plots.
 
-## Tester
+## Testing
 
-Les tests tournent automatiquement sur GitHub à chaque push (onglet *Actions*, workflow *Tests*). Un push qui casse quelque chose apparaît en rouge.
+Tests run automatically on GitHub on every push (*Actions* tab, *Tests* workflow). A push that breaks something shows up in red.
 
-- **Générateur et règles** (sans base) : `node --test tests/*.test.mjs`. Vérifie que le monde est déterministe, l'encodage des tronçons, le sanctuaire et la première ruine, la cohérence des recettes, et que `supabase/regles.sql` est à jour avec `rules.js`.
-- **Schéma et arbitrage** : `PGHOST=… PGUSER=postgres tests/sql/run.sh` sur un Postgres 16 vide (une base `mines_test` est recréée). Installe toutes les migrations deux fois, les règles, des tronçons générés par le vrai générateur, puis joue une quarantaine de scénarios : lecture du terrain par le serveur identique au générateur, minage, paliers d'outils, rythme, pose, portes, fabrication, parcelles, invitations, ruines, cadeaux, récompenses, récupération de partie, limites de rythme, portée de main, déplacements impossibles, et toutes les tentatives de triche directe (écrire un bloc, se donner des objets, inventer du terrain…). Vérifie enfin que `reset.sql` efface tout.
-- **Mise en forme** : `npx prettier@3 --write "src/jeu/*.js" "src/*.js" "supabase/functions/_shared/*.js"` (vérifiée par les tests).
-- **Partie dans un navigateur** (mode solo, Chromium) : `npm i --no-save playwright@1.56.0 three@0.128.0 && npx playwright install chromium && node tests/navigateur.mjs`.
-- **À la main** : ouvrir `index.html#debug` expose `window.mines` dans la console (dont `serverAct(nom, arguments)`, `syncInventory()`, `get(x, y, z)`, `P` le joueur, `S.day` l'heure).
+- **Generator and rules** (no database): `node --test tests/*.test.mjs`. Checks that the world is deterministic, chunk encoding, the sanctuary and the first ruin, recipe consistency, and that `supabase/rules.sql` is up to date with `rules.js`.
+- **Schema and arbitration**: `PGHOST=… PGUSER=postgres tests/sql/run.sh` on an empty Postgres 16 (a `mines_test` database is recreated). Installs every migration twice, the rules, chunks generated by the real generator, then plays about forty scenarios: server terrain reading identical to the generator, mining, tool tiers, rate limits, placing, doors, crafting, plots, invites, ruins, gifts, rewards, save recovery, rate limits, reach, impossible moves, and every attempt at direct cheating (writing a block, giving yourself items, making up terrain…). Finally checks that `reset.sql` wipes everything.
+- **Formatting**: `npx prettier@3 --write "src/game/*.js" "src/*.js" "supabase/functions/_shared/*.js"` (checked by the tests).
+- **Browser playthrough** (solo mode, Chromium): `npm i --no-save playwright@1.56.0 three@0.128.0 && npx playwright install chromium && node tests/navigateur.mjs`.
+- **By hand**: opening `index.html#debug` exposes `window.mines` in the console (including `serverAct(name, args)`, `syncInventory()`, `get(x, y, z)`, `P` the player, `S.day` the time).
 
-## Couche web3 (validateurs, Sepolia)
+## Web3 layer (validators, Sepolia)
 
-Une V1 web3, optionnelle, qui ne porte que sur les validateurs — pas les parcelles, pas les pioches, pas
-les ressources. **Le jeu reste jouable gratuitement, avec un simple pseudo, sans wallet.** La blockchain
-n'est qu'un miroir public et vérifiable d'un fait qui existe déjà dans la base : « ce joueur a rallumé ce
-validateur-là ». Ce n'est pas du play-to-earn : rien n'a de valeur réelle (Sepolia est un testnet), rien ne
-s'achète, et il n'existe aucun moyen de convertir quoi que ce soit en argent réel.
+An optional V1 web3 layer that only covers validators — not plots, not pickaxes, not
+resources. **The game stays free to play, with just a nickname, no wallet needed.** The blockchain
+is only a public, verifiable mirror of a fact that already exists in the database: "this player relit
+this validator." This isn't play-to-earn: nothing has real value (Sepolia is a testnet), nothing
+is for sale, and there is no way to convert anything into real money.
 
 ```
-Joueur (pseudo, sans wallet)
-   │ rallume un validateur ancien — un acte de jeu inchangé, toujours arbitré par la base
+Player (nickname, no wallet)
+   │ relights an old validator — an unchanged game action, still arbitrated by the database
    ▼
-Base Supabase (uniques, item 203 : monde, x, y, z, date)
-   │ le joueur clique « Frapper », « Attester » ou « Réclamer »
+Supabase database (uniques, item 203: world, x, y, z, date)
+   │ the player clicks "Mint," "Attest," or "Claim"
    ▼
-Edge Functions lier-wallet / chaine — clé opérateur, secret Supabase, jamais dans le dépôt
-   │ transaction simulée puis envoyée, gaz payé par l'opérateur, jamais par le joueur
+Edge Functions link-wallet / chain — operator key, Supabase secret, never in the repo
+   │ transaction simulated then sent, gas paid by the operator, never by the player
    ▼
-Sceau (ERC-721 / ERC-5192) et Réseau — Sepolia
+Seal (ERC-721 / ERC-5192) and Network — Sepolia
 ```
 
-### Les deux contrats (`contracts/`, Foundry + OpenZeppelin)
+### The two contracts (`contracts/`, Foundry + OpenZeppelin)
 
-- **`Sceau`** : ERC-721 non transférable (ERC-5192). Un sceau par validateur, jamais deux : son identifiant
-  (`tokenId`) est calculé par le contrat lui-même à partir de `(monde, x, y, z)`, pas fourni de l'extérieur.
-  Métadonnées et image générées entièrement onchain (`tokenURI`, aucun lien externe). `mint()` est réservé
-  au rôle opérateur.
-- **`Réseau`** : époques d'un jour. `attester()` enregistre la participation d'un sceau à l'époque en
-  cours ; à sa clôture, son nombre d'attestants (`n`) est figé pour toujours. La récompense par sceau suit
-  la même forme que la courbe d'émission d'Ethereum : émission totale d'une époque ∝ √n, donc 1/√n par
-  sceau. `reclamer()` verse du **vrai Sepolia ETH**, puisé dans le solde du contrat — réapprovisionné à la
-  main (voir plus bas), jamais déposé par un joueur. `attester()` et `reclamer()` sont eux aussi réservés au
-  rôle opérateur ; le versement va toujours au détenteur réel du sceau, jamais à qui envoie la transaction.
+- **`Seal`**: non-transferable ERC-721 (ERC-5192). One seal per validator, never two: its id
+  (`tokenId`) is computed by the contract itself from `(world, x, y, z)`, never supplied from the outside.
+  Metadata and image generated entirely onchain (`tokenURI`, no external link). `mint()` is reserved
+  to the operator role.
+- **`Network`**: one-day epochs. `attester()` records a seal's participation in the current
+  epoch; once it closes, its attestant count (`n`) is frozen forever. The reward per seal follows
+  the same shape as Ethereum's issuance curve: an epoch's total issuance ∝ √n, so 1/√n per
+  seal. `reclamer()` pays out **real Sepolia ETH**, drawn from the contract's balance — refilled by
+  hand (see below), never deposited by a player. `attester()` and `reclamer()` are also reserved to the
+  operator role; the payout always goes to the seal's actual holder, never to whoever sends the transaction.
 
-Adresses sur Sepolia : *(remplies après le déploiement — voir « Mettre en route » plus bas)*.
+Addresses on Sepolia: *(filled in after deployment — see "Getting started" below)*.
 
-- Sceau : `0x…` — [Etherscan](https://sepolia.etherscan.io)
-- Réseau : `0x…` — [Etherscan](https://sepolia.etherscan.io)
+- Seal: `0x…` — [Etherscan](https://sepolia.etherscan.io)
+- Network: `0x…` — [Etherscan](https://sepolia.etherscan.io)
 
-### Correspondance avec le vrai Ethereum
+### Mapping to real Ethereum
 
-| Mines d'Éther | Ethereum réel |
+| Ether Mines | Real Ethereum |
 | --- | --- |
-| Rallumer un validateur ancien, en jeu | Déposer 32 ETH dans le contrat de dépôt officiel |
-| Sceau (ERC-721 non transférable) | Le statut de validateur actif |
-| `attester()` une fois par époque | Attestation de validité à chaque créneau (~12 s), par comité |
-| Époque d'un jour | Époque réelle d'environ 6,4 minutes (32 créneaux) |
-| Émission d'une époque ∝ √n | Émission annuelle ∝ √(ETH total misé) |
-| `reclamer()` à la demande | Retrait des récompenses accumulées |
-| Solde de `Réseau` réapprovisionné à la main | Nouvelle émission d'ETH par le protocole |
+| Relighting an old validator, in-game | Depositing 32 ETH into the official deposit contract |
+| Seal (non-transferable ERC-721) | Active validator status |
+| `attester()` once per epoch | Validity attestation every slot (~12 s), by committee |
+| One-day epoch | Real epoch of about 6.4 minutes (32 slots) |
+| An epoch's issuance ∝ √n | Annual issuance ∝ √(total ETH staked) |
+| `reclamer()` on demand | Withdrawing accumulated rewards |
+| `Network`'s balance refilled by hand | New ETH issuance by the protocol |
 
-### Ce qui est simplifié
+### What's simplified
 
-- **Pas de slashing** : une époque manquée n'est simplement pas payée, il n'y a aucune pénalité au-delà.
-- **Époque d'un jour**, bien plus longue que les ~6,4 minutes réelles — plus commode à expliquer, mais plus
-  lente à observer en démonstration (prévoir de patienter entre deux époques, ou réduire `EPOCH_DURATION`
-  pour une démo).
-- **Pas de file d'activation** : un sceau participe dès l'époque en cours, alors qu'un vrai dépôt attend
-  parfois des mois avant de devenir un validateur actif.
-- **Récompense financée à la main**, pas une vraie émission protocolaire : sur un testnet, personne
-  n'émet de nouvel ETH ; le solde de `Réseau` vient de faucets publics, réapprovisionnés manuellement.
-- **`attester()` n'est qu'un enregistrement** : aucune vérification cryptographique d'un bloc ou d'un comité,
-  juste « ce sceau participe à cette époque ».
+- **No slashing**: a missed epoch simply isn't paid, there's no penalty beyond that.
+- **One-day epoch**, much longer than the real ~6.4 minutes — easier to explain, but
+  slower to observe in a demo (expect to wait between two epochs, or reduce `EPOCH_DURATION`
+  for a demo).
+- **No activation queue**: a seal participates starting the current epoch, whereas a real deposit
+  sometimes waits months before becoming an active validator.
+- **Reward funded by hand**, not a real protocol issuance: on a testnet, no one
+  issues new ETH; `Network`'s balance comes from public faucets, refilled manually.
+- **`attester()` is just a record**: no cryptographic verification of a block or a committee,
+  just "this seal is participating in this epoch."
 
-### Choix techniques et limites
+### Technical choices and limits
 
-- **Aucune garde** : aucun contrat ne détient jamais un jeton pour le compte d'un joueur, ni aucun dépôt
-  réel. Ça élimine toute la classe de risques des contrats de dépôt/retrait (la plus souvent piratée dans
-  le vrai Ethereum), au prix de ne pas pouvoir simuler un vrai staking avec capital à risque.
-- **Aucune synchronisation à double sens** : un échange en jeu ne bouge jamais le jeton onchain ; comme le
-  sceau est non transférable (ERC-5192), la question ne se pose même pas dans l'autre sens. La blockchain
-  reste un miroir, jamais le moteur du jeu.
-- **Tout passe par l'opérateur** (`mint`, `attester`, `reclamer` réservés à `OPERATOR_ROLE`) : le joueur ne
-  paie jamais de gaz, mais le jeu dépend de la disponibilité de l'Edge Function pour ces trois actions — un
-  compromis assumé, pas un oubli.
-- **Clé opérateur à bas privilège** : elle ne peut qu'appeler ces trois fonctions précises. Elle ne peut ni
-  changer de rôle, ni retirer le solde de `Réseau`, ni toucher à `Sceau` ou `Réseau` autrement. Une clé
-  d'administration séparée (`DEFAULT_ADMIN_ROLE`), utilisée une seule fois au déploiement puis gardée hors
-  ligne, est seule à pouvoir changer ça.
-- **Périmètre volontairement réduit** aux validateurs : les parcelles et les pioches sont restées en dehors.
-  Les tokeniser aurait demandé soit une garde (le contrat détient le jeton tant que le joueur n'a pas de
-  wallet), soit une synchronisation à double sens entre le jeu et la chaîne — les deux pistes explorées puis
-  écartées, pour un risque ajouté qui dépassait largement le bénéfice réel.
+- **No custody**: no contract ever holds a token on a player's behalf, nor any real
+  deposit. This eliminates the whole class of risks around deposit/withdrawal contracts (the most
+  frequently hacked part of real Ethereum), at the cost of not being able to simulate real staking with capital at risk.
+- **No two-way sync**: an in-game trade never moves the onchain token; since the
+  seal is non-transferable (ERC-5192), the question doesn't even arise the other way. The blockchain
+  stays a mirror, never the engine of the game.
+- **Everything goes through the operator** (`mint`, `attester`, `reclamer` reserved to `OPERATOR_ROLE`): the player
+  never pays gas, but the game depends on the Edge Function's availability for these three actions — a
+  deliberate tradeoff, not an oversight.
+- **Low-privilege operator key**: it can only call these three specific functions. It can neither
+  change roles, nor withdraw `Network`'s balance, nor touch `Seal` or `Network` any other way. A separate
+  admin key (`DEFAULT_ADMIN_ROLE`), used once at deployment then kept offline,
+  is the only one that can change that.
+- **Deliberately narrow scope**, limited to validators: plots and pickaxes were left out.
+  Tokenizing them would have required either custody (the contract holds the token until the player has a
+  wallet) or two-way sync between the game and the chain — both paths explored then
+  dropped, for added risk that far outweighed the real benefit.
 
-### Mettre en route
+### Getting started
 
-1. **Un wallet Sepolia pour déployer** (`DEPLOYER_PRIVATE_KEY`), avec un peu de Sepolia ETH (faucet public).
-   C'est lui qui devient l'administrateur des deux contrats — à garder hors ligne après le déploiement.
-2. **Une adresse pour l'opérateur** (`OPERATOR_ADDRESS`, juste l'adresse, pas sa clé privée). Sa clé privée
-   devient le secret Supabase `OPERATOR_PRIVATE_KEY` de la fonction `chaine` — jamais utilisée pour déployer.
-3. **Un point d'accès RPC Sepolia** (Alchemy, Infura, ou un public comme
+1. **A Sepolia wallet to deploy** (`DEPLOYER_PRIVATE_KEY`), with a bit of Sepolia ETH (public faucet).
+   It becomes the admin of both contracts — keep it offline after deployment.
+2. **An address for the operator** (`OPERATOR_ADDRESS`, just the address, not its private key). Its private key
+   becomes the Supabase secret `OPERATOR_PRIVATE_KEY` for the `chain` function — never used to deploy.
+3. **A Sepolia RPC endpoint** (Alchemy, Infura, or a public one like
    `https://ethereum-sepolia-rpc.publicnode.com`).
-4. **Une clé Etherscan** (pour la vérification automatique du code source).
-5. **Déployer et vérifier** :
+4. **An Etherscan key** (for automatic source verification).
+5. **Deploy and verify**:
    ```
    cd contracts
    forge install foundry-rs/forge-std OpenZeppelin/openzeppelin-contracts --no-git --no-commit
@@ -298,68 +299,68 @@ Adresses sur Sepolia : *(remplies après le déploiement — voir « Mettre en r
      forge script script/Deploy.s.sol:Deploy --rpc-url $SEPOLIA_RPC_URL --broadcast \
        --verify --etherscan-api-key $ETHERSCAN_API_KEY
    ```
-   `lib/` n'est pas versionné (voir `contracts/.gitignore`) : la première ligne le reconstruit à l'identique.
-6. **Reporter les deux adresses affichées** : dans `src/config.js` (`SCEAU_ADDRESS`, `RESEAU_ADDRESS`,
-   `SEPOLIA_RPC_URL` — un point d'accès public, en lecture seule, jamais de clé privée) et dans les secrets
-   Supabase des fonctions `lier-wallet`/`chaine` (`supabase secrets set SCEAU_ADDRESS=… RESEAU_ADDRESS=…
+   `lib/` isn't checked in (see `contracts/.gitignore`): the first line rebuilds it identically.
+6. **Report the two displayed addresses**: in `src/config.js` (`SEAL_ADDRESS`, `NETWORK_ADDRESS`,
+   `SEPOLIA_RPC_URL` — a public, read-only endpoint, never a private key) and in the Supabase secrets
+   for the `link-wallet`/`chain` functions (`supabase secrets set SEAL_ADDRESS=… NETWORK_ADDRESS=…
    SEPOLIA_RPC_URL=… OPERATOR_PRIVATE_KEY=…`).
-7. **Lancer la migration** : `supabase/installation.sql` (déjà à jour) dans le SQL Editor.
-8. **Deux soldes à réapprovisionner de temps en temps, depuis des faucets Sepolia publics — pas le même usage** :
-   - **L'adresse opérateur elle-même** : c'est elle qui envoie les transactions (`mint`, `attester`,
-     `reclamer`), donc elle paie leur gaz de sa propre poche. Un simple envoi à `OPERATOR_ADDRESS` suffit
-     (depuis un portefeuille, ou `cast send $OPERATOR_ADDRESS --value 0.02ether --rpc-url $SEPOLIA_RPC_URL --private-key 0x…`).
-     Sans ça, la fonction `chaine` échoue dès la première transaction.
-   - **Le contrat `Réseau`** : c'est son solde qui paie les *récompenses* versées aux joueurs (distinct du
-     gaz ci-dessus) :
+7. **Run the migration**: `supabase/installation.sql` (already up to date) in the SQL Editor.
+8. **Two balances to refill now and then, from public Sepolia faucets — not for the same purpose**:
+   - **The operator address itself**: it's the one sending the transactions (`mint`, `attester`,
+     `reclamer`), so it pays their gas out of its own pocket. A simple transfer to `OPERATOR_ADDRESS` is enough
+     (from a wallet, or `cast send $OPERATOR_ADDRESS --value 0.02ether --rpc-url $SEPOLIA_RPC_URL --private-key 0x…`).
+     Without this, the `chain` function fails on the very first transaction.
+   - **The `Network` contract**: its balance is what pays the *rewards* given to players (distinct from
+     the gas above):
      ```
-     cast send $RESEAU_ADDRESS --value 0.05ether --rpc-url $SEPOLIA_RPC_URL --private-key 0x…
+     cast send $NETWORK_ADDRESS --value 0.05ether --rpc-url $SEPOLIA_RPC_URL --private-key 0x…
      ```
-   Dans les deux cas, un solde insuffisant fait simplement échouer l'action proprement (rien n'est perdu,
-   personne n'est bloqué) : à retenter après réapprovisionnement.
-9. **Si la vérification automatique échoue**, la relancer à la main, par exemple pour `Sceau` :
+   In both cases, an insufficient balance simply makes the action fail cleanly (nothing is lost,
+   no one is stuck): retry after refilling.
+9. **If automatic verification fails**, retry it by hand, for example for `Seal`:
    ```
-   forge verify-contract <adresse_sceau> src/Sceau.sol:Sceau --chain sepolia \
+   forge verify-contract <seal_address> src/Seal.sol:Seal --chain sepolia \
      --etherscan-api-key $ETHERSCAN_API_KEY --constructor-args $(cast abi-encode "constructor(address)" <admin>)
    ```
 
-### Tester les contrats
+### Testing the contracts
 
-`cd contracts && forge test` — 40 tests, dont du fuzzing (256 runs par propriété) sur le calcul de
-l'identifiant d'un sceau, les coordonnées extrêmes, et la courbe de récompense de `Réseau` (personne ne
-reçoit plus que sa part, la somme versée ne dépasse jamais l'émission prévue, aucun contournement de la
-clôture d'une époque). Lancés aussi sur GitHub à chaque push (workflow *Tests*, job *contracts*).
+`cd contracts && forge test` — 40 tests, including fuzzing (256 runs per property) on computing
+a seal's id, extreme coordinates, and `Network`'s reward curve (no one
+receives more than their share, the amount paid out never exceeds the planned issuance, no way to bypass
+an epoch's closing). Also run on GitHub on every push (*Tests* workflow, *contracts* job).
 
-## Limites connues
+## Known limits
 
-- Le serveur vérifie que les positions annoncées sont vraisemblables, pas la physique fine : un tricheur peut traverser un mur ou voler à vitesse de course. Il ne peut ni miner à distance, ni se téléporter, ni agir plus vite qu'un humain.
-- Les objectifs sont suivis dans le navigateur ; ils ne donnent aucune récompense, donc rien à y gagner en trichant.
-- Les animaux et les cadeaux ne sont pas vérifiés un par un (le serveur limite à 15 cadeaux par jour).
-- La modération du chat est automatique et simple : pas de modérateur humain, et le filtre ne voit que des mots entiers (« c0nnard » passe). Plusieurs joueurs peuvent porter le même pseudo ; `/signaler` vise le plus récent.
-- La couche web3 (« Couche web3 ») ne couvre que les sceaux de validateur, pas les pioches ni les parcelles — un choix de périmètre, pas une limite technique : voir « Choix techniques et limites » plus bas.
-- Offre gratuite de Supabase : projet mis en pause après une semaine sans activité, 2 millions de messages temps réel par mois (les positions sont limitées à 5 envois par seconde et par joueur, seulement quand il bouge).
+- The server checks that reported positions are plausible, not fine-grained physics: a cheater can walk through a wall or fly at running speed. They can't mine from a distance, teleport, or act faster than a human.
+- Objectives are tracked in the browser; they give no reward, so there's nothing to gain by cheating on them.
+- Animals and gifts aren't checked one by one (the server caps gifts at 15 a day).
+- Chat moderation is automatic and simple: no human moderator, and the filter only sees whole words (leetspeak slips through). Several players can share the same nickname; `/report` targets the most recent one.
+- The web3 layer ("Web3 layer") only covers validator seals, not pickaxes or plots — a scope choice, not a technical limit: see "Technical choices and limits" below.
+- Supabase free tier: the project pauses after a week of inactivity, 2 million realtime messages a month (positions are capped at 5 sends per second per player, only while moving).
 
-## Surveiller le jeu
+## Monitoring the game
 
-Dans Supabase → *SQL Editor* :
+In Supabase → *SQL Editor*:
 
 ```sql
--- erreurs des dernières 24 h, les plus fréquentes d'abord
-select msg, sum(n) as fois, count(distinct user_id) as joueurs, max(at) as derniere
-from client_errors where at > now() - interval '1 day' group by msg order by fois desc;
+-- errors from the last 24 h, most frequent first
+select msg, sum(n) as times, count(distinct user_id) as players, max(at) as last_seen
+from client_errors where at > now() - interval '1 day' group by msg order by times desc;
 
--- rendre un joueur muet à la main, ou lui rendre la parole
-update players set muted_until = now() + interval '1 day' where world = 'principal' and name = 'Pseudo';
-update players set muted_until = null where world = 'principal' and name = 'Pseudo';
+-- mute a player by hand, or give them back their voice
+update players set muted_until = now() + interval '1 day' where world = 'principal' and name = 'Nickname';
+update players set muted_until = null where world = 'principal' and name = 'Nickname';
 
--- ajouter un mot au filtre du chat (minuscules, sans accents)
-insert into chat_mots_bannis values ('motif') on conflict do nothing;
+-- add a word to the chat filter (lowercase, no accents)
+insert into chat_banned_words values ('word') on conflict do nothing;
 ```
 
-## Commandes
+## Commands
 
-- ZQSD ou flèches : marcher · Maj : courir · Espace : sauter
-- Clic gauche maintenu : miner · clic droit : poser
-- Clic droit sur une porte ou un levier : l'actionner
-- 1 à 9, molette : barre d'objets · E : coffre et atelier · T : vue registre · M : son · Entrée : chat (`/rejoindre pseudo`, `/sanctuaire`, `/parcelle`, `/liberer`, `/inviter pseudo`, `/exclure pseudo`, `/parcelles`, `/ignorer pseudo`, `/ecouter pseudo`, `/signaler pseudo`)
-- Mobile (disposition de Minecraft mobile) : croix à gauche pour marcher, glisser pour regarder, toucher long pour miner, toucher bref pour poser ou actionner ; à droite, sauter (↑), courir (», reste actif jusqu'à l'arrêt) et s'accroupir (↓ : plus lent, ne tombe pas des bords, descend dans l'eau) ; en haut, coffre, chat et menu ; « … » au bout de la barre ouvre le coffre
-- Clavier : C ou Ctrl pour s'accroupir
+- WASD or arrows: walk · Shift: run · Space: jump
+- Hold left click: mine · right click: place
+- Right-click a door or lever: activate it
+- 1 to 9, scroll: item bar · E: chest and crafting · T: ledger view · M: sound · Enter: chat (`/join nickname`, `/sanctuary`, `/claim`, `/unclaim`, `/invite nickname`, `/kick nickname`, `/claims`, `/ignore nickname`, `/listen nickname`, `/report nickname`)
+- Mobile (Minecraft mobile layout): stick on the left to walk, drag to look around, long press to mine, short tap to place or activate; on the right, jump (↑), run (», stays active until you stop) and crouch (↓: slower, won't fall off edges, goes down into water); at the top, chest, chat, and menu; "…" at the end of the bar opens the chest
+- Keyboard: C or Ctrl to crouch
