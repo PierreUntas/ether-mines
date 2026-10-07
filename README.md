@@ -232,10 +232,10 @@ Seal (ERC-721 / ERC-5192) and Network — Sepolia
   hand (see below), never deposited by a player. `attester()` and `reclamer()` are also reserved to the
   operator role; the payout always goes to the seal's actual holder, never to whoever sends the transaction.
 
-Addresses on Sepolia: *(filled in after deployment — see "Getting started" below)*.
+Addresses on Sepolia:
 
-- Seal: `0x…` — [Etherscan](https://sepolia.etherscan.io)
-- Network: `0x…` — [Etherscan](https://sepolia.etherscan.io)
+- Seal: `0x73215D0e62E16a64A0110889867Cd7EF460F1D4B` — [Etherscan](https://sepolia.etherscan.io/address/0x73215D0e62E16a64A0110889867Cd7EF460F1D4B)
+- Network: `0xE70104D3786c2DE304E0635d27BD8c3e4De48e23` — [Etherscan](https://sepolia.etherscan.io/address/0xE70104D3786c2DE304E0635d27BD8c3e4De48e23)
 
 ### Mapping to real Ethereum
 
