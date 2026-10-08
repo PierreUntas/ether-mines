@@ -1124,13 +1124,21 @@ tile(125, (P, E, i) => {
   }
 });
 tile(126, (P, E, i) => {
-  // A small cup with something to drink: a clay mug with cool blue water near the rim.
-  noise(P, i, '#caa479', [
-    ['#d9b78c', 0.25],
-    ['#b08a5f', 0.15],
+  // A small glass with something to drink: clear rim, cool blue water underneath.
+  noise(P, i, '#eef8fb', [
+    ['#ffffff', 0.25],
+    ['#dcecf2', 0.15],
   ]);
-  for (let y = 2; y < 7; y++) for (let x = 0; x < 16; x++) P(x, y, hash(i, x * 16 + y, 4) < 0.3 ? '#8fd9f0' : '#4fb8e0');
-  for (let x = 2; x < 14; x++) P(x, 2, '#c8f3ff');
+  for (let y = 4; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, hash(i, x * 16 + y, 4) < 0.3 ? '#8fd9f0' : '#4fb8e0');
+  for (let x = 2; x < 14; x++) P(x, 4, '#c8f3ff');
+});
+tile(127, (P, E, i) => {
+  // A small plate: pale ceramic with a thin rim.
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const edge = x < 2 || y < 2 || x > 13 || y > 13;
+      P(x, y, edge ? '#cfd6dc' : '#f4f1ea');
+    }
 });
 // ---------- ink outline ----------
 // ethereum.org's illustrations are drawn with a navy ink line: every solid tile (no transparency)

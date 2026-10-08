@@ -85,8 +85,9 @@
     switch (b.shape) {
       case 'table':
         return [
-          [0, 0, 0, 1, 0.5, 1],
-          [0.6, 0.5, 0.6, 0.8, 0.74, 0.8],
+          [0, 0, 0, 1, 0.5, 1], // tabletop
+          [0.52, 0.5, 0.52, 0.82, 0.57, 0.82], // plate
+          [0.2, 0.5, 0.2, 0.32, 0.82, 0.32], // glass
         ];
       case 'fence': {
         const out = [[0.375, 0, 0.375, 0.625, 1, 0.625]];
@@ -324,12 +325,14 @@
                   : b.shape === 'lever' && bi === 1
                     ? [10, 10, 10]
                     : b.shape === 'table' && bi === 1
-                      ? [126, 126, 126]
-                      : b.shape && b.shape.startsWith('bed') && bi === 1
-                        ? [10, 10, 10]
-                        : b.shape && b.shape.startsWith('bed') && bi === 2
-                          ? [125, 125, 125]
-                          : b.t,
+                      ? [127, 127, 127]
+                      : b.shape === 'table' && bi === 2
+                        ? [126, 126, 126]
+                        : b.shape && b.shape.startsWith('bed') && bi === 1
+                          ? [10, 10, 10]
+                          : b.shape && b.shape.startsWith('bed') && bi === 2
+                            ? [125, 125, 125]
+                            : b.t,
                 b.shape === 'door' ? (b.top ? 40 : 39) : null,
               ),
             );

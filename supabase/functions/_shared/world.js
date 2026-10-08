@@ -8,7 +8,7 @@
     sm = t => t * t * (3 - 2 * t);
   // World seed: changing it gives completely different terrain (only do this together with a database reset).
   // root.__SEED lets tools try other seeds (tools/seeds.mjs).
-  const SEED = root.__SEED ?? 167212110;
+  const SEED = root.__SEED ?? 2047435448;
   function hash(x, y, s = 0) {
     let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(97 + s, 1442695041) ^ SEED;
     h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP: below this layer, geodes and large caves
-  const GEN = 8; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep) : bump it on every terrain change (already-frozen chunks don't move)
+  const GEN = 9; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed) : bump it on every terrain change (already-frozen chunks don't move)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -82,7 +82,7 @@
     '0,-2': { t: 'square' },
     '2,0': { t: 'garden' },
     '-2,0': { t: 'garden' },
-    '2,1': { t: 'shelter', H: 3 }, // the shelter: a room to eat and sleep in
+    '2,1': { t: 'shelter', H: 4 }, // the shelter: a room to eat and sleep in
   };
   function cityPlot(i, j) {
     const L = PLOTS[i - 3 + ',' + (j - 3)];
@@ -567,18 +567,22 @@
             if (m <= 4) set(Y, 1);
             if (m <= 4 && m >= 3 && (dx + dz) % 2 && hash(x, z, 176) < 0.6) set(Y + 1, 17 + Math.floor(hash(x, z, 177) * 3));
           } else if (L.t === 'shelter') {
-            // the shelter: ether-brick walls, door to the south, lantern to the north, table and bed inside
-            if (m > 2) continue;
-            if (m === 2) {
-              const door = dz === 2 && ax === 0,
-                lantern = dz === -2 && ax === 0;
-              for (let k = 1; k <= H; k++) set(Y + k, door && k <= 2 ? 0 : lantern && k === 2 ? 84 : 79);
+            // the shelter: ether-brick walls with a window on each side, pyramid roof, lantern, a proper bed and a table
+            const R = 3;
+            if (m > R) continue;
+            if (m === R) {
+              const door = dz === R && ax === 0,
+                lantern = dz === -R && ax === 0,
+                window = (dx === R || dx === -R) && az === 0;
+              for (let k = 1; k <= H; k++) set(Y + k, door && k <= 2 ? 0 : lantern && k === 2 ? 84 : window && k === 2 ? 93 : 79);
               continue;
             }
             set(Y, dam);
-            set(Y + H + 1, 9);
-            if (dx === -1 && dz === 0) set(Y + 1, 135);
-            if (dx === 1 && dz === 0) set(Y + 1, 136);
+            set(Y + H + 1 + (R - 1 - m), 9); // pyramid roof, apex over the center
+            if (dx === 0 && dz >= -1) set(Y, 86); // reed mat along the entryway
+            if (dx === -2 && dz === -1) set(Y + 1, 135); // table
+            if (dx === 2 && dz === 1) set(Y + 1, 137); // bed: foot (facing north, toward dz 0)
+            if (dx === 2 && dz === 0) set(Y + 1, 141); // bed: head
           }
         }
     }

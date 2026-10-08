@@ -109,7 +109,7 @@ function migrateSave(s) {
   }
 }
 // Season: changing SEASON wipes the saves kept in browsers (do this together with a database reset).
-const SEASON = '6';
+const SEASON = '7';
 try {
   if (localStorage.getItem('ether-mines:saison') !== SEASON) {
     for (const k of Object.keys(localStorage))
