@@ -446,13 +446,53 @@ function blockBox(id, s) {
   uv.needsUpdate = true;
   return g;
 }
-function flatSprite(ti, s) {
-  const g = new THREE.PlaneGeometry(s, s),
-    uv = g.attributes.uv,
-    [u0, u1, v0, v1] = uvRect(ti);
-  for (let i = 0; i < 4; i++) uv.setXY(i, lerp(u0, u1, uv.getX(i)), lerp(v0, v1, uv.getY(i)));
-  uv.needsUpdate = true;
-  return g;
+// held tools and items: voxelize the icon's pixels into small lit cubes instead of a flat, blown-up sprite —
+// every block in this game is a cube, so a held tool reads as a tiny cube sculpture of its own icon.
+const heldVoxelCache = {},
+  heldVoxelMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+const HELD_SS = 3; // sub-cubes per source pixel: smaller cubes, closer to the texel size seen on a placed block
+function heldVoxelGeo(ti) {
+  if (heldVoxelCache[ti]) return heldVoxelCache[ti];
+  const ox = (ti % AN) * AT,
+    oy = Math.floor(ti / AN) * AT,
+    img = ag.getImageData(ox, oy, AT, AT).data,
+    glow = eg.getImageData(ox, oy, AT, AT).data,
+    cs = 1 / AT / HELD_SS,
+    template = new THREE.BoxGeometry(cs * 0.92, cs * 0.92, cs * 0.8),
+    tp = template.attributes.position.array,
+    idx = template.index.array,
+    pos = [],
+    col = [];
+  for (let y = 0; y < AT; y++)
+    for (let x = 0; x < AT; x++) {
+      const i = (y * AT + x) * 4;
+      if (img[i + 3] < 128) continue;
+      let r = img[i] / 255,
+        g = img[i + 1] / 255,
+        b = img[i + 2] / 255;
+      if (glow[i] + glow[i + 1] + glow[i + 2] > 30) {
+        r = r * 0.55 + 0.45;
+        g = g * 0.55 + 0.45;
+        b = b * 0.55 + 0.45;
+      }
+      for (let sy = 0; sy < HELD_SS; sy++)
+        for (let sx = 0; sx < HELD_SS; sx++) {
+          const cx = (x + (sx + 0.5) / HELD_SS) / AT - 0.5,
+            cy = (AT - 1 - y + (sy + 0.5) / HELD_SS) / AT - 0.5;
+          for (let k = 0; k < idx.length; k++) {
+            const vi = idx[k] * 3;
+            pos.push(tp[vi] + cx, tp[vi + 1] + cy, tp[vi + 2]);
+            col.push(r, g, b);
+          }
+        }
+    }
+  template.dispose();
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  heldVoxelCache[ti] = geo;
+  return geo;
 }
 function setHand() {
   const key = S.bar[S.sel] || 'main',
@@ -461,7 +501,7 @@ function setHand() {
   handKey = key;
   if (handMesh) {
     hand.remove(handMesh);
-    handMesh.geometry.dispose();
+    if (!handMesh.userData.shared) handMesh.geometry.dispose();
   }
   if (!it) {
     handMesh = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.5), new THREE.MeshLambertMaterial({ color: 0xf6d3b8 }));
@@ -483,11 +523,10 @@ function setHand() {
     if (B[it].shape === 'slab' || B[it].shape === 'stairs') handMesh.scale.y = 0.5;
   } else {
     const ti = B[it] ? (B[it].icon ?? B[it].x) : ITEM[it].icon;
-    handMesh = new THREE.Mesh(
-      flatSprite(ti, 0.5),
-      new THREE.MeshLambertMaterial({ map: atlasTex, emissiveMap: emisTex, emissive: 0xffffff, alphaTest: 0.5, side: THREE.DoubleSide }),
-    );
-    handMesh.position.set(0.42, -0.28, -0.62);
+    handMesh = new THREE.Mesh(heldVoxelGeo(ti), heldVoxelMat);
+    handMesh.userData.shared = true;
+    handMesh.scale.setScalar(0.54);
+    handMesh.position.set(0.24, -0.3, -0.68);
     handMesh.rotation.set(0, -0.5, 0.2);
   }
   hand.add(handMesh);

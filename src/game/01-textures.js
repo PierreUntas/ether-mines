@@ -344,6 +344,7 @@ tile(24, (P, E) => {
 function pick(P, head, headD) {
   for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
   for (let k = 0; k < 11; k++) {
+    P(2 + k, 13 - k, '#8a5a33');
     P(3 + k, 13 - k, '#8a5a33');
     P(4 + k, 13 - k, '#b98a5a');
   }
@@ -351,17 +352,21 @@ function pick(P, head, headD) {
     [6, 2],
     [7, 2],
     [8, 2],
+    [6, 3],
     [9, 3],
     [10, 3],
     [11, 4],
     [12, 5],
     [12, 6],
+    [13, 6],
     [13, 7],
     [13, 8],
     [13, 9],
+    [12, 9],
     [5, 3],
     [4, 3],
     [3, 4],
+    [4, 4],
   ])
     P(x, y, head);
   for (const [x, y] of [
@@ -371,6 +376,7 @@ function pick(P, head, headD) {
     [11, 5],
     [12, 7],
     [12, 8],
+    [11, 8],
   ])
     P(x, y, headD);
 }
@@ -1056,16 +1062,20 @@ tile(116, (P, E) => {
 function blade(P, E, core, edge) {
   for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
   for (let k = 0; k < 4; k++) {
+    P(1 + k, 13 - k, '#1c1029');
     P(2 + k, 13 - k, '#1c1029');
     P(3 + k, 13 - k, '#2a1838');
   }
   P(4, 11, '#1c1029');
   P(5, 10, '#1c1029');
+  P(3, 11, '#1c1029');
   for (let k = 0; k < 9; k++) {
     const x = 6 + k,
       y = 9 - k;
+    P(x - 1, y, core);
     P(x, y, core);
     P(x + 1, y, edge);
+    E(x - 1, y, core);
     E(x, y, core);
     E(x + 1, y, edge);
   }
