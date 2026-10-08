@@ -1112,6 +1112,26 @@ function armorIcon(P, E, glow) {
 }
 tile(123, (P, E) => armorIcon(P, E, '#00eaff')); // Volt Plating
 tile(124, (P, E) => armorIcon(P, E, '#c9a6ff')); // Pure Ether Plating
+tile(125, (P, E, i) => {
+  // Pillow: a soft cream cushion with a shadowed fold down the middle.
+  noise(P, i, '#fbf6ea', [
+    ['#fffdf5', 0.25],
+    ['#f1e8d6', 0.15],
+  ]);
+  for (let y = 2; y < 14; y++) {
+    P(7, y, '#e4d8bf');
+    P(8, y, '#e4d8bf');
+  }
+});
+tile(126, (P, E, i) => {
+  // A small cup with something to drink: a clay mug with cool blue water near the rim.
+  noise(P, i, '#caa479', [
+    ['#d9b78c', 0.25],
+    ['#b08a5f', 0.15],
+  ]);
+  for (let y = 2; y < 7; y++) for (let x = 0; x < 16; x++) P(x, y, hash(i, x * 16 + y, 4) < 0.3 ? '#8fd9f0' : '#4fb8e0');
+  for (let x = 2; x < 14; x++) P(x, 2, '#c8f3ff');
+});
 // ---------- ink outline ----------
 // ethereum.org's illustrations are drawn with a navy ink line: every solid tile (no transparency)
 // gets an outline, blended with the original color to stay soft. Open-work tiles (leaves, glass, plants) don't get one.

@@ -67,6 +67,27 @@ select pg_temp.ok('unique pickaxe''s mining counter', (select mined from uniques
 
 select pg_temp.ok('place a door (two halves)', jsonb_array_length(act_place('w', 20, :gy, 3, 48, 52, 20.5, :gy + 1, 6.5) -> 'changes') = 2);
 select pg_temp.ok('open the door', act_toggle('w', 20, :gy, 3, 20.5, :gy + 1, 6.5) -> 'changes' -> 0 ->> 'id' = '54');
+
+-- bed: a 2-block foot+head placement, same mechanism as the door above (terrain height varies by
+-- column, so the two target cells are force-cleared first rather than assumed to already be air)
+reset role;
+insert into inventory values ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 137, 1);
+select public._set('w', 20, :gy + 1, 10, 0, null, null, null);
+select public._set('w', 21, :gy + 1, 10, 0, null, null, null);
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('place a bed (two halves: foot + head)', jsonb_array_length(act_place('w', 20, :gy + 1, 10, 137, 140, 20.5, :gy + 1, 9.5) -> 'changes') = 2);
+reset role;
+select pg_temp.ok('the head sits 4 ids past the foot, one cell further in the facing direction', public._cell('w', 21, :gy + 1, 10) = 144);
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_sleep(0.5);
+select pg_temp.ok('mine the head half: exactly one bed item back', act_mine('w', 21, :gy + 1, 10, null, 20.5, :gy + 1, 9.5) -> 'got' ->> 'item' = '137');
+reset role;
+select pg_temp.ok('mining either half clears both cells', public._cell('w', 20, :gy + 1, 10) = 0 and public._cell('w', 21, :gy + 1, 10) = 0);
+select pg_temp.ok('exactly one bed item in the inventory after mining either half', (select n from inventory where user_id = 'aaaaaaaa-0000-0000-0000-000000000001' and item = 137) = 1);
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 select pg_temp.ok('place an item missing from the inventory', act_place('w', 21, :gy + 1, 3, 70, 70, 20.5, :gy + 1, 6.5) ->> 'err' = 'empty inventory');
 select pg_temp.ok('turn an item into something else', act_place('w', 21, :gy + 1, 3, 48, 13, 20.5, :gy + 1, 6.5) ->> 'err' = 'item not placeable');
 select pg_temp.ok('block out of reach', act_mine('w', 30, :gy, 3, null, 20.5, :gy + 1, 6.5) ->> 'err' = 'too far');

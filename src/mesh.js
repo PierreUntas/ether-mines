@@ -39,6 +39,27 @@
     [0, 0, 0.875, 1, 1, 1],
     [0.875, 0, 0, 1, 1, 1],
   ];
+  // bed: an inset mattress plus a board at the outer edge, facing 0 → -z, 1 → -x, 2 → +z, 3 → +x
+  // (the direction from the foot toward the head); the footboard sits at the opposite edge from the head.
+  const MATTRESS = [0.04, 0, 0.04, 0.96, 0.3, 0.96];
+  const FOOTBOARD = [
+    [0, 0, 0.86, 1, 0.32, 1],
+    [0.86, 0, 0, 1, 0.32, 1],
+    [0, 0, 0, 1, 0.32, 0.14],
+    [0, 0, 0, 0.14, 0.32, 1],
+  ];
+  const HEADBOARD = [
+    [0, 0, 0, 1, 0.65, 0.14],
+    [0, 0, 0, 0.14, 0.65, 1],
+    [0, 0, 0.86, 1, 0.65, 1],
+    [0.86, 0, 0, 1, 0.65, 1],
+  ];
+  const PILLOW = [
+    [0.28, 0.3, 0.16, 0.72, 0.44, 0.42],
+    [0.16, 0.3, 0.28, 0.42, 0.44, 0.72],
+    [0.28, 0.3, 0.58, 0.72, 0.44, 0.84],
+    [0.58, 0.3, 0.28, 0.84, 0.44, 0.72],
+  ];
   // an arm from a to b (from 0.5 toward the edge) on the given side
   const arm = (c, a, b, y0, y1) =>
     c === 0
@@ -56,7 +77,17 @@
       const [x, y, z] = key.split(',').map(Number);
       return SIDES.map(([dx, dz], c) => (test(get(x + dx, y, z + dz)) ? c : -1)).filter(c => c >= 0);
     };
+    if (b.shape && b.shape.startsWith('bed')) {
+      const f = +b.shape[3],
+        half = b.shape[4];
+      return half === 'f' ? [MATTRESS, FOOTBOARD[f]] : [MATTRESS, HEADBOARD[f], PILLOW[f]];
+    }
     switch (b.shape) {
+      case 'table':
+        return [
+          [0, 0, 0, 1, 0.5, 1],
+          [0.6, 0.5, 0.6, 0.8, 0.74, 0.8],
+        ];
       case 'fence': {
         const out = [[0.375, 0, 0.375, 0.625, 1, 0.625]];
         for (const c of connects(n => isOpaque(n) || (B[n] && B[n].shape === 'fence')))
@@ -281,12 +312,24 @@
               on = pw(key);
             shapeBoxes(id, key, pw, get).forEach((bb, bi) =>
               emitBox(
-                b.shape === 'pane' ? A.gl : A.op, // vitre : verre translucide
+                b.shape === 'pane' ? A.gl : A.op, // pane: translucent glass
                 x,
                 y,
                 z,
                 bb,
-                b.shape === 'cable' ? (on ? [44, 44, 44] : [43, 43, 43]) : b.shape === 'lever' && bi === 1 ? [10, 10, 10] : b.t,
+                b.shape === 'cable'
+                  ? on
+                    ? [44, 44, 44]
+                    : [43, 43, 43]
+                  : b.shape === 'lever' && bi === 1
+                    ? [10, 10, 10]
+                    : b.shape === 'table' && bi === 1
+                      ? [126, 126, 126]
+                      : b.shape && b.shape.startsWith('bed') && bi === 1
+                        ? [10, 10, 10]
+                        : b.shape && b.shape.startsWith('bed') && bi === 2
+                          ? [125, 125, 125]
+                          : b.t,
                 b.shape === 'door' ? (b.top ? 40 : 39) : null,
               ),
             );

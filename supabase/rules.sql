@@ -125,8 +125,16 @@ insert into public.rule_blocks (id, name, hard, tier, drop_item, kind, solid, to
 (132,'Mint Game Brick',1.2,0,132,'cube',true,false),
 (133,'Blue Game Brick',1.2,0,133,'cube',true,false),
 (134,'Peach Game Brick',1.2,0,134,'cube',true,false),
-(135,'Table',1,0,135,'slab',true,false),
-(136,'Bed',0.8,0,136,'slab',true,false);
+(135,'Table',1,0,135,'table',true,false),
+(136,'Bed',0.8,0,136,'slab',true,false),
+(137,'Bed',0.8,0,137,'bed0f',true,false),
+(138,'Bed',0.8,0,137,'bed1f',true,false),
+(139,'Bed',0.8,0,137,'bed2f',true,false),
+(140,'Bed',0.8,0,137,'bed3f',true,false),
+(141,'Bed',0.8,0,137,'bed0h',true,false),
+(142,'Bed',0.8,0,137,'bed1h',true,false),
+(143,'Bed',0.8,0,137,'bed2h',true,false),
+(144,'Bed',0.8,0,137,'bed3h',true,false);
 insert into public.rule_place (item, block) values
 (2,2),
 (3,3),
@@ -225,7 +233,11 @@ insert into public.rule_place (item, block) values
 (133,133),
 (134,134),
 (135,135),
-(136,136);
+(136,136),
+(137,137),
+(137,138),
+(137,139),
+(137,140);
 insert into public.rule_items (id, name, tool, tier, uniq) values
 (101,'Ether Crystal',1,0,false),
 (102,'Wooden Pickaxe',2.2,1,false),
@@ -305,5 +317,5 @@ insert into public.rule_recipes (out_item, n, need, uniq) values
 (133,4,'{"24":2}'::jsonb,false),
 (134,4,'{"25":2}'::jsonb,false),
 (135,1,'{"9":4}'::jsonb,false),
-(136,1,'{"9":2,"71":2}'::jsonb,false);
+(137,1,'{"9":2,"71":2}'::jsonb,false);
 commit;

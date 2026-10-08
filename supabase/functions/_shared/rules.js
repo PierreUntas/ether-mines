@@ -240,12 +240,14 @@
     })),
   );
   // v8: a room to eat and sleep in
-  B[135] = { n: 'Table', t: [10, 10, 10], h: 1, shape: 'slab' };
-  B[136] = { n: 'Bed', t: [53, 10, 10], h: 0.8, shape: 'slab' };
-  RECIPES.push(
-    { out: 135, n: 1, need: { 9: 4 }, d: 'Right-click to eat: a brief speed boost', cat: 'Decoration' },
-    { out: 136, n: 1, need: { 9: 2, 71: 2 }, d: 'Right-click to sleep and skip to dawn', cat: 'Decoration' },
-  );
+  B[135] = { n: 'Table', t: [10, 10, 10], h: 1, shape: 'table' };
+  B[136] = { n: 'Bed', t: [53, 10, 10], h: 0.8, shape: 'slab' }; // superseded by the 2-block bed below (137-144); kept, never reused
+  RECIPES.push({ out: 135, n: 1, need: { 9: 4 }, d: 'Right-click to eat: a brief speed boost', cat: 'Decoration' });
+  // v10: a proper 2-block bed (foot + head), same multi-block pattern as Door (shape/kind encodes the facing,
+  // since rule_blocks has no facing column; head id is always foot id + 4, mirroring door's "+1")
+  ['bed0f', 'bed1f', 'bed2f', 'bed3f'].forEach((shape, f) => (B[137 + f] = { n: 'Bed', t: [53, 10, 10], h: 0.8, shape, drop: 137 }));
+  ['bed0h', 'bed1h', 'bed2h', 'bed3h'].forEach((shape, f) => (B[141 + f] = { n: 'Bed', t: [53, 10, 10], h: 0.8, shape, drop: 137 }));
+  RECIPES.push({ out: 137, n: 1, need: { 9: 2, 71: 2 }, d: 'Right-click to sleep and skip to dawn', cat: 'Decoration' });
   const TOOLS = { 102: 1, 201: 1, 202: 1 };
   // what a placed item becomes: block with the same id, except stairs (4 orientations) and doors (4 orientations, 2 halves)
   function placeIds(it) {
@@ -257,6 +259,7 @@
       return [base, base + 1, base + 2, base + 3];
     }
     if (b.shape === 'door') return [48, 52, 56, 60];
+    if (b.shape === 'bed0f') return [137, 138, 139, 140]; // only the foot is directly placeable; the head follows server-side
     return [it];
   }
   root.Rules = { PASTELS, STAINED, B, ITEM, RECIPES, reqTier, placeIds };

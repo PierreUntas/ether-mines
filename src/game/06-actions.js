@@ -416,7 +416,8 @@ function place() {
     openChest(target);
     return;
   }
-  if ((target.id === 135 || target.id === 136) && !accroupi && inWorld(target.x, target.z)) {
+  const isBed = tb && (tb.shape || '').startsWith('bed');
+  if ((target.id === 135 || isBed) && !accroupi && inWorld(target.x, target.z)) {
     if (target.id === 135) eat();
     else sleep();
     return;
@@ -448,13 +449,14 @@ function place() {
   };
   let id = +it;
   const face = ((Math.round(yaw / (Math.PI / 2)) % 4) + 4) % 4;
-  if (B[id].shape === 'stairs' || B[id].shape === 'ladder' || B[id].gate) id = id + face;
+  if (B[id].shape === 'stairs' || B[id].shape === 'ladder' || B[id].shape === 'bed0f' || B[id].gate) id = id + face;
   const [x, y, z] = target.prev;
   if (y < 0 || y >= SY || !loaded(x, z)) return;
   if (!inWorld(x, z)) return;
   const cur = get(x, y, z);
   if (cur && cur !== 11 && !isCross(cur)) return;
   const sh = B[id].shape;
+  let hx, hz;
   if (sh === 'door') {
     const up = get(x, y + 1, z);
     if (y + 1 >= SY || (up && up !== 11 && !isCross(up))) return refuse('you need two free spaces, one above the other');
@@ -463,6 +465,17 @@ function place() {
     const [a, , c, d, , f] = DOORB[B[id].f];
     if (x + d > P.x - PW && x + a < P.x + PW && y + 2 > P.y && y < P.y + PH && z + f > P.z - PW && z + c < P.z + PW)
       return refuse('you are in the doorway: step back');
+  } else if (sh && sh.startsWith('bed')) {
+    // the foot was already shifted to the right facing variant above; the head is one cell further that way
+    const DIR = [
+      [0, -1],
+      [-1, 0],
+      [0, 1],
+      [1, 0],
+    ];
+    [hx, hz] = [x + DIR[face][0], z + DIR[face][1]];
+    const hc = get(hx, y, hz);
+    if (!inWorld(hx, hz) || (hc && hc !== 11 && !isCross(hc))) return refuse('the bed needs room to stretch out');
   } else if (isSolid(id) && x + 1 > P.x - PW && x < P.x + PW && y + 1 > P.y && y < P.y + PH && z + 1 > P.z - PW && z < P.z + PW)
     return refuse('you are standing on that spot: step back');
   if (isCross(id) && ![1, 2].includes(get(x, y - 1, z))) return refuse('plants are placed on grass or dirt');
@@ -479,10 +492,11 @@ function place() {
   const rec = record(() => {
     commit(k, id, own);
     if (sh === 'door') commit(coordKey(x, y + 1, z), id + 1, own);
+    else if (sh && sh.startsWith('bed')) commit(coordKey(hx, y, hz), id + 4, own);
   });
   swing = 1;
   Sound.place(MAT_OF(id));
-  popAt(x, y, z, sh === 'door' ? 2 : 1);
+  popAt(x, y, z, sh === 'door' || (sh && sh.startsWith('bed')) ? 2 : 1);
   if (SERVER()) {
     const name = B[id].n;
     serverAct('place', { px: x, py: y, pz: z, it: +it, bid: id }, rec).then(r => {
