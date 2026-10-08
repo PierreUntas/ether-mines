@@ -127,13 +127,19 @@ function frame(now) {
       S.day -= 1;
       S.dayN++;
     }
-    // combat: aiming a hostile mob with the mining click attacks instead of mining
+    // combat: aiming a hostile mob, or a killable animal, with the mining click attacks instead of mining
     const mobTarget = mining ? pickMob(aim, target) : null;
+    const aniTarget = !mobTarget && mining ? pickAnimal(aim, target) : null;
     if (mobTarget) {
       crack.visible = false;
       mineKey = -1;
       mineT = 0;
       attackMob(mobTarget, dt);
+    } else if (aniTarget && AK[aniTarget.type].hp) {
+      crack.visible = false;
+      mineKey = -1;
+      mineT = 0;
+      attackAnimal(aniTarget, dt);
     } else if (mining && target && B[target.id].h !== Infinity && !canBuildHere(target.x, target.z)) {
       crack.visible = false;
       mineKey = -1;
@@ -263,7 +269,7 @@ function frame(now) {
         tg.innerHTML =
           an.type === 'villager'
             ? `${an.h.name}<span>${an.h.role} · ${touch ? 'tap' : 'right-click'}: talk</span>`
-            : `${K.n}<span>${touch ? 'tap' : 'right-click'}: pet${g ? ' · has a gift for you' : ''}</span>`;
+            : `${K.n}<span>${touch ? 'tap' : 'right-click'}: pet${g ? ' · has a gift for you' : ''}${K.hp ? ` · ${touch ? 'tap and hold' : 'left-click'}: fight for a heart` : ''}</span>`;
       }
     }
   }

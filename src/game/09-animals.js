@@ -6,11 +6,14 @@
 // every player sees the same animals in the same place, without sending anything over the network.
 const ANIMALS = new Map(),
   ANI_R = 3; // radius, in chunks, around the player
+// hp: animals can be fought (left-click) for a heart back if you're hurt, like the sheep/fox/jellyfish's
+// daily petting gift, this is resolved locally — no loot, nothing to arbitrate server-side. The villager
+// has no hp: it's a character, not game, and stays pet-only (talk).
 const AK = {
-  sheep: { n: 'Ether sheep', D: 9, walk: 0.42, R: 6, sp: 1, hit: [0.9, 1.1, 1.25], gift: [71, 1, 'wool offered by a sheep'] },
-  rabbit: { n: 'Dune rabbit', D: 5, walk: 0.38, R: 5, sp: 1, hit: [0.45, 0.55, 0.55] },
-  fox: { n: 'Pink fox', D: 6.5, walk: 0.5, R: 8, sp: 1, hit: [0.55, 0.75, 1], gift: 'flower' },
-  fish: { n: 'Prism fish', D: 6, walk: 0.85, R: 5, sp: 1, hit: [0.3, 0.35, 0.55] },
+  sheep: { n: 'Ether sheep', D: 9, walk: 0.42, R: 6, sp: 1, hit: [0.9, 1.1, 1.25], gift: [71, 1, 'wool offered by a sheep'], hp: 3 },
+  rabbit: { n: 'Dune rabbit', D: 5, walk: 0.38, R: 5, sp: 1, hit: [0.45, 0.55, 0.55], hp: 1 },
+  fox: { n: 'Pink fox', D: 6.5, walk: 0.5, R: 8, sp: 1, hit: [0.55, 0.75, 1], gift: 'flower', hp: 2 },
+  fish: { n: 'Prism fish', D: 6, walk: 0.85, R: 5, sp: 1, hit: [0.3, 0.35, 0.55], hp: 1 },
   jellyfish: {
     n: 'Sky jellyfish',
     D: 12,
@@ -19,11 +22,12 @@ const AK = {
     sp: 1,
     hit: [0.8, 1.2, 0.8],
     gift: [101, 1, 'crystal left by a sky jellyfish'],
+    hp: 3,
   },
   // inspired by ethereum.org's illustrations (no gift: nothing to arbitrate server-side)
-  cat: { n: 'Cat', D: 7, walk: 0.42, R: 6, sp: 1, hit: [0.4, 0.6, 0.75] },
-  shiba: { n: 'Space shiba', D: 6, walk: 0.55, R: 9, sp: 1, hit: [0.6, 1.05, 0.9] },
-  robot: { n: 'Validator robot', D: 11, walk: 0.32, R: 6, sp: 1, hit: [0.8, 1.9, 0.7] },
+  cat: { n: 'Cat', D: 7, walk: 0.42, R: 6, sp: 1, hit: [0.4, 0.6, 0.75], hp: 2 },
+  shiba: { n: 'Space shiba', D: 6, walk: 0.55, R: 9, sp: 1, hit: [0.6, 1.05, 0.9], hp: 2 },
+  robot: { n: 'Validator robot', D: 11, walk: 0.32, R: 6, sp: 1, hit: [0.8, 1.9, 0.7], hp: 4 },
   villager: { n: 'Villager', D: 9, walk: 0.3, R: 2.2, sp: 1, hit: [0.6, 1.95, 0.6] },
 };
 // ---------- villagers ----------
@@ -444,6 +448,7 @@ function spawnChunk(cx, cz) {
         r: hash(cx * 3 + i, cz * 5, 80),
         ph: hash(cx + i, cz - i, 81) * 60,
         seed: ((cx * 73856093) ^ (cz * 19349663) ^ (i * 83492791)) | 0,
+        hp: AK[type].hp,
       };
       if (type === 'jellyfish') {
         const t = islandTop(hx, hz);
@@ -492,6 +497,7 @@ function spawnChunk(cx, cz) {
         r: hash(x, z, 80),
         ph: hash(x, z, 81) * 60,
         seed: ((x * 73856093) ^ (z * 19349663) ^ (i * 83492791)) | 0,
+        hp: AK[type].hp,
       };
       buildAnimal(a);
       list.push(a);
@@ -601,11 +607,23 @@ function updateAnimals(dt) {
       }
     for (const k of [...ANIMALS.keys()]) if (!want.has(k)) despawnChunk(k);
   }
+  for (const l of ANIMALS.values())
+    for (let i = l.length - 1; i >= 0; i--) {
+      const a = l[i];
+      if (a.dying === undefined) continue;
+      a.dying -= dt;
+      a.g.scale.setScalar(Math.max(0, a.dying / 0.4));
+      if (a.dying <= 0) {
+        scene.remove(a.g);
+        l.splice(i, 1);
+      }
+    }
   const T = Date.now() / 1000;
   let near = null,
     nd = 18;
   for (const l of ANIMALS.values())
     for (const a of l) {
+      if (a.dying !== undefined) continue; // killed: handled above, skip the normal walk/animate update
       const K = AK[a.type],
         tt = T + a.ph,
         k = Math.floor(tt / K.D),
@@ -799,6 +817,26 @@ function petAnimal(a) {
     if (K.gift === 'fleur') give(17 + Math.floor(Math.random() * 3), 1, 'cueillie par un fox rose');
     else give(K.gift[0], K.gift[1], K.gift[2]);
     Sound.chime();
+  }
+}
+// left-click an animal (not the villager: no hp) to fight it; a kill gives back one heart if you're hurt
+function attackAnimal(a, dt) {
+  playerAtkT = Math.max(0, playerAtkT - dt);
+  swing = Math.max(swing, 0.6);
+  if (playerAtkT > 0) return;
+  playerAtkT = 0.45;
+  a.hp -= heldDmg();
+  Sound.hit('pierre');
+  if (a.hp <= 0) {
+    a.hp = 0;
+    a.dying = 0.4;
+    Sound.animal(a.type, 1);
+    if (S.hp < 10) {
+      S.hp++;
+      dirty = true;
+      updateHpUI();
+      Sound.chime();
+    }
   }
 }
 
