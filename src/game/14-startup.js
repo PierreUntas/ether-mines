@@ -73,6 +73,27 @@ function makeAvatar(name, color, horsScene) {
   body.position.y = 0.94;
   body.castShadow = true;
   g.add(body);
+  // armor plating: dark base + a glowing center seam, matching the item icon's look. Hidden unless worn;
+  // the glow color is set by updateArmorVisual() from S.armor. Faces -z, like the head's face texture.
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.4, 0.32), M(0x2a1838));
+  plate.position.y = 1.08;
+  const seam = new THREE.Mesh(
+    new THREE.BoxGeometry(0.06, 0.34, 0.02),
+    new THREE.MeshLambertMaterial({ color: 0x00eaff, emissive: 0x00eaff, emissiveIntensity: 0.9 }),
+  );
+  seam.position.set(0, 0, -0.17);
+  plate.add(seam);
+  for (const x of [-0.2, 0.2]) {
+    const pip = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, 0.06, 0.02),
+      new THREE.MeshLambertMaterial({ color: 0x00eaff, emissive: 0x00eaff, emissiveIntensity: 0.9 }),
+    );
+    pip.position.set(x, 0.14, -0.17);
+    plate.add(pip);
+  }
+  plate.visible = false;
+  plate.castShadow = true;
+  g.add(plate);
   const limb = (w, h, d, m, x, y) => {
     const p = new THREE.Group();
     p.position.set(x, y, 0);
@@ -85,12 +106,44 @@ function makeAvatar(name, color, horsScene) {
   };
   const pants = M(0x6a58e0);
   const legs = [limb(0.24, 0.62, 0.26, pants, -0.13, 0.62), limb(0.24, 0.62, 0.26, pants, 0.13, 0.62)],
-    arms = [limb(0.18, 0.62, 0.22, M(col), -0.35, 1.26), limb(0.18, 0.62, 0.22, skin, 0.35, 1.26)];
+    arms = [limb(0.18, 0.62, 0.22, M(col), -0.35, 1.26), limb(0.18, 0.62, 0.22, M(col), 0.35, 1.26)];
   const tag = nameTag(name, color);
   tag.position.y = 2.1;
   g.add(tag);
   if (!horsScene) scene.add(g);
-  return { g, head, body, legs, arms, tag, name, color, walk: 0, t: null, seen: false, ph: Math.random() * 6 };
+  return { g, head, body, legs, arms, tag, plate, held: null, name, color, walk: 0, t: null, seen: false, ph: Math.random() * 6 };
+}
+// third-person held item: a small voxel version of the selected tool/weapon on the right arm, reusing
+// heldVoxelGeo() (04-render.js) — the same per-pixel cube build used for the first-person hand. Self only.
+function updateAvatarHand(av) {
+  if (!av) return;
+  const hand = av.arms[1];
+  if (av.held) {
+    hand.remove(av.held);
+    av.held = null;
+  }
+  const it = S.bar[S.sel] ? itemId(S.bar[S.sel]) : null,
+    ti = it && !B[it] ? ITEM[it]?.icon : null;
+  if (ti == null) return;
+  const m = new THREE.Mesh(heldVoxelGeo(ti), heldVoxelMat);
+  m.scale.setScalar(0.72);
+  m.position.set(0.1, -0.3, -0.22); // -z is the front, matching the head's face texture
+  m.rotation.set(0, -0.3, 0.3);
+  hand.add(m);
+  av.held = m;
+}
+// shows/hides and colors the avatar's chestplate to match the equipped armor (self only — armor isn't synced to other players)
+function updateArmorVisual(av) {
+  if (!av) return;
+  const it = ITEM[S.armor];
+  av.plate.visible = !!it;
+  if (it) {
+    const c = +S.armor === 108 ? 0x00eaff : 0xc9a6ff;
+    for (const child of av.plate.children) {
+      child.material.color.setHex(c);
+      child.material.emissive.setHex(c);
+    }
+  }
 }
 // ---------- seeing yourself: back view, front view (V key), and the character in the chest ----------
 let VIEW = 0, // 0: through your eyes; 1: from behind; 2: from the front
@@ -108,6 +161,8 @@ function changeView() {
     SELF = makeAvatar(ME.name, ME.color);
     SELF.tag.visible = false;
     viewPos.set(P.x, P.y, P.z);
+    updateArmorVisual(SELF);
+    updateAvatarHand(SELF);
   }
   if (SELF) SELF.g.visible = VIEW > 0;
   logEv('nft', ['Through your eyes', 'View from behind', 'View from the front'][VIEW], touch ? '' : 'press V to change');
@@ -198,6 +253,8 @@ function previewBox() {
     p.av.tag.visible = false;
     p.sc.add(p.av.g);
   }
+  updateArmorVisual(p.av);
+  updateAvatarHand(p.av);
   p.box.querySelector('.pname').textContent = ME.name;
   const pc = p.box.querySelector('.pcolor');
   pc.innerHTML = '';

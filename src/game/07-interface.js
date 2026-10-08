@@ -93,10 +93,16 @@ function ui() {
     }
   });
   setHand();
+  const armorEl = $('armor');
+  armorEl.hidden = !S.armor || !ITEM[S.armor];
+  if (!armorEl.hidden) armorEl.textContent = `🛡 ${ITEM[S.armor].n} · -${Math.round(ITEM[S.armor].armor * 100)}% dmg`;
+  updateArmorVisual(SELF);
+  updateAvatarHand(SELF);
   if (!$('panel').hidden) renderPanel();
 }
 let tab = 'inv',
-  selItem = null;
+  selItem = null,
+  craftCat = '';
 document.querySelectorAll('.tab').forEach(
   t =>
     (t.onclick = () => {
@@ -943,8 +949,33 @@ function renderPanel() {
   else if (tab === 'trade') renderTrade(body);
   else if (tab === 'settings') renderSettings(body);
   else if (tab === 'craft') {
+    const cats = [...new Set(RECIPES.map(r => r.cat))];
+    const filters = document.createElement('div');
+    filters.className = 'pills craftFilters';
+    const chip = (txt, active) => {
+      const p = document.createElement('button');
+      p.className = 'pill' + (active ? ' sel' : '');
+      p.textContent = txt;
+      return p;
+    };
+    const allChip = chip('All', craftCat === '');
+    allChip.onclick = () => {
+      craftCat = '';
+      renderPanel();
+    };
+    filters.appendChild(allChip);
+    for (const c of cats) {
+      const b = chip(c, craftCat === c);
+      b.onclick = () => {
+        craftCat = c;
+        renderPanel();
+      };
+      filters.appendChild(b);
+    }
+    body.appendChild(filters);
     let cat = '';
     for (const r of RECIPES) {
+      if (craftCat && r.cat !== craftCat) continue;
       if (r.cat !== cat) {
         cat = r.cat;
         body.insertAdjacentHTML('beforeend', `<h3 class="cat">${cat}</h3>`);
