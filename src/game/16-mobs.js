@@ -275,7 +275,34 @@ function attackMob(a, dt) {
     a.hp = 0;
     a.dying = 0.4;
     Sound.animal(a.type, 1);
+    lootMob(a.type);
   }
+}
+// a thematic, chance-based resource on a mob's death — granting an item is value-moving, so (unlike the
+// fight itself) this goes through the server; it trusts the client-reported mob type, like _core_mine
+// already trusts "held" for tool tier, bounded by _rate + _check_pos instead of re-derived server-side
+function lootMob(type) {
+  if (SERVER()) {
+    serverAct('loot_mob', { mob_type: type }, null, 'mob loot').then(r => {
+      if (r && r.item) {
+        logEv('burn', `1 ${ITEM[r.item].n}`, `→ dropped by a ${MK[type].n.toLowerCase()}`);
+        Sound.chime();
+      }
+    });
+    return;
+  }
+  const r = Math.random();
+  const it =
+    type === 'shadow'
+      ? r < 0.5 && 101
+      : type === 'guardian'
+        ? (r < 0.35 && 101) || (r < 0.5 && 103)
+        : type === 'sentinel'
+          ? r < 0.4 && 103
+          : type === 'wraith'
+            ? (r < 0.25 && 104) || (r < 0.65 && 103)
+            : false;
+  if (it) give(it, 1, `dropped by a ${MK[type].n.toLowerCase()}`);
 }
 // PvP: like attackMob, but the target's hp lives only in the target's own client (same as another
 // player's position) — this just reports the swing; the receiving end decides whether to apply it

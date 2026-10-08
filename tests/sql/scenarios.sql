@@ -327,6 +327,35 @@ select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002
 select pg_temp.ok('open a door inside the Atrium (toggle allowed in public zones)', (act_toggle('w', 12, 34, 8, 12.5, 33, 8.5) ->> 'ok')::boolean);
 reset role;
 select pg_temp.ok('the door actually opened (both halves)', public._cell('w', 12, 34, 8) = 50 and public._cell('w', 12, 35, 8) = 51);
+
+-- mob loot (013_mob_loot.sql): a thematic, chance-based resource on a reported kill, rate-limited and
+-- position-checked since the server can't re-derive "which mob died" the way it can a block.
+-- 'loot_mob' is a fresh rate-limit kind here, so the burst (5) starts full without needing a reset.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+do $$
+declare got boolean := false; ok_count int := 0; res jsonb;
+begin
+  for i in 1..5 loop
+    res := act_loot_mob('w', 'wraith', 12.5, 33, 8.5);
+    if (res ->> 'ok')::boolean is true then ok_count := ok_count + 1; end if;
+    if res ->> 'item' is not null then got := true; end if;
+  end loop;
+  if ok_count <> 5 then raise exception 'FAILED: expected 5 allowed loot rolls (burst), got %', ok_count; end if;
+  if not got then raise exception 'FAILED: wraith never dropped loot over 5 rolls (65%% odds each, ~0.5%% chance)'; end if;
+  res := act_loot_mob('w', 'wraith', 12.5, 33, 8.5);
+  if res ->> 'err' <> 'too many actions' then raise exception 'FAILED: 6th loot roll should be rate-limited, got %', res; end if;
+  raise notice 'ok: wraith loot drops sometimes, and the rate limit (burst 5) kicks in after';
+end $$;
+reset role;
+delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_mob';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('loot roll refused far from the reported position', act_loot_mob('w', 'wraith', 500.5, 33, 500.5) ->> 'err' = 'impossible move');
+reset role;
+delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_mob';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
 \echo All SQL scenarios pass.
 
 -- ---------- trading between players (008_trades.sql) ----------

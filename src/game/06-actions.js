@@ -50,7 +50,7 @@ const REFUSAL = {
   'no chest here': () => 'that chest is gone',
 };
 // Actions that send the player's position: the server checks reach and the plausibility of the move.
-const WITH_POSITION = new Set(['mine', 'place', 'toggle', 'relight', 'claim', 'pos', 'chest', 'chest_move']);
+const WITH_POSITION = new Set(['mine', 'place', 'toggle', 'relight', 'claim', 'pos', 'chest', 'chest_move', 'loot_mob']);
 const position = () => ({ ex: +P.x.toFixed(2), ey: +P.y.toFixed(2), ez: +P.z.toFixed(2) });
 const noRules = r => r && r.err === 'nothing to mine' && r.cell > 0 && B[r.cell] && B[r.cell].h !== Infinity;
 function setInv(inv, why) {
