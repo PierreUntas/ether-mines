@@ -127,14 +127,21 @@ function frame(now) {
       S.day -= 1;
       S.dayN++;
     }
-    // combat: aiming a hostile mob, or a killable animal, with the mining click attacks instead of mining
+    // combat: aiming a hostile mob, another player (outside protected zones), or a killable animal, with
+    // the mining click attacks instead of mining
     const mobTarget = mining ? pickMob(aim, target) : null;
-    const aniTarget = !mobTarget && mining ? pickAnimal(aim, target) : null;
+    const pvpTarget = !mobTarget && mining && !sanctuary(P.x, P.z) ? pickPlayer(aim, target) : null;
+    const aniTarget = !mobTarget && !pvpTarget && mining ? pickAnimal(aim, target) : null;
     if (mobTarget) {
       crack.visible = false;
       mineKey = -1;
       mineT = 0;
       attackMob(mobTarget, dt);
+    } else if (pvpTarget) {
+      crack.visible = false;
+      mineKey = -1;
+      mineT = 0;
+      attackPlayer(pvpTarget, dt);
     } else if (aniTarget && AK[aniTarget.type].hp) {
       crack.visible = false;
       mineKey = -1;
@@ -256,20 +263,31 @@ function frame(now) {
       tg.classList.remove('own');
       tg.innerHTML = `${MK[mb.type].n}<span>${touch ? 'tap and hold' : 'left-click'}: attack</span>`;
     } else {
-      const an = pickAnimal(aim, target);
-      if (an) {
+      const pv = !sanctuary(P.x, P.z) ? pickPlayer(aim, target) : null;
+      if (pv) {
         target = null;
         sel.visible = false;
         crack.visible = false;
-        const K = AK[an.type],
-          tg = $('target');
+        const tg = $('target');
         tg.hidden = false;
         tg.classList.remove('own');
-        const g = K.gift && (S.pets || {})[an.k + ':' + an.i] !== new Date().toISOString().slice(0, 10);
-        tg.innerHTML =
-          an.type === 'villager'
-            ? `${an.h.name}<span>${an.h.role} · ${touch ? 'tap' : 'right-click'}: talk</span>`
-            : `${K.n}<span>${touch ? 'tap' : 'right-click'}: pet${g ? ' · has a gift for you' : ''}${K.hp ? ` · ${touch ? 'tap and hold' : 'left-click'}: fight for a heart` : ''}</span>`;
+        tg.innerHTML = `${pv.o.name}<span>${touch ? 'tap and hold' : 'left-click'}: attack</span>`;
+      } else {
+        const an = pickAnimal(aim, target);
+        if (an) {
+          target = null;
+          sel.visible = false;
+          crack.visible = false;
+          const K = AK[an.type],
+            tg = $('target');
+          tg.hidden = false;
+          tg.classList.remove('own');
+          const g = K.gift && (S.pets || {})[an.k + ':' + an.i] !== new Date().toISOString().slice(0, 10);
+          tg.innerHTML =
+            an.type === 'villager'
+              ? `${an.h.name}<span>${an.h.role} · ${touch ? 'tap' : 'right-click'}: talk</span>`
+              : `${K.n}<span>${touch ? 'tap' : 'right-click'}: pet${g ? ' · has a gift for you' : ''}${K.hp ? ` · ${touch ? 'tap and hold' : 'left-click'}: fight for a heart` : ''}</span>`;
+        }
       }
     }
   }

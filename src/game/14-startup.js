@@ -312,6 +312,34 @@ function ensureOther(p) {
   }
   return o;
 }
+// PvP targeting: same aimRay/aniBox/aniV pattern as pickMob/pickAnimal, against the avatar's own silhouette
+function pickPlayer(at, blk) {
+  const ray = aimRay(at);
+  let best = null,
+    bestId = null,
+    bd = 5.2;
+  for (const [id, o] of others) {
+    const p = o.g.position,
+      m = 0.3;
+    aniBox.min.set(p.x - m, p.y, p.z - m);
+    aniBox.max.set(p.x + m, p.y + 1.9, p.z + m);
+    if (ray.intersectBox(aniBox, aniV)) {
+      const dd = aniV.distanceTo(ray.origin);
+      if (dd < bd) {
+        bd = dd;
+        best = o;
+        bestId = id;
+      }
+    }
+  }
+  if (!best) return null;
+  if (blk) {
+    aniBox.min.set(blk.x, blk.y, blk.z);
+    aniBox.max.set(blk.x + 1, blk.y + 1, blk.z + 1);
+    if (ray.intersectBox(aniBox, aniV) && aniV.distanceTo(ray.origin) < bd) return null;
+  }
+  return { id: bestId, o: best };
+}
 Net.on('peers', list => {
   const ids = new Set(list.map(p => p.id));
   for (const id of [...others.keys()]) if (!ids.has(id)) removeOther(id);
@@ -330,11 +358,25 @@ Net.on('pos', p => {
   }
 });
 Net.on('block', b => applyBlock(b));
-// ignored players: kept in this browser, their messages no longer show up
+// ignored players: kept in this browser, their messages no longer show up (also blocks PvP, below)
 const IGNORES = new Set(JSON.parse(localStorage.getItem('ether-mines:ignores') || '[]'));
 const saveIgnores = () => localStorage.setItem('ether-mines:ignores', JSON.stringify([...IGNORES]));
 Net.on('chat', m => {
   if (!IGNORES.has(String(m.name).toLowerCase())) addChat(m.name, m.color, m.text);
+});
+// PvP: client-resolved like mob/animal combat (no loot, no penalty — nothing to arbitrate server-side).
+// The attacker only reports a weapon id, never a damage number: dmg is computed here, on the receiving end.
+const lastHitFrom = new Map();
+Net.on('hit', p => {
+  if (p.to !== ME.id || !playing) return;
+  if (IGNORES.has((others.get(p.from)?.name || '').toLowerCase())) return;
+  if (performance.now() < pvpGraceUntil) return; // just respawned
+  if (sanctuary(P.x, P.z)) return; // my own true position — can't be spoofed by the attacker
+  const last = lastHitFrom.get(p.from) || 0;
+  if (performance.now() - last < 400) return; // floor independent of the attacker's own cooldown
+  if (Math.hypot(P.x - p.x, P.y - p.y, P.z - p.z) > 6.5) return; // melee-range plausibility, not a trust boundary
+  lastHitFrom.set(p.from, performance.now());
+  hurtPlayer(ITEM[p.item]?.dmg || 1, p.x, p.z);
 });
 let usernameFlagged = false;
 Net.on('status', s => {

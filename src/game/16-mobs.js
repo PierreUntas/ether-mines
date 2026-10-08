@@ -241,7 +241,8 @@ let playerAtkT = 0,
   hurtT = 0,
   regenT = 0,
   hpBarOn = false,
-  hpShown = -1;
+  hpShown = -1,
+  pvpGraceUntil = 0; // brief spawn-camping grace period after dying, checked on the receiving end of a 'hit'
 function updateHpUI() {
   if (S.hp === hpShown && hpBarOn) return;
   hpShown = S.hp;
@@ -276,6 +277,16 @@ function attackMob(a, dt) {
     Sound.animal(a.type, 1);
   }
 }
+// PvP: like attackMob, but the target's hp lives only in the target's own client (same as another
+// player's position) — this just reports the swing; the receiving end decides whether to apply it
+function attackPlayer(target, dt) {
+  playerAtkT = Math.max(0, playerAtkT - dt);
+  swing = Math.max(swing, 0.6);
+  if (playerAtkT > 0) return;
+  playerAtkT = 0.45;
+  Sound.hit('pierre');
+  Net.sendHit({ from: ME.id, to: target.id, x: +P.x.toFixed(2), y: +P.y.toFixed(2), z: +P.z.toFixed(2), item: itemId(S.bar[S.sel]) });
+}
 function hurtPlayer(dmg, mx, mz) {
   const reduction = ITEM[S.armor]?.armor || 0;
   dmg = Math.max(1, Math.round(dmg * (1 - reduction)));
@@ -304,6 +315,7 @@ function die() {
   P.vy = 0;
   S.hp = 10;
   hurtT = 1.2;
+  pvpGraceUntil = performance.now() + 2000;
   updateHpUI();
 }
 let mobT = 0;

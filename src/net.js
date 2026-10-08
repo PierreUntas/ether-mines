@@ -3,7 +3,7 @@
 window.Net = (() => {
   const cfg = window.CONFIG || {};
   const enabled = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
-  const handlers = { block: [], pos: [], chat: [], peers: [], status: [], claim: [], frozen: [], offer: [] };
+  const handlers = { block: [], pos: [], hit: [], chat: [], peers: [], status: [], claim: [], frozen: [], offer: [] };
   let sb = null,
     ch = null,
     world = 'principal',
@@ -116,6 +116,8 @@ window.Net = (() => {
     client();
     ch = sb.channel('world:' + w, { config: { broadcast: { self: false }, presence: { key: me.id } } });
     ch.on('broadcast', { event: 'pos' }, ({ payload }) => emit('pos', payload));
+    // PvP: client-resolved, like mob/animal combat — no loot, no penalty, so nothing to arbitrate server-side
+    ch.on('broadcast', { event: 'hit' }, ({ payload }) => emit('hit', payload));
     // blocks and claims: the database is authoritative, every server-validated change arrives here
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'blocks', filter: 'world=eq.' + w }, p => {
       const r = p.new;
@@ -180,6 +182,9 @@ window.Net = (() => {
 
   const sendPos = p => {
     if (ch && online) ch.send({ type: 'broadcast', event: 'pos', payload: p });
+  };
+  const sendHit = p => {
+    if (ch && online) ch.send({ type: 'broadcast', event: 'hit', payload: p });
   };
   // Chat: through the server if act_chat exists; otherwise (003 not run yet) direct broadcast like before.
   let serverChat = true;
@@ -290,6 +295,7 @@ window.Net = (() => {
     join,
     on,
     sendPos,
+    sendHit,
     chat,
     logError,
     act,
