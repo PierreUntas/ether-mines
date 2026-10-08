@@ -153,7 +153,7 @@ const QUESTS = [
 const RELIT_GOALS = [3, 7, 12, 20, 30, 50, 75, 100];
 // ---------- the network: the shared goal ----------
 // All the players in the world relight old validators together. At each tier, the great diamond in the sky awakens a bit more.
-const NETWORK = { n: 0, top: [], t: 0, vu: -1 },
+const NETWORK = { n: 0, top: [], t: 0, seen: -1 },
   TIERS = [3, 10, 25, 50, 100],
   MILESTONE_NAMES = ['a first star', 'two stars', 'three stars', 'four stars', 'the diamond fully awake'];
 const networkLevel = () => TIERS.filter(p => NETWORK.n >= p).length;
@@ -181,12 +181,12 @@ async function updateNetwork() {
   NETWORK.n = n;
   NETWORK.top = top;
   const niv = networkLevel();
-  if (NETWORK.vu >= 0 && niv > before) {
+  if (NETWORK.seen >= 0 && niv > before) {
     logEv('nft', `The network awakens: ${n} validators relit`, `the great diamond gains ${MILESTONE_NAMES[niv - 1]}`);
     announce('The network awakens', `${n} old validators relit`);
     Sound.chime();
   }
-  NETWORK.vu = niv;
+  NETWORK.seen = niv;
   STARS.forEach((e, i) => (e.visible = i < niv));
   if (tab === 'quest' && !$('panel').hidden) renderPanel();
 }
@@ -389,11 +389,11 @@ function renderTrade(body) {
       "Offer a trade to another player: resources, unique pickaxes, plots. Nothing moves until they accept, and everything changes hands at once. Validator seals can't be traded.",
     ),
   );
-  if (TRADE.msg) body.appendChild(el('p', 'echMsg', TRADE.msg));
+  if (TRADE.msg) body.appendChild(el('p', 'tradeMsg', TRADE.msg));
   const received = TRADE.offers.filter(o => !o.mine),
     sent = TRADE.offers.filter(o => o.mine);
   const card = o => {
-    const c = el('div', 'offre');
+    const c = el('div', 'offer');
     c.appendChild(el('h4', '', o.mine ? `To ${o.to}` : `${o.from} offers you`));
     c.appendChild(el('p', '', `${o.mine ? 'You give' : 'You receive'}: ${sideText(o.give, false, o.uniqueDetails)}`));
     c.appendChild(el('p', '', `${o.mine ? 'You receive' : 'You give'}: ${sideText(o.want, true)}`));
@@ -419,18 +419,18 @@ function renderTrade(body) {
     return c;
   };
   if (received.length) {
-    body.appendChild(el('h3', 'rcat', 'Received offers'));
+    body.appendChild(el('h3', 'cat', 'Received offers'));
     received.forEach(o => body.appendChild(card(o)));
   }
   if (sent.length) {
-    body.appendChild(el('h3', 'rcat', 'Sent offers'));
+    body.appendChild(el('h3', 'cat', 'Sent offers'));
     sent.forEach(o => body.appendChild(card(o)));
   }
   // ----- new offer -----
   const b = TRADE.b;
-  body.appendChild(el('h3', 'rcat', 'New offer'));
-  const form = el('div', 'offre');
-  const row = el('label', 'echL', 'To ');
+  body.appendChild(el('h3', 'cat', 'New offer'));
+  const form = el('div', 'offer');
+  const row = el('label', 'tradeRow', 'To ');
   const ps = el('input');
   ps.placeholder = "player's nickname";
   ps.maxLength = 20;
@@ -444,7 +444,7 @@ function renderTrade(body) {
   row.appendChild(dl);
   form.appendChild(row);
   const chip = (txt, active, fn) => {
-    const p = el('button', 'puce' + (active ? ' sel' : ''), txt);
+    const p = el('button', 'pill' + (active ? ' sel' : ''), txt);
     p.onclick = () => {
       fn();
       renderPanel();
@@ -458,7 +458,7 @@ function renderTrade(body) {
   };
   const section = (title, side, giving) => {
     form.appendChild(el('h4', '', title));
-    const zone = el('div', 'puces');
+    const zone = el('div', 'pills');
     for (const [k, n] of Object.entries(side.items)) zone.appendChild(chip(`${n} × ${nameOf(+k)}  ✕`, true, () => delete side.items[k]));
     // resources: what I have (I give) or everything that exists (I ask for)
     const ids = giving
@@ -477,8 +477,8 @@ function renderTrade(body) {
     qty.type = 'number';
     qty.min = 1;
     qty.value = 1;
-    qty.className = 'echQ';
-    const addRow = el('div', 'echAj');
+    qty.className = 'tradeQty';
+    const addRow = el('div', 'tradeAdd');
     if (ids.length) {
       addRow.appendChild(sel);
       addRow.appendChild(qty);
@@ -489,7 +489,7 @@ function renderTrade(body) {
           renderPanel();
         }),
       );
-    } else addRow.appendChild(el('span', 'muet', 'Your chest is empty.'));
+    } else addRow.appendChild(el('span', 'muted-pill', 'Your chest is empty.'));
     // unique items: mine by number (I give), by type (I ask for)
     if (giving)
       for (const n of S.nfts.filter(n => (n.id || 201) !== 203))
@@ -559,13 +559,13 @@ function renderTrade(body) {
 // ---------- places: the place name shows up when you enter it ----------
 let placeSeen = null;
 function announce(title, sub) {
-  const el = $('lieu');
+  const el = $('place');
   el.innerHTML = `<b></b><span></span>`;
   el.firstChild.textContent = title;
   el.lastChild.textContent = sub || '';
-  el.classList.remove('vu');
+  el.classList.remove('seen');
   void el.offsetWidth;
-  el.classList.add('vu');
+  el.classList.add('seen');
 }
 function placeHere() {
   if (Math.hypot(P.x - SPAWN.x - 0.5, P.z - SPAWN.z - 0.5) <= 8) return ['The Atrium', 'sanctuary of the first validator'];
@@ -655,7 +655,7 @@ function updateQuest(dt) {
     const goal = RELIT_GOALS.find(g => g > (S.relit || 0)) || S.relit + 10;
     html = `<b>${S.relit}/${goal}</b> Validators relit`;
   }
-  html += `<span class="reseau" title="Old validators relit by all players">◈ ${NETWORK.n}/${TIERS.find(p => p > NETWORK.n) || NETWORK.n}</span>`;
+  html += `<span class="network" title="Old validators relit by all players">◈ ${NETWORK.n}/${TIERS.find(p => p > NETWORK.n) || NETWORK.n}</span>`;
   if (i >= QUESTS.length - 2) {
     const r = nearestRuin();
     if (r) html += `<span class="compass">${arrowTo(r.x + 0.5, r.z + 0.5)} ruin at ${Math.round(r.d)} m</span>`;
@@ -678,21 +678,21 @@ function renderQuests(body) {
     const g = TIERS.find(p => p > NETWORK.n),
       niv = networkLevel(),
       d = document.createElement('div');
-    d.className = 'reseauBox';
-    d.innerHTML = `<h3>The network · shared goal</h3><p>${g ? `All together, relight <b>${g}</b> old validators to give the great diamond in the sky ${MILESTONE_NAMES[niv]}.` : 'The network is awake. The great diamond shines with all its light.'}</p><div class="jauge"><i style="width:${Math.min(100, (NETWORK.n / (g || NETWORK.n || 1)) * 100)}%"></i></div><div class="paliers">${TIERS.map(p => `<span class="${NETWORK.n >= p ? 'ok' : ''}">◆ ${p}</span>`).join('')}<b>${NETWORK.n} relit</b></div>`;
+    d.className = 'networkBox';
+    d.innerHTML = `<h3>The network · shared goal</h3><p>${g ? `All together, relight <b>${g}</b> old validators to give the great diamond in the sky ${MILESTONE_NAMES[niv]}.` : 'The network is awake. The great diamond shines with all its light.'}</p><div class="gauge"><i style="width:${Math.min(100, (NETWORK.n / (g || NETWORK.n || 1)) * 100)}%"></i></div><div class="tiers">${TIERS.map(p => `<span class="${NETWORK.n >= p ? 'ok' : ''}">◆ ${p}</span>`).join('')}<b>${NETWORK.n} relit</b></div>`;
     if (NETWORK.top.length) {
       const ol2 = document.createElement('ol');
-      ol2.className = 'veilleurs';
+      ol2.className = 'guardians';
       for (const t of NETWORK.top) {
         const li2 = document.createElement('li');
         li2.textContent = `${t.name} · ${t.n}`;
         ol2.appendChild(li2);
       }
-      d.insertAdjacentHTML('beforeend', '<h4>Les veilleurs</h4>');
+      d.insertAdjacentHTML('beforeend', '<h4>Guardians</h4>');
       d.appendChild(ol2);
     }
     body.appendChild(d);
-    body.insertAdjacentHTML('beforeend', '<h3 class="rcat">Ton parcours</h3>');
+    body.insertAdjacentHTML('beforeend', '<h3 class="cat">Your journey</h3>');
   }
   const ol = document.createElement('ol');
   ol.className = 'quests';
@@ -719,7 +719,7 @@ function renderQuests(body) {
 // ---------- validators on the chain (Sepolia), in the Objectives tab ----------
 function renderOnchain(body) {
   const box = document.createElement('div');
-  box.className = 'reseauBox';
+  box.className = 'networkBox';
   box.insertAdjacentHTML(
     'beforeend',
     `<h3>Your validators on Sepolia</h3><p>${
@@ -746,10 +746,10 @@ function renderOnchain(body) {
     for (const n of seals) {
       const state = ONCHAIN.bySeal.get(n.serial) || {};
       const row = document.createElement('div');
-      row.className = 'sceauChaine';
+      row.className = 'sealChain';
       let html = `<b>${n.where}</b>`;
       if (!n.chainTx) {
-        html += '<span class="muet">not minted onchain yet</span>';
+        html += '<span class="muted-pill">not minted onchain yet</span>';
       } else {
         html += `<a href="${Chain.etherscanTx(n.chainTx)}" target="_blank" rel="noopener">view on Etherscan</a>`;
         html += `<span>Epoch ${epoch}: ${state.attestedNow ? 'attested' : 'not attested yet'}</span>`;
@@ -806,7 +806,7 @@ function renderChest(body) {
     `<p class="qintro">Chest at ${m.x}, ${m.y}, ${m.z}. Tap an item to move it. Inside a plot, only you and your invites can open it; elsewhere, everyone can.</p>`,
   );
   const q = document.createElement('div');
-  q.className = 'qte';
+  q.className = 'qty';
   q.insertAdjacentHTML('beforeend', '<span>Quantity</span>');
   for (const [v, t] of [
     [1, '1'],
@@ -824,9 +824,9 @@ function renderChest(body) {
   }
   body.appendChild(q);
   const zone = (title, items, dir) => {
-    body.insertAdjacentHTML('beforeend', `<h3 class="rcat">${title}</h3>`);
+    body.insertAdjacentHTML('beforeend', `<h3 class="cat">${title}</h3>`);
     const grid = document.createElement('div');
-    grid.className = 'grid malle';
+    grid.className = 'grid chest';
     const list = Object.entries(items).filter(([, n]) => n > 0);
     if (!list.length)
       grid.innerHTML = `<p style="color:var(--muted);font-size:14px">${dir < 0 ? 'The chest is empty.' : 'Nothing to deposit.'}</p>`;
@@ -917,7 +917,7 @@ function renderPanel() {
           : 'A fungible resource: every unit is worth exactly the same as another.';
     } else card.innerHTML = '<p>Pick an item to see its token sheet.</p>';
     const side = document.createElement('div');
-    side.className = 'cote';
+    side.className = 'side';
     side.appendChild(previewBox());
     side.appendChild(card);
     wrap.appendChild(side);
@@ -935,7 +935,7 @@ function renderPanel() {
     for (const r of RECIPES) {
       if (r.cat !== cat) {
         cat = r.cat;
-        body.insertAdjacentHTML('beforeend', `<h3 class="rcat">${cat}</h3>`);
+        body.insertAdjacentHTML('beforeend', `<h3 class="cat">${cat}</h3>`);
       }
       const ok = Object.entries(r.need).every(([k, n]) => (S.inv[k] || 0) >= n);
       const d = document.createElement('div');
@@ -1092,10 +1092,10 @@ const SETTINGS_CHOICES = [
 function renderSettings(body) {
   body.insertAdjacentHTML('beforeend', '<p class="qintro">Settings specific to this device. They apply right away.</p>');
   const box = document.createElement('div');
-  box.className = 'reglages';
+  box.className = 'settings';
   for (const c of SETTINGS_CHOICES) {
     const row = document.createElement('div');
-    row.className = 'reg';
+    row.className = 'setting';
     row.innerHTML = `<div><strong>${c.t}</strong>${c.d ? `<span>${c.d}</span>` : ''}</div><div class="opts"></div>`;
     for (const [v, lab] of c.o) {
       const b = document.createElement('button');

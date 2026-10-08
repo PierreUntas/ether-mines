@@ -162,8 +162,8 @@ let PREVIEW = null;
 function previewBox() {
   if (!PREVIEW) {
     const box = document.createElement('div');
-    box.className = 'perso';
-    box.innerHTML = '<canvas width="520" height="400"></canvas><div class="pnom"></div><div class="pcoul"></div>';
+    box.className = 'avatar';
+    box.innerHTML = '<canvas width="520" height="400"></canvas><div class="pname"></div><div class="pcolor"></div>';
     const c = box.querySelector('canvas');
     let r = null;
     try {
@@ -198,8 +198,8 @@ function previewBox() {
     p.av.tag.visible = false;
     p.sc.add(p.av.g);
   }
-  p.box.querySelector('.pnom').textContent = ME.name;
-  const pc = p.box.querySelector('.pcoul');
+  p.box.querySelector('.pname').textContent = ME.name;
+  const pc = p.box.querySelector('.pcolor');
   pc.innerHTML = '';
   for (const col of COLORS) {
     const b = document.createElement('button');
@@ -634,7 +634,7 @@ $('sndBtn').onclick = e => {
 // Fullscreen: browser API on Android and desktop; on iPhone, only from the home screen icon.
 const standalone = matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone === true;
 const iOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-if (touch && iOS && !standalone) $('astuceIos').hidden = false;
+if (touch && iOS && !standalone) $('hintIos').hidden = false;
 function goFullscreen() {
   if (!touch || standalone || document.fullscreenElement) return;
   const el = document.documentElement;

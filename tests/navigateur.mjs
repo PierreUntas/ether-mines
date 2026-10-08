@@ -81,10 +81,10 @@ const chest = await page.evaluate(async () => {
   await mines.moveChest('9', 3);
   const inside = mines.S.chests?.[`${x},${y + 1},${z}`]?.[9];
   await mines.moveChest('9', -1);
-  return { inside, bag: mines.S.inv[9], tab: !!document.querySelector('.grid.malle') };
+  return { inside, bag: mines.S.inv[9], tab: !!document.querySelector('.grid.chest') };
 });
 if (chest.inside !== 3 || chest.bag !== 2 || !chest.tab) await fail('chest: ' + JSON.stringify(chest));
-await page.screenshot({ path: process.env.CAPTURE_MALLE || '/dev/null' }).catch(() => {});
+await page.screenshot({ path: process.env.CAPTURE_CHEST || '/dev/null' }).catch(() => {});
 await page.evaluate(() => document.getElementById('closeP').click());
 // logic gates: an AND between two levers lights a lamp only when both are up
 const circuit = async (lever2) =>
@@ -130,7 +130,7 @@ const life = await page.evaluate(async () => {
   const behind = VIEW === 1 && SELF.g.visible;
   changeView(); changeView();
   openTab('inv');
-  const preview = !!document.querySelector('.perso canvas');
+  const preview = !!document.querySelector('.avatar canvas');
   togglePanel();
   return { shiba: l.some(a => a.type === 'shiba'), bubble, behind, eyes: VIEW === 0 && !SELF.g.visible, preview };
 });
