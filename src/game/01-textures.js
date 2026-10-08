@@ -1082,6 +1082,36 @@ function blade(P, E, core, edge) {
 }
 tile(121, (P, E) => blade(P, E, '#0a3d4a', '#00eaff')); // Volt Blade
 tile(122, (P, E) => blade(P, E, '#241048', '#c9a6ff')); // Pure Ether Blade
+// armor plating: chestplate silhouette, dark material with a glowing center seam and shoulder accents
+function armorIcon(P, E, glow) {
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
+  const dark = '#1c1029',
+    mid = '#2a1838';
+  for (let y = 2; y < 14; y++) {
+    const half = y < 5 ? 6 : y < 10 ? 5 : 4; // shoulders wide, waist narrower
+    for (let x = 8 - half; x <= 7 + half; x++) {
+      const edgePx = x === 8 - half || x === 7 + half || y === 2 || y === 13;
+      P(x, y, edgePx ? dark : mid);
+    }
+  }
+  for (let y = 3; y < 13; y++) {
+    P(7, y, glow);
+    P(8, y, glow);
+    E(7, y, glow);
+    E(8, y, glow);
+  }
+  for (const [x, y] of [
+    [2, 3],
+    [13, 3],
+    [3, 4],
+    [12, 4],
+  ]) {
+    P(x, y, glow);
+    E(x, y, glow);
+  }
+}
+tile(123, (P, E) => armorIcon(P, E, '#00eaff')); // Volt Plating
+tile(124, (P, E) => armorIcon(P, E, '#c9a6ff')); // Pure Ether Plating
 // ---------- ink outline ----------
 // ethereum.org's illustrations are drawn with a navy ink line: every solid tile (no transparency)
 // gets an outline, blended with the original color to stay soft. Open-work tiles (leaves, glass, plants) don't get one.

@@ -910,6 +910,18 @@ function renderPanel() {
         ui();
       };
       br.appendChild(put);
+      if (ITEM[id]?.armor) {
+        const key = String(id),
+          eq = document.createElement('button');
+        eq.className = 'b';
+        eq.textContent = S.armor === key ? 'Unequip' : 'Equip';
+        eq.onclick = () => {
+          S.armor = S.armor === key ? null : key;
+          dirty = true;
+          ui();
+        };
+        br.appendChild(eq);
+      }
       card.querySelector('p').textContent = a.nft
         ? 'A unique item has its own number and keeps its history: who forged it, where, and what it has accomplished.'
         : isBlock
@@ -945,7 +957,7 @@ function renderPanel() {
         'beforeend',
         `<div><strong>${r.n > 1 ? r.n + ' × ' : ''}${nameOf(r.out)}</strong><span>${r.d}</span><div class="need">${Object.entries(r.need)
           .map(([k, n]) => `<em class="${(S.inv[k] || 0) >= n ? '' : 'ko'}">${n} ${nameOf(+k)} (${S.inv[k] || 0})</em>`)
-          .join('')}</div></div><button class="b ${ok ? 'primary' : ''}" ${ok ? '' : 'disabled'}>Fabriquer</button>`,
+          .join('')}</div></div><button class="b ${ok ? 'primary' : ''}" ${ok ? '' : 'disabled'}>Craft</button>`,
       );
       d.querySelector('button').onclick = () => craft(r);
       body.appendChild(d);

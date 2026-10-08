@@ -1,16 +1,20 @@
-// Ether Mines · Hostile mobs: rift shadows in the deep caves, corrupted guardians at unlit validators.
+// Ether Mines · Hostile mobs: rift shadows in the deep caves, corrupted guardians at unlit validators,
+// geode sentinels guarding pure ether geodes, genesis wraiths guarding genesis rock.
 // The files in src/game/ load in order and share the same global scope.
 'use strict';
 // ---------- hostile mobs ----------
 // Simulated client-side, like the animals (09-animals.js): position derived from the seed, so every
 // player sees the same mobs in the same place without any network traffic. Combat is resolved locally
-// by each client: no loot, no penalty on death (v1 deliberately light) — nothing to arbitrate server-side,
-// like the quest objectives. A guardian disappears for good once the validator it guards is relit.
+// by each client: no loot, no penalty on death — nothing to arbitrate server-side, like the quest
+// objectives. Each mob guards something: a guardian disappears for good once the validator it guards
+// is relit; sentinels and wraiths simply mark their deposit as dangerous to mine.
 const MOBS = new Map(),
   MOB_R = 2; // radius, in chunks, around the player
 const MK = {
-  shadow: { n: 'Rift Shadow', hp: 6, dmg: 1, sp: 1.6, aggro: 9, atk: 1.1, cd: 1.1, kb: 4, hit: [0.5, 1.3, 0.5] },
-  guardian: { n: 'Corrupted Guardian', hp: 12, dmg: 2, sp: 1.3, aggro: 11, atk: 1.4, cd: 1.3, kb: 3, hit: [0.8, 1.9, 0.7] },
+  shadow: { n: 'Rift Shadow', hp: 7, dmg: 1.5, sp: 1.6, aggro: 10, atk: 1.1, cd: 1.0, kb: 4, hit: [0.5, 1.3, 0.5] },
+  guardian: { n: 'Corrupted Guardian', hp: 14, dmg: 2.5, sp: 1.3, aggro: 12, atk: 1.4, cd: 1.1, kb: 3, hit: [0.8, 1.9, 0.7] },
+  sentinel: { n: 'Geode Sentinel', hp: 10, dmg: 2, sp: 1.4, aggro: 10, atk: 1.3, cd: 1.1, kb: 4, hit: [0.6, 1.2, 0.6] },
+  wraith: { n: 'Genesis Wraith', hp: 16, dmg: 3, sp: 1.2, aggro: 13, atk: 1.6, cd: 1.3, kb: 3, hit: [0.9, 2.1, 0.8] },
 };
 function buildMob(a) {
   const g = new THREE.Group(),
@@ -44,6 +48,48 @@ function buildMob(a) {
       const l = pivot(g, x, 0.82, 0);
       abox(l, 0.16, 0.5, 0.16, head, 0, -0.25, 0);
       abox(l, 0.2, 0.3, 0.22, body, 0, -0.6, 0.02);
+      parts.legs.push(l);
+    }
+  } else if (a.type === 'sentinel') {
+    // cluster of jagged crystal shards around a dark core, floats like a shadow (no legs)
+    const dark = '#2a1248',
+      crystal = '#9a7bef',
+      light = '#efe2ff';
+    abox(g, 0.4, 0.4, 0.4, dark, 0, 0.9, 0, true, 0.85);
+    for (const [dx, dz, h, w] of [
+      [0, 0, 0.9, 0.16],
+      [0.26, 0.1, 0.55, 0.12],
+      [-0.24, -0.08, 0.6, 0.12],
+      [0.1, -0.26, 0.45, 0.1],
+      [-0.14, 0.24, 0.5, 0.1],
+    ]) {
+      abox(g, w, h, w, crystal, dx, 0.9 + h / 2, dz, true, 0.78);
+      abox(g, w * 0.5, h * 0.25, w * 0.5, light, dx, 0.9 + h, dz, true);
+    }
+  } else if (a.type === 'wraith') {
+    // bigger, ancient version of the corrupted guardian, made of the rock it guards: basalt with ember cracks
+    const body = '#3a2d52',
+      head = '#4a3b68',
+      panel = '#241a3c',
+      crack = '#ffb347';
+    abox(g, 0.86, 0.74, 0.6, body, 0, 1.3, 0);
+    abox(g, 0.6, 0.5, 0.07, panel, 0, 1.3, 0.31);
+    abox(g, 0.3, 0.2, 0.06, crack, 0.13, 1.18, 0.35, true);
+    abox(g, 0.14, 0.3, 0.06, crack, -0.2, 1.1, 0.35, true);
+    const hd = (parts.head = pivot(g, 0, 1.78, 0));
+    abox(hd, 0.38, 0.26, 0.33, head, 0, 0.1, 0);
+    abox(hd, 0.12, 0.12, 0.06, crack, -0.1, 0.12, 0.17, true);
+    abox(hd, 0.12, 0.12, 0.06, crack, 0.1, 0.12, 0.17, true);
+    for (const x of [-0.52, 0.52]) {
+      const arm = pivot(g, x, 1.52, 0);
+      abox(arm, 0.17, 0.6, 0.17, head, 0, -0.3, 0);
+      abox(arm, 0.19, 0.17, 0.19, body, 0, -0.62, 0);
+      abox(arm, 0.06, 0.2, 0.18, crack, 0, -0.25, 0, true);
+    }
+    for (const x of [-0.19, 0.19]) {
+      const l = pivot(g, x, 0.96, 0);
+      abox(l, 0.19, 0.6, 0.19, head, 0, -0.3, 0);
+      abox(l, 0.24, 0.36, 0.26, body, 0, -0.72, 0.02);
       parts.legs.push(l);
     }
   }
@@ -81,7 +127,7 @@ function spawnMobChunk(cx, cz) {
     z0 = cz * CH;
   // shadows: in the air pockets of the deep caves (below DEEP), with solid ground underneath
   const r = hash(cx * 17 + 3, cz * 29 + 5, 210);
-  if (!sanctuary(x0 + 8, z0 + 8) && r < 0.16) {
+  if (!sanctuary(x0 + 8, z0 + 8) && r < 0.2) {
     const n = r < 0.05 ? 2 : 1;
     for (let i = 0; i < n; i++) {
       const hx = x0 + 2 + Math.floor(hash(cx + i * 31, cz, 211 + i) * 12),
@@ -108,6 +154,50 @@ function spawnMobChunk(cx, cz) {
         gr = groundAt(hx, hz, rg.y, true, 3);
       if (!gr || gr.water) continue;
       list.push(mkMob('guardian', k, 110 + i, hx, gr.y, hz, rg));
+    }
+  }
+  // geode sentinels: guard this chunk's pure ether geodes, below DEEP (sampled columns, not exhaustive)
+  {
+    let gx = -1,
+      gy = -1,
+      gz = -1;
+    for (let i = 0; i < 5 && gx < 0; i++) {
+      const hx = x0 + Math.floor(hash(cx + i * 13, cz, 230 + i) * CH),
+        hz = z0 + Math.floor(hash(cx, cz + i * 19, 231 + i) * CH);
+      for (let y = Math.min(DEEP - 1, SY - 2); y >= 2; y--) {
+        if (get(hx, y, hz) === 69) {
+          gx = hx;
+          gy = y;
+          gz = hz;
+          break;
+        }
+      }
+    }
+    if (gx >= 0 && !sanctuary(gx, gz) && hash(cx * 31 + 7, cz * 23 + 11, 240) < 0.5) {
+      const gr = groundAt(gx + 0.5, gz + 0.5, gy + 1, true, 3);
+      if (gr && !gr.water) list.push(mkMob('sentinel', k, 120, gx + 0.5, gr.y, gz + 0.5, null));
+    }
+  }
+  // genesis wraiths: guard genesis rock, right at the bottom near bedrock
+  {
+    let wx = -1,
+      wy = -1,
+      wz = -1;
+    for (let i = 0; i < 5 && wx < 0; i++) {
+      const hx = x0 + Math.floor(hash(cx + i * 41, cz, 250 + i) * CH),
+        hz = z0 + Math.floor(hash(cx, cz + i * 37, 251 + i) * CH);
+      for (let y = 4; y >= 1; y--) {
+        if (get(hx, y, hz) === 72) {
+          wx = hx;
+          wy = y;
+          wz = hz;
+          break;
+        }
+      }
+    }
+    if (wx >= 0 && !sanctuary(wx, wz) && hash(cx * 19 + 3, cz * 29 + 5, 260) < 0.6) {
+      const gr = groundAt(wx + 0.5, wz + 0.5, wy + 1, true, 3);
+      if (gr && !gr.water) list.push(mkMob('wraith', k, 130, wx + 0.5, gr.y, wz + 0.5, null));
     }
   }
 }
@@ -187,6 +277,8 @@ function attackMob(a, dt) {
   }
 }
 function hurtPlayer(dmg, mx, mz) {
+  const reduction = ITEM[S.armor]?.armor || 0;
+  dmg = Math.max(1, Math.round(dmg * (1 - reduction)));
   S.hp = Math.max(0, S.hp - dmg);
   regenT = 6;
   hurtT = 0.5;

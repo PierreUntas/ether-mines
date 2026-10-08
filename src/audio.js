@@ -220,6 +220,12 @@
       } else if (type === 'guardian') {
         [0, -3, -7].forEach((d, i) => tone(140 * Math.pow(2, d / 12), 'square', 0.05, 0.18, T + i * 0.09, o, 0.8));
         noise('lowpass', 500, 1, 0.2, 0.3, T, o);
+      } else if (type === 'sentinel') {
+        [0, 5, 9].forEach((s, i) => tone(900 * Math.pow(2, s / 12), 'sine', 0.04, 0.3, T + i * 0.05, o, 1.1, 0.02));
+        noise('highpass', 1800, 1.5, 0.08, 0.2, T, o);
+      } else if (type === 'wraith') {
+        [0, -5, -9, -12].forEach((d, i) => tone(100 * Math.pow(2, d / 12), 'sawtooth', 0.05, 0.3, T + i * 0.1, o, 0.7));
+        noise('lowpass', 300, 1, 0.25, 0.5, T, o);
       }
     },
     // called every frame: ambiance fade + small events (birds, crickets, drops)

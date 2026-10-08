@@ -62,6 +62,7 @@ const S0 = () => ({
   totalMint: 0,
   totalBurn: 0,
   hp: 10,
+  armor: null,
 });
 let S = S0(),
   ME = { id: 'me', name: 'me', color: '#8a7bef' };

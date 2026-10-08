@@ -159,6 +159,30 @@ if (!combat.gone) await fail('dead mob was not removed from MOBS: ' + JSON.strin
 if (combat.hpAfter !== combat.hpBefore - 3) await fail('hurtPlayer did not reduce hp correctly: ' + JSON.stringify(combat));
 if (combat.hpAfterDeath !== 10 || !combat.atSanctuary) await fail('death did not respawn at the sanctuary with full health: ' + JSON.stringify(combat));
 if (errors.length) await fail('errors during combat');
+// combat v2: the two new mob types build and take damage, armor reduces incoming damage
+const combat2 = await page.evaluate(() => {
+  const P = mines.P,
+    out = {};
+  for (const type of ['sentinel', 'wraith']) {
+    const mob = mines.mkMob(type, 'test-combat2', 0, P.x + 1.5, P.y, P.z, null);
+    mines.MOBS.set('test-combat2', [mob]);
+    mines.attackMob(mob, 1);
+    out[type] = mob.hp < mines.MK[type].hp;
+  }
+  mines.S.armor = null;
+  mines.S.hp = 10;
+  mines.hurtPlayer(4, P.x + 1, P.z); // non-lethal, so no death-respawn-to-full confound
+  const noArmor = mines.S.hp;
+  mines.S.armor = '108'; // Volt Plating, 25% reduction
+  mines.S.hp = 10;
+  mines.hurtPlayer(4, P.x + 1, P.z);
+  const withArmor = mines.S.hp;
+  mines.S.armor = null;
+  return { ...out, noArmor, withArmor };
+});
+if (!combat2.sentinel || !combat2.wraith) await fail('new mob types did not take damage: ' + JSON.stringify(combat2));
+if (combat2.withArmor <= combat2.noArmor) await fail('armor did not reduce incoming damage: ' + JSON.stringify(combat2));
+if (errors.length) await fail('errors with the new mobs/armor');
 const m = await page.evaluate(() => ({ active: mines.meshWorker, n: mines.meshCount }));
 if (!m.active) await fail('background meshing did not start');
 if (m.n < 20) await fail('too few chunks displayed: ' + m.n);

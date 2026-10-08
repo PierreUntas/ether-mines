@@ -100,6 +100,9 @@
   // v9: weapons (ids 106-107; 101-105 and 201-203 are the other items)
   ITEM[106] = { n: 'Volt Blade', icon: 121, dmg: 2.5, tier: 1 };
   ITEM[107] = { n: 'Pure Ether Blade', icon: 122, dmg: 5, tier: 2 };
+  // v10: armor (ids 108-109), worn independently of the held item
+  ITEM[108] = { n: 'Volt Plating', icon: 123, armor: 0.25, tier: 1 };
+  ITEM[109] = { n: 'Pure Ether Plating', icon: 124, armor: 0.45, tier: 2 };
   const reqTier = id => (B[id] ? (B[id].tier ?? (B[id].stone ? 1 : 0)) : 0);
   const RECIPES = [
     { out: 9, n: 4, need: { 5: 1 }, d: 'Cut up a log' },
@@ -156,6 +159,11 @@
   RECIPES.push(
     { out: 106, n: 1, need: { 9: 3, 101: 2 }, d: 'Energy blade · fight back the mobs', cat: 'Combat' },
     { out: 107, n: 1, need: { 9: 2, 103: 3, 101: 3 }, d: 'Sharper, from pure ether', cat: 'Combat' },
+  );
+  // armor
+  RECIPES.push(
+    { out: 108, n: 1, need: { 9: 4, 101: 3 }, d: 'Wear it from your inventory · reduces damage taken', cat: 'Combat' },
+    { out: 109, n: 1, need: { 9: 3, 103: 4, 101: 4 }, d: 'Stronger resistance, from pure ether', cat: 'Combat' },
   );
   // v4: nature (generated in the world) and decoration. t = [top, sides, bottom]
   B[75] = { n: 'Ether Mushroom', x: 61, h: 0.05 }; // cave carpet, glowing
