@@ -135,6 +135,29 @@ const life = await page.evaluate(async () => {
   return { shiba: l.some(a => a.type === 'shiba'), bubble, behind, eyes: VIEW === 0 && !SELF.g.visible, preview };
 });
 if (!life.shiba || !life.bubble || !life.behind || !life.eyes || !life.preview) await fail('villagers, view from behind, or character: ' + JSON.stringify(life));
+// combat: a synthetic mob takes damage and dies, the player takes damage and regens
+const combat = await page.evaluate(async () => {
+  const P = mines.P;
+  const mob = mines.mkMob('shadow', 'test-combat', 0, P.x + 1.5, P.y, P.z, null);
+  mines.MOBS.set('test-combat', [mob]);
+  for (let i = 0; i < mines.MK.shadow.hp && mob.hp > 0; i++) mines.attackMob(mob, 1);
+  const deadHp = mob.hp;
+  await new Promise(r => setTimeout(r, 2000));
+  const gone = !mines.MOBS.get('test-combat')?.includes(mob);
+  const regMobs = REG.mobs;
+  const hpBefore = mines.S.hp;
+  mines.hurtPlayer(3, P.x + 1, P.z);
+  const hpAfter = mines.S.hp;
+  mines.hurtPlayer(999, P.x + 1, P.z); // fatal: respawns at the sanctuary with full health (no death penalty, by design)
+  const hpAfterDeath = mines.S.hp;
+  const atSanctuary = Math.hypot(P.x - SPAWN.x, P.z - SPAWN.z) < 3;
+  return { deadHp, gone, hpBefore, hpAfter, hpAfterDeath, atSanctuary, regMobs };
+});
+if (combat.deadHp !== 0) await fail('mob did not die: ' + JSON.stringify(combat));
+if (!combat.gone) await fail('dead mob was not removed from MOBS: ' + JSON.stringify(combat));
+if (combat.hpAfter !== combat.hpBefore - 3) await fail('hurtPlayer did not reduce hp correctly: ' + JSON.stringify(combat));
+if (combat.hpAfterDeath !== 10 || !combat.atSanctuary) await fail('death did not respawn at the sanctuary with full health: ' + JSON.stringify(combat));
+if (errors.length) await fail('errors during combat');
 const m = await page.evaluate(() => ({ active: mines.meshWorker, n: mines.meshCount }));
 if (!m.active) await fail('background meshing did not start');
 if (m.n < 20) await fail('too few chunks displayed: ' + m.n);

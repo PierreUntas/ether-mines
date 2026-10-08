@@ -97,6 +97,9 @@
   ITEM[201].tier = 2;
   ITEM[202] = { n: 'Pure Ether Pickaxe', icon: 58, tool: 8, tier: 3, nft: 1 };
   ITEM[203] = { n: 'Validator Seal', icon: 59, nft: 1 };
+  // v9: weapons (ids 106-107; 101-105 and 201-203 are the other items)
+  ITEM[106] = { n: 'Volt Blade', icon: 121, dmg: 2.5, tier: 1 };
+  ITEM[107] = { n: 'Pure Ether Blade', icon: 122, dmg: 5, tier: 2 };
   const reqTier = id => (B[id] ? (B[id].tier ?? (B[id].stone ? 1 : 0)) : 0);
   const RECIPES = [
     { out: 9, n: 4, need: { 5: 1 }, d: 'Cut up a log' },
@@ -148,6 +151,11 @@
     { out: 116, n: 1, need: { 67: 2, 3: 1, 101: 1 }, d: 'Activates ahead of it if one side or the back is powered', cat: 'Circuits' },
     { out: 120, n: 1, need: { 67: 1, 3: 1, 101: 1 }, d: 'Activates ahead of it as long as the back isn’t', cat: 'Circuits' },
     { out: 111, n: 1, need: { 67: 2, 15: 1, 101: 2 }, d: 'Source that pulses every second', cat: 'Circuits' },
+  );
+  // weapons
+  RECIPES.push(
+    { out: 106, n: 1, need: { 9: 3, 101: 2 }, d: 'Energy blade · fight back the mobs', cat: 'Combat' },
+    { out: 107, n: 1, need: { 9: 2, 103: 3, 101: 3 }, d: 'Sharper, from pure ether', cat: 'Combat' },
   );
   // v4: nature (generated in the world) and decoration. t = [top, sides, bottom]
   B[75] = { n: 'Ether Mushroom', x: 61, h: 0.05 }; // cave carpet, glowing

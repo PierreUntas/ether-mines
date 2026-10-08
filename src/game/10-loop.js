@@ -127,8 +127,14 @@ function frame(now) {
       S.day -= 1;
       S.dayN++;
     }
-    // minage
-    if (mining && target && B[target.id].h !== Infinity && !canBuildHere(target.x, target.z)) {
+    // combat: aiming a hostile mob with the mining click attacks instead of mining
+    const mobTarget = mining ? pickMob(aim, target) : null;
+    if (mobTarget) {
+      crack.visible = false;
+      mineKey = -1;
+      mineT = 0;
+      attackMob(mobTarget, dt);
+    } else if (mining && target && B[target.id].h !== Infinity && !canBuildHere(target.x, target.z)) {
       crack.visible = false;
       mineKey = -1;
       mineT = 0;
@@ -229,20 +235,31 @@ function frame(now) {
       sel.visible = false;
       $('target').hidden = true;
     }
-    const an = pickAnimal(aim, target);
-    if (an) {
+    const mb = pickMob(aim, target);
+    if (mb) {
       target = null;
       sel.visible = false;
       crack.visible = false;
-      const K = AK[an.type],
-        tg = $('target');
+      const tg = $('target');
       tg.hidden = false;
       tg.classList.remove('own');
-      const g = K.gift && (S.pets || {})[an.k + ':' + an.i] !== new Date().toISOString().slice(0, 10);
-      tg.innerHTML =
-        an.type === 'villager'
-          ? `${an.h.name}<span>${an.h.role} · ${touch ? 'tap' : 'right-click'}: talk</span>`
-          : `${K.n}<span>${touch ? 'tap' : 'right-click'}: pet${g ? ' · has a gift for you' : ''}</span>`;
+      tg.innerHTML = `${MK[mb.type].n}<span>${touch ? 'tap and hold' : 'left-click'}: attack</span>`;
+    } else {
+      const an = pickAnimal(aim, target);
+      if (an) {
+        target = null;
+        sel.visible = false;
+        crack.visible = false;
+        const K = AK[an.type],
+          tg = $('target');
+        tg.hidden = false;
+        tg.classList.remove('own');
+        const g = K.gift && (S.pets || {})[an.k + ':' + an.i] !== new Date().toISOString().slice(0, 10);
+        tg.innerHTML =
+          an.type === 'villager'
+            ? `${an.h.name}<span>${an.h.role} · ${touch ? 'tap' : 'right-click'}: talk</span>`
+            : `${K.n}<span>${touch ? 'tap' : 'right-click'}: pet${g ? ' · has a gift for you' : ''}</span>`;
+      }
     }
   }
   for (let i = parts.length - 1; i >= 0; i--) {
@@ -305,6 +322,7 @@ function frame(now) {
     computePower(dt);
     lights(dt);
     updateAnimals(dt);
+    updateMobs(dt);
     if (playing) updateQuest(dt);
   }
   updateOthers(dt);

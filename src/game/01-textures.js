@@ -1052,6 +1052,26 @@ tile(116, (P, E) => {
       }
   }),
 );
+// energy blades: dark grip, diagonal glowing edge (same angled-tool silhouette as the pickaxes)
+function blade(P, E, core, edge) {
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
+  for (let k = 0; k < 4; k++) {
+    P(2 + k, 13 - k, '#1c1029');
+    P(3 + k, 13 - k, '#2a1838');
+  }
+  P(4, 11, '#1c1029');
+  P(5, 10, '#1c1029');
+  for (let k = 0; k < 9; k++) {
+    const x = 6 + k,
+      y = 9 - k;
+    P(x, y, core);
+    P(x + 1, y, edge);
+    E(x, y, core);
+    E(x + 1, y, edge);
+  }
+}
+tile(121, (P, E) => blade(P, E, '#0a3d4a', '#00eaff')); // Volt Blade
+tile(122, (P, E) => blade(P, E, '#241048', '#c9a6ff')); // Pure Ether Blade
 // ---------- ink outline ----------
 // ethereum.org's illustrations are drawn with a navy ink line: every solid tile (no transparency)
 // gets an outline, blended with the original color to stay soft. Open-work tiles (leaves, glass, plants) don't get one.

@@ -1071,6 +1071,14 @@ const SETTINGS_CHOICES = [
     ],
   },
   {
+    k: 'mobs',
+    t: 'Hostile mobs',
+    o: [
+      [false, 'No'],
+      [true, 'Yes'],
+    ],
+  },
+  {
     k: 'sensitivity',
     t: 'Camera sensitivity',
     o: [

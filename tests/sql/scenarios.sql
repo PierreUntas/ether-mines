@@ -49,12 +49,13 @@ exception when raise_exception then if sqlerrm not like 'freeze:%' then raise; e
 
 reset role;
 update players set name = 'Pierre', pos_x = 20.5, pos_y = :s1 + 1, pos_z = 4.5, pos_at = now() where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
-insert into inventory values ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 9, 5), ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 101, 10),
+insert into inventory values ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 9, 8), ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 101, 12),
   ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 48, 1), ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 13, 1), ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 105, 1);
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 
 select pg_temp.ok('craft a wooden pickaxe', act_craft('w', 102) -> 'inv' ->> '102' = '1');
+select pg_temp.ok('craft a volt blade', act_craft('w', 106) -> 'inv' ->> '106' = '1');
 select pg_temp.ok('craft the crystal pickaxe (unique item #1)', act_craft('w', 201) -> 'unique' ->> 'serial' = '1');
 select pg_temp.ok('unknown recipe refused', act_craft('w', 999) ->> 'err' = 'unknown recipe');
 select pg_sleep(1.2);

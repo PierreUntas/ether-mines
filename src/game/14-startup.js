@@ -907,6 +907,31 @@ if (location.hash === '#debug')
     petAnimal,
     spawnChunk,
     despawnChunk,
+    // getters: src/game/16-mobs.js loads after this file, so these bindings don't exist yet at startup
+    get MOBS() {
+      return MOBS;
+    },
+    get MK() {
+      return MK;
+    },
+    get mkMob() {
+      return mkMob;
+    },
+    get pickMob() {
+      return pickMob;
+    },
+    get attackMob() {
+      return attackMob;
+    },
+    get hurtPlayer() {
+      return hurtPlayer;
+    },
+    get spawnMobChunk() {
+      return spawnMobChunk;
+    },
+    get despawnMobChunk() {
+      return despawnMobChunk;
+    },
     popAt,
     B,
     get S() {

@@ -232,6 +232,8 @@ insert into public.rule_items (id, name, tool, tier, uniq) values
 (103,'Pure Shard',1,0,false),
 (104,'Genesis Fragment',1,0,false),
 (105,'Validator Heart',1,0,false),
+(106,'Volt Blade',1,1,false),
+(107,'Pure Ether Blade',1,2,false),
 (201,'Crystal Pickaxe',5,2,true),
 (202,'Pure Ether Pickaxe',8,3,true),
 (203,'Validator Seal',1,0,true);
@@ -277,6 +279,8 @@ insert into public.rule_recipes (out_item, n, need, uniq) values
 (116,1,'{"3":1,"67":2,"101":1}'::jsonb,false),
 (120,1,'{"3":1,"67":1,"101":1}'::jsonb,false),
 (111,1,'{"15":1,"67":2,"101":2}'::jsonb,false),
+(106,1,'{"9":3,"101":2}'::jsonb,false),
+(107,1,'{"9":2,"101":3,"103":3}'::jsonb,false),
 (79,4,'{"3":2,"4":1}'::jsonb,false),
 (87,4,'{"79":2}'::jsonb,false),
 (88,4,'{"79":3}'::jsonb,false),

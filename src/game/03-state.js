@@ -20,6 +20,7 @@ const REG_DEFAULT = {
   sharpness: touch ? 1.5 : 2,
   fireflies: true,
   animals: true,
+  mobs: true,
   fps: false,
   sensitivity: 1,
 };
@@ -60,6 +61,7 @@ const S0 = () => ({
   relit: 0,
   totalMint: 0,
   totalBurn: 0,
+  hp: 10,
 });
 let S = S0(),
   ME = { id: 'me', name: 'me', color: '#8a7bef' };
