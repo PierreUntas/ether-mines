@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP: below this layer, geodes and large caves
-  const GEN = 9; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed) : bump it on every terrain change (already-frozen chunks don't move)
+  const GEN = 10; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door) : bump it on every terrain change (already-frozen chunks don't move)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -62,7 +62,7 @@
   const RUIN = 80;
   // position of a region's ruin (or null: ocean, peak); the sanctuary's region has one within sight
   // ---------- the City: futuristic district under the great diamond, north of the sanctuary ----------
-  const CITY = { x: SPAWN.x, z: SPAWN.z - 64, R: 30, Y: 30, STEP: 12 };
+  const CITY = { x: SPAWN.x, z: SPAWN.z - 64, R: 34, Y: 30, STEP: 12 }; // R 34: the shelter (the farthest plot out) needs room for its corners
   const k5 = (dx, dz) => (dx === 0 || dz === 0) && Math.abs(dx) + Math.abs(dz) === 5; // middle of a hall facade
   const inCity = (x, z, margin = 0) => Math.hypot(x - CITY.x, z - CITY.z) <= CITY.R + margin;
   // the validators' path: paved walkway between the Atrium and the City
@@ -574,7 +574,8 @@
               const door = dz === R && ax === 0,
                 lantern = dz === -R && ax === 0,
                 window = (dx === R || dx === -R) && az === 0;
-              for (let k = 1; k <= H; k++) set(Y + k, door && k <= 2 ? 0 : lantern && k === 2 ? 84 : window && k === 2 ? 93 : 79);
+              for (let k = 1; k <= H; k++)
+                set(Y + k, door && k === 1 ? 48 : door && k === 2 ? 49 : lantern && k === 2 ? 84 : window && k === 2 ? 93 : 79); // closed door, not an open gap: mobs roam outside
               continue;
             }
             set(Y, dam);
