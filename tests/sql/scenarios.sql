@@ -106,6 +106,13 @@ reset role;
 update players set pos_at = now() - interval '1 minute';
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('relight refused: the fourth column is still broken', act_relight('w', :rx, :ry, :rz, :rx + 0.5, :ry, :rz + 2.5) ->> 'err' = 'rebuild the fourth column first');
+reset role;
+select public._set('w', :rx + 2, :ry, :rz + 2, 127, null, null, null);
+select public._set('w', :rx + 2, :ry + 1, :rz + 2, 127, null, null, null);
+select public._set('w', :rx + 2, :ry + 2, :rz + 2, 127, null, null, null);
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 select pg_temp.ok('relight the ruin', act_relight('w', :rx, :ry, :rz, :rx + 0.5, :ry, :rz + 2.5) -> 'unique' ->> 'id' = '203');
 select pg_temp.ok('the network counts the relit validator', (act_network('w') ->> 'n')::int = 1 and act_network('w') -> 'top' -> 0 ->> 'n' = '1');
 select pg_temp.ok('the old validator is signed', (select placed_by from blocks where x = :rx and y = :ry and z = :rz) = 'aaaaaaaa-0000-0000-0000-000000000001');

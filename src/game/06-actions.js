@@ -526,6 +526,12 @@ function toastInfo(t) {
   logEv('nft', t, '');
 }
 function relight(t) {
+  // the ruin's fourth broken column (its +x, +z corner) must be rebuilt before the validator can wake up
+  if (![0, 1, 2].every(i => isSolid(get(t.x + 2, t.y + i, t.z + 2)))) {
+    logEv('burn', 'Dark validator', 'rebuild the fourth column first');
+    Sound.hit('stone');
+    return;
+  }
   if (!(S.inv[105] > 0)) {
     logEv('burn', 'Dark validator', 'you need a validator heart: check your objectives');
     Sound.hit('stone');
