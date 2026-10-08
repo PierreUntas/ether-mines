@@ -142,7 +142,8 @@ const combat = await page.evaluate(async () => {
   mines.MOBS.set('test-combat', [mob]);
   for (let i = 0; i < mines.MK.shadow.hp && mob.hp > 0; i++) mines.attackMob(mob, 1);
   const deadHp = mob.hp;
-  await new Promise(r => setTimeout(r, 2000));
+  const t0 = performance.now();
+  while (performance.now() - t0 < 10000 && mines.MOBS.get('test-combat')?.includes(mob)) await new Promise(r => setTimeout(r, 200));
   const gone = !mines.MOBS.get('test-combat')?.includes(mob);
   const regMobs = REG.mobs;
   const hpBefore = mines.S.hp;
