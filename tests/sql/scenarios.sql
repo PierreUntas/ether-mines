@@ -311,6 +311,15 @@ select pg_temp.ok('mine a column of the Atrium', act_mine('w', 14, 34, 10, null,
 select pg_temp.ok('claim a chunk of the Atrium', act_claim('w', 0, 0, 12.5, 33, 8.5) ->> 'ok' = 'false');
 reset role;
 select pg_temp.ok('the City zone is protected', _public_zone(8, -56) and _public_zone(30, -56) and not _public_zone(8, -20) and not _public_zone(20, 3));
+
+-- toggling a door/lever is reversible, so it stays allowed in public zones even though mining/placing/claiming don't (011_toggle_public.sql)
+select public._set('w', 12, 34, 8, 48, null, null, null);
+select public._set('w', 12, 35, 8, 49, null, null, null);
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('open a door inside the Atrium (toggle allowed in public zones)', (act_toggle('w', 12, 34, 8, 12.5, 33, 8.5) ->> 'ok')::boolean);
+reset role;
+select pg_temp.ok('the door actually opened (both halves)', public._cell('w', 12, 34, 8) = 50 and public._cell('w', 12, 35, 8) = 51);
 \echo All SQL scenarios pass.
 
 -- ---------- trading between players (008_trades.sql) ----------

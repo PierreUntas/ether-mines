@@ -192,6 +192,13 @@ function canBuildHere(x, z) {
   const c = claimAt(x, z);
   return !c || c.owner === ME.id || (c.members || []).includes(ME.id);
 }
+// opening/closing a door or lever is reversible, so it's allowed in public zones (the Atrium, the City)
+// unlike mining/placing/claiming; still respects other players' claims
+function canToggleHere(x, z) {
+  if (!SERVER()) return true;
+  const c = claimAt(x, z);
+  return !c || c.owner === ME.id || (c.members || []).includes(ME.id);
+}
 function protectMsg(x, z) {
   if (sanctuary(x, z)) return inCity(x, z, 1) ? 'the City belongs to everyone' : 'the Atrium belongs to everyone';
   const c = claimAt(x, z);
@@ -406,7 +413,7 @@ function place() {
     relight(target);
     return;
   }
-  if (tb && (tb.shape === 'door' || tb.shape === 'lever') && SERVER() && !canBuildHere(target.x, target.z)) {
+  if (tb && (tb.shape === 'door' || tb.shape === 'lever') && SERVER() && !canToggleHere(target.x, target.z)) {
     protectHint(target.x, target.z);
     return;
   }
