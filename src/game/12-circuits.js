@@ -135,10 +135,11 @@ function gateActive(k, id, nodes, pw) {
   if (g === 'or') return hasInput(k, left, nodes, pw) || hasInput(k, right, nodes, pw) || hasInput(k, back, nodes, pw);
   return !hasInput(k, back, nodes, pw); // not
 }
-// First time a lamp lights up fed, even indirectly through cables, by an active gate's own output
-// (not just a lever/plate/clock elsewhere on the same network) — reachability through the already-powered
-// subgraph, starting only from gate outputs. Used only for Objectives tracking, nothing else depends on it.
-function gateLitLamp(nodes, pw) {
+// Every already-powered cable/gate cell reachable from one starting cell, plus whatever terminal
+// block (lamp, door, plate…) sits at the far end of each branch — used to figure out, after the fact,
+// what a given input or output is actually connected to. Objectives tracking only; nothing gameplay
+// related reads this (the real circuit, computed by propagate()/gateActive() above, never needs it).
+function poweredReach(nodes, pw, sx, sy, sz) {
   const seen = new Set(),
     q = [];
   const visit = (x, y, z) => {
@@ -148,18 +149,74 @@ function gateLitLamp(nodes, pw) {
     seen.add(k);
     if (id === 67 || B[id]?.gate) q.push(k);
   };
-  for (const [k, id] of nodes)
-    if (B[id]?.gate && GATE_ON.has(k)) {
-      const [x, y, z] = k.split(',').map(Number),
-        f = FRONT[B[id].o];
-      visit(x + f[0], y, z + f[2]);
-    }
+  visit(sx, sy, sz);
   for (let n = 0; q.length && n < 2000; n++) {
     const k = q.shift(),
       [x, y, z] = k.split(',').map(Number);
     for (const [a, b, c] of N6) visit(x + a, y + b, z + c);
   }
-  for (const k of seen) if (nodes.get(k) === 68) return true;
+  return seen;
+}
+// First time a lamp lights up fed, even indirectly through cables, by an active gate's own output
+// (not just a lever/plate/clock elsewhere on the same network).
+function gateLitLamp(nodes, pw) {
+  for (const [k, id] of nodes)
+    if (B[id]?.gate && GATE_ON.has(k)) {
+      const [x, y, z] = k.split(',').map(Number),
+        f = FRONT[B[id].o];
+      for (const rk of poweredReach(nodes, pw, x + f[0], y, z + f[2])) if (nodes.get(rk) === 68) return true;
+    }
+  return false;
+}
+// A door opened by an active AND gate whose two inputs each trace back to a pressure plate, and not
+// the same single plate feeding both sides — a real two-key lock, not just a gate that happens to be on.
+function twoKeyDoor(nodes, pw) {
+  for (const [k, id] of nodes) {
+    if (!(B[id]?.gate === 'and' && GATE_ON.has(k))) continue;
+    const [x, y, z] = k.split(',').map(Number),
+      f = FRONT[B[id].o],
+      left = [f[2], 0, -f[0]],
+      right = [-f[2], 0, f[0]];
+    const leftPlates = new Set(),
+      rightPlates = new Set();
+    for (const rk of poweredReach(nodes, pw, x + left[0], y, z + left[2])) if (nodes.get(rk) === 66) leftPlates.add(rk);
+    for (const rk of poweredReach(nodes, pw, x + right[0], y, z + right[2])) if (nodes.get(rk) === 66) rightPlates.add(rk);
+    if (!leftPlates.size || !rightPlates.size) continue;
+    if (leftPlates.size === 1 && rightPlates.size === 1 && [...leftPlates][0] === [...rightPlates][0]) continue;
+    for (const rk of poweredReach(nodes, pw, x + f[0], y, z + f[2])) {
+      const rid = nodes.get(rk);
+      if (rid >= 48 && rid <= 63) return true;
+    }
+  }
+  return false;
+}
+// A NOT gate whose own output, followed only through cable (not through any other gate — the
+// simple, expected build), loops all the way back into its own back input. Structural: looked for
+// regardless of the current power state, since the whole point of this wiring is that it never
+// settles — the comment in computePower() below already calls this out as a known, deliberate quirk.
+function selfOscillating(nodes) {
+  for (const [k, id] of nodes) {
+    if (B[id]?.gate !== 'not') continue;
+    const [x, y, z] = k.split(',').map(Number),
+      f = FRONT[B[id].o],
+      back = coordKey(x - f[0], y, z - f[2]);
+    const seen = new Set([k]),
+      q = [coordKey(x + f[0], y, z + f[2])];
+    let found = false;
+    for (let n = 0; q.length && n < 2000 && !found; n++) {
+      const ck = q.shift();
+      if (seen.has(ck)) continue;
+      seen.add(ck);
+      if (ck === back) {
+        found = true;
+        break;
+      }
+      if (nodes.get(ck) !== 67) continue; // only cable keeps the structural loop going
+      const [cx, cy, cz] = ck.split(',').map(Number);
+      for (const [a, b, c] of N6) q.push(coordKey(cx + a, cy + b, cz + c));
+    }
+    if (found) return true;
+  }
   return false;
 }
 // Propagates the current from the sources (levers, pressed plates, clocks, active logic gates) through the cables.
@@ -234,6 +291,14 @@ function computePower(dt) {
   }
   if (!S.gateLit && gateLitLamp(nodes, pw)) {
     S.gateLit = 1;
+    dirty = true;
+  }
+  if (!S.twoKeyDoor && twoKeyDoor(nodes, pw)) {
+    S.twoKeyDoor = 1;
+    dirty = true;
+  }
+  if (!S.gateBlinker && selfOscillating(nodes)) {
+    S.gateBlinker = 1;
     dirty = true;
   }
   const changed = [];

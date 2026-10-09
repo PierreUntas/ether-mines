@@ -173,6 +173,16 @@ const QUESTS = [
     h: 'Craft an AND, OR or NOT gate (Crafting, Circuits), then wire it with cable so its output powers a lamp.',
     ok: () => !!S.gateLit,
   },
+  {
+    t: 'Build a two-key door',
+    h: 'Wire two pressure plates into an AND gate, its output into a door: it only opens when both are pressed at once.',
+    ok: () => !!S.twoKeyDoor,
+  },
+  {
+    t: 'Build a self-oscillating blinker',
+    h: "Loop a NOT gate's own output back into its own input with cable: no clock needed, it blinks on its own.",
+    ok: () => !!S.gateBlinker,
+  },
 ];
 const RELIT_GOALS = [3, 7, 12, 20, 30, 50, 75, 100];
 // ---------- the network: the shared goal ----------
