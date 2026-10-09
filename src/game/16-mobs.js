@@ -318,7 +318,7 @@ function lootMob(type) {
       }
       if (r && r.unique) {
         addUnique(r.unique);
-        toastInfo(`The Genesis Titan falls! ${ITEM[205].n} earned.`);
+        toastInfo(`The Genesis Titan falls! ${ITEM[205].n} earned — a cape of its own hide. Hold jump while falling to glide.`);
         Sound.chime();
       }
     });
@@ -326,7 +326,7 @@ function lootMob(type) {
   }
   if (type === 'titan') {
     mintNft(205, null);
-    toastInfo(`The Genesis Titan falls! ${ITEM[205].n} earned.`);
+    toastInfo(`The Genesis Titan falls! ${ITEM[205].n} earned — a cape of its own hide. Hold jump while falling to glide.`);
     Sound.chime();
     return;
   }

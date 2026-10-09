@@ -95,7 +95,10 @@ function frame(now) {
     } else {
       if (jump && was) P.vy = 8.2;
       else if (touch && bumped && was && l > 0.3) P.vy = 8.2;
-      P.vy = Math.max(P.vy - 24 * dt, -30);
+      // gliding: a Genesis Titan Fang owner holding jump while already falling descends slowly instead,
+      // covering real horizontal distance via the normal WASD movement already applied above
+      const gliding = (jump || touch) && !was && P.vy < 0 && hasCape();
+      P.vy = gliding ? Math.max(P.vy - 3 * dt, -3) : Math.max(P.vy - 24 * dt, -30);
     }
     const fallV = P.vy;
     P.on = false;

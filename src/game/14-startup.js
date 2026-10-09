@@ -94,6 +94,19 @@ function makeAvatar(name, color, horsScene) {
   plate.visible = false;
   plate.castShadow = true;
   g.add(plate);
+  // the Genesis Titan Fang's cape: the boss's own basalt-and-ember colors. Hidden unless owned (updateCapeVisual,
+  // from S.nfts) — always worn once earned, no equip slot (unlike armor, there's nothing to choose between).
+  const cape = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.7, 0.04), new THREE.MeshLambertMaterial({ color: 0x3a2d52 }));
+  cape.position.set(0, 0.95, 0.17);
+  const trim = new THREE.Mesh(
+    new THREE.BoxGeometry(0.46, 0.06, 0.05),
+    new THREE.MeshLambertMaterial({ color: 0xffb347, emissive: 0xffb347, emissiveIntensity: 0.6 }),
+  );
+  trim.position.set(0, -0.32, 0);
+  cape.add(trim);
+  cape.visible = false;
+  cape.castShadow = true;
+  g.add(cape);
   const limb = (w, h, d, m, x, y) => {
     const p = new THREE.Group();
     p.position.set(x, y, 0);
@@ -111,7 +124,7 @@ function makeAvatar(name, color, horsScene) {
   tag.position.y = 2.1;
   g.add(tag);
   if (!horsScene) scene.add(g);
-  return { g, head, body, legs, arms, tag, plate, held: null, name, color, walk: 0, t: null, seen: false, ph: Math.random() * 6 };
+  return { g, head, body, legs, arms, tag, plate, cape, held: null, name, color, walk: 0, t: null, seen: false, ph: Math.random() * 6 };
 }
 // third-person held item: a small voxel version of the selected tool/weapon on the right arm, reusing
 // heldVoxelGeo() (04-render.js) — the same per-pixel cube build used for the first-person hand. Self only.
@@ -145,6 +158,13 @@ function updateArmorVisual(av) {
     }
   }
 }
+// no equip slot: owning a Genesis Titan Fang is the only condition, there's nothing to choose between
+const hasCape = () => S.nfts.some(n => n.id === 205);
+// shows/hides the avatar's cape to match Fang ownership (self only, same scope as armor)
+function updateCapeVisual(av) {
+  if (!av) return;
+  av.cape.visible = hasCape();
+}
 // ---------- seeing yourself: back view, front view (V key), and the character in the chest ----------
 let VIEW = 0, // 0: through your eyes; 1: from behind; 2: from the front
   SELF = null;
@@ -162,6 +182,7 @@ function changeView() {
     SELF.tag.visible = false;
     viewPos.set(P.x, P.y, P.z);
     updateArmorVisual(SELF);
+    updateCapeVisual(SELF);
     updateAvatarHand(SELF);
   }
   if (SELF) SELF.g.visible = VIEW > 0;
@@ -254,6 +275,7 @@ function previewBox() {
     p.sc.add(p.av.g);
   }
   updateArmorVisual(p.av);
+  updateCapeVisual(p.av);
   updateAvatarHand(p.av);
   p.box.querySelector('.pname').textContent = ME.name;
   const pc = p.box.querySelector('.pcolor');

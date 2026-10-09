@@ -97,6 +97,7 @@ function ui() {
   armorEl.hidden = !S.armor || !ITEM[S.armor];
   if (!armorEl.hidden) armorEl.textContent = `🛡 ${ITEM[S.armor].n} · -${Math.round(ITEM[S.armor].armor * 100)}% dmg`;
   updateArmorVisual(SELF);
+  updateCapeVisual(SELF);
   updateAvatarHand(SELF);
   if (!$('panel').hidden) renderPanel();
 }
