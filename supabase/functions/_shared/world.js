@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP: below this layer, geodes and large caves
-  const GEN = 12; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example; 12: new seed; the Circuits Complex, its own standalone landmark with 5 separate rooms, replaces the in-City workshop) : bump it on every terrain change (already-frozen chunks don't move)
+  const GEN = 13; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example; 12: new seed; the Circuits Complex, its own standalone landmark with 5 separate rooms, replaces the in-City workshop; 13: towers, guarded by mobs with a boss at the top) : bump it on every terrain change (already-frozen chunks don't move)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -264,6 +264,28 @@
     const rg = ruinAt(Math.floor(x / RUIN), Math.floor(z / RUIN));
     if (rg && Math.hypot(rg.x - x, rg.z - z) < 14) return null;
     if (islandZone(x, z) || inCity(x, z, 16)) return null;
+    return { x, z, y };
+  }
+  const TOWER = 96;
+  // tower of a 96x96 region (or null): guarded by hostile mobs, a boss at the top — rarer than a
+  // garden or a ruin, so sparser spacing and a tighter hash gate
+  function towerAt(tx, tz) {
+    if (hash(tx * 7 + 3, tz * 11 + 5, 270) > 0.4) return null;
+    const x = tx * TOWER + 20 + Math.floor(hash(tx, tz, 271) * (TOWER - 40)),
+      z = tz * TOWER + 20 + Math.floor(hash(tx, tz, 272) * (TOWER - 40)),
+      y = heightAt(x, z);
+    if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 70 || y <= SEA + 1 || y >= DY + 31 || biome(x, z) === 'dunes') return null;
+    for (const [dx, dz] of [
+      [-4, -4],
+      [4, -4],
+      [-4, 4],
+      [4, 4],
+      [0, 0],
+    ])
+      if (Math.abs(heightAt(x + dx, z + dz) - y) > 3) return null;
+    const rg = ruinAt(Math.floor(x / RUIN), Math.floor(z / RUIN));
+    if (rg && Math.hypot(rg.x - x, rg.z - z) < 20) return null;
+    if (islandZone(x, z) || inCity(x, z, 20) || inCircuits(x, z, 20)) return null;
     return { x, z, y };
   }
   // floating islands: rock clouds between DY+31 and DY+45, far from the sanctuary, never above the mountains
@@ -489,6 +511,46 @@
           if (hp === 3) put(rx0 + dx, ry + 4, rz0 + dz, 14);
         }
         put(rx0, ry + 1, rz0, 73);
+      }
+    // towers: a 96x96 region each, guarded by hostile mobs with a boss at the top; the boss always
+    // drops a Plasma Pistol (supabase/migrations/016_tower_boss_loot.sql). Mob placement mirrors
+    // this loop in src/game/16-mobs.js's spawnMobChunk, keyed off the same towerAt() position.
+    for (let tz = Math.floor((z0 - 4) / TOWER); tz <= Math.floor((z0 + CH + 4) / TOWER); tz++)
+      for (let tx = Math.floor((x0 - 4) / TOWER); tx <= Math.floor((x0 + CH + 4) / TOWER); tx++) {
+        const t = towerAt(tx, tz);
+        if (!t) continue;
+        const { x: tx0, z: tz0, y: ty } = t,
+          LADX = 2,
+          LADZ = -2; // the climbing ladder's fixed interior column
+        // a clean foundation and a hollow interior, regardless of the natural terrain underneath
+        for (let dx = -3; dx <= 3; dx++)
+          for (let dz = -3; dz <= 3; dz++) {
+            put(tx0 + dx, ty, tz0 + dz, (dx + dz) % 2 ? 15 : 81);
+            for (let k = 1; k <= 16; k++) put(tx0 + dx, ty + k, tz0 + dz, 0);
+          }
+        // walls: granite, all four floors, an entrance gap on the south side and a window slit at
+        // each floor's middle on the other three
+        for (let dx = -3; dx <= 3; dx++)
+          for (let dz = -3; dz <= 3; dz++) {
+            if (Math.max(Math.abs(dx), Math.abs(dz)) !== 3) continue;
+            const entrance = dz === 3 && dx === 0;
+            for (let k = 1; k <= 16; k++) {
+              const slit =
+                (k === 3 || k === 7 || k === 11 || k === 15) &&
+                ((dz === -3 && dx === 0) || (dx === 3 && dz === 0) || (dx === -3 && dz === 0));
+              if ((entrance && k <= 2) || slit) continue;
+              put(tx0 + dx, ty + k, tz0 + dz, 3);
+            }
+          }
+        // floor platforms at the top of floors 1-3 (floor 4, the boss's, stays open to the sky), a
+        // gap left clear for the ladder
+        for (const k of [5, 9, 13])
+          for (let dx = -2; dx <= 2; dx++)
+            for (let dz = -2; dz <= 2; dz++) {
+              if (dx === LADX && dz === LADZ) continue;
+              put(tx0 + dx, ty + k, tz0 + dz, 79);
+            }
+        for (let k = 1; k <= 16; k++) put(tx0 + LADX, ty + k, tz0 + LADZ, 94);
       }
     // the City, column by column (each column depends only on x and z)
     if (inCity(x0 + 8, z0 + 8, 12)) {
@@ -952,6 +1014,8 @@
     inWorld,
     ruinAt,
     gardenAt,
+    towerAt,
+    TOWER,
     CITY,
     inCity,
     CIRCUITS,

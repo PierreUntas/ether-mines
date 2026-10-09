@@ -110,6 +110,10 @@
   B[145] = { n: 'Radiant Diamond', t: [130, 130, 130], h: 1, glass: 1 };
   // v12: the Genesis Titan's trophy (never crafted, only minted by act_loot_mob on a guaranteed boss kill)
   ITEM[205] = { n: 'Genesis Titan Fang', icon: 131, nft: 1 };
+  // v13: towers — a repeatable mid-tier boss (the Plasma Core) guards each one, dropping this on every
+  // kill (never crafted, only minted by act_loot_mob, same guaranteed-boss-drop pattern as the Titan
+  // Fang). The first ranged weapon: `ranged: 1` is read by src/game/16-mobs.js's fireRanged/updateBolts.
+  ITEM[206] = { n: 'Plasma Pistol', icon: 132, dmg: 4, tier: 2, nft: 1, ranged: 1 };
   const reqTier = id => (B[id] ? (B[id].tier ?? (B[id].stone ? 1 : 0)) : 0);
   const RECIPES = [
     { out: 9, n: 4, need: { 5: 1 }, d: 'Cut up a log' },

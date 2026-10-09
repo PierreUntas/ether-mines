@@ -23,6 +23,8 @@ const {
   inCircuits,
   onPath,
   gardenAt,
+  towerAt,
+  TOWER,
   LIMIT,
   RUIN,
   ckey,

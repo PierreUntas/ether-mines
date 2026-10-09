@@ -396,7 +396,8 @@ Net.on('hit', p => {
   if (sanctuary(P.x, P.z)) return; // my own true position — can't be spoofed by the attacker
   const last = lastHitFrom.get(p.from) || 0;
   if (performance.now() - last < 400) return; // floor independent of the attacker's own cooldown
-  if (Math.hypot(P.x - p.x, P.y - p.y, P.z - p.z) > 6.5) return; // melee-range plausibility, not a trust boundary
+  // plausibility, not a trust boundary: melee range, or the Plasma Pistol's bolt range plus slack
+  if (Math.hypot(P.x - p.x, P.y - p.y, P.z - p.z) > (ITEM[p.item]?.ranged ? 30 : 6.5)) return;
   lastHitFrom.set(p.from, performance.now());
   hurtPlayer(ITEM[p.item]?.dmg || 1, p.x, p.z);
 });

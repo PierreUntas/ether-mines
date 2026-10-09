@@ -365,6 +365,16 @@ select pg_temp.ok('regular mob loot is unaffected by the titan rate limit', (act
 reset role;
 delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_mob';
 delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_boss';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+
+-- towers' Plasma Core (016_tower_boss_loot.sql): same guaranteed-drop shape as the Titan, sharing the
+-- same 'loot_boss' bucket — grinding one boss type can't be used to out-pace the other
+select pg_temp.ok('the plasma core always drops its trophy', act_loot_mob('w', 'plasma_core', 12.5, 33, 8.5) -> 'unique' ->> 'id' = '206');
+select pg_temp.ok('a titan claim right after is refused too (shared loot_boss bucket)', act_loot_mob('w', 'titan', 12.5, 33, 8.5) ->> 'err' = 'too many actions');
+reset role;
+delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_mob';
+delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_boss';
 
 -- the network's capstone (014_relight_capstone.sql): crossing a shared milestone mints a Validator Star.
 -- Run last (not right after the first relight): it adds a second relit validator owned by player A, which

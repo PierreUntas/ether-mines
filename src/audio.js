@@ -155,6 +155,13 @@
       noise('bandpass', 700, 1.2, 0.4, 0.18, T);
       tone(220, 'sawtooth', 0.12, 0.22, T, sfx, 0.5);
     },
+    // the Plasma Pistol: a quick descending zap, a touch of filtered noise for bite
+    shoot() {
+      if (!ctx) return;
+      const T = now();
+      tone(1900, 'sawtooth', 0.14, 0.1, T, sfx, 0.28, 0.002);
+      noise('highpass', 3000, 2, 0.12, 0.05, T);
+    },
     door() {
       if (!ctx) return;
       const T = now();

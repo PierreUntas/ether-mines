@@ -255,7 +255,8 @@ insert into public.rule_items (id, name, tool, tier, uniq) values
 (202,'Pure Ether Pickaxe',8,3,true),
 (203,'Validator Seal',1,0,true),
 (204,'Validator Star',1,0,true),
-(205,'Genesis Titan Fang',1,0,true);
+(205,'Genesis Titan Fang',1,0,true),
+(206,'Plasma Pistol',1,2,true);
 insert into public.rule_recipes (out_item, n, need, uniq) values
 (9,4,'{"5":1}'::jsonb,false),
 (102,1,'{"9":3}'::jsonb,false),

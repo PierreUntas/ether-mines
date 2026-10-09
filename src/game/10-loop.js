@@ -130,12 +130,20 @@ function frame(now) {
       S.day -= 1;
       S.dayN++;
     }
+    updateBolts(dt);
     // combat: aiming a hostile mob, another player (outside protected zones), or a killable animal, with
-    // the mining click attacks instead of mining
-    const mobTarget = mining ? pickMob(aim, target) : null;
-    const pvpTarget = !mobTarget && mining && !sanctuary(P.x, P.z) ? pickPlayer(aim, target) : null;
-    const aniTarget = !mobTarget && !pvpTarget && mining ? pickAnimal(aim, target) : null;
-    if (mobTarget) {
+    // the mining click attacks instead of mining — a ranged weapon (the Plasma Pistol) fires along the
+    // aim direction instead, whatever's in its path, not gated by the short melee pick range
+    const heldRanged = ITEM[itemId(S.bar[S.sel])]?.ranged;
+    const mobTarget = !heldRanged && mining ? pickMob(aim, target) : null;
+    const pvpTarget = !heldRanged && !mobTarget && mining && !sanctuary(P.x, P.z) ? pickPlayer(aim, target) : null;
+    const aniTarget = !heldRanged && !mobTarget && !pvpTarget && mining ? pickAnimal(aim, target) : null;
+    if (heldRanged) {
+      if (mining) fireRanged(dt);
+      crack.visible = false;
+      mineKey = -1;
+      mineT = 0;
+    } else if (mobTarget) {
       crack.visible = false;
       mineKey = -1;
       mineT = 0;
