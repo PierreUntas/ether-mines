@@ -62,7 +62,7 @@
   const RUIN = 80;
   // position of a region's ruin (or null: ocean, peak); the sanctuary's region has one within sight
   // ---------- the City: futuristic district under the great diamond, north of the sanctuary ----------
-  const CITY = { x: SPAWN.x, z: SPAWN.z - 64, R: 34, Y: 30, STEP: 12 }; // R 34: the shelter (the farthest plot out) needs room for its corners
+  const CITY = { x: SPAWN.x, z: SPAWN.z - 64, R: 38, Y: 30, STEP: 12 }; // R 38: the Circuits Hall (the farthest plot out, now R=5) needs room for its corners
   const k5 = (dx, dz) => (dx === 0 || dz === 0) && Math.abs(dx) + Math.abs(dz) === 5; // middle of a hall facade
   const inCity = (x, z, margin = 0) => Math.hypot(x - CITY.x, z - CITY.z) <= CITY.R + margin;
   // the validators' path: paved walkway between the Atrium and the City
@@ -83,7 +83,7 @@
     '2,0': { t: 'garden' },
     '-2,0': { t: 'garden' },
     '2,1': { t: 'shelter', H: 4 }, // the shelter: a room to eat and sleep in
-    '-2,1': { t: 'workshop', H: 4 }, // the workshop: a working logic-gate latch, free to study and copy
+    '-2,1': { t: 'workshop', H: 6 }, // the Circuits Hall: a working example of every gate-based objective
   };
   function cityPlot(i, j) {
     const L = PLOTS[i - 3 + ',' + (j - 3)];
@@ -586,10 +586,21 @@
             if (dx === 2 && dz === 1) set(Y + 1, 137); // bed: foot (facing north, toward dz 0)
             if (dx === 2 && dz === 0) set(Y + 1, 141); // bed: head
           } else if (L.t === 'workshop') {
-            // the workshop: ether-brick walls, a window on each side, pyramid roof — and a working
-            // example of a gate latch: step on the plate once, the lamp stays lit for good, fed back
-            // from the OR gate's own output (see src/game/12-circuits.js, isLatch).
-            const R = 3;
+            // the Circuits Hall: ether-brick walls, a window on each side, pyramid roof, and five
+            // working examples — one per gate-based Objective (see src/game/12-circuits.js for the
+            // matching detection: gateLitLamp, twoKeyDoor, selfOscillating, isLatch, isCoinFlip).
+            // Station 1, near the entrance: a NOT gate with nothing behind it (always active) lights
+            // a lamp — the simplest possible "light a lamp through a gate".
+            // Station 2: an AND gate fed by two distinct plates opens a real door built into a short
+            // partition wall — two people, two plates, one door.
+            // Station 3: a NOT gate whose output loops, through cable only, back into its own back
+            // input — oscillates forever, a lamp branched off the loop makes the blink visible.
+            // Station 4: the original workshop's latch, relocated — a plate feeds an OR gate's back
+            // input, another cable loops the gate's own output back into its right input: tap once,
+            // the lamp stays lit for good.
+            // Station 5, along the back wall: a coin flip — the same self-oscillating NOT loop as
+            // station 3, tapped by an AND gate alongside a plate, feeding an OR latch like station 4.
+            const R = 5;
             if (m > R) continue;
             if (m === R) {
               const door = dz === R && ax === 0,
@@ -599,12 +610,53 @@
             }
             set(Y, dam);
             set(Y + H + 1 + (R - 1 - m), 9);
-            if (dx === 0 && dz === 0) set(Y + 1, 66); // pressure plate: tap it once
-            if (dx === 0 && dz === -1) set(Y + 1, 116); // OR gate (facing north, o=0): back input = the plate, right input = the loop
-            if (dx === 0 && dz === -2) set(Y + 1, 67); // cable: the gate's own output
-            if (dx === 1 && dz === -2) set(Y + 1, 67); // cable: junction toward the lamp and back to the loop
-            if (dx === 1 && dz === -1) set(Y + 1, 67); // cable: closes the loop into the gate's right input
-            if (dx === 2 && dz === -2) set(Y + 1, 68); // lamp: lights up, and stays lit
+            // station 1: light a lamp
+            if (dx === -2 && dz === 3) set(Y + 1, 120); // NOT gate, o=0, nothing behind: always active
+            if (dx === -2 && dz === 2) set(Y + 1, 67);
+            if (dx === -2 && dz === 1) set(Y + 1, 68);
+            // station 2: two-key door
+            if (dx === 2 && dz === 0) set(Y + 1, 115); // AND gate, o=3 (facing +x, toward the door)
+            if (dx === 2 && dz === -1) set(Y + 1, 66); // plate: left input
+            if (dx === 2 && dz === 1) set(Y + 1, 66); // plate: right input
+            if (dx === 3 && dz === 0) {
+              set(Y + 1, 48); // door foot
+              set(Y + 2, 49); // door head
+            }
+            if (dx === 3 && (dz === -1 || dz === 1)) {
+              set(Y + 1, 79); // short partition wall framing the door
+              set(Y + 2, 79);
+            }
+            // station 3: self-oscillating blinker
+            if (dx === 2 && dz === 3) set(Y + 1, 120); // NOT gate, o=0
+            if (dx === 2 && dz === 2) set(Y + 1, 67); // front: the gate's own output
+            if (dx === 3 && dz === 2) set(Y + 1, 67);
+            if (dx === 3 && dz === 3) set(Y + 1, 67);
+            if (dx === 3 && dz === 4) set(Y + 1, 67);
+            if (dx === 2 && dz === 4) set(Y + 1, 67); // closes the loop into the gate's back input
+            if (dx === 4 && dz === 2) set(Y + 1, 68); // lamp, branched off the loop
+            // station 4: a latch that remembers (the original workshop's circuit, relocated)
+            if (dx === -1 && dz === 2) set(Y + 1, 66); // plate: the gate's back input
+            if (dx === -1 && dz === 1) set(Y + 1, 116); // OR gate, o=0
+            if (dx === -1 && dz === 0) set(Y + 1, 67); // front: the gate's own output
+            if (dx === 0 && dz === 0) set(Y + 1, 67); // junction toward the lamp and back to the loop
+            if (dx === 0 && dz === 1) set(Y + 1, 67); // closes the loop into the gate's right input
+            if (dx === 1 && dz === 0) set(Y + 1, 68); // lamp: lights up, and stays lit
+            // station 5: a coin flip (oscillator -> AND(tap, plate) -> latch -> lamp)
+            if (dx === -4 && dz === -1) set(Y + 1, 120); // NOT gate, o=0: the oscillator
+            if (dx === -4 && dz === -2) set(Y + 1, 67); // front: the oscillator's own output
+            if (dx === -3 && dz === -2) set(Y + 1, 67);
+            if (dx === -3 && dz === -1) set(Y + 1, 67);
+            if (dx === -3 && dz === 0) set(Y + 1, 67);
+            if (dx === -4 && dz === 0) set(Y + 1, 67); // closes the oscillator's own loop
+            if (dx === -2 && dz === -1) set(Y + 1, 67); // tap: feeds the AND gate's left input
+            if (dx === -1 && dz === -1) set(Y + 1, 112); // AND gate, o=0: left = the tap, right = the plate
+            if (dx === 0 && dz === -1) set(Y + 1, 66); // plate: the AND gate's right input
+            if (dx === -1 && dz === -2) set(Y + 1, 67); // AND's output == the OR latch's back input
+            if (dx === -1 && dz === -3) set(Y + 1, 116); // OR gate, o=0: the latch
+            if (dx === -1 && dz === -4) set(Y + 1, 67); // front: the latch's own output
+            if (dx === -2 && dz === -3) set(Y + 1, 67); // left input: closes the latch's feedback loop
+            if (dx === -2 && dz === -4) set(Y + 1, 67); // junction toward the lamp
+            if (dx === 0 && dz === -4) set(Y + 1, 68); // lamp: the coin lands
           }
         }
     }

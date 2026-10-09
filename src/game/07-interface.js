@@ -185,7 +185,7 @@ const QUESTS = [
   },
   {
     t: 'Build a latch that remembers',
-    h: "Wire an OR gate: one input from a plate, another looped back from its own output, into a lamp. Tap the plate once — it stays lit. A working example stands in the City's workshop.",
+    h: "Wire an OR gate: one input from a plate, another looped back from its own output, into a lamp. Tap the plate once — it stays lit. A working example stands in the City's Circuits Hall.",
     ok: () => !!S.gateLatch,
   },
   {
