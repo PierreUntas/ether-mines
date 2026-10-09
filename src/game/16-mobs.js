@@ -1,6 +1,9 @@
 // Ether Mines · Hostile mobs: rift shadows in the deep caves, corrupted guardians at unlit validators,
-// geode sentinels guarding pure ether geodes, genesis wraiths guarding genesis rock, and the Genesis
-// Titan — a single boss with a fixed home, far from spawn, near bedrock.
+// geode sentinels guarding pure ether geodes, genesis wraiths guarding genesis rock, the Genesis
+// Titan — a single boss with a fixed home, far from spawn, near bedrock — tower wardens and the
+// Plasma Core, garden guardians watching over the Ether Gardens, sky raiders on the floating
+// islands, water lurkers in deep ocean, and night prowlers that only come out on the open surface
+// after dark.
 // The files in src/game/ load in order and share the same global scope.
 'use strict';
 // ---------- hostile mobs ----------
@@ -25,6 +28,15 @@ const MK = {
   // walking (not even sprinting) player can outrun indefinitely
   warden: { n: 'Tower Warden', hp: 12, dmg: 2.5, sp: 3.6, aggro: 12, atk: 1.3, cd: 0.9, kb: 3, hit: [0.8, 1.9, 0.7] },
   plasma_core: { n: 'Plasma Core', hp: 35, dmg: 4.5, sp: 3.0, aggro: 14, atk: 1.6, cd: 1, kb: 2, hit: [1.1, 2.4, 0.85] },
+  // guards the Ether Gardens (gardenAt(), world.js), same ground pathing as every validator/rock guard above
+  garden_guardian: { n: 'Garden Guardian', hp: 11, dmg: 2.2, sp: 1.3, aggro: 11, atk: 1.3, cd: 1.1, kb: 3, hit: [0.7, 1.6, 0.6] },
+  // only out on the open surface after dark (synced in updateMobs, not a fixed per-chunk spawn like
+  // every mob above — see syncNightProwler): quick enough that walking away isn't always enough
+  prowler: { n: 'Night Prowler', hp: 8, dmg: 2, sp: 2.0, aggro: 12, atk: 1.2, cd: 1.0, kb: 4, hit: [0.55, 0.55, 0.9] },
+  // flies free on the floating islands, no ground snap (updateMobs' flying/swimming branch)
+  sky_raider: { n: 'Sky Raider', hp: 9, dmg: 2.2, sp: 2.4, aggro: 11, atk: 1.3, cd: 1.0, kb: 3, hit: [0.6, 0.5, 0.6] },
+  // stays within its home water column, no ground snap either (same branch, see a.wlo)
+  water_lurker: { n: 'Deep Lurker', hp: 13, dmg: 2.8, sp: 1.8, aggro: 10, atk: 1.4, cd: 1.2, kb: 3, hit: [0.5, 0.6, 1.1] },
 };
 // the Genesis Titan's lair: one fixed chunk, far from spawn, like a hand-placed landmark (ruinAt(0, 0)'s
 // special-cased first ruin) rather than resource-distributed like every other mob
@@ -41,12 +53,13 @@ function buildMob(a) {
     const hd = (parts.head = pivot(g, 0, 1.15, 0));
     abox(hd, 0.05, 0.05, 0.02, glow, -0.1, 0, 0.26, true);
     abox(hd, 0.05, 0.05, 0.02, glow, 0.1, 0, 0.26, true);
-  } else if (a.type === 'guardian' || a.type === 'warden') {
+  } else if (a.type === 'guardian' || a.type === 'warden' || a.type === 'garden_guardian') {
     // reuses the validator robot's silhouette (09-animals.js): corrupted tones (rust and red cracks)
-    // for a guardian, a cyan tech palette for a tower warden — same geometry, different material
-    const body = a.type === 'warden' ? '#1c3a4a' : '#5a4a5e',
-      head = a.type === 'warden' ? '#13242e' : '#3d3448',
-      crack = a.type === 'warden' ? '#5fe8ff' : '#ff5a6a';
+    // for a guardian, a cyan tech palette for a tower warden, a mossy green one for a garden
+    // guardian — same geometry throughout, different material
+    const body = a.type === 'warden' ? '#1c3a4a' : a.type === 'garden_guardian' ? '#2f4a28' : '#5a4a5e',
+      head = a.type === 'warden' ? '#13242e' : a.type === 'garden_guardian' ? '#1d2f18' : '#3d3448',
+      crack = a.type === 'warden' ? '#5fe8ff' : a.type === 'garden_guardian' ? '#8bff6a' : '#ff5a6a';
     abox(g, 0.72, 0.62, 0.5, body, 0, 1.12, 0);
     abox(g, 0.5, 0.42, 0.06, '#453a52', 0, 1.12, 0.26);
     abox(g, 0.2, 0.14, 0.04, crack, 0.12, 1.0, 0.3, true);
@@ -109,6 +122,56 @@ function buildMob(a) {
       abox(l, 0.24, 0.36, 0.26, body, 0, -0.72, 0.02);
       parts.legs.push(l);
     }
+  } else if (a.type === 'prowler') {
+    // a low, four-legged stalker — only out at night (syncNightProwler), so it needs real legs and
+    // a walk cycle, unlike the floating shadow it otherwise shares a vibe with
+    const hide = '#2e1f38',
+      dark = '#1a1024',
+      glow = '#ff8a3d';
+    abox(g, 0.5, 0.34, 0.86, hide, 0, 0.42, 0);
+    abox(g, 0.3, 0.26, 0.3, dark, 0, 0.5, 0.42);
+    const hd = (parts.head = pivot(g, 0, 0.56, 0.68));
+    abox(hd, 0.26, 0.2, 0.3, dark, 0, 0, 0.1);
+    abox(hd, 0.05, 0.05, 0.02, glow, -0.08, 0.02, 0.26, true);
+    abox(hd, 0.05, 0.05, 0.02, glow, 0.08, 0.02, 0.26, true);
+    for (const [x, z] of [
+      [-0.2, 0.3],
+      [0.2, 0.3],
+      [-0.2, -0.3],
+      [0.2, -0.3],
+    ]) {
+      const l = pivot(g, x, 0.34, z);
+      abox(l, 0.1, 0.34, 0.1, dark, 0, -0.17, 0);
+      parts.legs.push(l);
+    }
+  } else if (a.type === 'sky_raider') {
+    // a flying creature over the islands: body + a pair of wings, no legs — flaps instead (updateMobs)
+    const body = '#3a0f2e',
+      wing = '#6a1540',
+      glow = '#ff4d8a';
+    abox(g, 0.4, 0.3, 0.6, body, 0, 0, 0, true, 0.7);
+    const hd = (parts.head = pivot(g, 0, 0.05, 0.32));
+    abox(hd, 0.22, 0.2, 0.22, body, 0, 0, 0, true);
+    abox(hd, 0.05, 0.05, 0.02, glow, -0.07, 0, 0.1, true);
+    abox(hd, 0.05, 0.05, 0.02, glow, 0.07, 0, 0.1, true);
+    parts.wings = [];
+    for (const side of [-1, 1]) {
+      const w = pivot(g, side * 0.22, 0.05, -0.05);
+      abox(w, 0.5, 0.06, 0.3, wing, side * 0.25, 0, 0, true, 0.75);
+      parts.wings.push(w);
+    }
+  } else if (a.type === 'water_lurker') {
+    // a serpentine swimmer: long body, a jointed tail that wags instead of legs (updateMobs)
+    const dark = '#0c2630',
+      scale = '#123948',
+      glow = '#2dffea';
+    abox(g, 0.42, 0.42, 1.3, dark, 0, 0.4, 0, true, 0.75);
+    const hd = (parts.head = pivot(g, 0, 0.42, 0.68));
+    abox(hd, 0.3, 0.3, 0.34, dark, 0, 0, 0, true);
+    abox(hd, 0.05, 0.05, 0.02, glow, -0.09, 0.03, 0.17, true);
+    abox(hd, 0.05, 0.05, 0.02, glow, 0.09, 0.03, 0.17, true);
+    parts.tail = pivot(g, 0, 0.4, -0.75);
+    abox(parts.tail, 0.22, 0.22, 0.5, scale, 0, 0, -0.2, true, 0.7);
   }
   if (a.type === 'titan') g.scale.setScalar(1.6);
   else if (a.type === 'plasma_core') g.scale.setScalar(1.25);
@@ -260,6 +323,75 @@ function spawnMobChunk(cx, cz) {
       if (gr && !gr.water) list.push(mkMob('titan', k, 0, bx + 0.5, gr.y, bz + 0.5, null));
     }
   }
+  // garden guardians: around this region's Ether Garden (gardenAt(), world.js), same ring placement
+  // as the guardians around a ruin — gardens have no "relit" toggle, so these never disappear
+  const gd = gardenAt(Math.floor((x0 + 8) / 64), Math.floor((z0 + 8) / 64));
+  if (gd && cOf(gd.x) === cx && cOf(gd.z) === cz) {
+    for (let i = 0; i < 2; i++) {
+      const an = hash(gd.x + i, gd.z, 265) * Math.PI * 2,
+        rr = 3 + hash(gd.x, gd.z + i, 266) * 2,
+        hx = gd.x + 0.5 + Math.cos(an) * rr,
+        hz = gd.z + 0.5 + Math.sin(an) * rr,
+        gr = groundAt(hx, hz, gd.y, true, 3);
+      if (!gr || gr.water) continue;
+      list.push(mkMob('garden_guardian', k, 160 + i, hx, gr.y, hz, null));
+    }
+  }
+  // sky raiders: hostile, on the floating islands — same islandTop() placement as the passive sky
+  // jellyfish (09-animals.js), with their own rarity roll
+  {
+    const r3 = hash(cx * 5 - 3, cz * 11 + 7, 290);
+    if (r3 < 0.22) {
+      const hx = x0 + 4 + Math.floor(hash(cx, cz, 291) * 12),
+        hz = z0 + 4 + Math.floor(hash(cx, cz, 292) * 12),
+        t = islandTop(hx, hz);
+      if (t > 0) list.push(mkMob('sky_raider', k, 170, hx + 0.5, t + 3, hz + 0.5, null));
+    }
+  }
+  // deep lurkers: only in genuinely deep water (at least 5 blocks), not a shallow pond or river —
+  // same topSolid()-then-walk-down depth probe the (passive) fish already use (09-animals.js)
+  {
+    const r4 = hash(cx * 11 + 5, cz * 7 - 2, 300);
+    if (!sanctuary(x0 + 8, z0 + 8) && r4 < 0.2) {
+      const hx = x0 + 4 + Math.floor(hash(cx, cz, 301) * 12),
+        hz = z0 + 4 + Math.floor(hash(cx, cz, 302) * 12),
+        top = topSolid(hx, hz);
+      if (top && top.id === 11) {
+        let b = top.y;
+        while (b > 0 && get(hx, b - 1, hz) === 11) b--;
+        if (top.y - b >= 5) {
+          const m = mkMob('water_lurker', k, 180, hx + 0.5, b + (top.y - b) / 2, hz + 0.5, null);
+          m.wlo = b;
+          list.push(m);
+        }
+      }
+    }
+  }
+}
+// night prowlers don't fit the once-per-chunk model above: they must appear and disappear as the
+// day/night cycle turns, so this runs every tick (updateMobs) instead of once when a chunk loads
+function syncNightProwler(cx, cz) {
+  const k = ckey(cx, cz),
+    list = MOBS.get(k);
+  if (!list) return;
+  const idx = list.findIndex(a => a.type === 'prowler');
+  if (idx >= 0) {
+    if (skyU.night.value < 0.35) {
+      scene.remove(list[idx].g);
+      list.splice(idx, 1);
+    }
+    return;
+  }
+  if (skyU.night.value < 0.55) return;
+  const x0 = cx * CH,
+    z0 = cz * CH;
+  if (sanctuary(x0 + 8, z0 + 8) || hash(cx * 23 + 9, cz * 31 + 13, 310) > 0.3) return;
+  const hx = x0 + 2 + Math.floor(hash(cx, cz, 311) * 12),
+    hz = z0 + 2 + Math.floor(hash(cx, cz, 312) * 12);
+  if (heightAt(hx, hz) <= SEA + 1 || islandTop(hx, hz) > 0) return; // no prowlers over water or islands
+  const gr = groundAt(hx + 0.5, hz + 0.5, heightAt(hx, hz), true, 2);
+  if (!gr || gr.water) return;
+  list.push(mkMob('prowler', k, 190, hx + 0.5, gr.y, hz + 0.5, null));
 }
 function despawnMobChunk(k) {
   const l = MOBS.get(k);
@@ -452,7 +584,15 @@ function lootMob(type) {
             ? (r < 0.25 && 104) || (r < 0.65 && 103)
             : type === 'warden'
               ? (r < 0.3 && 101) || (r < 0.45 && 103)
-              : false;
+              : type === 'garden_guardian'
+                ? (r < 0.35 && 101) || (r < 0.5 && 103)
+                : type === 'prowler'
+                  ? r < 0.5 && 101
+                  : type === 'sky_raider'
+                    ? (r < 0.3 && 101) || (r < 0.45 && 103)
+                    : type === 'water_lurker'
+                      ? (r < 0.25 && 103) || (r < 0.5 && 104)
+                      : false;
   if (it) give(it, 1, `dropped by a ${MK[type].n.toLowerCase()}`);
 }
 // PvP: like attackMob, but the target's hp lives only in the target's own client (same as another
@@ -514,6 +654,7 @@ function updateMobs(dt) {
         if (CHK.has(k) && MESH.has(k)) {
           want.add(k);
           spawnMobChunk(pcx + dx, pcz + dz);
+          syncNightProwler(pcx + dx, pcz + dz);
         }
       }
     for (const k of [...MOBS.keys()]) if (!want.has(k)) despawnMobChunk(k);
@@ -579,12 +720,33 @@ function updateMobs(dt) {
         nx += a.kbx * dt;
         nz += a.kbz * dt;
       }
-      const gr = groundAt(nx, nz, p.y + 0.3, false, 2);
       p.x = nx;
       p.z = nz;
-      if (gr && !gr.water) p.y += (gr.y - p.y) * Math.min(1, dt * 10);
+      // flying (sky_raider) and swimming (water_lurker) mobs skip the ground snap entirely and
+      // just lerp toward a free vertical target instead: the player's height when giving chase
+      // (clamped to the water column for a lurker, which can't leave its water), or a gentle bob
+      // near home otherwise
+      if (a.type === 'sky_raider' || a.type === 'water_lurker') {
+        const T = Date.now() / 1000;
+        const ty =
+          a.type === 'water_lurker'
+            ? aggro
+              ? clamp(P.y, a.wlo + 0.4, a.hy - 0.2)
+              : a.hy - 0.5 + Math.sin(T * 0.5 + a.ph) * 0.3
+            : aggro
+              ? P.y + 0.5
+              : a.hy + Math.sin(T * 0.6 + a.ph) * 1.1;
+        p.y += (ty - p.y) * Math.min(1, dt * 3);
+      } else {
+        const gr = groundAt(nx, nz, p.y + 0.3, false, 2);
+        if (gr && !gr.water) p.y += (gr.y - p.y) * Math.min(1, dt * 10);
+      }
       a.walk = (a.walk || 0) + dt * (dd > 0.1 ? 8 : 1.5);
       if (a.parts.legs.length) a.parts.legs.forEach((l, i2) => (l.rotation.x = (i2 % 2 ? -1 : 1) * Math.sin(a.walk) * 0.5));
+      else if (a.parts.wings) {
+        const T = Date.now() / 1000;
+        a.parts.wings.forEach((w, i2) => (w.rotation.z = (i2 ? 1 : -1) * (0.3 + Math.sin(T * 8 + a.ph) * 0.5)));
+      } else if (a.parts.tail) a.parts.tail.rotation.y = Math.sin((Date.now() / 1000) * 4 + a.ph) * 0.4;
       else p.y += Math.sin(a.walk) * 0.01; // the shadow floats, no legs
       a.atkT = Math.max(0, (a.atkT || 0) - dt);
       if (aggro && d < K.atk && hurtT <= 0 && a.atkT <= 0) {
