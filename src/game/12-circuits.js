@@ -135,6 +135,33 @@ function gateActive(k, id, nodes, pw) {
   if (g === 'or') return hasInput(k, left, nodes, pw) || hasInput(k, right, nodes, pw) || hasInput(k, back, nodes, pw);
   return !hasInput(k, back, nodes, pw); // not
 }
+// First time a lamp lights up fed, even indirectly through cables, by an active gate's own output
+// (not just a lever/plate/clock elsewhere on the same network) — reachability through the already-powered
+// subgraph, starting only from gate outputs. Used only for Objectives tracking, nothing else depends on it.
+function gateLitLamp(nodes, pw) {
+  const seen = new Set(),
+    q = [];
+  const visit = (x, y, z) => {
+    const k = coordKey(x, y, z),
+      id = nodes.get(k);
+    if (id === undefined || seen.has(k) || !pw.has(k)) return;
+    seen.add(k);
+    if (id === 67 || B[id]?.gate) q.push(k);
+  };
+  for (const [k, id] of nodes)
+    if (B[id]?.gate && GATE_ON.has(k)) {
+      const [x, y, z] = k.split(',').map(Number),
+        f = FRONT[B[id].o];
+      visit(x + f[0], y, z + f[2]);
+    }
+  for (let n = 0; q.length && n < 2000; n++) {
+    const k = q.shift(),
+      [x, y, z] = k.split(',').map(Number);
+    for (const [a, b, c] of N6) visit(x + a, y + b, z + c);
+  }
+  for (const k of seen) if (nodes.get(k) === 68) return true;
+  return false;
+}
 // Propagates the current from the sources (levers, pressed plates, clocks, active logic gates) through the cables.
 function propagate(nodes, feet, clockOn) {
   const pw = new Set(),
@@ -204,6 +231,10 @@ function computePower(dt) {
     for (const k of on) GATE_ON.add(k);
     if (same) break;
     pw = propagate(nodes, feet, clockOn);
+  }
+  if (!S.gateLit && gateLitLamp(nodes, pw)) {
+    S.gateLit = 1;
+    dirty = true;
   }
   const changed = [];
   for (const k of pw) if (!POWERED.has(k)) changed.push(k);

@@ -168,6 +168,11 @@ const QUESTS = [
     h: 'Below, in this panel: "Link a wallet" mirrors your validators on Sepolia. No funds needed, the game stays playable without it.',
     ok: () => !!S.walletLinked,
   },
+  {
+    t: 'Light a lamp through a gate',
+    h: 'Craft an AND, OR or NOT gate (Crafting, Circuits), then wire it with cable so its output powers a lamp.',
+    ok: () => !!S.gateLit,
+  },
 ];
 const RELIT_GOALS = [3, 7, 12, 20, 30, 50, 75, 100];
 // ---------- the network: the shared goal ----------
