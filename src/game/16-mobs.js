@@ -280,7 +280,11 @@ function spawnMobChunk(cx, cz) {
     // measured against the real generator: genesis rock itself only sits in about half of the
     // deep chunks near bedrock, so this roll no longer needs to additionally halve that down to
     // guard it reliably whenever the rock is actually there
-    if (wx >= 0 && !sanctuary(wx, wz) && hash(cx * 19 + 3, cz * 29 + 5, 260) < 0.9) {
+    // no sanctuary() check here, unlike the mobs above: the Atrium's own structure never reaches
+    // anywhere near y<=4 (it's a thin shell around SPAWN.y, see world.js), so digging straight
+    // down from spawn — the single most natural path to the bottom — stayed within the sanctuary's
+    // x/z radius the whole way and silently voided every guard, no matter how deep
+    if (wx >= 0 && hash(cx * 19 + 3, cz * 29 + 5, 260) < 0.9) {
       const gr = groundAt(wx + 0.5, wz + 0.5, wy + 1, true, 3);
       if (gr && !gr.water) list.push(mkMob('wraith', k, 130, wx + 0.5, gr.y, wz + 0.5, null));
     }
