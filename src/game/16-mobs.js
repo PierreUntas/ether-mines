@@ -225,17 +225,17 @@ function spawnMobChunk(cx, cz) {
   {
     const t = towerAt(Math.floor((x0 + 8) / TOWER), Math.floor((z0 + 8) / TOWER));
     if (t && cOf(t.x) === cx && cOf(t.z) === cz) {
-      [1, 6, 11].forEach((fy, fi) => {
-        const n = hash(t.x + fi, t.z, 280 + fi) < 0.5 ? 2 : 1;
+      [1, 7, 13].forEach((fy, fi) => {
+        const n = hash(t.x + fi, t.z, 280 + fi) < 0.5 ? 3 : 2; // a bigger room, more wardens to fill it
         for (let i = 0; i < n; i++) {
           const an = hash(t.x + fi * 3 + i, t.z, 281 + fi * 2 + i) * Math.PI * 2,
-            rr = 1 + hash(t.x, t.z + fi * 3 + i, 282 + fi * 2 + i) * 1.6,
+            rr = 1.5 + hash(t.x, t.z + fi * 3 + i, 282 + fi * 2 + i) * 3,
             hx = t.x + 0.5 + Math.cos(an) * rr,
             hz = t.z + 0.5 + Math.sin(an) * rr;
-          list.push(mkMob('warden', k, 140 + fi * 2 + i, hx, t.y + fy, hz, null));
+          list.push(mkMob('warden', k, 140 + fi * 3 + i, hx, t.y + fy, hz, null));
         }
       });
-      list.push(mkMob('plasma_core', k, 150, t.x + 0.5, t.y + 16, t.z + 0.5, null));
+      list.push(mkMob('plasma_core', k, 150, t.x + 0.5, t.y + 19, t.z + 0.5, null));
     }
   }
   // the Genesis Titan: a single boss in its own fixed lair (BOSS_CX/BOSS_CZ), not distributed per-chunk
@@ -357,7 +357,10 @@ function fireRanged(dt) {
   swing = Math.max(swing, 0.5);
   if (rangedT > 0) return;
   rangedT = 0.35;
-  const ray = aimRay(aim),
+  // always straight down the crosshair (screen center), never wherever a touch/click happened to
+  // land — unlike melee's pickMob/pickPlayer/pickAnimal, a long thin bolt makes any aim/crosshair
+  // mismatch obvious, so this intentionally ignores `aim` and always takes aimRay's forward branch
+  const ray = aimRay(),
     dir = ray.direction;
   const m = new THREE.Mesh(boltGeo, boltMat);
   m.position.copy(ray.origin);
