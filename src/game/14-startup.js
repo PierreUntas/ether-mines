@@ -592,10 +592,6 @@ function command(v) {
     claimCmd(c, rest.join(' ').trim());
     return;
   }
-  if (c === 'race') {
-    startRace();
-    return;
-  }
   addChat(
     'World',
     '#7fe8ff',

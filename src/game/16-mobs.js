@@ -20,8 +20,11 @@ const MK = {
   titan: { n: 'Genesis Titan', hp: 70, dmg: 6, sp: 1.1, aggro: 16, atk: 1.8, cd: 1.4, kb: 2, hit: [1.3, 2.8, 1.0] },
   // towers (towerAt(), world.js): a warden per floor on the way up, a Plasma Core at the top —
   // repeatable, unlike the Titan, so every tower has its own
-  warden: { n: 'Tower Warden', hp: 12, dmg: 2.5, sp: 1.3, aggro: 12, atk: 1.3, cd: 1.1, kb: 3, hit: [0.8, 1.9, 0.7] },
-  plasma_core: { n: 'Plasma Core', hp: 35, dmg: 4.5, sp: 1.0, aggro: 14, atk: 1.6, cd: 1.3, kb: 2, hit: [1.1, 2.4, 0.85] },
+  // sp 3.6/3.0 vs the player's own walk speed of 4.4 (05-player.js, moveAxis 'sp'): fast enough to
+  // actually close the distance in a chase, not the ~1.0-1.3 every other mob has here, which a
+  // walking (not even sprinting) player can outrun indefinitely
+  warden: { n: 'Tower Warden', hp: 12, dmg: 2.5, sp: 3.6, aggro: 12, atk: 1.3, cd: 0.9, kb: 3, hit: [0.8, 1.9, 0.7] },
+  plasma_core: { n: 'Plasma Core', hp: 35, dmg: 4.5, sp: 3.0, aggro: 14, atk: 1.6, cd: 1, kb: 2, hit: [1.1, 2.4, 0.85] },
 };
 // the Genesis Titan's lair: one fixed chunk, far from spawn, like a hand-placed landmark (ruinAt(0, 0)'s
 // special-cased first ruin) rather than resource-distributed like every other mob
@@ -222,17 +225,17 @@ function spawnMobChunk(cx, cz) {
   {
     const t = towerAt(Math.floor((x0 + 8) / TOWER), Math.floor((z0 + 8) / TOWER));
     if (t && cOf(t.x) === cx && cOf(t.z) === cz) {
-      [1, 5, 9].forEach((fy, fi) => {
+      [1, 6, 11].forEach((fy, fi) => {
         const n = hash(t.x + fi, t.z, 280 + fi) < 0.5 ? 2 : 1;
         for (let i = 0; i < n; i++) {
           const an = hash(t.x + fi * 3 + i, t.z, 281 + fi * 2 + i) * Math.PI * 2,
-            rr = 0.8 + hash(t.x, t.z + fi * 3 + i, 282 + fi * 2 + i) * 1.2,
+            rr = 1 + hash(t.x, t.z + fi * 3 + i, 282 + fi * 2 + i) * 1.6,
             hx = t.x + 0.5 + Math.cos(an) * rr,
             hz = t.z + 0.5 + Math.sin(an) * rr;
           list.push(mkMob('warden', k, 140 + fi * 2 + i, hx, t.y + fy, hz, null));
         }
       });
-      list.push(mkMob('plasma_core', k, 150, t.x + 0.5, t.y + 13, t.z + 0.5, null));
+      list.push(mkMob('plasma_core', k, 150, t.x + 0.5, t.y + 16, t.z + 0.5, null));
     }
   }
   // the Genesis Titan: a single boss in its own fixed lair (BOSS_CX/BOSS_CZ), not distributed per-chunk

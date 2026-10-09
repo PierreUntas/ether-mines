@@ -1082,18 +1082,26 @@ function blade(P, E, core, edge) {
 }
 tile(121, (P, E) => blade(P, E, '#0a3d4a', '#00eaff')); // Volt Blade
 tile(122, (P, E) => blade(P, E, '#241048', '#c9a6ff')); // Pure Ether Blade
-// plasma pistol: dark grip and frame, a glowing plasma core along the barrel
+// plasma pistol: a stubby version of blade()'s silhouette — same bottom-left grip, same diagonal
+// (just shorter), so it's held at the same angle and reads as pointing forward the same way every
+// other tool/weapon icon does, instead of needing its own one-off hand rotation
 function pistol(P, E, core, edge) {
   for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
   const dark = '#1c1029';
-  for (let y = 9; y < 14; y++) for (let x = 3; x < 6; x++) P(x, y, dark); // grip
-  for (let x = 3; x < 13; x++) for (let y = 6; y < 9; y++) P(x, y, dark); // frame/barrel
-  for (let x = 5; x < 12; x++) {
-    P(x, 7, core);
-    E(x, 7, edge);
+  for (let k = 0; k < 4; k++) {
+    P(1 + k, 13 - k, dark);
+    P(2 + k, 13 - k, dark);
+    P(3 + k, 13 - k, dark);
   }
-  P(12, 7, edge);
-  E(12, 7, edge);
+  for (let k = 0; k < 5; k++) {
+    const x = 6 + k,
+      y = 9 - k;
+    P(x - 1, y, dark);
+    P(x, y, core);
+    P(x + 1, y, edge);
+    E(x, y, core);
+    E(x + 1, y, edge);
+  }
 }
 tile(132, (P, E) => pistol(P, E, '#8a1fb3', '#ff6bff')); // Plasma Pistol
 // armor plating: chestplate silhouette, dark material with a glowing center seam and shoulder accents
