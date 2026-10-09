@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP: below this layer, geodes and large caves
-  const GEN = 10; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door) : bump it on every terrain change (already-frozen chunks don't move)
+  const GEN = 11; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example) : bump it on every terrain change (already-frozen chunks don't move)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -83,6 +83,7 @@
     '2,0': { t: 'garden' },
     '-2,0': { t: 'garden' },
     '2,1': { t: 'shelter', H: 4 }, // the shelter: a room to eat and sleep in
+    '-2,1': { t: 'workshop', H: 4 }, // the workshop: a working logic-gate latch, free to study and copy
   };
   function cityPlot(i, j) {
     const L = PLOTS[i - 3 + ',' + (j - 3)];
@@ -584,6 +585,26 @@
             if (dx === -2 && dz === -1) set(Y + 1, 135); // table
             if (dx === 2 && dz === 1) set(Y + 1, 137); // bed: foot (facing north, toward dz 0)
             if (dx === 2 && dz === 0) set(Y + 1, 141); // bed: head
+          } else if (L.t === 'workshop') {
+            // the workshop: ether-brick walls, a window on each side, pyramid roof — and a working
+            // example of a gate latch: step on the plate once, the lamp stays lit for good, fed back
+            // from the OR gate's own output (see src/game/12-circuits.js, isLatch).
+            const R = 3;
+            if (m > R) continue;
+            if (m === R) {
+              const door = dz === R && ax === 0,
+                window = (dx === R || dx === -R) && az === 0;
+              for (let k = 1; k <= H; k++) set(Y + k, door && k === 1 ? 48 : door && k === 2 ? 49 : window && k === 2 ? 93 : 79);
+              continue;
+            }
+            set(Y, dam);
+            set(Y + H + 1 + (R - 1 - m), 9);
+            if (dx === 0 && dz === 0) set(Y + 1, 66); // pressure plate: tap it once
+            if (dx === 0 && dz === -1) set(Y + 1, 116); // OR gate (facing north, o=0): back input = the plate, right input = the loop
+            if (dx === 0 && dz === -2) set(Y + 1, 67); // cable: the gate's own output
+            if (dx === 1 && dz === -2) set(Y + 1, 67); // cable: junction toward the lamp and back to the loop
+            if (dx === 1 && dz === -1) set(Y + 1, 67); // cable: closes the loop into the gate's right input
+            if (dx === 2 && dz === -2) set(Y + 1, 68); // lamp: lights up, and stays lit
           }
         }
     }

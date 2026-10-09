@@ -190,6 +190,22 @@ function twoKeyDoor(nodes, pw) {
   }
   return false;
 }
+// Every cell reachable from one starting cell by following cable only (id 67), plus the first
+// non-cable cell at the end of each branch — a purely structural trace, blind to the current power
+// state (used when the point is wiring topology itself, not what's lit right now).
+function cableReach(nodes, sx, sy, sz) {
+  const seen = new Set(),
+    q = [coordKey(sx, sy, sz)];
+  for (let n = 0; q.length && n < 2000; n++) {
+    const k = q.shift();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    if (nodes.get(k) !== 67) continue;
+    const [x, y, z] = k.split(',').map(Number);
+    for (const [a, b, c] of N6) q.push(coordKey(x + a, y + b, z + c));
+  }
+  return seen;
+}
 // A NOT gate whose own output, followed only through cable (not through any other gate — the
 // simple, expected build), loops all the way back into its own back input. Structural: looked for
 // regardless of the current power state, since the whole point of this wiring is that it never
@@ -200,22 +216,35 @@ function selfOscillating(nodes) {
     const [x, y, z] = k.split(',').map(Number),
       f = FRONT[B[id].o],
       back = coordKey(x - f[0], y, z - f[2]);
-    const seen = new Set([k]),
-      q = [coordKey(x + f[0], y, z + f[2])];
-    let found = false;
-    for (let n = 0; q.length && n < 2000 && !found; n++) {
-      const ck = q.shift();
-      if (seen.has(ck)) continue;
-      seen.add(ck);
-      if (ck === back) {
-        found = true;
-        break;
-      }
-      if (nodes.get(ck) !== 67) continue; // only cable keeps the structural loop going
-      const [cx, cy, cz] = ck.split(',').map(Number);
-      for (const [a, b, c] of N6) q.push(coordKey(cx + a, cy + b, cz + c));
+    if (cableReach(nodes, x + f[0], y, z + f[2]).has(back)) return true;
+  }
+  return false;
+}
+// An OR gate wired so one input is a pressure plate and another input loops back, through cable
+// only, from its own output — the simplest way to remember a state: step on the plate once and it
+// stays set, because propagate() re-feeds any already-active gate from its own output every tick,
+// no matter what originally turned it on. Unlike the NOT loop above, OR feedback is self-reinforcing
+// rather than self-canceling, so this settles instead of oscillating. Structural, same reasoning as
+// selfOscillating; also requires the output to reach a lamp, for a visible payoff.
+function isLatch(nodes) {
+  for (const [k, id] of nodes) {
+    if (B[id]?.gate !== 'or') continue;
+    const [x, y, z] = k.split(',').map(Number),
+      f = FRONT[B[id].o],
+      own = coordKey(x + f[0], y, z + f[2]),
+      sides = [
+        [-f[0], 0, -f[2]],
+        [f[2], 0, -f[0]],
+        [-f[2], 0, f[0]],
+      ];
+    let plate = false,
+      feedback = false;
+    for (const d of sides) {
+      const reach = cableReach(nodes, x + d[0], y, z + d[2]);
+      if (!plate) for (const rk of reach) if (nodes.get(rk) === 66) plate = true;
+      if (reach.has(own)) feedback = true;
     }
-    if (found) return true;
+    if (plate && feedback && [...cableReach(nodes, x + f[0], y, z + f[2])].some(rk => nodes.get(rk) === 68)) return true;
   }
   return false;
 }
@@ -299,6 +328,10 @@ function computePower(dt) {
   }
   if (!S.gateBlinker && selfOscillating(nodes)) {
     S.gateBlinker = 1;
+    dirty = true;
+  }
+  if (!S.gateLatch && isLatch(nodes)) {
+    S.gateLatch = 1;
     dirty = true;
   }
   const changed = [];

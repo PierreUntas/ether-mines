@@ -183,6 +183,11 @@ const QUESTS = [
     h: "Loop a NOT gate's own output back into its own input with cable: no clock needed, it blinks on its own.",
     ok: () => !!S.gateBlinker,
   },
+  {
+    t: 'Build a latch that remembers',
+    h: "Wire an OR gate: one input from a plate, another looped back from its own output, into a lamp. Tap the plate once — it stays lit. A working example stands in the City's workshop.",
+    ok: () => !!S.gateLatch,
+  },
 ];
 const RELIT_GOALS = [3, 7, 12, 20, 30, 50, 75, 100];
 // ---------- the network: the shared goal ----------
