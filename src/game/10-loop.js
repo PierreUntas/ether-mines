@@ -156,11 +156,11 @@ function frame(now) {
       mineT = 0;
       protectHint(target.x, target.z);
     } else if (mining && target && B[target.id].h !== Infinity && !canMine(target.id)) {
+      swing = Math.max(swing, 0.5);
       hitT -= dt;
       if (hitT <= 0) {
         hitT = 0.4;
         Sound.hit('pierre');
-        swing = 0.5;
         if (!tierHintT) {
           tierHintT = 6;
           logEv('burn', `Too hard for ${TIER_NAME[heldTier()]}`, `you need ${TIER_NAME[reqTier(target.id)]}`);
@@ -197,12 +197,13 @@ function frame(now) {
       mineKey = -1;
       mineT = 0;
       crack.visible = false;
-      // nothing in reach: still swing at the empty air, same cadence as the other miss cases above
+      // nothing in reach: still swing at the empty air on every click, same as mining a block or hitting
+      // a mob always does — only the sound is throttled, not the swing itself
       if (mining) {
+        swing = Math.max(swing, 0.6);
         hitT -= dt;
         if (hitT <= 0) {
           hitT = 0.4;
-          swing = 0.6;
           Sound.hit('pierre');
         }
       }
