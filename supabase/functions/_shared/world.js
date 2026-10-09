@@ -8,7 +8,7 @@
     sm = t => t * t * (3 - 2 * t);
   // World seed: changing it gives completely different terrain (only do this together with a database reset).
   // root.__SEED lets tools try other seeds (tools/seeds.mjs).
-  const SEED = root.__SEED ?? 2047435448;
+  const SEED = root.__SEED ?? -126345076;
   function hash(x, y, s = 0) {
     let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(97 + s, 1442695041) ^ SEED;
     h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP: below this layer, geodes and large caves
-  const GEN = 11; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example) : bump it on every terrain change (already-frozen chunks don't move)
+  const GEN = 12; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example; 12: new seed; the Circuits Complex, its own standalone landmark with 5 separate rooms, replaces the in-City workshop) : bump it on every terrain change (already-frozen chunks don't move)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -62,7 +62,119 @@
   const RUIN = 80;
   // position of a region's ruin (or null: ocean, peak); the sanctuary's region has one within sight
   // ---------- the City: futuristic district under the great diamond, north of the sanctuary ----------
-  const CITY = { x: SPAWN.x, z: SPAWN.z - 64, R: 38, Y: 30, STEP: 12 }; // R 38: the Circuits Hall (the farthest plot out, now R=5) needs room for its corners
+  const CITY = { x: SPAWN.x, z: SPAWN.z - 64, R: 34, Y: 30, STEP: 12 }; // R 34: the shelter (the farthest plot out) needs room for its corners
+  // ---------- the Circuits Complex: five separate rooms, one gate-based objective each ----------
+  // Its own standalone landmark (like Ether Gardens or a ruin), not part of the City's plot grid —
+  // a multi-room complex doesn't fit a single 12-unit plot cell, and stretching CITY.R to cover one
+  // would inflate the whole City's footprint for something that isn't a City building.
+  const CIRCUITS = { x: SPAWN.x + 60, z: SPAWN.z + 90, Y: 33, R: 24 };
+  const inCircuits = (x, z, margin = 0) => Math.hypot(x - CIRCUITS.x, z - CIRCUITS.z) <= CIRCUITS.R + margin;
+  // five chambers off a central corridor, one gate-based Objective each (see src/game/12-circuits.js:
+  // gateLitLamp, twoKeyDoor, selfOscillating, isLatch, isCoinFlip) — each room's circuit uses the
+  // exact wiring already verified against the live engine, just in its own walled, legible room.
+  // cx/cz: local coords relative to CIRCUITS; door: which wall carries the 1-cell-wide entrance.
+  const CIRCUITS_ROOMS = [
+    {
+      cx: -5,
+      cz: -12,
+      R: 3,
+      H: 4,
+      door: 'e',
+      build: (dx, dz, set) => {
+        // light a lamp: a NOT gate facing the door, nothing behind it (always active)
+        if (dx === -1 && dz === 0) set(1, 123); // NOT gate, o=3 (facing +x)
+        if (dx === 0 && dz === 0) set(1, 67);
+        if (dx === 1 && dz === 0) set(1, 68);
+      },
+    },
+    {
+      cx: 5,
+      cz: -12,
+      R: 3,
+      H: 4,
+      door: 'w',
+      build: (dx, dz, set) => {
+        // two-key door: an AND gate fed by two distinct plates opens a real door
+        if (dx === 1 && dz === 0) set(1, 115); // AND gate, o=3 (facing +x, toward the demo door)
+        if (dx === 1 && dz === -1) set(1, 66); // plate: left input
+        if (dx === 1 && dz === 1) set(1, 66); // plate: right input
+        if (dx === 2 && dz === 0) {
+          set(1, 48); // the demonstrated door: foot
+          set(2, 49); // head
+        }
+        if (dx === 2 && (dz === -1 || dz === 1)) {
+          set(1, 79); // short partition framing the demo door
+          set(2, 79);
+        }
+      },
+    },
+    {
+      cx: -5,
+      cz: 0,
+      R: 3,
+      H: 4,
+      door: 'e',
+      build: (dx, dz, set) => {
+        // self-oscillating blinker: a NOT loop closed through cable, a lamp branched off
+        if (dx === -1 && dz === 0) set(1, 120); // NOT gate, o=0
+        if (dx === -1 && dz === -1) set(1, 67); // front: the gate's own output
+        if (dx === 0 && dz === -1) set(1, 67);
+        if (dx === 0 && dz === 0) set(1, 67);
+        if (dx === 0 && dz === 1) set(1, 67);
+        if (dx === -1 && dz === 1) set(1, 67); // closes the loop into the gate's back input
+        if (dx === 1 && dz === 0) set(1, 68); // lamp, branched off the loop
+      },
+    },
+    {
+      cx: 5,
+      cz: 0,
+      R: 3,
+      H: 4,
+      door: 'w',
+      build: (dx, dz, set) => {
+        // a latch that remembers: tap the plate once, the lamp stays lit for good
+        if (dx === 0 && dz === 0) set(1, 66); // plate: the gate's back input
+        if (dx === 0 && dz === -1) set(1, 116); // OR gate, o=0
+        if (dx === 0 && dz === -2) set(1, 67); // front: the gate's own output
+        if (dx === 1 && dz === -2) set(1, 67); // junction
+        if (dx === 1 && dz === -1) set(1, 67); // closes the loop into the gate's right input
+        if (dx === 2 && dz === -2) set(1, 68); // lamp: lights up, and stays lit
+      },
+    },
+    {
+      cx: 0,
+      cz: 14,
+      R: 5,
+      H: 5,
+      door: 'n',
+      build: (dx, dz, set) => {
+        // coin flip: an oscillator tapped by an AND gate alongside a plate, feeding a latch
+        if (dx === -4 && dz === -1) set(1, 120); // NOT gate, o=0: the oscillator
+        if (dx === -4 && dz === -2) set(1, 67); // front: the oscillator's own output
+        if (dx === -3 && dz === -2) set(1, 67);
+        if (dx === -3 && dz === -1) set(1, 67);
+        if (dx === -3 && dz === 0) set(1, 67);
+        if (dx === -4 && dz === 0) set(1, 67); // closes the oscillator's own loop
+        if (dx === -2 && dz === -1) set(1, 67); // tap: feeds the AND gate's left input
+        if (dx === -1 && dz === -1) set(1, 112); // AND gate, o=0: left = the tap, right = the plate
+        if (dx === 0 && dz === -1) set(1, 66); // plate: the AND gate's right input
+        if (dx === -1 && dz === -2) set(1, 67); // AND's output == the OR latch's back input
+        if (dx === -1 && dz === -3) set(1, 116); // OR gate, o=0: the latch
+        if (dx === -1 && dz === -4) set(1, 67); // front: the latch's own output
+        if (dx === -2 && dz === -3) set(1, 67); // left input: closes the latch's feedback loop
+        if (dx === -2 && dz === -4) set(1, 67); // junction toward the lamp
+        if (dx === 0 && dz === -4) set(1, 68); // lamp: the coin lands
+      },
+    },
+  ];
+  const circuitsDoorCell = (room, dx, dz) =>
+    room.door === 'e'
+      ? dx === room.R && dz === 0
+      : room.door === 'w'
+        ? dx === -room.R && dz === 0
+        : room.door === 'n'
+          ? dz === -room.R && dx === 0
+          : dz === room.R && dx === 0; // 's'
   const k5 = (dx, dz) => (dx === 0 || dz === 0) && Math.abs(dx) + Math.abs(dz) === 5; // middle of a hall facade
   const inCity = (x, z, margin = 0) => Math.hypot(x - CITY.x, z - CITY.z) <= CITY.R + margin;
   // the validators' path: paved walkway between the Atrium and the City
@@ -83,7 +195,6 @@
     '2,0': { t: 'garden' },
     '-2,0': { t: 'garden' },
     '2,1': { t: 'shelter', H: 4 }, // the shelter: a room to eat and sleep in
-    '-2,1': { t: 'workshop', H: 6 }, // the Circuits Hall: a working example of every gate-based objective
   };
   function cityPlot(i, j) {
     const L = PLOTS[i - 3 + ',' + (j - 3)];
@@ -129,7 +240,11 @@
       sea = DY + 5 + vn2(x / 9, z / 9, 11) * 5;
     const dc = Math.hypot(x - CITY.x, z - CITY.z),
       city = sm(clamp((dc - CITY.R) / 12, 0, 1)); // the City sits on a plateau that blends into the terrain
-    return Math.floor(lerp(CITY.Y + 0.5, lerp(DY + 20, lerp(land, sea, oc), flat), city));
+    const dcc = Math.hypot(x - CIRCUITS.x, z - CIRCUITS.z),
+      circuits = sm(clamp((dcc - CIRCUITS.R) / 10, 0, 1)); // the Circuits Complex, its own small plateau
+    const natural = lerp(DY + 20, lerp(land, sea, oc), flat),
+      withCircuits = lerp(CIRCUITS.Y + 0.5, natural, circuits);
+    return Math.floor(lerp(CITY.Y + 0.5, withCircuits, city));
   }
   // garden of a 64x64 region (or null): on reasonably flat grassy ground, far from the sanctuary and the ruins
   function gardenAt(gx, gz) {
@@ -585,78 +700,62 @@
             if (dx === -2 && dz === -1) set(Y + 1, 135); // table
             if (dx === 2 && dz === 1) set(Y + 1, 137); // bed: foot (facing north, toward dz 0)
             if (dx === 2 && dz === 0) set(Y + 1, 141); // bed: head
-          } else if (L.t === 'workshop') {
-            // the Circuits Hall: ether-brick walls, a window on each side, pyramid roof, and five
-            // working examples — one per gate-based Objective (see src/game/12-circuits.js for the
-            // matching detection: gateLitLamp, twoKeyDoor, selfOscillating, isLatch, isCoinFlip).
-            // Station 1, near the entrance: a NOT gate with nothing behind it (always active) lights
-            // a lamp — the simplest possible "light a lamp through a gate".
-            // Station 2: an AND gate fed by two distinct plates opens a real door built into a short
-            // partition wall — two people, two plates, one door.
-            // Station 3: a NOT gate whose output loops, through cable only, back into its own back
-            // input — oscillates forever, a lamp branched off the loop makes the blink visible.
-            // Station 4: the original workshop's latch, relocated — a plate feeds an OR gate's back
-            // input, another cable loops the gate's own output back into its right input: tap once,
-            // the lamp stays lit for good.
-            // Station 5, along the back wall: a coin flip — the same self-oscillating NOT loop as
-            // station 3, tapped by an AND gate alongside a plate, feeding an OR latch like station 4.
-            const R = 5;
-            if (m > R) continue;
+          }
+        }
+    }
+    // the Circuits Complex, column by column — five walled rooms off a central corridor
+    if (inCircuits(x0 + 8, z0 + 8, 20)) {
+      const Y = CIRCUITS.Y;
+      for (let lz = 0; lz < CH; lz++)
+        for (let lx = 0; lx < CH; lx++) {
+          const x = x0 + lx,
+            z = z0 + lz,
+            rx = x - CIRCUITS.x,
+            rz = z - CIRCUITS.z;
+          let room = null,
+            dx = 0,
+            dz = 0,
+            m = 0;
+          for (const r of CIRCUITS_ROOMS) {
+            const ddx = rx - r.cx,
+              ddz = rz - r.cz,
+              mm = Math.max(Math.abs(ddx), Math.abs(ddz));
+            if (mm <= r.R) {
+              room = r;
+              dx = ddx;
+              dz = ddz;
+              m = mm;
+              break;
+            }
+          }
+          const set = (y, id) => (a[li(lx, y, lz)] = id);
+          if (room) {
+            const R = room.R,
+              H = room.H;
+            for (let y = Y + 1; y < SY; y++) set(y, 0);
+            for (let y = Y - 4; y < Y; y++) if (!a[li(lx, y, lz)] || a[li(lx, y, lz)] === 11) set(y, 3);
             if (m === R) {
-              const door = dz === R && ax === 0,
-                window = (dx === R || dx === -R) && az === 0;
-              for (let k = 1; k <= H; k++) set(Y + k, door && k === 1 ? 48 : door && k === 2 ? 49 : window && k === 2 ? 93 : 79);
+              const door = circuitsDoorCell(room, dx, dz);
+              for (let k = 1; k <= H; k++) set(Y + k, door && k === 1 ? 48 : door && k === 2 ? 49 : 79);
               continue;
             }
-            set(Y, dam);
-            set(Y + H + 1 + (R - 1 - m), 9);
-            // station 1: light a lamp
-            if (dx === -2 && dz === 3) set(Y + 1, 120); // NOT gate, o=0, nothing behind: always active
-            if (dx === -2 && dz === 2) set(Y + 1, 67);
-            if (dx === -2 && dz === 1) set(Y + 1, 68);
-            // station 2: two-key door
-            if (dx === 2 && dz === 0) set(Y + 1, 115); // AND gate, o=3 (facing +x, toward the door)
-            if (dx === 2 && dz === -1) set(Y + 1, 66); // plate: left input
-            if (dx === 2 && dz === 1) set(Y + 1, 66); // plate: right input
-            if (dx === 3 && dz === 0) {
-              set(Y + 1, 48); // door foot
-              set(Y + 2, 49); // door head
+            set(Y, (dx + dz) % 2 ? 15 : 81);
+            set(Y + H + 1 + (R - 1 - m), 9); // pyramid roof, apex over the room's center
+            room.build(dx, dz, (dy, id) => set(Y + dy, id));
+            continue;
+          }
+          if (rx >= -2 && rx <= 2 && rz >= -20 && rz <= 10) {
+            // the corridor connecting the entrance to all five rooms
+            for (let y = Y + 1; y < SY; y++) set(y, 0);
+            for (let y = Y - 4; y < Y; y++) if (!a[li(lx, y, lz)] || a[li(lx, y, lz)] === 11) set(y, 3);
+            set(Y, (rx + rz) % 2 ? 15 : 81);
+            set(Y + 5, 9); // flat roof
+            if (rz === -20) {
+              const door = rx === 0;
+              for (let k = 1; k <= 4; k++) set(Y + k, door && k === 1 ? 48 : door && k === 2 ? 49 : 79);
+            } else if (rx === -2 || rx === 2) {
+              for (let k = 1; k <= 4; k++) set(Y + k, 79);
             }
-            if (dx === 3 && (dz === -1 || dz === 1)) {
-              set(Y + 1, 79); // short partition wall framing the door
-              set(Y + 2, 79);
-            }
-            // station 3: self-oscillating blinker
-            if (dx === 2 && dz === 3) set(Y + 1, 120); // NOT gate, o=0
-            if (dx === 2 && dz === 2) set(Y + 1, 67); // front: the gate's own output
-            if (dx === 3 && dz === 2) set(Y + 1, 67);
-            if (dx === 3 && dz === 3) set(Y + 1, 67);
-            if (dx === 3 && dz === 4) set(Y + 1, 67);
-            if (dx === 2 && dz === 4) set(Y + 1, 67); // closes the loop into the gate's back input
-            if (dx === 4 && dz === 2) set(Y + 1, 68); // lamp, branched off the loop
-            // station 4: a latch that remembers (the original workshop's circuit, relocated)
-            if (dx === -1 && dz === 2) set(Y + 1, 66); // plate: the gate's back input
-            if (dx === -1 && dz === 1) set(Y + 1, 116); // OR gate, o=0
-            if (dx === -1 && dz === 0) set(Y + 1, 67); // front: the gate's own output
-            if (dx === 0 && dz === 0) set(Y + 1, 67); // junction toward the lamp and back to the loop
-            if (dx === 0 && dz === 1) set(Y + 1, 67); // closes the loop into the gate's right input
-            if (dx === 1 && dz === 0) set(Y + 1, 68); // lamp: lights up, and stays lit
-            // station 5: a coin flip (oscillator -> AND(tap, plate) -> latch -> lamp)
-            if (dx === -4 && dz === -1) set(Y + 1, 120); // NOT gate, o=0: the oscillator
-            if (dx === -4 && dz === -2) set(Y + 1, 67); // front: the oscillator's own output
-            if (dx === -3 && dz === -2) set(Y + 1, 67);
-            if (dx === -3 && dz === -1) set(Y + 1, 67);
-            if (dx === -3 && dz === 0) set(Y + 1, 67);
-            if (dx === -4 && dz === 0) set(Y + 1, 67); // closes the oscillator's own loop
-            if (dx === -2 && dz === -1) set(Y + 1, 67); // tap: feeds the AND gate's left input
-            if (dx === -1 && dz === -1) set(Y + 1, 112); // AND gate, o=0: left = the tap, right = the plate
-            if (dx === 0 && dz === -1) set(Y + 1, 66); // plate: the AND gate's right input
-            if (dx === -1 && dz === -2) set(Y + 1, 67); // AND's output == the OR latch's back input
-            if (dx === -1 && dz === -3) set(Y + 1, 116); // OR gate, o=0: the latch
-            if (dx === -1 && dz === -4) set(Y + 1, 67); // front: the latch's own output
-            if (dx === -2 && dz === -3) set(Y + 1, 67); // left input: closes the latch's feedback loop
-            if (dx === -2 && dz === -4) set(Y + 1, 67); // junction toward the lamp
-            if (dx === 0 && dz === -4) set(Y + 1, 68); // lamp: the coin lands
           }
         }
     }
@@ -855,6 +954,8 @@
     gardenAt,
     CITY,
     inCity,
+    CIRCUITS,
+    inCircuits,
     onPath,
     cityPlot,
     contAt,

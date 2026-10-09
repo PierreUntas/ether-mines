@@ -19,6 +19,8 @@ const {
   SPAWN,
   CITY,
   inCity,
+  CIRCUITS,
+  inCircuits,
   onPath,
   gardenAt,
   LIMIT,
