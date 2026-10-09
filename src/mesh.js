@@ -108,8 +108,12 @@
         return [[0, 0, 0, 1, 0.5, 1], STAIR_HI[b.o]];
       case 'door':
         return [DOORB[doorOpen(id, key, pw) ? (b.f + 1) % 4 : b.f]];
-      case 'plate':
-        return [[0.06, 0, 0.06, 0.94, pw(key) ? 0.03 : 0.06, 0.94]];
+      case 'plate': {
+        // a pressure plate (66) stands noticeably proud of the floor so it's easy to spot and aim for;
+        // a lily pad (77) stays a flat film on the water surface, unchanged
+        const hi = id === 66 ? 0.16 : 0.06;
+        return [[0.06, 0, 0.06, 0.94, pw(key) ? hi * 0.5 : hi, 0.94]];
+      }
       case 'cable':
         return [[0, 0, 0, 1, 0.03, 1]];
       case 'lever':
