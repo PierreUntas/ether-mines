@@ -1183,6 +1183,21 @@ tile(130, (P, E) => {
       } else P(x, y, x === 0 || y === 0 || x === 15 || y === 15 ? '#ffe9a8' : null);
     }
 });
+tile(131, (P, E) => {
+  // Genesis Titan Fang: a curved basalt fang with a glowing ember crack, the titan's own colors.
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const cx = 7.5 + Math.sin((y / 15) * 1.4) * 2,
+        dx = Math.abs(x - cx),
+        w = (15 - y) * 0.42 + 0.5;
+      if (y >= 1 && dx <= w) {
+        const crack = dx < 0.8;
+        const c = crack ? '#ffb347' : x < cx ? '#3a2d52' : '#4a3b68';
+        P(x, y, c);
+        if (crack) E(x, y, c);
+      } else P(x, y, null);
+    }
+});
 // ---------- ink outline ----------
 // ethereum.org's illustrations are drawn with a navy ink line: every solid tile (no transparency)
 // gets an outline, blended with the original color to stay soft. Open-work tiles (leaves, glass, plants) don't get one.

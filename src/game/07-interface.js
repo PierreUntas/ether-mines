@@ -666,6 +666,12 @@ function updateQuest(dt) {
     const r = nearestRuin();
     if (r) html += `<span class="compass">${arrowTo(r.x + 0.5, r.z + 0.5)} ruin at ${Math.round(r.d)} m</span>`;
   }
+  if (S.got[104]) {
+    const bx = BOSS_CX * CH + 8.5,
+      bz = BOSS_CZ * CH + 8.5,
+      bd = Math.hypot(bx - P.x, bz - P.z);
+    html += `<span class="compass">${arrowTo(bx, bz)} Genesis Titan at ${Math.round(bd)} m</span>`;
+  }
   if (el.innerHTML !== html) el.innerHTML = html;
 }
 function flashQuest() {

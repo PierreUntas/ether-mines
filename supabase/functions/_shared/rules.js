@@ -108,6 +108,8 @@
   ITEM[204] = { n: 'Validator Star', icon: 129, nft: 1 };
   ITEM[110] = { n: 'Diamond Shard', icon: 128 };
   B[145] = { n: 'Radiant Diamond', t: [130, 130, 130], h: 1, glass: 1 };
+  // v12: the Genesis Titan's trophy (never crafted, only minted by act_loot_mob on a guaranteed boss kill)
+  ITEM[205] = { n: 'Genesis Titan Fang', icon: 131, nft: 1 };
   const reqTier = id => (B[id] ? (B[id].tier ?? (B[id].stone ? 1 : 0)) : 0);
   const RECIPES = [
     { out: 9, n: 4, need: { 5: 1 }, d: 'Cut up a log' },

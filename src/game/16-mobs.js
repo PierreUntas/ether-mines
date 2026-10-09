@@ -1,5 +1,6 @@
 // Ether Mines · Hostile mobs: rift shadows in the deep caves, corrupted guardians at unlit validators,
-// geode sentinels guarding pure ether geodes, genesis wraiths guarding genesis rock.
+// geode sentinels guarding pure ether geodes, genesis wraiths guarding genesis rock, and the Genesis
+// Titan — a single boss with a fixed home, far from spawn, near bedrock.
 // The files in src/game/ load in order and share the same global scope.
 'use strict';
 // ---------- hostile mobs ----------
@@ -15,7 +16,13 @@ const MK = {
   guardian: { n: 'Corrupted Guardian', hp: 14, dmg: 2.5, sp: 1.3, aggro: 12, atk: 1.4, cd: 1.1, kb: 3, hit: [0.8, 1.9, 0.7] },
   sentinel: { n: 'Geode Sentinel', hp: 10, dmg: 2, sp: 1.4, aggro: 10, atk: 1.3, cd: 1.1, kb: 4, hit: [0.6, 1.2, 0.6] },
   wraith: { n: 'Genesis Wraith', hp: 16, dmg: 3, sp: 1.2, aggro: 13, atk: 1.6, cd: 1.3, kb: 3, hit: [0.9, 2.1, 0.8] },
+  // a single, fixed-location boss (not one-per-chunk like the others): see spawnMobChunk's BOSS_CX/BOSS_CZ check
+  titan: { n: 'Genesis Titan', hp: 70, dmg: 6, sp: 1.1, aggro: 16, atk: 1.8, cd: 1.4, kb: 2, hit: [1.3, 2.8, 1.0] },
 };
+// the Genesis Titan's lair: one fixed chunk, far from spawn, like a hand-placed landmark (ruinAt(0, 0)'s
+// special-cased first ruin) rather than resource-distributed like every other mob
+const BOSS_CX = Math.floor((SPAWN.x + 160) / CH),
+  BOSS_CZ = Math.floor((SPAWN.z + 160) / CH);
 function buildMob(a) {
   const g = new THREE.Group(),
     parts = { legs: [] };
@@ -66,12 +73,13 @@ function buildMob(a) {
       abox(g, w, h, w, crystal, dx, 0.9 + h / 2, dz, true, 0.78);
       abox(g, w * 0.5, h * 0.25, w * 0.5, light, dx, 0.9 + h, dz, true);
     }
-  } else if (a.type === 'wraith') {
-    // bigger, ancient version of the corrupted guardian, made of the rock it guards: basalt with ember cracks
+  } else if (a.type === 'wraith' || a.type === 'titan') {
+    // bigger, ancient version of the corrupted guardian, made of the rock it guards: basalt with ember cracks.
+    // The titan is the same design, scaled up with brighter cracks (below) — an ancient, massive wraith, not a new model.
     const body = '#3a2d52',
       head = '#4a3b68',
       panel = '#241a3c',
-      crack = '#ffb347';
+      crack = a.type === 'titan' ? '#ffe066' : '#ffb347';
     abox(g, 0.86, 0.74, 0.6, body, 0, 1.3, 0);
     abox(g, 0.6, 0.5, 0.07, panel, 0, 1.3, 0.31);
     abox(g, 0.3, 0.2, 0.06, crack, 0.13, 1.18, 0.35, true);
@@ -93,6 +101,7 @@ function buildMob(a) {
       parts.legs.push(l);
     }
   }
+  if (a.type === 'titan') g.scale.setScalar(1.6);
   a.g = g;
   a.parts = parts;
   g.position.set(a.hx, a.hy, a.hz);
@@ -200,6 +209,25 @@ function spawnMobChunk(cx, cz) {
       if (gr && !gr.water) list.push(mkMob('wraith', k, 130, wx + 0.5, gr.y, wz + 0.5, null));
     }
   }
+  // the Genesis Titan: a single boss in its own fixed lair (BOSS_CX/BOSS_CZ), not distributed per-chunk
+  // like the mobs above — it respawns whenever the chunk is visited again, same as any other mob
+  if (cx === BOSS_CX && cz === BOSS_CZ) {
+    const bx = x0 + 8,
+      bz = z0 + 8;
+    let by = -1;
+    // a wider range than the wraiths' (which key off an actual genesis rock block): this is a fixed,
+    // hand-placed column, so it must reliably find *some* standing spot near the bottom, cave or not
+    for (let y = 25; y >= 1; y--) {
+      if (!get(bx, y, bz) && isSolid(get(bx, y - 1, bz))) {
+        by = y;
+        break;
+      }
+    }
+    if (by >= 0) {
+      const gr = groundAt(bx + 0.5, bz + 0.5, by, true, 3);
+      if (gr && !gr.water) list.push(mkMob('titan', k, 0, bx + 0.5, gr.y, bz + 0.5, null));
+    }
+  }
 }
 function despawnMobChunk(k) {
   const l = MOBS.get(k);
@@ -288,7 +316,18 @@ function lootMob(type) {
         logEv('burn', `1 ${ITEM[r.item].n}`, `→ dropped by a ${MK[type].n.toLowerCase()}`);
         Sound.chime();
       }
+      if (r && r.unique) {
+        addUnique(r.unique);
+        toastInfo(`The Genesis Titan falls! ${ITEM[205].n} earned.`);
+        Sound.chime();
+      }
     });
+    return;
+  }
+  if (type === 'titan') {
+    mintNft(205, null);
+    toastInfo(`The Genesis Titan falls! ${ITEM[205].n} earned.`);
+    Sound.chime();
     return;
   }
   const r = Math.random();

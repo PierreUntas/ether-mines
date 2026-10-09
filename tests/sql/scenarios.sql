@@ -354,6 +354,17 @@ select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002
 select pg_temp.ok('loot roll refused far from the reported position', act_loot_mob('w', 'wraith', 500.5, 33, 500.5) ->> 'err' = 'impossible move');
 reset role;
 delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_mob';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+
+-- the Genesis Titan's trophy (015_boss_loot.sql): guaranteed, not chance-based, and rate-limited
+-- independently of regular mob loot ('loot_boss', not 'loot_mob')
+select pg_temp.ok('the titan always drops its trophy', act_loot_mob('w', 'titan', 12.5, 33, 8.5) -> 'unique' ->> 'id' = '205');
+select pg_temp.ok('a second titan claim is refused (burst 1)', act_loot_mob('w', 'titan', 12.5, 33, 8.5) ->> 'err' = 'too many actions');
+select pg_temp.ok('regular mob loot is unaffected by the titan rate limit', (act_loot_mob('w', 'shadow', 12.5, 33, 8.5) ->> 'ok')::boolean);
+reset role;
+delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_mob';
+delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_boss';
 
 -- the network's capstone (014_relight_capstone.sql): crossing a shared milestone mints a Validator Star.
 -- Run last (not right after the first relight): it adds a second relit validator owned by player A, which
