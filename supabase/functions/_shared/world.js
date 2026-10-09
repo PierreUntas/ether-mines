@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP: below this layer, geodes and large caves
-  const GEN = 13; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example; 12: new seed; the Circuits Complex, its own standalone landmark with 5 separate rooms, replaces the in-City workshop; 13: towers, guarded by mobs with a boss at the top) : bump it on every terrain change (already-frozen chunks don't move)
+  const GEN = 14; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example; 12: new seed; the Circuits Complex, its own standalone landmark with 5 separate rooms, replaces the in-City workshop; 13: towers, guarded by mobs with a boss at the top; 14: towers were far too sparse (8.5% of eligible regions, nearest ~264m from spawn) — loosened the height ceiling, flatness tolerance, and dropped the dunes exclusion, purely additive) : bump it on every terrain change (already-frozen chunks don't move)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -274,7 +274,7 @@
     const x = tx * TOWER + 20 + Math.floor(hash(tx, tz, 271) * (TOWER - 40)),
       z = tz * TOWER + 20 + Math.floor(hash(tx, tz, 272) * (TOWER - 40)),
       y = heightAt(x, z);
-    if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 70 || y <= SEA + 1 || y >= DY + 31 || biome(x, z) === 'dunes') return null;
+    if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 70 || y <= SEA + 1 || y >= DY + 40) return null;
     for (const [dx, dz] of [
       [-4, -4],
       [4, -4],
@@ -282,7 +282,7 @@
       [4, 4],
       [0, 0],
     ])
-      if (Math.abs(heightAt(x + dx, z + dz) - y) > 3) return null;
+      if (Math.abs(heightAt(x + dx, z + dz) - y) > 5) return null;
     const rg = ruinAt(Math.floor(x / RUIN), Math.floor(z / RUIN));
     if (rg && Math.hypot(rg.x - x, rg.z - z) < 20) return null;
     if (islandZone(x, z) || inCity(x, z, 20) || inCircuits(x, z, 20)) return null;
