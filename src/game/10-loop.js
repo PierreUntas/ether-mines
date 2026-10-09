@@ -197,6 +197,15 @@ function frame(now) {
       mineKey = -1;
       mineT = 0;
       crack.visible = false;
+      // nothing in reach: still swing at the empty air, same cadence as the other miss cases above
+      if (mining) {
+        hitT -= dt;
+        if (hitT <= 0) {
+          hitT = 0.4;
+          swing = 0.6;
+          Sound.hit('pierre');
+        }
+      }
     }
     // validators
     const slot = Math.floor((Date.now() / 1000 - GENESIS) / 12);
