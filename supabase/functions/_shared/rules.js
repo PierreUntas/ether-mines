@@ -103,6 +103,11 @@
   // v10: armor (ids 108-109), worn independently of the held item
   ITEM[108] = { n: 'Volt Plating', icon: 123, armor: 0.25, tier: 1 };
   ITEM[109] = { n: 'Pure Ether Plating', icon: 124, armor: 0.45, tier: 2 };
+  // v11: the network's capstone — a trophy for crossing a relit-validator milestone (never crafted, only
+  // minted by _core_relight), and a shard that starts dropping from relights once the network is fully awake
+  ITEM[204] = { n: 'Validator Star', icon: 129, nft: 1 };
+  ITEM[110] = { n: 'Diamond Shard', icon: 128 };
+  B[145] = { n: 'Radiant Diamond', t: [130, 130, 130], h: 1, glass: 1 };
   const reqTier = id => (B[id] ? (B[id].tier ?? (B[id].stone ? 1 : 0)) : 0);
   const RECIPES = [
     { out: 9, n: 4, need: { 5: 1 }, d: 'Cut up a log' },
@@ -248,6 +253,15 @@
   ['bed0f', 'bed1f', 'bed2f', 'bed3f'].forEach((shape, f) => (B[137 + f] = { n: 'Bed', t: [53, 10, 10], h: 0.8, shape, drop: 137 }));
   ['bed0h', 'bed1h', 'bed2h', 'bed3h'].forEach((shape, f) => (B[141 + f] = { n: 'Bed', t: [53, 10, 10], h: 0.8, shape, drop: 137 }));
   RECIPES.push({ out: 137, n: 1, need: { 9: 2, 71: 2 }, d: 'Right-click to sleep and skip to dawn', cat: 'Decoration' });
+  // v11: the network's capstone — a trophy minted by _core_relight for crossing a relit-validator
+  // milestone (never crafted), and a shard that starts dropping from relights once fully awake
+  RECIPES.push({
+    out: 145,
+    n: 1,
+    need: { 110: 4, 101: 2 },
+    d: 'A piece of the great diamond, once the network is fully awake',
+    cat: 'Decoration',
+  });
   const TOOLS = { 102: 1, 201: 1, 202: 1 };
   // what a placed item becomes: block with the same id, except stairs (4 orientations) and doors (4 orientations, 2 halves)
   function placeIds(it) {

@@ -354,8 +354,22 @@ select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002
 select pg_temp.ok('loot roll refused far from the reported position', act_loot_mob('w', 'wraith', 500.5, 33, 500.5) ->> 'err' = 'impossible move');
 reset role;
 delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_mob';
+
+-- the network's capstone (014_relight_capstone.sql): crossing a shared milestone mints a Validator Star.
+-- Run last (not right after the first relight): it adds a second relit validator owned by player A, which
+-- would otherwise throw off the validator-rewards test's "exactly one owned validator" assumption.
+select public._set('w', 900, 30, 900, 74, null, null, null); -- a second relit validator elsewhere: count is now 2
+select public._set('w', 900, 30, 910, 73, null, null, null); -- a fresh dark validator to relight, column already whole
+select public._set('w', 902, 30, 912, 127, null, null, null);
+select public._set('w', 902, 31, 912, 127, null, null, null);
+select public._set('w', 902, 32, 912, 127, null, null, null);
+insert into inventory values ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 105, 1) on conflict (user_id, world, item) do update set n = 1;
+update players set pos_at = null where user_id = 'aaaaaaaa-0000-0000-0000-000000000001'; -- next position is "first known": no distance check
 set role authenticated;
-select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('crossing a network tier mints a Validator Star', act_relight('w', 900, 30, 910, 900.5, 30, 912.5) -> 'star' ->> 'id' = '204');
+select pg_temp.ok('the network now counts 3 relit validators', (select count(*) from blocks where world = 'w' and id = 74) = 3);
+reset role;
 \echo All SQL scenarios pass.
 
 -- ---------- trading between players (008_trades.sql) ----------

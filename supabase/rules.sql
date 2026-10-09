@@ -134,7 +134,8 @@ insert into public.rule_blocks (id, name, hard, tier, drop_item, kind, solid, to
 (141,'Bed',0.8,0,137,'bed0h',true,false),
 (142,'Bed',0.8,0,137,'bed1h',true,false),
 (143,'Bed',0.8,0,137,'bed2h',true,false),
-(144,'Bed',0.8,0,137,'bed3h',true,false);
+(144,'Bed',0.8,0,137,'bed3h',true,false),
+(145,'Radiant Diamond',1,0,145,'cube',true,false);
 insert into public.rule_place (item, block) values
 (2,2),
 (3,3),
@@ -237,7 +238,8 @@ insert into public.rule_place (item, block) values
 (137,137),
 (137,138),
 (137,139),
-(137,140);
+(137,140),
+(145,145);
 insert into public.rule_items (id, name, tool, tier, uniq) values
 (101,'Ether Crystal',1,0,false),
 (102,'Wooden Pickaxe',2.2,1,false),
@@ -248,9 +250,11 @@ insert into public.rule_items (id, name, tool, tier, uniq) values
 (107,'Pure Ether Blade',1,2,false),
 (108,'Volt Plating',1,1,false),
 (109,'Pure Ether Plating',1,2,false),
+(110,'Diamond Shard',1,0,false),
 (201,'Crystal Pickaxe',5,2,true),
 (202,'Pure Ether Pickaxe',8,3,true),
-(203,'Validator Seal',1,0,true);
+(203,'Validator Seal',1,0,true),
+(204,'Validator Star',1,0,true);
 insert into public.rule_recipes (out_item, n, need, uniq) values
 (9,4,'{"5":1}'::jsonb,false),
 (102,1,'{"9":3}'::jsonb,false),
@@ -317,5 +321,6 @@ insert into public.rule_recipes (out_item, n, need, uniq) values
 (133,4,'{"24":2}'::jsonb,false),
 (134,4,'{"25":2}'::jsonb,false),
 (135,1,'{"9":4}'::jsonb,false),
-(137,1,'{"9":2,"71":2}'::jsonb,false);
+(137,1,'{"9":2,"71":2}'::jsonb,false),
+(145,1,'{"101":2,"110":4}'::jsonb,false);
 commit;

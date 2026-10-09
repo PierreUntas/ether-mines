@@ -1140,6 +1140,49 @@ tile(127, (P, E, i) => {
       P(x, y, edge ? '#cfd6dc' : '#f4f1ea');
     }
 });
+tile(128, (P, E) => {
+  // Diamond Shard: a narrow sliver cut from the great diamond, the stars' warm gold tones.
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const dx = Math.abs(x - 7),
+        top = y <= 8 && dx <= (y - 1) * 0.35,
+        bottom = y >= 8 && y <= 15 && dx <= (15 - y) * 0.55;
+      if (top || bottom) {
+        const c = x < 7 ? '#fff3c2' : '#ffd95e';
+        P(x, y, c);
+        E(x, y, c);
+      } else P(x, y, null);
+    }
+});
+tile(129, (P, E) => {
+  // Validator Star: a four-point sparkle, the same gold tones as the orbiting milestone stars.
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const dx = Math.abs(x - 7.5),
+        dy = Math.abs(y - 7.5),
+        vert = dx < (7.5 - dy) * 0.3,
+        horiz = dy < (7.5 - dx) * 0.3;
+      if (vert || horiz) {
+        const c = dx + dy < 2.5 ? '#fff3c2' : dx + dy < 6 ? '#ffd95e' : '#ffb36b';
+        P(x, y, c);
+        E(x, y, c);
+      } else P(x, y, null);
+    }
+});
+tile(130, (P, E) => {
+  // Radiant Diamond: the Diamond Block's faceted gem silhouette, in the stars' warm gold light.
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const dx = Math.abs(x - 7.5),
+        top = y <= 9 && dx <= (y - 1) * 0.55,
+        bottom = y >= 11 && y <= 15 && dx <= (15 - y) * 0.9;
+      if (top || bottom) {
+        const c = top ? (x < 8 ? (y > 6 ? '#ffd95e' : '#fff3c2') : y > 6 ? '#ffe9a8' : '#fff9e0') : x < 8 ? '#ffd95e' : '#ffe9a8';
+        P(x, y, c);
+        E(x, y, c);
+      } else P(x, y, x === 0 || y === 0 || x === 15 || y === 15 ? '#ffe9a8' : null);
+    }
+});
 // ---------- ink outline ----------
 // ethereum.org's illustrations are drawn with a navy ink line: every solid tile (no transparency)
 // gets an outline, blended with the original color to stay soft. Open-work tiles (leaves, glass, plants) don't get one.

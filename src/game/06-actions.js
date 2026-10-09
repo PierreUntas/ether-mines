@@ -548,6 +548,12 @@ function relight(t) {
       Sound.chime();
       popAt(t.x, t.y, t.z, 1);
       updateNetwork();
+      if (r.star) {
+        addUnique(r.star);
+        toastInfo(`A network milestone! ${ITEM[204].n} minted, commemorating it.`);
+        Sound.chime();
+      }
+      if (r.shard) logEv('mint', '1 Diamond Shard', 'the network is fully awake');
     });
     return;
   }
@@ -565,6 +571,14 @@ function relight(t) {
   toastInfo('Old validator relit: one crystal a minute, under your name.');
   Sound.chime();
   updateNetwork();
+  if (TIERS.includes(S.relit)) {
+    mintNft(204, `crossed the ${S.relit}-relit threshold`);
+    toastInfo(`A network milestone! ${ITEM[204].n} minted, commemorating it.`);
+    Sound.chime();
+  }
+  if (S.relit >= 100 && Math.random() < 0.15) {
+    give(110, 1, 'the network is fully awake');
+  }
   popAt(t.x, t.y, t.z, 1);
   swing = 1;
   dirty = true;
