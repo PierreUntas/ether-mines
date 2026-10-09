@@ -589,7 +589,10 @@ function renderTrade(body) {
           TRADE.msg = "enter the player's nickname";
           return renderPanel();
         }
-        actOnOffer('offer', { pseudo, give: b.give, want: b.want }, r => {
+        // act_offer's own parameter is named "username" (008_trades.sql) — a leftover from the
+        // original French client, where this local field itself was also "pseudo", sent the RPC
+        // call with a key the server-side function doesn't have, and PostgREST rejected it outright
+        actOnOffer('offer', { username: pseudo, give: b.give, want: b.want }, r => {
           logEv('nft', `Offer sent to ${r.name}`, sideText(b.give, false));
           TRADE.b = { pseudo: '', give: emptySide(), want: emptySide() };
         });
