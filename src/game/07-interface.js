@@ -163,6 +163,11 @@ const QUESTS = [
   { t: 'Reach the City', h: 'Follow the validators path from the Atrium to the great diamond.', ok: () => !!S.visitedCity },
   { t: 'Pet an animal', h: 'Right-click (or tap) a friendly creature.', ok: () => !!S.petted },
   { t: 'Earn a Genesis Titan Fang', h: 'Defeat the Genesis Titan in the depths.', ok: () => hasNft(205) },
+  {
+    t: 'Link a wallet',
+    h: 'Below, in this panel: "Link a wallet" mirrors your validators on Sepolia. No funds needed, the game stays playable without it.',
+    ok: () => !!S.walletLinked,
+  },
 ];
 const RELIT_GOALS = [3, 7, 12, 20, 30, 50, 75, 100];
 // ---------- the network: the shared goal ----------
@@ -261,6 +266,8 @@ async function linkWallet() {
     const signature = await Chain.sign(address, Chain.message(n.nonce));
     await Net.linkWallet(address, signature);
     toastInfo('Wallet linked: ' + Chain.short(address));
+    S.walletLinked = 1;
+    dirty = true;
     updateOnchain();
   } catch (e) {
     logEv('burn', 'Wallet link refused', e.message || String(e));
