@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP: below this layer, geodes and large caves
-  const GEN = 16; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example; 12: new seed; the Circuits Complex, its own standalone landmark with 5 separate rooms, replaces the in-City workshop; 13: towers, guarded by mobs with a boss at the top; 14: towers were far too sparse (8.5% of eligible regions, nearest ~264m from spawn) — loosened the height ceiling, flatness tolerance, and dropped the dunes exclusion, purely additive; 15: towers enlarged (7x7/4-tall -> 9x9/5-tall, too cramped to fight in); 16: towers enlarged again (9x9/5-tall -> 13x13/6-tall), more wardens per floor) : bump it on every terrain change (already-frozen chunks don't move)
+  const GEN = 17; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example; 12: new seed; the Circuits Complex, its own standalone landmark with 5 separate rooms, replaces the in-City workshop; 13: towers, guarded by mobs with a boss at the top; 14: towers were far too sparse (8.5% of eligible regions, nearest ~264m from spawn) — loosened the height ceiling, flatness tolerance, and dropped the dunes exclusion, purely additive; 15: towers enlarged (7x7/4-tall -> 9x9/5-tall, too cramped to fight in); 16: towers enlarged again (9x9/5-tall -> 13x13/6-tall), more wardens per floor; 17: towers re-skinned futuristic — polished granite + cyan-neon trim, holo-screen windows, neon floor grid) : bump it on every terrain change (already-frozen chunks don't move)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -523,24 +523,33 @@
         const { x: tx0, z: tz0, y: ty } = t,
           LADX = 5,
           LADZ = -5; // the climbing ladder's fixed interior column
-        // a clean foundation and a hollow interior, regardless of the natural terrain underneath
+        // a clean foundation and a hollow interior, regardless of the natural terrain underneath — a
+        // neon grid in the floor, like the City's own streets, instead of plain ancient-ruin marble
         for (let dx = -6; dx <= 6; dx++)
           for (let dz = -6; dz <= 6; dz++) {
-            put(tx0 + dx, ty, tz0 + dz, (dx + dz) % 2 ? 15 : 81);
+            put(tx0 + dx, ty, tz0 + dz, dx % 3 === 0 || dz % 3 === 0 ? 128 : 80);
             for (let k = 1; k <= 24; k++) put(tx0 + dx, ty + k, tz0 + dz, 0);
           }
-        // walls: granite, all four floors, an entrance gap on the south side and two window slits
-        // per floor on the other three (one slit read as a blank wall at this size)
+        // walls: polished granite panels with glowing cyan-neon corner trim and a neon band at each
+        // floor line, an entrance gap (with its own lit frame) on the south side, and two glowing
+        // holo-screen windows per floor on the other three sides (a sleek facility, not a ruin)
         for (let dx = -6; dx <= 6; dx++)
           for (let dz = -6; dz <= 6; dz++) {
             if (Math.max(Math.abs(dx), Math.abs(dz)) !== 6) continue;
-            const entrance = dz === 6 && dx === 0;
+            const entrance = dz === 6 && dx === 0,
+              corner = Math.abs(dx) === 6 && Math.abs(dz) === 6,
+              doorFrame = dz === 6 && (dx === -1 || dx === 1);
             for (let k = 1; k <= 24; k++) {
-              const slit =
+              const window =
                 (k === 4 || k === 10 || k === 16 || k === 22) &&
                 ((dz === -6 && (dx === -2 || dx === 2)) || (dx === 6 && (dz === -2 || dz === 2)) || (dx === -6 && (dz === -2 || dz === 2)));
-              if ((entrance && k <= 2) || slit) continue;
-              put(tx0 + dx, ty + k, tz0 + dz, 3);
+              if (entrance && k <= 2) continue;
+              if (window) {
+                put(tx0 + dx, ty + k, tz0 + dz, 129);
+                continue;
+              }
+              const band = k === 6 || k === 12 || k === 18;
+              put(tx0 + dx, ty + k, tz0 + dz, corner || band || (doorFrame && k <= 2) ? 128 : 80);
             }
           }
         // floor platforms at the top of floors 1-3 (floor 4, the boss's, stays open to the sky), a
@@ -549,7 +558,7 @@
           for (let dx = -5; dx <= 5; dx++)
             for (let dz = -5; dz <= 5; dz++) {
               if (dx === LADX && dz === LADZ) continue;
-              put(tx0 + dx, ty + k, tz0 + dz, 79);
+              put(tx0 + dx, ty + k, tz0 + dz, 80);
             }
         for (let k = 1; k <= 24; k++) put(tx0 + LADX, ty + k, tz0 + LADZ, 94);
       }
