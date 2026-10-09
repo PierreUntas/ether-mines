@@ -404,9 +404,12 @@ async function actOnOffer(name, args, ok) {
       await syncInventory();
     } else TRADE.msg = (r && (TRADE_ERR[r.err] || r.err)) || 'refused by the server';
   } catch (e) {
-    TRADE.msg = /act_offer|function/i.test(e.message || '')
-      ? 'trades missing on the server: run supabase/installation.sql'
-      : 'the server is not responding';
+    // the "missing schema" guess below is just that — a guess from the error text; always show the
+    // raw message too, since a genuine runtime error can also happen to mention "function"
+    const msg = e.message || '';
+    TRADE.msg = /act_offer|function/i.test(msg)
+      ? `trades missing on the server? run supabase/installation.sql — (${msg})`
+      : `the server is not responding (${msg})`;
   }
   await updateOffers();
   if (tab === 'trade' && !$('panel').hidden) renderPanel();
