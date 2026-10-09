@@ -1,9 +1,9 @@
-// Ether Mines · Hostile mobs: rift shadows in the deep caves, corrupted guardians at unlit validators,
-// geode sentinels guarding pure ether geodes, genesis wraiths guarding genesis rock, the Genesis
-// Titan — a single boss with a fixed home, far from spawn, near bedrock — tower wardens and the
-// Plasma Core, garden guardians watching over the Ether Gardens, sky raiders on the floating
-// islands, water lurkers in deep ocean, and night prowlers that only come out on the open surface
-// after dark.
+// Ether Mines · Hostile mobs: rift shadows and rift bats in the deep caves, corrupted guardians and
+// rust crawlers at the ruins, geode sentinels and geode golems guarding pure ether geodes, genesis
+// wraiths guarding genesis rock, the Genesis Titan — a single boss with a fixed home, far from
+// spawn, near bedrock — tower wardens and the Plasma Core, garden guardians watching over the Ether
+// Gardens, sky raiders on the floating islands, water lurkers in deep ocean, and night prowlers
+// that only come out on the open surface after dark.
 // The files in src/game/ load in order and share the same global scope.
 'use strict';
 // ---------- hostile mobs ----------
@@ -14,29 +14,40 @@
 // is relit; sentinels and wraiths simply mark their deposit as dangerous to mine.
 const MOBS = new Map(),
   MOB_R = 2; // radius, in chunks, around the player
+// difficulty pass: every mob's hp/dmg raised and speed brought up near (or, for the toughest, past)
+// the player's own walk speed of 4.4 (05-player.js, moveAxis 'sp') — before this, only the tower
+// mobs could actually close a chase; walking away from everything else worked indefinitely, which
+// made "hostile" mobs more decorative than dangerous
 const MK = {
-  shadow: { n: 'Rift Shadow', hp: 7, dmg: 1.5, sp: 1.6, aggro: 10, atk: 1.1, cd: 1.0, kb: 4, hit: [0.5, 1.3, 0.5] },
-  guardian: { n: 'Corrupted Guardian', hp: 14, dmg: 2.5, sp: 1.3, aggro: 12, atk: 1.4, cd: 1.1, kb: 3, hit: [0.8, 1.9, 0.7] },
-  sentinel: { n: 'Geode Sentinel', hp: 10, dmg: 2, sp: 1.4, aggro: 10, atk: 1.3, cd: 1.1, kb: 4, hit: [0.6, 1.2, 0.6] },
-  wraith: { n: 'Genesis Wraith', hp: 16, dmg: 3, sp: 1.2, aggro: 13, atk: 1.6, cd: 1.3, kb: 3, hit: [0.9, 2.1, 0.8] },
+  shadow: { n: 'Rift Shadow', hp: 10, dmg: 2, sp: 2.2, aggro: 12, atk: 1.1, cd: 0.85, kb: 4, hit: [0.5, 1.3, 0.5] },
+  guardian: { n: 'Corrupted Guardian', hp: 19, dmg: 3.2, sp: 2.4, aggro: 13, atk: 1.4, cd: 0.9, kb: 3, hit: [0.8, 1.9, 0.7] },
+  sentinel: { n: 'Geode Sentinel', hp: 14, dmg: 2.6, sp: 2.3, aggro: 12, atk: 1.3, cd: 0.9, kb: 4, hit: [0.6, 1.2, 0.6] },
+  wraith: { n: 'Genesis Wraith', hp: 22, dmg: 3.8, sp: 2.4, aggro: 14, atk: 1.5, cd: 1.0, kb: 3, hit: [0.9, 2.1, 0.8] },
   // a single, fixed-location boss (not one-per-chunk like the others): see spawnMobChunk's BOSS_CX/BOSS_CZ check
-  titan: { n: 'Genesis Titan', hp: 70, dmg: 6, sp: 1.1, aggro: 16, atk: 1.8, cd: 1.4, kb: 2, hit: [1.3, 2.8, 1.0] },
+  titan: { n: 'Genesis Titan', hp: 90, dmg: 7.5, sp: 2.0, aggro: 17, atk: 1.6, cd: 1.1, kb: 2, hit: [1.3, 2.8, 1.0] },
   // towers (towerAt(), world.js): a warden per floor on the way up, a Plasma Core at the top —
-  // repeatable, unlike the Titan, so every tower has its own
-  // sp 3.6/3.0 vs the player's own walk speed of 4.4 (05-player.js, moveAxis 'sp'): fast enough to
-  // actually close the distance in a chase, not the ~1.0-1.3 every other mob has here, which a
-  // walking (not even sprinting) player can outrun indefinitely
-  warden: { n: 'Tower Warden', hp: 12, dmg: 2.5, sp: 3.6, aggro: 12, atk: 1.3, cd: 0.9, kb: 3, hit: [0.8, 1.9, 0.7] },
-  plasma_core: { n: 'Plasma Core', hp: 35, dmg: 4.5, sp: 3.0, aggro: 14, atk: 1.6, cd: 1, kb: 2, hit: [1.1, 2.4, 0.85] },
+  // repeatable, unlike the Titan, so every tower has its own — already fast before this pass, so
+  // only hp/dmg/cd moved
+  warden: { n: 'Tower Warden', hp: 16, dmg: 3.2, sp: 3.6, aggro: 13, atk: 1.3, cd: 0.8, kb: 3, hit: [0.8, 1.9, 0.7] },
+  plasma_core: { n: 'Plasma Core', hp: 45, dmg: 5.5, sp: 3.0, aggro: 15, atk: 1.6, cd: 0.9, kb: 2, hit: [1.1, 2.4, 0.85] },
   // guards the Ether Gardens (gardenAt(), world.js), same ground pathing as every validator/rock guard above
-  garden_guardian: { n: 'Garden Guardian', hp: 11, dmg: 2.2, sp: 1.3, aggro: 11, atk: 1.3, cd: 1.1, kb: 3, hit: [0.7, 1.6, 0.6] },
+  garden_guardian: { n: 'Garden Guardian', hp: 15, dmg: 2.9, sp: 2.3, aggro: 12, atk: 1.3, cd: 0.9, kb: 3, hit: [0.7, 1.6, 0.6] },
   // only out on the open surface after dark (synced in updateMobs, not a fixed per-chunk spawn like
-  // every mob above — see syncNightProwler): quick enough that walking away isn't always enough
-  prowler: { n: 'Night Prowler', hp: 8, dmg: 2, sp: 2.0, aggro: 12, atk: 1.2, cd: 1.0, kb: 4, hit: [0.55, 0.55, 0.9] },
+  // every mob above — see syncNightProwler)
+  prowler: { n: 'Night Prowler', hp: 11, dmg: 2.6, sp: 2.6, aggro: 13, atk: 1.2, cd: 0.85, kb: 4, hit: [0.55, 0.55, 0.9] },
   // flies free on the floating islands, no ground snap (updateMobs' flying/swimming branch)
-  sky_raider: { n: 'Sky Raider', hp: 9, dmg: 2.2, sp: 2.4, aggro: 11, atk: 1.3, cd: 1.0, kb: 3, hit: [0.6, 0.5, 0.6] },
+  sky_raider: { n: 'Sky Raider', hp: 12, dmg: 2.9, sp: 2.8, aggro: 12, atk: 1.3, cd: 0.85, kb: 3, hit: [0.6, 0.5, 0.6] },
   // stays within its home water column, no ground snap either (same branch, see a.wlo)
-  water_lurker: { n: 'Deep Lurker', hp: 13, dmg: 2.8, sp: 1.8, aggro: 10, atk: 1.4, cd: 1.2, kb: 3, hit: [0.5, 0.6, 1.1] },
+  water_lurker: { n: 'Deep Lurker', hp: 17, dmg: 3.5, sp: 2.4, aggro: 11, atk: 1.4, cd: 1.0, kb: 3, hit: [0.5, 0.6, 1.1] },
+  // a second cave dweller alongside the Rift Shadow: flies the same air pockets (updateMobs'
+  // flying branch), erratic and fast, so a cave fight is no longer purely ground-based
+  bat: { n: 'Rift Bat', hp: 9, dmg: 2.4, sp: 3.0, aggro: 12, atk: 1.2, cd: 0.8, kb: 3, hit: [0.4, 0.4, 0.6] },
+  // a second ruin guard alongside the Corrupted Guardian — unlike it, not tied to the validator's
+  // relit state, so a ruin stays dangerous even after you've relit it
+  crawler: { n: 'Rust Crawler', hp: 15, dmg: 2.8, sp: 2.6, aggro: 12, atk: 1.3, cd: 0.85, kb: 3, hit: [0.6, 0.5, 1.0] },
+  // a second geode guard alongside the agile Sentinel: slow but hits hard and shrugs off more —
+  // a tank to the Sentinel's skirmisher
+  golem: { n: 'Geode Golem', hp: 26, dmg: 4.2, sp: 1.7, aggro: 11, atk: 1.6, cd: 1.3, kb: 5, hit: [0.9, 1.7, 0.8] },
 };
 // the Genesis Titan's lair: one fixed chunk, far from spawn, like a hand-placed landmark (ruinAt(0, 0)'s
 // special-cased first ruin) rather than resource-distributed like every other mob
@@ -160,6 +171,66 @@ function buildMob(a) {
       abox(w, 0.5, 0.06, 0.3, wing, side * 0.25, 0, 0, true, 0.75);
       parts.wings.push(w);
     }
+  } else if (a.type === 'bat') {
+    // small and quick: a body, a pair of veiny wings (flaps like the sky raider, updateMobs), glowing eyes
+    const body = '#1c1420',
+      wing = '#3a2440',
+      glow = '#ff3b3b';
+    abox(g, 0.22, 0.2, 0.3, body, 0, 0, 0, true, 0.7);
+    const hd = (parts.head = pivot(g, 0, 0.02, 0.17));
+    abox(hd, 0.14, 0.12, 0.14, body, 0, 0, 0, true);
+    abox(hd, 0.03, 0.03, 0.02, glow, -0.05, 0, 0.06, true);
+    abox(hd, 0.03, 0.03, 0.02, glow, 0.05, 0, 0.06, true);
+    parts.wings = [];
+    for (const side of [-1, 1]) {
+      const w = pivot(g, side * 0.12, 0.03, 0);
+      abox(w, 0.34, 0.03, 0.22, wing, side * 0.17, 0, 0, true, 0.7);
+      parts.wings.push(w);
+    }
+  } else if (a.type === 'crawler') {
+    // low six-legged construct, patrols ruins — legs animate for free via the generic walk cycle
+    const shell = '#3a1414',
+      joint = '#1c0a0a',
+      glow = '#ff8a3d';
+    abox(g, 0.4, 0.22, 0.7, shell, 0, 0.26, 0, true, 0.75);
+    const hd = (parts.head = pivot(g, 0, 0.3, 0.4));
+    abox(hd, 0.2, 0.16, 0.2, shell, 0, 0, 0, true);
+    abox(hd, 0.04, 0.04, 0.02, glow, -0.07, 0, 0.1, true);
+    abox(hd, 0.04, 0.04, 0.02, glow, 0.07, 0, 0.1, true);
+    for (const [x, z] of [
+      [-0.26, 0.26],
+      [0.26, 0.26],
+      [-0.3, 0],
+      [0.3, 0],
+      [-0.26, -0.26],
+      [0.26, -0.26],
+    ]) {
+      const l = pivot(g, x, 0.26, z);
+      abox(l, 0.08, 0.26, 0.08, joint, 0, -0.13, 0);
+      parts.legs.push(l);
+    }
+  } else if (a.type === 'golem') {
+    // a bulky, slow tank guarding geodes alongside the sentinel: one thick stone block of a body,
+    // a crystal core glowing through a crack, stubby legs
+    const stone = '#2e2a38',
+      core = '#9a7bef',
+      light = '#efe2ff';
+    abox(g, 0.9, 1.0, 0.7, stone, 0, 1.1, 0);
+    abox(g, 0.3, 0.5, 0.1, core, 0, 1.15, 0.36, true, 0.85);
+    abox(g, 0.14, 0.2, 0.06, light, 0, 1.3, 0.4, true);
+    const hd = (parts.head = pivot(g, 0, 1.75, 0));
+    abox(hd, 0.4, 0.3, 0.38, stone, 0, 0.1, 0);
+    abox(hd, 0.08, 0.08, 0.05, core, -0.1, 0.12, 0.2, true);
+    abox(hd, 0.08, 0.08, 0.05, core, 0.1, 0.12, 0.2, true);
+    for (const x of [-0.56, 0.56]) {
+      const arm = pivot(g, x, 1.4, 0);
+      abox(arm, 0.22, 0.7, 0.22, stone, 0, -0.35, 0);
+    }
+    for (const x of [-0.26, 0.26]) {
+      const l = pivot(g, x, 0.6, 0);
+      abox(l, 0.3, 0.6, 0.3, stone, 0, -0.3, 0);
+      parts.legs.push(l);
+    }
   } else if (a.type === 'water_lurker') {
     // a serpentine swimmer: long body, a jointed tail that wags instead of legs (updateMobs)
     const dark = '#0c2630',
@@ -225,6 +296,23 @@ function spawnMobChunk(cx, cz) {
       list.push(mkMob('shadow', k, 100 + i, hx + 0.5, hy, hz + 0.5, null));
     }
   }
+  // rift bats: a second cave dweller, same air-pocket search as the shadows above but its own
+  // independent roll and position — a cave can have a shadow, a bat, both, or neither
+  {
+    const rb = hash(cx * 23 - 7, cz * 19 + 11, 215);
+    if (!sanctuary(x0 + 8, z0 + 8) && rb < 0.18) {
+      const hx = x0 + 2 + Math.floor(hash(cx, cz, 216) * 12),
+        hz = z0 + 2 + Math.floor(hash(cx, cz, 217) * 12);
+      let hy = -1;
+      for (let y = Math.min(DEEP - 1, SY - 2); y >= 2; y--) {
+        if (!get(hx, y, hz) && isSolid(get(hx, y - 1, hz)) && !get(hx, y + 1, hz)) {
+          hy = y;
+          break;
+        }
+      }
+      if (hy >= 0) list.push(mkMob('bat', k, 105, hx + 0.5, hy, hz + 0.5, null));
+    }
+  }
   // guardians: around this region's ruin, as long as its validator isn't relit
   const rg = ruinAt(Math.floor((x0 + 8) / RUIN), Math.floor((z0 + 8) / RUIN));
   if (rg && cOf(rg.x) === cx && cOf(rg.z) === cz && get(rg.x, rg.y + 1, rg.z) === 73) {
@@ -236,6 +324,19 @@ function spawnMobChunk(cx, cz) {
         gr = groundAt(hx, hz, rg.y, true, 3);
       if (!gr || gr.water) continue;
       list.push(mkMob('guardian', k, 110 + i, hx, gr.y, hz, rg));
+    }
+  }
+  // rust crawlers: a second ruin guard, not tied to the validator's relit state (no condition on
+  // get(rg.y+1)===73 here) — a ruin stays dangerous even once you've relit its validator
+  if (rg && cOf(rg.x) === cx && cOf(rg.z) === cz && hash(rg.x + 5, rg.z + 7, 223) < 0.6) {
+    for (let i = 0; i < 2; i++) {
+      const an = hash(rg.x + i * 3, rg.z + i, 224) * Math.PI * 2,
+        rr = 4 + hash(rg.x, rg.z + i * 2, 225) * 3,
+        hx = rg.x + 0.5 + Math.cos(an) * rr,
+        hz = rg.z + 0.5 + Math.sin(an) * rr,
+        gr = groundAt(hx, hz, rg.y, true, 3);
+      if (!gr || gr.water) continue;
+      list.push(mkMob('crawler', k, 112 + i, hx, gr.y, hz, null));
     }
   }
   // geode sentinels: guard this chunk's pure ether geodes, below DEEP (sampled columns, not exhaustive)
@@ -258,6 +359,29 @@ function spawnMobChunk(cx, cz) {
     if (gx >= 0 && !sanctuary(gx, gz) && hash(cx * 31 + 7, cz * 23 + 11, 240) < 0.5) {
       const gr = groundAt(gx + 0.5, gz + 0.5, gy + 1, true, 3);
       if (gr && !gr.water) list.push(mkMob('sentinel', k, 120, gx + 0.5, gr.y, gz + 0.5, null));
+    }
+  }
+  // geode golems: a second geode guard, its own independent sampled search so it isn't always
+  // paired with the sentinel above — a slow tank where the sentinel is an agile skirmisher
+  {
+    let gx = -1,
+      gy = -1,
+      gz = -1;
+    for (let i = 0; i < 5 && gx < 0; i++) {
+      const hx = x0 + Math.floor(hash(cx + i * 43, cz, 241 + i) * CH),
+        hz = z0 + Math.floor(hash(cx, cz + i * 47, 242 + i) * CH);
+      for (let y = Math.min(DEEP - 1, SY - 2); y >= 2; y--) {
+        if (get(hx, y, hz) === 69) {
+          gx = hx;
+          gy = y;
+          gz = hz;
+          break;
+        }
+      }
+    }
+    if (gx >= 0 && !sanctuary(gx, gz) && hash(cx * 37 + 9, cz * 41 + 3, 243) < 0.35) {
+      const gr = groundAt(gx + 0.5, gz + 0.5, gy + 1, true, 3);
+      if (gr && !gr.water) list.push(mkMob('golem', k, 125, gx + 0.5, gr.y, gz + 0.5, null));
     }
   }
   // genesis wraiths: guard genesis rock, right at the bottom near bedrock
@@ -596,7 +720,13 @@ function lootMob(type) {
                     ? (r < 0.3 && 101) || (r < 0.45 && 103)
                     : type === 'water_lurker'
                       ? (r < 0.25 && 103) || (r < 0.5 && 104)
-                      : false;
+                      : type === 'bat'
+                        ? r < 0.45 && 101
+                        : type === 'crawler'
+                          ? (r < 0.3 && 101) || (r < 0.45 && 103)
+                          : type === 'golem'
+                            ? (r < 0.3 && 103) || (r < 0.55 && 104)
+                            : false;
   if (it) give(it, 1, `dropped by a ${MK[type].n.toLowerCase()}`);
 }
 // PvP: like attackMob, but the target's hp lives only in the target's own client (same as another
@@ -726,20 +856,24 @@ function updateMobs(dt) {
       }
       p.x = nx;
       p.z = nz;
-      // flying (sky_raider) and swimming (water_lurker) mobs skip the ground snap entirely and
+      // flying (sky_raider, bat) and swimming (water_lurker) mobs skip the ground snap entirely and
       // just lerp toward a free vertical target instead: the player's height when giving chase
       // (clamped to the water column for a lurker, which can't leave its water), or a gentle bob
-      // near home otherwise
-      if (a.type === 'sky_raider' || a.type === 'water_lurker') {
+      // near home otherwise — a bat's cave air pocket is tight, so its bob is much smaller
+      if (a.type === 'sky_raider' || a.type === 'water_lurker' || a.type === 'bat') {
         const T = Date.now() / 1000;
         const ty =
           a.type === 'water_lurker'
             ? aggro
               ? clamp(P.y, a.wlo + 0.4, a.hy - 0.2)
               : a.hy - 0.5 + Math.sin(T * 0.5 + a.ph) * 0.3
-            : aggro
-              ? P.y + 0.5
-              : a.hy + Math.sin(T * 0.6 + a.ph) * 1.1;
+            : a.type === 'bat'
+              ? aggro
+                ? P.y + 0.3
+                : a.hy + Math.sin(T * 1.4 + a.ph) * 0.4
+              : aggro
+                ? P.y + 0.5
+                : a.hy + Math.sin(T * 0.6 + a.ph) * 1.1;
         p.y += (ty - p.y) * Math.min(1, dt * 3);
       } else {
         const gr = groundAt(nx, nz, p.y + 0.3, false, 2);
