@@ -304,6 +304,8 @@ function attackMob(a, dt) {
     a.dying = 0.4;
     Sound.animal(a.type, 1);
     lootMob(a.type);
+    S.killedMob = 1;
+    dirty = true;
   }
 }
 // a thematic, chance-based resource on a mob's death — granting an item is value-moving, so (unlike the

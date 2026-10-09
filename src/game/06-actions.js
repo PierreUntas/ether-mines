@@ -607,6 +607,7 @@ function sleep() {
   }
   if (h >= 0.78) S.dayN++;
   S.day = 0.27;
+  S.slept = 1;
   dirty = true;
   swing = 0.6;
   Sound.door();

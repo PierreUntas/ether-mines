@@ -795,6 +795,8 @@ function petAnimal(a) {
   if (a.type === 'villager') return talk(a);
   a.pet = 0.6;
   Sound.animal(a.type, 1);
+  S.petted = 1;
+  dirty = true;
   for (let i = 0; i < (a.type === 'jellyfish' ? 5 : 3); i++) {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: heartTex, transparent: true, depthWrite: false }));
     s.scale.setScalar(0.32);

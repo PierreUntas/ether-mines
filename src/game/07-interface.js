@@ -156,6 +156,13 @@ const QUESTS = [
     h: 'Follow the compass to the ruins, then right-click (or tap) the dark validator.',
     ok: () => (S.relit || 0) >= 1,
   },
+  { t: 'Defeat a hostile mob', h: 'Shadows lurk in caves, guardians watch dark validators. Fight one off.', ok: () => !!S.killedMob },
+  { t: 'Forge a weapon', h: 'Craft a Volt Blade or a Pure Ether Blade to fight back.', ok: () => !!(S.got[106] || S.got[107]) },
+  { t: 'Sleep through the night', h: 'Place a bed, then use it after dusk to skip to dawn.', ok: () => !!S.slept },
+  { t: 'Trade with another player', h: 'Open Trade, offer something, and have them accept.', ok: () => !!S.traded },
+  { t: 'Reach the City', h: 'Follow the validators path from the Atrium to the great diamond.', ok: () => !!S.visitedCity },
+  { t: 'Pet an animal', h: 'Right-click (or tap) a friendly creature.', ok: () => !!S.petted },
+  { t: 'Earn a Genesis Titan Fang', h: 'Defeat the Genesis Titan in the depths.', ok: () => hasNft(205) },
 ];
 const RELIT_GOALS = [3, 7, 12, 20, 30, 50, 75, 100];
 // ---------- the network: the shared goal ----------
@@ -412,9 +419,11 @@ function renderTrade(body) {
         button(
           'Accept',
           () =>
-            actOnOffer('offer_accept', { oid: o.id }, () =>
-              logEv('nft', `Trade completed with ${o.from}`, sideText(o.give, false, o.uniqueDetails)),
-            ),
+            actOnOffer('offer_accept', { oid: o.id }, () => {
+              S.traded = 1;
+              dirty = true;
+              logEv('nft', `Trade completed with ${o.from}`, sideText(o.give, false, o.uniqueDetails));
+            }),
           'primary',
         ),
       );
@@ -589,6 +598,10 @@ function placeHere() {
 function updatePlace() {
   const l = placeHere(),
     name = l ? l[0] : null;
+  if (name === 'The City' && !S.visitedCity) {
+    S.visitedCity = 1;
+    dirty = true;
+  }
   if (name === placeSeen) return;
   placeSeen = name;
   if (l) announce(l[0], l[1]);
