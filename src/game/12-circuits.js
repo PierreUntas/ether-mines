@@ -206,27 +206,36 @@ function cableReach(nodes, sx, sy, sz) {
   }
   return seen;
 }
-// A NOT gate whose own output, followed only through cable (not through any other gate — the
-// simple, expected build), loops all the way back into its own back input. Structural: looked for
+// Every NOT gate whose own output, followed only through cable (not through any other gate — the
+// simple, expected build), loops all the way back into its own back input — the free-running
+// oscillator at the heart of both selfOscillating and isCoinFlip below. Structural: looked for
 // regardless of the current power state, since the whole point of this wiring is that it never
 // settles — the comment in computePower() below already calls this out as a known, deliberate quirk.
-function selfOscillating(nodes) {
+// Returns each loop's own cable network (not just true/false), so a caller can check whether some
+// other wire taps into that same network.
+function oscillatorLoops(nodes) {
+  const out = [];
   for (const [k, id] of nodes) {
     if (B[id]?.gate !== 'not') continue;
     const [x, y, z] = k.split(',').map(Number),
       f = FRONT[B[id].o],
-      back = coordKey(x - f[0], y, z - f[2]);
-    if (cableReach(nodes, x + f[0], y, z + f[2]).has(back)) return true;
+      back = coordKey(x - f[0], y, z - f[2]),
+      network = cableReach(nodes, x + f[0], y, z + f[2]);
+    // the back cell itself must really be cable: cableReach also reports the untyped (or empty)
+    // neighbor of any cable cell as "reached", which would otherwise let an unfinished loop pass
+    if (network.has(back) && nodes.get(back) === 67) out.push(network);
   }
-  return false;
+  return out;
 }
-// An OR gate wired so one input is a pressure plate and another input loops back, through cable
-// only, from its own output — the simplest way to remember a state: step on the plate once and it
-// stays set, because propagate() re-feeds any already-active gate from its own output every tick,
-// no matter what originally turned it on. Unlike the NOT loop above, OR feedback is self-reinforcing
-// rather than self-canceling, so this settles instead of oscillating. Structural, same reasoning as
-// selfOscillating; also requires the output to reach a lamp, for a visible payoff.
-function isLatch(nodes) {
+function selfOscillating(nodes) {
+  return oscillatorLoops(nodes).length > 0;
+}
+// An OR gate with one input satisfying `isFed` and another input looped back, through cable only,
+// from its own output, reaching a lamp — the shape shared by isLatch (fed by a plate) and the final
+// stage of isCoinFlip (fed by an upstream gate's output). Settles instead of oscillating because OR
+// feedback is self-reinforcing, unlike the NOT loop's self-canceling one. Structural, same reasoning
+// as selfOscillating.
+function latchFed(nodes, isFed) {
   for (const [k, id] of nodes) {
     if (B[id]?.gate !== 'or') continue;
     const [x, y, z] = k.split(',').map(Number),
@@ -237,14 +246,45 @@ function isLatch(nodes) {
         [f[2], 0, -f[0]],
         [-f[2], 0, f[0]],
       ];
-    let plate = false,
+    let fed = false,
       feedback = false;
     for (const d of sides) {
       const reach = cableReach(nodes, x + d[0], y, z + d[2]);
-      if (!plate) for (const rk of reach) if (nodes.get(rk) === 66) plate = true;
-      if (reach.has(own)) feedback = true;
+      if (!fed && isFed(reach)) fed = true;
+      if (reach.has(own) && nodes.get(own) === 67) feedback = true; // own must really be cable, see oscillatorLoops
     }
-    if (plate && feedback && [...cableReach(nodes, x + f[0], y, z + f[2])].some(rk => nodes.get(rk) === 68)) return true;
+    if (fed && feedback && [...cableReach(nodes, x + f[0], y, z + f[2])].some(rk => nodes.get(rk) === 68)) return true;
+  }
+  return false;
+}
+// step on the plate once and it stays set, because propagate() re-feeds any already-active gate
+// from its own output every tick, no matter what originally turned it on.
+function isLatch(nodes) {
+  return latchFed(nodes, reach => [...reach].some(rk => nodes.get(rk) === 66));
+}
+// Samples a free-running NOT-loop oscillator through an AND gate the instant a plate is pressed,
+// then latches the result — composing all three ideas above. Which half of the oscillator's cycle a
+// tap lands on is far faster than human reflexes can aim for, so a quick tap plays like a coin flip
+// (holding the plate down indefinitely doesn't: the oscillator keeps flipping underneath it, so a
+// long enough press always eventually latches — the trick is in the quick tap, not in outlasting it).
+function isCoinFlip(nodes) {
+  const loops = oscillatorLoops(nodes);
+  if (!loops.length) return false;
+  for (const [k, id] of nodes) {
+    if (B[id]?.gate !== 'and') continue;
+    const [x, y, z] = k.split(',').map(Number),
+      f = FRONT[B[id].o],
+      sides = [
+        [f[2], 0, -f[0]],
+        [-f[2], 0, f[0]],
+      ].map(d => cableReach(nodes, x + d[0], y, z + d[2]));
+    // the shared cell must really be cable: otherwise two unrelated, disconnected branches that
+    // merely end up adjacent to the same empty cell would look like they tap the same network
+    const tapsLoop = r => loops.some(net => [...r].some(rk => net.has(rk) && nodes.get(rk) === 67)),
+      hasPlate = r => [...r].some(rk => nodes.get(rk) === 66);
+    if (!((tapsLoop(sides[0]) && hasPlate(sides[1])) || (tapsLoop(sides[1]) && hasPlate(sides[0])))) continue;
+    const own = coordKey(x + f[0], y, z + f[2]);
+    if (latchFed(nodes, reach => reach.has(own))) return true;
   }
   return false;
 }
@@ -332,6 +372,10 @@ function computePower(dt) {
   }
   if (!S.gateLatch && isLatch(nodes)) {
     S.gateLatch = 1;
+    dirty = true;
+  }
+  if (!S.gateCoinFlip && isCoinFlip(nodes)) {
+    S.gateCoinFlip = 1;
     dirty = true;
   }
   const changed = [];

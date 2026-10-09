@@ -188,6 +188,11 @@ const QUESTS = [
     h: "Wire an OR gate: one input from a plate, another looped back from its own output, into a lamp. Tap the plate once — it stays lit. A working example stands in the City's workshop.",
     ok: () => !!S.gateLatch,
   },
+  {
+    t: 'Build a coin flip',
+    h: 'Feed a self-oscillating NOT loop and a plate into an AND gate, its output into a latch. A quick tap lands on whichever phase the loop was in — too fast to call.',
+    ok: () => !!S.gateCoinFlip,
+  },
 ];
 const RELIT_GOALS = [3, 7, 12, 20, 30, 50, 75, 100];
 // ---------- the network: the shared goal ----------
