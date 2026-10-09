@@ -243,72 +243,55 @@
       }
     },
   };
-  // ambiance: pad in D Lydian, slowly sliding chords
+  // ambiance: sparse piano-like plucks wandering a simple scale, through a generous echo, with long
+  // quiet rests between phrases — closer to the spaced-out, wistful feel of a classic block-game
+  // soundtrack than a continuously sustained pad (replaces the old 4-voice drone).
   let padLP = null,
     birdT = 3;
-  const ROOT = 146.83,
-    LYD = [0, 2, 4, 6, 7, 9, 11];
+  const ROOT = 220, // A3
+    SCALE = [0, 2, 3, 5, 7, 9, 10]; // A natural minor: simple and easy to wander in, a little wistful
+  function pluck(T, deg, oct, peak) {
+    const f = ROOT * Math.pow(2, oct) * Math.pow(2, deg / 12);
+    tone(f, 'triangle', peak, 1.8 + Math.random() * 0.8, T, padLP, 0, 0.012);
+    tone(f * 2, 'sine', peak * 0.22, 1.1, T, padLP, 0, 0.008); // a touch of shimmer on top
+  }
   function startPad() {
     padLP = ctx.createBiquadFilter();
     padLP.type = 'lowpass';
     padLP.frequency.value = 1200;
-    padLP.Q.value = 0.4;
+    padLP.Q.value = 0.3;
     const pg = ctx.createGain();
-    pg.gain.value = 0.05;
+    pg.gain.value = 0.22;
     padLP.connect(pg);
     pg.connect(amb);
-    // light echo for space
-    const dl = ctx.createDelay(1);
-    dl.delayTime.value = 0.42;
+    // a generous echo for space — does a lot of the "feels like a soundtrack" work on its own
+    const dl = ctx.createDelay(1.5);
+    dl.delayTime.value = 0.55;
     const fb = ctx.createGain();
-    fb.gain.value = 0.35;
+    fb.gain.value = 0.42;
     pg.connect(dl);
     dl.connect(fb);
     fb.connect(dl);
     const wet = ctx.createGain();
-    wet.gain.value = 0.5;
+    wet.gain.value = 0.6;
     dl.connect(wet);
     wet.connect(amb);
-    const voices = [0, 1, 2, 3].map(i => {
-      const o = ctx.createOscillator(),
-        o2 = ctx.createOscillator(),
-        g = ctx.createGain();
-      o.type = 'triangle';
-      o2.type = 'sine';
-      o2.detune.value = 7;
-      g.gain.value = 0.0;
-      o.connect(g);
-      o2.connect(g);
-      g.connect(padLP);
-      o.start();
-      o2.start();
-      return { o, o2, g };
-    });
-    const chords = [
-      [0, 4, 7, 11],
-      [2, 6, 9, 14],
-      [4, 7, 11, 16],
-      [-3, 2, 6, 9],
-      [0, 4, 9, 13],
-    ];
-    let ci = 0;
-    const next = () => {
+    function phrase() {
       const T = now(),
-        c = chords[ci++ % chords.length];
-      voices.forEach((v, i) => {
-        const f = ROOT * Math.pow(2, c[i] / 12);
-        v.o.frequency.setTargetAtTime(f, T, 1.2);
-        v.o2.frequency.setTargetAtTime(f * 2, T, 1.2);
-        v.g.gain.setTargetAtTime(i === 0 ? 0.5 : 0.28, T, 2);
-      });
-      // a melody note every once in a while
-      if (Math.random() < 0.6) {
-        const deg = LYD[Math.floor(Math.random() * LYD.length)];
-        tone(ROOT * 4 * Math.pow(2, deg / 12), 'sine', 0.035, 2.4, T + Math.random() * 3, amb, 1, 0.4);
+        len = 4 + Math.floor(Math.random() * 4), // 4 to 7 notes
+        oct = Math.random() < 0.3 ? 1 : 0;
+      let t = T,
+        i = SCALE.indexOf(SCALE[Math.floor(Math.random() * SCALE.length)]);
+      for (let n = 0; n < len; n++) {
+        pluck(t, SCALE[i], oct, 0.22 - n * 0.01);
+        t += 0.9 + Math.random() * 1.1;
+        i =
+          (i + (Math.random() < 0.15 ? Math.floor(Math.random() * SCALE.length) : Math.random() < 0.5 ? 1 : -1) + SCALE.length) %
+          SCALE.length;
       }
-      setTimeout(next, 9000 + Math.random() * 4000);
-    };
-    next();
+      setTimeout(phrase, (t - T) * 1000 + 14000 + Math.random() * 18000); // a long rest before the next phrase
+    }
+    setTimeout(phrase, 3000 + Math.random() * 6000); // not the instant you spawn
   }
   function bird(T) {
     const n = 2 + Math.floor(Math.random() * 4),
