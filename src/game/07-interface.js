@@ -822,9 +822,15 @@ function renderShop(body) {
     'beforeend',
     '<p class="qintro">Cosmetics only: no combat, speed, harvesting, or access advantage. Outfit colors apply right away; block packs go straight into your chest.</p>',
   );
-  const cats = [...new Set(Object.values(COSMETICS).map(c => c.category))];
+  // "combat" cosmetics are never for sale (024_loot_tiers.sql's epic tier grants them directly on a
+  // mob kill) — shown last, as a trophy case, not among the buyable categories.
+  const cats = [...new Set(Object.values(COSMETICS).map(c => c.category))].sort((a, b) => (a === 'combat') - (b === 'combat'));
   for (const cat of cats) {
-    body.insertAdjacentHTML('beforeend', `<h3 class="cat">${cat[0].toUpperCase() + cat.slice(1)}</h3>`);
+    body.insertAdjacentHTML(
+      'beforeend',
+      `<h3 class="cat">${cat === 'combat' ? 'Combat trophies' : cat[0].toUpperCase() + cat.slice(1)}</h3>`,
+    );
+    if (cat === 'combat') body.insertAdjacentHTML('beforeend', '<p class="note">Never sold: dropped by tough mobs, rarely.</p>');
     for (const [id, c] of Object.entries(COSMETICS)) {
       if (c.category !== cat) continue;
       const owned = S.cosmetics.includes(+id);
@@ -834,12 +840,12 @@ function renderShop(body) {
       else {
         const sw = document.createElement('span');
         sw.className = 'swatch';
-        sw.style.background = c.color || 'var(--violet)';
+        sw.style.background = c.color || (cat === 'combat' ? 'var(--gold)' : 'var(--violet)');
         d.appendChild(sw);
       }
       d.insertAdjacentHTML(
         'beforeend',
-        `<div><strong>${c.n}</strong><span>${owned ? 'Owned' : `${c.price} Gwei`}${c.grantItem ? ` · grants ${c.grantQty} × ${nameOf(c.grantItem)}` : ''}</span></div>`,
+        `<div><strong>${c.n}</strong><span>${owned ? 'Owned' : cat === 'combat' ? 'Combat drop only' : `${c.price} Gwei`}${c.grantItem ? ` · grants ${c.grantQty} × ${nameOf(c.grantItem)}` : ''}</span></div>`,
       );
       const btn = document.createElement('button');
       btn.className = 'b' + (owned ? '' : ' primary');
@@ -854,6 +860,10 @@ function renderShop(body) {
           dirty = cloudDirty = true;
           renderPanel();
         };
+      } else if (cat === 'combat') {
+        btn.textContent = owned ? 'Owned' : 'Not for sale';
+        btn.disabled = true;
+        btn.className = 'b';
       } else {
         btn.textContent = owned ? 'Owned' : 'Buy';
         btn.disabled = owned;

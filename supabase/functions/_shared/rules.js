@@ -286,6 +286,11 @@
     8: { n: 'Prism Pickaxe Trim', category: 'tool', price: 180 },
     9: { n: 'Cobalt Validator Banner', category: 'validator', price: 120 },
     10: { n: 'Spectrum Trail', category: 'effect', price: 500 },
+    // v15: loot tiers (024_loot_tiers.sql). "combat" cosmetics are never sold (price 0, act_buy_cosmetic
+    // refuses them): the epic tier of act_loot_mob grants one directly, so the only way in is a kill.
+    11: { n: 'Wraith Ember Trail', category: 'combat', price: 0 },
+    12: { n: 'Sentinel Core Banner', category: 'combat', price: 0 },
+    13: { n: 'Deep Golem Plating Trim', category: 'combat', price: 0 },
   };
   // what a placed item becomes: block with the same id, except stairs (4 orientations) and doors (4 orientations, 2 halves)
   function placeIds(it) {

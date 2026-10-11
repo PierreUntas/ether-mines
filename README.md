@@ -238,10 +238,24 @@ active ──(3 missed checks)──> damaged ──(8 missed checks)──> cor
 - **Cosmetics** (`act_buy_cosmetic`, Shop tab): bought with Gwei, purely decorative — never a combat,
   speed, harvesting, or access advantage. The catalog (`COSMETICS` in `rules.js`) is a separate id space
   from blocks and items, so it can grow (rarity, limited editions, collections) without touching the
-  append-only block/item numbering.
+  append-only block/item numbering. The `combat` category is the one exception to "bought": never for
+  sale, only ever granted by the loot tiers below — shown in the Shop as a trophy case, not a catalog.
 
-See `supabase/migrations/019_gwei_currency.sql` through `022_cosmetics.sql` for the schema, and
+See `supabase/migrations/019_gwei_currency.sql` through `024_loot_tiers.sql` for the schema, and
 `legacy/README.md` for what used to exist here (a real, optional Sepolia mirror — retired, not deleted).
+
+### Mob loot tiers
+
+Every regular (non-boss) kill rolls one layer, independent of the mob's own resource-chance table:
+
+| Tier | Odds | Reward |
+| --- | --- | --- |
+| Epic | ~3% | A combat-exclusive cosmetic (Shop tab), never sold — falls through to the common roll once every combat cosmetic is owned |
+| Rare | ~12% | 10–50 Gwei, credited straight to the balance |
+| Common | the rest | The mob's usual resource chance, unchanged (`act_loot_mob`, `013_mob_loot.sql` onward) |
+
+Boss kills (Genesis Titan, Plasma Core) are untouched: a guaranteed unique trophy on every kill, the
+legendary tier in all but name. See `supabase/migrations/024_loot_tiers.sql`.
 
 ## Known limits
 

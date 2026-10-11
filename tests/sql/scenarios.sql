@@ -428,6 +428,35 @@ reset role;
 delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_mob';
 delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_boss';
 
+-- loot tiers (024_loot_tiers.sql): a layered chance of Gwei or a combat-exclusive cosmetic on top of
+-- the per-mob resource table above — never on a boss kill, still a guaranteed trophy only. Stays as
+-- the postgres role throughout (auth.uid() only reads the jwt claim GUC, same either way) so the
+-- mid-loop rate-limit resets below aren't themselves blocked by RLS the way a real player's would be.
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+do $$
+declare res jsonb; got_gwei boolean := false; got_cosmetic boolean := false; before_gwei bigint; after_gwei bigint;
+begin
+  select gwei into before_gwei from players where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and world = 'w';
+  for i in 1..200 loop
+    res := act_loot_mob('w', 'wraith', 12.5, 33, 8.5);
+    if res ->> 'gwei' is not null then got_gwei := true; end if;
+    if res ->> 'cosmetic' is not null then got_cosmetic := true; end if;
+    if i % 5 = 0 then delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_mob'; end if;
+  end loop;
+  select gwei into after_gwei from players where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and world = 'w';
+  if not got_gwei then raise exception 'FAILED: never rolled the rare Gwei tier over 200 kills (~12%% odds each)'; end if;
+  if not got_cosmetic then raise exception 'FAILED: never rolled the epic cosmetic tier over 200 kills (~3%% odds each)'; end if;
+  if after_gwei <= before_gwei then raise exception 'FAILED: Gwei balance did not increase from rare-tier loot'; end if;
+  raise notice 'ok: loot tiers award Gwei and a combat-exclusive cosmetic over enough kills';
+end $$;
+delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_mob';
+delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_boss';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('a combat-exclusive cosmetic cannot be bought even by id', act_buy_cosmetic('w', 11) ->> 'err' = 'not for sale');
+reset role;
+delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'buy_cosmetic';
+
 -- the network's capstone (014_relight_capstone.sql): crossing a shared milestone mints a Validator Star.
 -- Run last, after the recovery-by-code section above: player A has no save left in this world (it moved
 -- to B), so this relight acts on a brand-new player A, with its own fresh validators row.

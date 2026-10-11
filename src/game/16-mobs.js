@@ -690,6 +690,17 @@ function lootMob(type) {
         toastInfo((BOSS_TOAST[r.unique.id] || (() => `${ITEM[r.unique.id].n} earned`))());
         Sound.chime();
       }
+      if (r && r.gwei) {
+        S.gwei = r.total_gwei;
+        toastInfo(`+${r.gwei} Gwei — dropped by a ${MK[type].n.toLowerCase()}`);
+        Sound.chime();
+        ui();
+      }
+      if (r && r.cosmetic) {
+        S.cosmetics.push(+r.cosmetic);
+        toastInfo(`${COSMETICS[r.cosmetic].n} earned — a combat trophy, check the Shop tab`);
+        Sound.chime();
+      }
     });
     return;
   }
