@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP: below this layer, geodes and large caves
-  const GEN = 19; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example; 12: new seed; the Circuits Complex, its own standalone landmark with 5 separate rooms, replaces the in-City workshop; 13: towers, guarded by mobs with a boss at the top; 14: towers were far too sparse (8.5% of eligible regions, nearest ~264m from spawn) — loosened the height ceiling, flatness tolerance, and dropped the dunes exclusion, purely additive; 15: towers enlarged (7x7/4-tall -> 9x9/5-tall, too cramped to fight in); 16: towers enlarged again (9x9/5-tall -> 13x13/6-tall), more wardens per floor; 17: towers re-skinned futuristic — polished granite + cyan-neon trim, holo-screen windows, neon floor grid; 18: towers' entrance gap replaced with a real closed door; 19: a treasure chest on the boss's platform) : bump it on every terrain change (already-frozen chunks don't move)
+  const GEN = 20; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example; 12: new seed; the Circuits Complex, its own standalone landmark with 5 separate rooms, replaces the in-City workshop; 13: towers, guarded by mobs with a boss at the top; 14: towers were far too sparse (8.5% of eligible regions, nearest ~264m from spawn) — loosened the height ceiling, flatness tolerance, and dropped the dunes exclusion, purely additive; 15: towers enlarged (7x7/4-tall -> 9x9/5-tall, too cramped to fight in); 16: towers enlarged again (9x9/5-tall -> 13x13/6-tall), more wardens per floor; 17: towers re-skinned futuristic — polished granite + cyan-neon trim, holo-screen windows, neon floor grid; 18: towers' entrance gap replaced with a real closed door; 19: a treasure chest on the boss's platform; 20: the validators' path graded flat instead of following every terrain bump) : bump it on every terrain change (already-frozen chunks don't move)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -838,14 +838,20 @@
           }
         }
     }
-    // the validators' path: polished-granite slabs, a neon strip, lampposts
-    for (let lz = 0; lz < CH; lz++)
+    // the validators' path: polished-granite slabs, a neon strip, lampposts — graded flat across
+    // small-scale terrain noise (heightAt averaged along the centerline) instead of following the raw
+    // per-column height, which made the pavement step up and down with every bump in the ground. Still
+    // follows the land's broader rise and fall (and the Atrium/City's own flat plateaus) since that
+    // part of heightAt's blend only depends on z here, not the noise octaves this smooths out.
+    for (let lz = 0; lz < CH; lz++) {
+      const z = z0 + lz;
+      let hsum = 0;
+      for (let dz = -2; dz <= 2; dz++) hsum += heightAt(SPAWN.x, z + dz);
+      const h = Math.round(hsum / 5);
       for (let lx = 0; lx < CH; lx++) {
-        const x = x0 + lx,
-          z = z0 + lz;
+        const x = x0 + lx;
         if (!onPath(x, z, 2)) continue;
-        const h = heightAt(x, z),
-          e = Math.abs(x - SPAWN.x);
+        const e = Math.abs(x - SPAWN.x);
         if (h <= SEA) continue;
         if (e <= 1) {
           a[li(lx, h, lz)] = e === 0 && ((z % 4) + 4) % 4 === 0 ? 128 : 80;
@@ -855,6 +861,7 @@
           a[li(lx, h + 3, lz)] = 84;
         }
       }
+    }
     // the City's palm trees (under the domes and on the squares), within the 3-column margin
     if (inCity(x0 + 8, z0 + 8, 16))
       for (let j = 0; j < 7; j++)
