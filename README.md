@@ -268,6 +268,23 @@ Plasma Core, seeded with better-than-average loot (15–25 Ether Crystals, 4–8
 of a bonus Genesis Fragment) the first time it's opened — worth the climb even before the fight. See
 `supabase/migrations/025_tower_treasure.sql`.
 
+### The network attack event
+
+Every real-world hour, for its first 10 minutes, a wave of corrupted nodes converges on the Atrium.
+No new infrastructure: every client independently computes the same wall-clock window
+(`attackWindow()`, `07-interface.js`, mirroring `_attack_window(ts)` in SQL) the same way the day/night
+cycle already runs with no server round-trip, and only kills are reported to the server — the same
+bounded, rate-limited, position-checked trust `act_loot_mob` already extends to every other mob
+(`src/game/16-mobs.js`'s `syncNetworkAttack`, modeled directly on `syncNightProwler`).
+
+Fighting them off pays: ~25% of a kill drops 10–50 Gwei, ~8% a defenders-exclusive cosmetic (Shop tab,
+never sold), the rest a guaranteed small resource bundle — no whiffed kills during the event. Clearing
+20 kills in the window counts as a successful defense: every contributor is paid 50 Gwei and, the first
+time, the cosmetic. The event always resolves automatically (lazily, like `_tick_validator`'s catch-up),
+even with zero kills — no punishment for nobody's timezone, but a successful defense is worth much more.
+A running, server-wide defense score (`network_score`) never resets and recolors the great diamond in
+the sky at each tier it crosses. See `supabase/migrations/027_network_attack.sql`.
+
 ## Known limits
 
 - The server checks that reported positions are plausible, not fine-grained physics: a cheater can walk through a wall or fly at running speed. They can't mine from a distance, teleport, or act faster than a human.

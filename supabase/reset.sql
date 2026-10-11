@@ -7,7 +7,8 @@ drop table if exists public.players, public.inventory, public.uniques, public.cl
   public.chat, public.reports, public.client_errors, public.chat_banned_words, public.chat_mots_bannis,
   public.daily, public.rule_defis, public.chests, public.offers,
   public.wallets, public.wallet_nonces, -- removed: the game no longer uses a real blockchain (see legacy/)
-  public.validators, public.rule_cosmetics, public.cosmetics_owned cascade; -- daily, rule_defis: removed challenge feature, dropped if still present
+  public.validators, public.rule_cosmetics, public.cosmetics_owned,
+  public.network_events, public.network_score cascade; -- daily, rule_defis: removed challenge feature, dropped if still present
 
 -- game functions: act_*, internal _* tools, recovery codes, older versions
 do $$ declare f record; begin

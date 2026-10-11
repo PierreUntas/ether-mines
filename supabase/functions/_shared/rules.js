@@ -296,6 +296,9 @@
     11: { n: 'Wraith Ember Trail', category: 'combat', price: 0 },
     12: { n: 'Sentinel Core Banner', category: 'combat', price: 0 },
     13: { n: 'Deep Golem Plating Trim', category: 'combat', price: 0 },
+    // v16: the network attack event (027_network_attack.sql). Same never-sold shape as "combat":
+    // granted only by defending the Atrium during the hourly window, never bought.
+    14: { n: 'Network Defender Banner', category: 'event', price: 0 },
   };
   // what a placed item becomes: block with the same id, except stairs (4 orientations) and doors (4 orientations, 2 halves)
   function placeIds(it) {

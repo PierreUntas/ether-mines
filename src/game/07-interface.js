@@ -209,10 +209,42 @@ const QUESTS = [
 const RELIT_GOALS = [3, 7, 12, 20, 30, 50, 75, 100];
 // ---------- the network: the shared goal ----------
 // All the players in the world relight old validators together. At each tier, the great diamond in the sky awakens a bit more.
-const NETWORK = { n: 0, top: [], t: 0, seen: -1 },
+const NETWORK = { n: 0, top: [], t: 0, seen: -1, score: 0, scoreSeen: -1, attack: null },
   TIERS = [3, 10, 25, 50, 100],
   MILESTONE_NAMES = ['a first star', 'two stars', 'three stars', 'four stars', 'the diamond fully awake'];
 const networkLevel = () => TIERS.filter(p => NETWORK.n >= p).length;
+// ---------- the network attack event (027_network_attack.sql): an hourly window, computed from the
+// clock alone (no server round-trip, same reasoning as the day/night cycle) so the HUD banner can react
+// the instant it opens; only the kill count/score need the existing 60s network poll. ----------
+function attackWindow(t = Date.now()) {
+  const epoch = Math.floor(t / 1000),
+    windowId = Math.floor(epoch / 3600);
+  return { windowId, active: epoch % 3600 < 600, endsAt: (windowId * 3600 + 600) * 1000 };
+}
+const SCORE_TIERS = [5, 15, 30, 50, 80],
+  SCORE_PALETTES = [
+    ['#9a8cf5', '#c2b8ff', '#6a58e0', '#8a7bef'], // base, unchanged
+    ['#ffb36b', '#ffd95e', '#e08a3a', '#ff9a5c'],
+    ['#7fe8ff', '#bdf6ff', '#3ab8d8', '#5cc9e8'],
+    ['#ff9ab8', '#ffd0e0', '#d8508a', '#ff6fa0'],
+    ['#9fe3c4', '#d4f5e6', '#3fae7e', '#6fd4a8'],
+    ['#fff3c2', '#ffe9a8', '#ffb347', '#ffd95e'], // every tier held: the network triumphant, full gold
+  ];
+const scoreTier = () => SCORE_TIERS.filter(p => (NETWORK.score || 0) >= p).length;
+function updateDiamondTier(before, after) {
+  if (before === after) return;
+  bigEth.geometry.dispose();
+  bigEth.geometry = ethGeo(9, 15, 10, 2.5, SCORE_PALETTES[Math.min(after, SCORE_PALETTES.length - 1)]);
+}
+function updateAttackBanner() {
+  const el = $('attack'),
+    aw = attackWindow();
+  el.hidden = !aw.active;
+  if (!aw.active) return;
+  const left = Math.max(0, Math.round((aw.endsAt - Date.now()) / 1000)),
+    kills = NETWORK.attack && NETWORK.attack.window_id === aw.windowId ? NETWORK.attack.kills : 0;
+  el.textContent = `⚡ The network is under attack — defend the Atrium · ${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')} · ${kills} corrupted node${kills === 1 ? '' : 's'} defeated`;
+}
 function networkStatus() {
   const g = TIERS.find(p => p > NETWORK.n);
   return g
@@ -222,27 +254,40 @@ function networkStatus() {
 async function updateNetwork() {
   NETWORK.t = 60;
   let n = S.relit || 0,
-    top = n ? [{ name: ME.name, n }] : [];
+    top = n ? [{ name: ME.name, n }] : [],
+    attack = null;
   if (SERVER()) {
     try {
       const r = await Net.act('network', {});
       if (!r || !r.ok) return;
       n = r.n;
       top = r.top || [];
+      attack = r.attack || null;
     } catch (e) {
       return;
     }
   }
-  const before = networkLevel();
+  const before = networkLevel(),
+    scoreBefore = scoreTier();
   NETWORK.n = n;
   NETWORK.top = top;
-  const niv = networkLevel();
+  NETWORK.attack = attack;
+  if (attack) NETWORK.score = attack.score;
+  const niv = networkLevel(),
+    scoreAfter = scoreTier();
   if (NETWORK.seen >= 0 && niv > before) {
     logEv('nft', `The network awakens: ${n} validators relit`, `the great diamond gains ${MILESTONE_NAMES[niv - 1]}`);
     announce('The network awakens', `${n} old validators relit`);
     Sound.chime();
   }
   NETWORK.seen = niv;
+  updateDiamondTier(scoreBefore, scoreAfter);
+  if (NETWORK.scoreSeen >= 0 && scoreAfter > scoreBefore) {
+    logEv('nft', `The network held: defense score ${NETWORK.score}`, 'the great diamond shifts color');
+    announce('The network held', `defense score ${NETWORK.score}`);
+    Sound.chime();
+  }
+  NETWORK.scoreSeen = scoreAfter;
   STARS.forEach((e, i) => (e.visible = i < niv));
   if (tab === 'quest' && !$('panel').hidden) renderPanel();
 }
@@ -619,6 +664,7 @@ function updateQuest(dt) {
   if (TRADE.t <= 0) updateOffers();
   NETWORK.t -= 0.4;
   if (NETWORK.t <= 0) updateNetwork();
+  updateAttackBanner();
   if (tab === 'validators' && !$('panel').hidden) {
     VALIDATORS.t -= 0.4;
     if (VALIDATORS.t <= 0) updateValidators();
@@ -677,6 +723,13 @@ function renderQuests(body) {
       d = document.createElement('div');
     d.className = 'networkBox';
     d.innerHTML = `<h3>The network · shared goal</h3><p>${g ? `All together, relight <b>${g}</b> old validators to give the great diamond in the sky ${MILESTONE_NAMES[niv]}.` : 'The network is awake. The great diamond shines with all its light.'}</p><div class="gauge"><i style="width:${Math.min(100, (NETWORK.n / (g || NETWORK.n || 1)) * 100)}%"></i></div><div class="tiers">${TIERS.map(p => `<span class="${NETWORK.n >= p ? 'ok' : ''}">◆ ${p}</span>`).join('')}<b>${NETWORK.n} relit</b></div>`;
+    if (SERVER()) {
+      const aw = attackWindow();
+      d.insertAdjacentHTML(
+        'beforeend',
+        `<h4>Under attack, every hour</h4><p>Every hour, for its first 10 minutes, corrupted nodes converge on the Atrium — fight them off for better loot and Gwei. ${aw.active ? 'It’s happening right now.' : `Next attack at :00, in ${Math.round((3600 - ((Date.now() / 1000) % 3600)) / 60)} min.`} Defense score so far: <b>${NETWORK.score || 0}</b>.</p>`,
+      );
+    }
     if (NETWORK.top.length) {
       const ol2 = document.createElement('ol');
       ol2.className = 'guardians';
@@ -822,15 +875,19 @@ function renderShop(body) {
     'beforeend',
     '<p class="qintro">Cosmetics only: no combat, speed, harvesting, or access advantage. Outfit colors apply right away; block packs go straight into your chest.</p>',
   );
-  // "combat" cosmetics are never for sale (024_loot_tiers.sql's epic tier grants them directly on a
-  // mob kill) — shown last, as a trophy case, not among the buyable categories.
-  const cats = [...new Set(Object.values(COSMETICS).map(c => c.category))].sort((a, b) => (a === 'combat') - (b === 'combat'));
+  // "combat" and "event" cosmetics are never for sale (024_loot_tiers.sql's epic tier, 027's attack
+  // window) — shown last, as a trophy case, not among the buyable categories.
+  const NOT_FOR_SALE = {
+    combat: ['Combat trophies', 'Never sold: dropped by tough mobs, rarely.'],
+    event: ['Defenders’ trophies', 'Never sold: earned by fighting off the network attack.'],
+  };
+  const cats = [...new Set(Object.values(COSMETICS).map(c => c.category))].sort((a, b) => (a in NOT_FOR_SALE) - (b in NOT_FOR_SALE));
   for (const cat of cats) {
     body.insertAdjacentHTML(
       'beforeend',
-      `<h3 class="cat">${cat === 'combat' ? 'Combat trophies' : cat[0].toUpperCase() + cat.slice(1)}</h3>`,
+      `<h3 class="cat">${NOT_FOR_SALE[cat] ? NOT_FOR_SALE[cat][0] : cat[0].toUpperCase() + cat.slice(1)}</h3>`,
     );
-    if (cat === 'combat') body.insertAdjacentHTML('beforeend', '<p class="note">Never sold: dropped by tough mobs, rarely.</p>');
+    if (NOT_FOR_SALE[cat]) body.insertAdjacentHTML('beforeend', `<p class="note">${NOT_FOR_SALE[cat][1]}</p>`);
     for (const [id, c] of Object.entries(COSMETICS)) {
       if (c.category !== cat) continue;
       const owned = S.cosmetics.includes(+id);
@@ -840,12 +897,12 @@ function renderShop(body) {
       else {
         const sw = document.createElement('span');
         sw.className = 'swatch';
-        sw.style.background = c.color || (cat === 'combat' ? 'var(--gold)' : 'var(--violet)');
+        sw.style.background = c.color || (NOT_FOR_SALE[cat] ? 'var(--gold)' : 'var(--violet)');
         d.appendChild(sw);
       }
       d.insertAdjacentHTML(
         'beforeend',
-        `<div><strong>${c.n}</strong><span>${owned ? 'Owned' : cat === 'combat' ? 'Combat drop only' : `${c.price} Gwei`}${c.grantItem ? ` · grants ${c.grantQty} × ${nameOf(c.grantItem)}` : ''}</span></div>`,
+        `<div><strong>${c.n}</strong><span>${owned ? 'Owned' : NOT_FOR_SALE[cat] ? 'Drop only' : `${c.price} Gwei`}${c.grantItem ? ` · grants ${c.grantQty} × ${nameOf(c.grantItem)}` : ''}</span></div>`,
       );
       const btn = document.createElement('button');
       btn.className = 'b' + (owned ? '' : ' primary');
@@ -860,7 +917,7 @@ function renderShop(body) {
           dirty = cloudDirty = true;
           renderPanel();
         };
-      } else if (cat === 'combat') {
+      } else if (NOT_FOR_SALE[cat]) {
         btn.textContent = owned ? 'Owned' : 'Not for sale';
         btn.disabled = true;
         btn.className = 'b';

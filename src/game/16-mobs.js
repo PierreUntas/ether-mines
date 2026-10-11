@@ -48,6 +48,9 @@ const MK = {
   // a second geode guard alongside the agile Sentinel: slow but hits hard and shrugs off more —
   // a tank to the Sentinel's skirmisher
   golem: { n: 'Geode Golem', hp: 26, dmg: 4.2, sp: 1.7, aggro: 11, atk: 1.6, cd: 1.3, kb: 5, hit: [0.9, 1.7, 0.8] },
+  // the network attack event (027_network_attack.sql, syncNetworkAttack below): only exists near the
+  // Atrium, only during the hourly window — group-fight weight, not solo-trivial, not boss-tier
+  corrupted_node: { n: 'Corrupted Node', hp: 20, dmg: 3.4, sp: 2.6, aggro: 14, atk: 1.3, cd: 0.9, kb: 3, hit: [0.8, 1.8, 0.7] },
 };
 // the Genesis Titan's lair: one fixed chunk, far from spawn, like a hand-placed landmark (ruinAt(0, 0)'s
 // special-cased first ruin) rather than resource-distributed like every other mob
@@ -64,13 +67,17 @@ function buildMob(a) {
     const hd = (parts.head = pivot(g, 0, 1.15, 0));
     abox(hd, 0.05, 0.05, 0.02, glow, -0.1, 0, 0.26, true);
     abox(hd, 0.05, 0.05, 0.02, glow, 0.1, 0, 0.26, true);
-  } else if (a.type === 'guardian' || a.type === 'warden' || a.type === 'garden_guardian') {
+  } else if (a.type === 'guardian' || a.type === 'warden' || a.type === 'garden_guardian' || a.type === 'corrupted_node') {
     // reuses the validator robot's silhouette (09-animals.js): corrupted tones (rust and red cracks)
     // for a guardian, a cyan tech palette for a tower warden, a mossy green one for a garden
-    // guardian — same geometry throughout, different material
-    const body = a.type === 'warden' ? '#1c3a4a' : a.type === 'garden_guardian' ? '#2f4a28' : '#5a4a5e',
-      head = a.type === 'warden' ? '#13242e' : a.type === 'garden_guardian' ? '#1d2f18' : '#3d3448',
-      crack = a.type === 'warden' ? '#5fe8ff' : a.type === 'garden_guardian' ? '#8bff6a' : '#ff5a6a';
+    // guardian, an alarm-red one for a corrupted node (027_network_attack.sql) — same geometry
+    // throughout, different material
+    const body =
+        a.type === 'warden' ? '#1c3a4a' : a.type === 'garden_guardian' ? '#2f4a28' : a.type === 'corrupted_node' ? '#4a1a28' : '#5a4a5e',
+      head =
+        a.type === 'warden' ? '#13242e' : a.type === 'garden_guardian' ? '#1d2f18' : a.type === 'corrupted_node' ? '#2e0f18' : '#3d3448',
+      crack =
+        a.type === 'warden' ? '#5fe8ff' : a.type === 'garden_guardian' ? '#8bff6a' : a.type === 'corrupted_node' ? '#ff3b4a' : '#ff5a6a';
     abox(g, 0.72, 0.62, 0.5, body, 0, 1.12, 0);
     abox(g, 0.5, 0.42, 0.06, '#453a52', 0, 1.12, 0.26);
     abox(g, 0.2, 0.14, 0.04, crack, 0.12, 1.0, 0.3, true);
@@ -521,6 +528,41 @@ function syncNightProwler(cx, cz) {
   if (!gr || gr.water) return;
   list.push(mkMob('prowler', k, 190, hx + 0.5, gr.y, hz + 0.5, null));
 }
+// the network attack event (027_network_attack.sql): same shape as syncNightProwler — a condition
+// (the hourly window, attackWindow() in 07-interface.js) flips rather than a chunk loading once, so it
+// runs every tick too. Only the Atrium's own chunk hosts the wave; a stable ring position per window
+// slot means a killed node reappears right where it fell instead of drifting around — "converges on
+// the Atrium" stays readable as one wave under pressure, not a scatter of one-off spawns.
+const ATTACK_SLOTS = 7;
+function syncNetworkAttack(cx, cz) {
+  if (cOf(SPAWN.x) !== cx || cOf(SPAWN.z) !== cz) return;
+  const k = ckey(cx, cz),
+    list = MOBS.get(k);
+  if (!list) return;
+  const aw = attackWindow(),
+    mine = list.filter(a => a.type === 'corrupted_node');
+  if (!aw.active || (mine.length && mine[0].windowId !== aw.windowId)) {
+    for (const a of mine) {
+      scene.remove(a.g);
+      list.splice(list.indexOf(a), 1);
+    }
+    if (!aw.active) return;
+  }
+  const taken = new Set(list.filter(a => a.type === 'corrupted_node').map(a => a.slot));
+  for (let slot = 0; slot < ATTACK_SLOTS; slot++) {
+    if (taken.has(slot)) continue;
+    const an = hash(aw.windowId, slot, 401) * Math.PI * 2,
+      r = 10 + hash(aw.windowId, slot, 402) * 6,
+      hx = SPAWN.x + Math.cos(an) * r,
+      hz = SPAWN.z + Math.sin(an) * r,
+      gr = groundAt(hx, hz, heightAt(hx, hz), true, 2);
+    if (!gr || gr.water) continue;
+    const a = mkMob('corrupted_node', k, 400 + slot, hx, gr.y, hz, null);
+    a.windowId = aw.windowId;
+    a.slot = slot;
+    list.push(a);
+  }
+}
 function despawnMobChunk(k) {
   const l = MOBS.get(k);
   if (!l) return;
@@ -811,6 +853,7 @@ function updateMobs(dt) {
           want.add(k);
           spawnMobChunk(pcx + dx, pcz + dz);
           syncNightProwler(pcx + dx, pcz + dz);
+          syncNetworkAttack(pcx + dx, pcz + dz);
         }
       }
     for (const k of [...MOBS.keys()]) if (!want.has(k)) despawnMobChunk(k);

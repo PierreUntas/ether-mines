@@ -500,6 +500,67 @@ select pg_temp.ok('a fresh player-placed chest gets no free treasure',
 reset role;
 delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'chest';
 
+-- network attack event (027_network_attack.sql): _attack_window(ts) is a pure function of its argument,
+-- so the boundary is tested with fixed timestamps instead of depending on whatever time the suite runs at.
+select pg_temp.ok('attack window: active 3 minutes past the hour', (select active from _attack_window('2026-01-01 12:03:00+00')));
+select pg_temp.ok('attack window: closed 11 minutes past the hour', not (select active from _attack_window('2026-01-01 12:11:00+00')));
+select pg_temp.ok('attack window: window id is the hour count', (select window_id from _attack_window('2026-01-01 01:00:00+00')) = 490897);
+select pg_temp.ok('attack window: ends 10 minutes past the hour', (select ends_at from _attack_window('2026-01-01 12:03:00+00')) = '2026-01-01 12:10:00+00'::timestamptz);
+
+update players set pos_at = now() - interval '1 hour' where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and world = 'w';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('a corrupted node far from the Atrium is refused regardless of the attack window',
+  act_loot_mob('w', 'corrupted_node', 50, 1, 50) ->> 'err' = 'too far from the Atrium');
+reset role;
+update players set pos_at = now() - interval '1 hour' where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and world = 'w'; -- far jump again, same allowance
+-- whether a kill near the Atrium is accepted depends on the real attack window at test time (every
+-- real hour, 10 minutes of it) — asserted against the window's own live answer, not a fixed expectation.
+-- captured here (still postgres): _attack_window is an internal "_" function, only callable directly
+-- by the functions that wrap it (security definer), not by "authenticated" itself.
+select active as live from _attack_window() \gset
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select act_loot_mob('w', 'corrupted_node', 8.5, 1, 8.5) as node_res \gset
+select pg_temp.ok('a corrupted node kill near the Atrium matches the live attack window',
+  case when (:'live')::boolean then (:'node_res')::jsonb ->> 'err' is distinct from 'no attack right now'
+       else (:'node_res')::jsonb ->> 'err' = 'no attack right now' end);
+reset role;
+delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'attack_node';
+
+-- resolution (act_network, lazy like _tick_validator's catch-up): two past, unresolved windows are
+-- hand-inserted — deterministic regardless of real time — one below the 20-kill threshold, one at it.
+-- network_score is seeded so the catch-up loop covers exactly these two windows, no silent-window noise.
+select window_id as live_window from _attack_window() \gset
+insert into network_score (world, score, last_resolved_window) values ('w', 0, :live_window - 3)
+  on conflict (world) do update set score = 0, last_resolved_window = :live_window - 3;
+insert into network_events (world, window_id, kills, participants) values
+  ('w', :live_window - 2, 7, jsonb_build_object('bbbbbbbb-0000-0000-0000-000000000002', 7)),
+  ('w', :live_window - 1, 25, jsonb_build_object('bbbbbbbb-0000-0000-0000-000000000002', 20, 'cccccccc-0000-0000-0000-000000000003', 5));
+select coalesce((select gwei from players where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and world = 'w'), 0) as b_gwei_before \gset
+select coalesce((select gwei from players where user_id = 'cccccccc-0000-0000-0000-000000000003' and world = 'w'), 0) as c_gwei_before \gset
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('resolving triggers on the next act_network call', (act_network('w') ->> 'ok')::boolean);
+reset role;
+select pg_temp.ok('below-threshold window: +1 score, no payout',
+  (select score from network_score where world = 'w') = 11); -- 1 (below) + 10 (at/above)
+select pg_temp.ok('at/above-threshold window: each participant paid 50 gwei',
+  (select gwei from players where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and world = 'w') = :b_gwei_before + 50
+  and (select gwei from players where user_id = 'cccccccc-0000-0000-0000-000000000003' and world = 'w') = :c_gwei_before + 50);
+select pg_temp.ok('winning participants earned the defenders'' cosmetic once',
+  (select count(*) from cosmetics_owned where world = 'w' and cosmetic_id = 14
+    and user_id in ('bbbbbbbb-0000-0000-0000-000000000002', 'cccccccc-0000-0000-0000-000000000003')) = 2);
+select pg_temp.ok('both windows marked resolved', (select bool_and(resolved) from network_events where world = 'w' and window_id in (:live_window - 2, :live_window - 1)));
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select (act_network('w') ->> 'ok') as resolved_again_ok \gset
+reset role;
+select pg_temp.ok('resolving again is a no-op: still ok', :'resolved_again_ok' = 'true');
+select pg_temp.ok('resolving again is a no-op: score unchanged', (select score from network_score where world = 'w') = 11);
+select pg_temp.ok('resolving again is a no-op: balance unchanged', (select gwei from players where user_id = 'cccccccc-0000-0000-0000-000000000003' and world = 'w') = :c_gwei_before + 50);
+delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'network';
+
 -- the network's capstone (014_relight_capstone.sql): crossing a shared milestone mints a Validator Star.
 -- Run last, after the recovery-by-code section above: player A has no save left in this world (it moved
 -- to B), so this relight acts on a brand-new player A, with its own fresh validators row.
