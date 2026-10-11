@@ -22,6 +22,11 @@ Minecraft-style block game set in the Ethereum universe. Static site (ether-mine
 - `node tests/navigateur.mjs` (Playwright + Chromium, solo mode)
 - `npx prettier@3 --check "src/game/*.js" "src/*.js" "supabase/functions/_shared/*.js"`
 
+## Seeing the game (visual changes)
+- For any change you can see (terrain, buildings, decor, textures, lighting, interface), don't work blind: take screenshots with `node tools/capture.mjs` (setup and options at the top of the file), look at them, and iterate until it matches what Pierre asked. Compare with his reference image when he gives one.
+- Shoot from several angles (`--around x,y,z --count 4`) and at the times of day that matter (`--time morning|sunset|night`); `--no-mobs` keeps hostile mobs out of the frame.
+- Show Pierre the final captures with the change, not just a description.
+
 ## Deployment
 - Pushing to `main` deploys the site (Vercel) and the `freeze` function (GitHub Actions).
 - The database isn't deployed automatically: Pierre runs `supabase/installation.sql` in Supabase's SQL Editor.

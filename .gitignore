@@ -3,3 +3,4 @@ node_modules/
 .vercel
 supabase/.temp/
 WEB3_SETUP.md
+captures/
