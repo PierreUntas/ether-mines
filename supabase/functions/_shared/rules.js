@@ -121,10 +121,10 @@
     { out: 15, n: 1, need: { 3: 2 }, d: 'Cut granite' },
     { out: 10, n: 1, need: { 4: 2 }, d: 'Melt sand' },
     { out: 14, n: 1, need: { 10: 1, 101: 1 }, d: 'Light for the tunnels' },
-    { out: 201, n: 1, need: { 9: 2, 101: 3 }, d: 'Unique item (ERC-721) · mining x5 · opens geodes', nft: 1 },
-    { out: 13, n: 1, need: { 101: 8, 15: 4 }, d: 'Mints a crystal every 5 minutes' },
+    { out: 201, n: 1, need: { 9: 2, 101: 3 }, d: 'Unique item, never traded · mining x5 · opens geodes', nft: 1 },
+    { out: 13, n: 1, need: { 101: 8, 15: 4 }, d: 'A validator, active and producing Gwei as soon as it is placed' },
     { out: 70, n: 1, need: { 103: 4 }, d: 'Pure ether from the depths, glowing' },
-    { out: 202, n: 1, need: { 103: 4, 101: 4, 9: 2 }, d: 'Unique item (ERC-721) · mining x8 · cuts genesis rock', nft: 1 },
+    { out: 202, n: 1, need: { 103: 4, 101: 4, 9: 2 }, d: 'Unique item, never traded · mining x8 · cuts genesis rock', nft: 1 },
     { out: 105, n: 1, need: { 104: 1, 103: 2, 101: 4 }, d: 'Relights an old validator (right-click it)' },
   ];
   RECIPES.forEach(r => (r.cat = 'Resources and tools'));
@@ -269,6 +269,24 @@
     cat: 'Decoration',
   });
   const TOOLS = { 102: 1, 201: 1, 202: 1 };
+  // v14: off-chain pivot. Purely decorative, bought with Gwei (act_buy_cosmetic): never a combat, speed,
+  // harvest, or access effect. A separate id space from B/ITEM, so no collision with the append-only
+  // block/item numbering. "color" entries just add to the outfit color picker (src/game/14-startup.js);
+  // "grantItem"/"grantQty" entries hand over existing decorative-only blocks instead of a bare ownership
+  // flag; "character"/"tool"/"validator"/"effect" entries with neither are shown as owned/equippable,
+  // ready for a richer visual payoff later (rarity, limited editions, collections).
+  const COSMETICS = {
+    1: { n: 'Ember Outfit', category: 'character', price: 150, color: '#ff6b6b' },
+    2: { n: 'Void Outfit', category: 'character', price: 150, color: '#2a1838' },
+    3: { n: 'Aurum Outfit', category: 'character', price: 400, color: '#ffe9a8' },
+    4: { n: 'Prism Blockpack', category: 'block', price: 300, grantItem: 130, grantQty: 4 }, // Diamond Block
+    5: { n: 'Neon Strip Pack', category: 'block', price: 200, grantItem: 128, grantQty: 8 }, // Cyan Neon
+    6: { n: 'Holo Screen Pack', category: 'block', price: 250, grantItem: 129, grantQty: 4 }, // Holo Screen
+    7: { n: 'Marble Column Pack', category: 'block', price: 180, grantItem: 127, grantQty: 4 }, // Marble Column
+    8: { n: 'Prism Pickaxe Trim', category: 'tool', price: 180 },
+    9: { n: 'Cobalt Validator Banner', category: 'validator', price: 120 },
+    10: { n: 'Spectrum Trail', category: 'effect', price: 500 },
+  };
   // what a placed item becomes: block with the same id, except stairs (4 orientations) and doors (4 orientations, 2 halves)
   function placeIds(it) {
     it = +it;
@@ -282,5 +300,5 @@
     if (b.shape === 'bed0f') return [137, 138, 139, 140]; // only the foot is directly placeable; the head follows server-side
     return [it];
   }
-  root.Rules = { PASTELS, STAINED, B, ITEM, RECIPES, reqTier, placeIds };
+  root.Rules = { PASTELS, STAINED, B, ITEM, RECIPES, reqTier, placeIds, COSMETICS };
 })(globalThis);

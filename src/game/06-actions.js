@@ -50,7 +50,19 @@ const REFUSAL = {
   'no chest here': () => 'that chest is gone',
 };
 // Actions that send the player's position: the server checks reach and the plausibility of the move.
-const WITH_POSITION = new Set(['mine', 'place', 'toggle', 'relight', 'claim', 'pos', 'chest', 'chest_move', 'loot_mob']);
+const WITH_POSITION = new Set([
+  'mine',
+  'place',
+  'toggle',
+  'relight',
+  'attune_validator',
+  'maintain_validator',
+  'claim',
+  'pos',
+  'chest',
+  'chest_move',
+  'loot_mob',
+]);
 const position = () => ({ ex: +P.x.toFixed(2), ey: +P.y.toFixed(2), ez: +P.z.toFixed(2) });
 const noRules = r => r && r.err === 'nothing to mine' && r.cell > 0 && B[r.cell] && B[r.cell].h !== Infinity;
 function setInv(inv, why) {
@@ -141,22 +153,18 @@ let syncing = null;
 function syncInventory() {
   if (!SERVER()) return Promise.resolve();
   if (syncing) return syncing;
-  syncing = Net.loadInventory()
-    .then(({ inv, uniques }) => {
+  syncing = Promise.all([Net.loadInventory(), Net.loadCosmetics().catch(() => S.cosmetics)])
+    .then(([{ inv, uniques }, cosmetics]) => {
       S.inv = {};
       for (const r of inv) if (r.n > 0) S.inv[r.item] = r.n;
+      S.cosmetics = cosmetics;
       S.nfts = uniques.map(u => ({
         serial: u.serial,
         id: u.item,
         date: new Date(u.created_at).toLocaleDateString('en-US'),
         where: u.place || '',
         mined: u.mined,
-        // structured coordinates and onchain state of the seal (012/013; item 203 only)
-        vx: u.vx,
-        vy: u.vy,
-        vz: u.vz,
-        chainTx: u.chain_tx,
-        tokenId: u.token_id,
+        validatorId: u.validator_id, // which validators row this seal is bound to (item 203 only)
       }));
       for (const k of Object.keys(S.inv)) S.got[k] = 1;
       for (const n of S.nfts) S.got[n.id] = 1;
@@ -585,6 +593,18 @@ function relight(t) {
   rebuildAt(t.x, t.z);
   ui();
   if (regView) buildRegView();
+}
+// A validator placed or relit before the off-chain pivot has no row in the validators table yet (see
+// 020_validators.sql): aim at it and type /attune to bring it into the new system, same resource cost
+// as a fresh reanimation.
+function attuneValidator(t) {
+  serverAct('attune_validator', { px: t.x, py: t.y, pz: t.z }).then(r => {
+    if (!r) return;
+    if (r.unique) addUnique(r.unique);
+    syncInventory();
+    toastInfo('Validator attuned: it now joins the Gwei economy.');
+    Sound.chime();
+  });
 }
 // ---------- table and bed: eating and sleeping (simulated client-side, no actual value) ----------
 function eat() {

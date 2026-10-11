@@ -96,6 +96,9 @@ function ui() {
   const armorEl = $('armor');
   armorEl.hidden = !S.armor || !ITEM[S.armor];
   if (!armorEl.hidden) armorEl.textContent = `🛡 ${ITEM[S.armor].n} · -${Math.round(ITEM[S.armor].armor * 100)}% dmg`;
+  const gweiEl = $('gwei');
+  gweiEl.hidden = !SERVER();
+  if (!gweiEl.hidden) gweiEl.textContent = `⬡ ${S.gwei || 0} Gwei`;
   updateArmorVisual(SELF);
   updateCapeVisual(SELF);
   updateAvatarHand(SELF);
@@ -164,9 +167,9 @@ const QUESTS = [
   { t: 'Pet an animal', h: 'Right-click (or tap) a friendly creature.', ok: () => !!S.petted },
   { t: 'Earn a Genesis Titan Fang', h: 'Defeat the Genesis Titan in the depths.', ok: () => hasNft(205) },
   {
-    t: 'Link a wallet',
-    h: 'Below, in this panel: "Link a wallet" mirrors your validators on Sepolia. No funds needed, the game stays playable without it.',
-    ok: () => !!S.walletLinked,
+    t: 'Attest a validator',
+    h: 'Objectives tab → Validators: visit one of your validators and attest it to collect its Gwei and keep it active.',
+    ok: () => !!S.attested,
   },
   {
     t: 'Light a lamp through a gate',
@@ -255,91 +258,12 @@ function animateStars(dt) {
     e.rotation.y += dt * 0.8;
   }
 }
-// ---------- validators on the chain (Seal + Network, Sepolia) ----------
-// Read-only as long as nothing is clicked: no wallet required just to see the onchain state.
-const ONCHAIN = { wallet: null, epoch: null, previousReward: 0n, bySeal: new Map(), t: 0, loading: false };
-async function updateOnchain() {
-  if (!Chain.enabled || !SERVER() || ONCHAIN.loading) return;
-  ONCHAIN.t = 20;
-  ONCHAIN.loading = true;
-  try {
-    ONCHAIN.wallet = await Net.loadWallet();
-    const epoch = await Chain.currentEpoch();
-    ONCHAIN.epoch = epoch;
-    const previous = epoch > 0n ? epoch - 1n : null;
-    ONCHAIN.previousReward = previous !== null ? await Chain.reward(previous) : 0n;
-    for (const n of S.nfts.filter(n => n.id === 203 && n.chainTx && n.tokenId)) {
-      const [attestedNow, attestedBefore, alreadyClaimed] = await Promise.all([
-        Chain.hasAttested(epoch, n.tokenId),
-        previous !== null ? Chain.hasAttested(previous, n.tokenId) : Promise.resolve(false),
-        previous !== null ? Chain.hasClaimed(previous, n.tokenId) : Promise.resolve(false),
-      ]);
-      ONCHAIN.bySeal.set(n.serial, { attestedNow, attestedBefore, alreadyClaimed });
-    }
-  } catch (e) {
-    console.error(e);
-  } finally {
-    ONCHAIN.loading = false;
-    if (tab === 'quest' && !$('panel').hidden) renderPanel();
-  }
-}
-async function linkWallet() {
-  try {
-    const address = await Chain.connectWallet();
-    const n = await Net.walletNonce();
-    if (!n || !n.ok) throw new Error((n && n.err) || 'nonce unavailable');
-    const signature = await Chain.sign(address, Chain.message(n.nonce));
-    await Net.linkWallet(address, signature);
-    toastInfo('Wallet linked: ' + Chain.short(address));
-    S.walletLinked = 1;
-    dirty = true;
-    updateOnchain();
-  } catch (e) {
-    logEv('burn', 'Wallet link refused', e.message || String(e));
-  }
-}
-// A Sepolia transaction easily takes 10 to 30 s to confirm: the button freezes right away (text +
-// disabled) so it never looks inert, and a new render (renderPanel/updateOnchain) replaces it
-// in every case anyway, so there's no need to re-enable it ourselves on failure.
+// A server action's button freezes right away (text + disabled) so it never looks inert; a new render
+// (renderPanel, triggered by the action's own refresh) replaces it in every case anyway, so there's no
+// need to re-enable it ourselves on failure.
 function freezeBtn(btn, text) {
   btn.disabled = true;
   btn.textContent = text;
-}
-async function mintSeal(n, btn) {
-  freezeBtn(btn, 'Minting on Sepolia…');
-  try {
-    const r = await Net.chain('mint', { serial: n.serial });
-    n.chainTx = r.hash;
-    n.tokenId = r.tokenId;
-    toastInfo('Seal minted on Sepolia');
-    updateOnchain();
-  } catch (e) {
-    logEv('burn', 'Minting refused', e.message || String(e));
-  } finally {
-    if (tab === 'quest' && !$('panel').hidden) renderPanel();
-  }
-}
-async function attestSeal(n, btn) {
-  freezeBtn(btn, 'Attesting on Sepolia…');
-  try {
-    await Net.chain('attester', { serial: n.serial });
-    toastInfo('Attestation recorded for this epoch');
-  } catch (e) {
-    logEv('burn', 'Attestation refused', e.message || String(e));
-  } finally {
-    updateOnchain();
-  }
-}
-async function claimSeal(n, epoch, btn) {
-  freezeBtn(btn, 'Claiming on Sepolia…');
-  try {
-    await Net.chain('reclamer', { serial: n.serial, epoque: Number(epoch) });
-    toastInfo('Reward claimed');
-  } catch (e) {
-    logEv('burn', 'Claim refused', e.message || String(e));
-  } finally {
-    updateOnchain();
-  }
 }
 // ---------- trades between players (008_trades.sql) ----------
 // An offer: "I give" and "I want" (resources, unique items, plots). The server rechecks everything on acceptance.
@@ -686,9 +610,9 @@ function updateQuest(dt) {
   if (TRADE.t <= 0) updateOffers();
   NETWORK.t -= 0.4;
   if (NETWORK.t <= 0) updateNetwork();
-  if (tab === 'quest' && !$('panel').hidden) {
-    ONCHAIN.t -= 0.4;
-    if (ONCHAIN.t <= 0) majOnchain();
+  if (tab === 'validators' && !$('panel').hidden) {
+    VALIDATORS.t -= 0.4;
+    if (VALIDATORS.t <= 0) updateValidators();
   }
   const i = questIndex();
   if (S.qi === undefined) S.qi = i;
@@ -778,84 +702,153 @@ function renderQuests(body) {
     'beforeend',
     `<div class="stats"><div><b>${S.relit || 0}</b><span>validators relit</span></div><div><b>${TIER_NAME[Math.max(0, ...S.nfts.map(n => ITEM[n.id || 201]?.tier || 0), S.got[102] ? 1 : 0)].replace(/^(your |a |the )/, '')}</b><span>best tool</span></div></div>`,
   );
-  if (Chain.enabled) renderOnchain(body);
 }
-// ---------- validators on the chain (Sepolia), in the Objectives tab ----------
-function renderOnchain(body) {
-  const box = document.createElement('div');
-  box.className = 'networkBox';
-  box.insertAdjacentHTML(
-    'beforeend',
-    `<h3>Your validators on Sepolia</h3><p>${
-      ONCHAIN.wallet
-        ? `Wallet linked: <b>${Chain.short(ONCHAIN.wallet)}</b>. The chain is only a mirror: nothing here changes your save.`
-        : 'No wallet linked: link one to be able to mint, attest, and claim. The game stays playable without it.'
-    }</p>`,
-  );
-  if (!ONCHAIN.wallet) {
-    const b = document.createElement('button');
-    b.className = 'b primary';
-    b.textContent = 'Link a wallet';
-    b.onclick = linkWallet;
-    box.appendChild(b);
+// ---------- validators: off-chain production and maintenance (020/021 migrations) ----------
+const VALIDATOR_STATE_LABEL = { dormant: 'dormant', active: 'active', damaged: 'damaged', corrupted: 'corrupted' };
+const VALIDATORS = { list: [], loaded: false, t: 0 };
+async function updateValidators() {
+  VALIDATORS.t = 20;
+  if (!SERVER()) return;
+  try {
+    VALIDATORS.list = await Net.loadValidators();
+    VALIDATORS.loaded = true;
+  } catch (e) {
+    console.error(e);
+    return;
   }
-  const seals = S.nfts.filter(n => n.id === 203);
-  if (!seals.length) {
-    box.insertAdjacentHTML('beforeend', '<p class="qintro">Relight an old validator to get your first seal.</p>');
-  } else if (ONCHAIN.epoch === null) {
-    box.insertAdjacentHTML('beforeend', '<p class="qintro">Loading onchain state…</p>');
-  } else {
-    const epoch = ONCHAIN.epoch;
-    const previous = epoch > 0n ? epoch - 1n : null;
-    for (const n of seals) {
-      const state = ONCHAIN.bySeal.get(n.serial) || {};
-      const row = document.createElement('div');
-      row.className = 'sealChain';
-      let html = `<b>${n.where}</b>`;
-      if (!n.chainTx) {
-        html += '<span class="muted-pill">not minted onchain yet</span>';
+  if (tab === 'quest' && !$('panel').hidden) renderPanel();
+}
+async function maintainValidator(v, btn) {
+  if (btn) freezeBtn(btn, 'Attesting…');
+  const r = await serverAct('maintain_validator', { validator_id: v.id }, null, 'validator attested');
+  if (!r) return;
+  S.attested = 1;
+  dirty = true;
+  if (r.gwei !== undefined) S.gwei = r.gwei;
+  toastInfo(r.validator.state === 'active' ? 'Validator attested: Gwei collected, upkeep paid.' : 'Validator attested.');
+  Sound.chime();
+  updateValidators();
+  ui();
+}
+async function upgradeValidator(v, btn) {
+  if (btn) freezeBtn(btn, 'Upgrading…');
+  const r = await serverAct('upgrade_validator', { validator_id: v.id }, null, 'validator upgraded');
+  if (!r) return;
+  if (r.gwei !== undefined) S.gwei = r.gwei;
+  toastInfo(`Validator upgraded to level ${r.validator.level}.`);
+  Sound.chime();
+  updateValidators();
+  ui();
+}
+function renderValidators(body) {
+  if (!SERVER()) {
+    body.innerHTML = '<p class="qintro">Validators need an online game: their production and upkeep live on the server.</p>';
+    return;
+  }
+  body.insertAdjacentHTML(
+    'beforeend',
+    '<p class="qintro">Each validator produces Gwei every cycle (5 minutes) once attested. Neglect it and it degrades — damaged first, then corrupted (needs a Validator Heart to repair). Aim at one of your own validators and type <code>/attune</code> to bring an older one into this system.</p>',
+  );
+  if (!VALIDATORS.loaded) {
+    body.insertAdjacentHTML('beforeend', '<p class="qintro">Loading your validators…</p>');
+    return;
+  }
+  if (!VALIDATORS.list.length) {
+    body.insertAdjacentHTML(
+      'beforeend',
+      '<p class="qintro">No validator yet. Relight a dark one in the ruins, or craft and place one.</p>',
+    );
+    return;
+  }
+  for (const v of VALIDATORS.list) {
+    const box = document.createElement('div');
+    box.className = 'networkBox validatorCard';
+    const net = Math.max(v.gwei_per_cycle - v.maintenance_cost, 0);
+    box.insertAdjacentHTML(
+      'beforeend',
+      `<h3>${v.rarity[0].toUpperCase() + v.rarity.slice(1)} validator · level ${v.level}</h3>
+       <p>${v.x}, ${v.y}, ${v.z} · <span class="pill">${VALIDATOR_STATE_LABEL[v.state]}</span></p>
+       <p>⬡ ${net} Gwei net per cycle (${v.gwei_per_cycle} produced − ${v.maintenance_cost} upkeep)${v.missed_cycles ? ` · ${v.missed_cycles} cycle${v.missed_cycles > 1 ? 's' : ''} missed` : ''}</p>`,
+    );
+    const br = document.createElement('div');
+    br.className = 'btnrow';
+    const attest = document.createElement('button');
+    attest.className = 'b primary';
+    attest.textContent = v.state === 'corrupted' ? 'Repair and attest (1 validator heart)' : 'Attest';
+    attest.onclick = () => maintainValidator(v, attest);
+    br.appendChild(attest);
+    if (v.state !== 'corrupted' && v.level < 10) {
+      const up = document.createElement('button');
+      up.className = 'b';
+      up.textContent = `Upgrade (${50 * v.level} Gwei)`;
+      up.onclick = () => upgradeValidator(v, up);
+      br.appendChild(up);
+    }
+    box.appendChild(br);
+    body.appendChild(box);
+  }
+}
+// ---------- shop: cosmetics bought with Gwei (022_cosmetics.sql). Purely decorative. ----------
+async function buyCosmetic(c, btn) {
+  if (btn) freezeBtn(btn, 'Buying…');
+  const r = await serverAct('buy_cosmetic', { cosmetic_id: +c.id }, null, 'cosmetic bought');
+  if (!r) return;
+  S.cosmetics.push(+c.id);
+  if (r.gwei !== undefined) S.gwei = r.gwei;
+  toastInfo(`${c.n} bought.`);
+  Sound.chime();
+  ui();
+}
+function renderShop(body) {
+  if (!SERVER()) {
+    body.innerHTML = '<p class="qintro">The shop needs an online game: cosmetics are bought with your server-side Gwei balance.</p>';
+    return;
+  }
+  body.insertAdjacentHTML(
+    'beforeend',
+    '<p class="qintro">Cosmetics only: no combat, speed, harvesting, or access advantage. Outfit colors apply right away; block packs go straight into your chest.</p>',
+  );
+  const cats = [...new Set(Object.values(COSMETICS).map(c => c.category))];
+  for (const cat of cats) {
+    body.insertAdjacentHTML('beforeend', `<h3 class="cat">${cat[0].toUpperCase() + cat.slice(1)}</h3>`);
+    for (const [id, c] of Object.entries(COSMETICS)) {
+      if (c.category !== cat) continue;
+      const owned = S.cosmetics.includes(+id);
+      const d = document.createElement('div');
+      d.className = 'rec';
+      if (c.grantItem) d.appendChild(cloneIcon(c.grantItem));
+      else {
+        const sw = document.createElement('span');
+        sw.className = 'swatch';
+        sw.style.background = c.color || 'var(--violet)';
+        d.appendChild(sw);
+      }
+      d.insertAdjacentHTML(
+        'beforeend',
+        `<div><strong>${c.n}</strong><span>${owned ? 'Owned' : `${c.price} Gwei`}${c.grantItem ? ` · grants ${c.grantQty} × ${nameOf(c.grantItem)}` : ''}</span></div>`,
+      );
+      const btn = document.createElement('button');
+      btn.className = 'b' + (owned ? '' : ' primary');
+      if (owned && c.category === 'character') {
+        btn.textContent = ME.color === c.color ? 'Equipped' : 'Wear';
+        btn.disabled = ME.color === c.color;
+        btn.onclick = () => {
+          profile.color = ME.color = c.color;
+          try {
+            localStorage.setItem(PKEY, JSON.stringify(profile));
+          } catch (e) {}
+          dirty = cloudDirty = true;
+          renderPanel();
+        };
       } else {
-        html += `<a href="${Chain.etherscanTx(n.chainTx)}" target="_blank" rel="noopener">view on Etherscan</a>`;
-        html += `<span>Epoch ${epoch}: ${state.attestedNow ? 'attested' : 'not attested yet'}</span>`;
-        if (previous !== null) {
-          html += `<span>Epoch ${previous}: ${
-            state.alreadyClaimed
-              ? 'reward already claimed'
-              : state.attestedBefore
-                ? `${Chain.eth(ONCHAIN.previousReward)} to claim`
-                : 'not attested that epoch, nothing to claim'
-          }</span>`;
-        }
+        btn.textContent = owned ? 'Owned' : 'Buy';
+        btn.disabled = owned;
+        btn.onclick = () => buyCosmetic({ id, ...c }, btn);
       }
-      row.innerHTML = html;
-      const br = document.createElement('div');
-      br.className = 'btnrow';
-      if (!n.chainTx) {
-        if (ONCHAIN.wallet) {
-          const b = document.createElement('button');
-          b.className = 'b primary';
-          b.textContent = 'Mint this seal';
-          b.onclick = () => mintSeal(n, b);
-          br.appendChild(b);
-        }
-      } else if (!state.attestedNow) {
-        const b = document.createElement('button');
-        b.className = 'b';
-        b.textContent = 'Attest this epoch';
-        b.onclick = () => attestSeal(n, b);
-        br.appendChild(b);
-      } else if (previous !== null && state.attestedBefore && !state.alreadyClaimed) {
-        const b = document.createElement('button');
-        b.className = 'b primary';
-        b.textContent = 'Claim';
-        b.onclick = () => claimSeal(n, previous, b);
-        br.appendChild(b);
-      }
-      if (br.children.length) row.appendChild(br);
-      box.appendChild(row);
+      d.appendChild(btn);
+      body.appendChild(d);
     }
   }
-  body.appendChild(box);
 }
 // ---------- open chest ----------
 let chestQty = 1; // 1, 10 or 0 (= all)
@@ -943,7 +936,7 @@ function renderPanel() {
       top.appendChild(cloneIcon(id));
       top.insertAdjacentHTML(
         'beforeend',
-        `<div><h3>${nameOf(id)}${a.nft ? ` #${a.nft.serial}` : ''}</h3><span class="std">${a.nft ? 'ERC-721 · unique' : 'ERC-1155 · fongible'}</span></div>`,
+        `<div><h3>${nameOf(id)}${a.nft ? ` #${a.nft.serial}` : ''}</h3><span class="std">${a.nft ? 'Sealed · unique' : 'Minted · fungible'}</span></div>`,
       );
       const dl = card.querySelector('dl');
       const row = (k, v) => dl.insertAdjacentHTML('beforeend', `<div><dt>${k}</dt><dd>${v}</dd></div>`);
@@ -1000,10 +993,12 @@ function renderPanel() {
     body.appendChild(wrap);
     body.insertAdjacentHTML(
       'beforeend',
-      '<p class="note">Local simulation: nothing is recorded on a real blockchain. This is a mock-up of what tokenized blocks would give.</p>',
+      '<p class="note">Everything here is kept on the game’s own server — Ethereum’s vocabulary, not Ethereum itself. No wallet, no real chain.</p>',
     );
   } else if (tab === 'chest') renderChest(body);
   else if (tab === 'quest') renderQuests(body);
+  else if (tab === 'validators') renderValidators(body);
+  else if (tab === 'shop') renderShop(body);
   else if (tab === 'trade') renderTrade(body);
   else if (tab === 'settings') renderSettings(body);
   else if (tab === 'craft') {

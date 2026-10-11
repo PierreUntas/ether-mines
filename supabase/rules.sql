@@ -2,6 +2,7 @@
 -- Re-run in Supabase (SQL Editor) after every change to supabase/functions/_shared/rules.js.
 begin;
 delete from public.rule_blocks; delete from public.rule_place; delete from public.rule_items; delete from public.rule_recipes;
+delete from public.rule_cosmetics;
 insert into public.rule_blocks (id, name, hard, tier, drop_item, kind, solid, top) values
 (1,'Grass',0.6,0,2,'cube',true,false),
 (2,'Dirt',0.6,0,2,'cube',true,false),
@@ -325,4 +326,15 @@ insert into public.rule_recipes (out_item, n, need, uniq) values
 (135,1,'{"9":4}'::jsonb,false),
 (137,1,'{"9":2,"71":2}'::jsonb,false),
 (145,1,'{"101":2,"110":4}'::jsonb,false);
+insert into public.rule_cosmetics (id, name, price, category, grant_item, grant_qty) values
+(1,'Ember Outfit',150,'character',null,null),
+(2,'Void Outfit',150,'character',null,null),
+(3,'Aurum Outfit',400,'character',null,null),
+(4,'Prism Blockpack',300,'block',130,4),
+(5,'Neon Strip Pack',200,'block',128,8),
+(6,'Holo Screen Pack',250,'block',129,4),
+(7,'Marble Column Pack',180,'block',127,4),
+(8,'Prism Pickaxe Trim',180,'tool',null,null),
+(9,'Cobalt Validator Banner',120,'validator',null,null),
+(10,'Spectrum Trail',500,'effect',null,null);
 commit;

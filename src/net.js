@@ -51,7 +51,7 @@ window.Net = (() => {
   async function loadPlayer(w) {
     const { data, error } = await client()
       .from('players')
-      .select('name,color,state,updated_at')
+      .select('name,color,state,updated_at,gwei')
       .eq('user_id', userId)
       .eq('world', w)
       .maybeSingle();
@@ -226,49 +226,22 @@ window.Net = (() => {
   async function loadInventory() {
     const [inv, uni] = await Promise.all([
       sb.from('inventory').select('item,n').eq('world', world).eq('user_id', userId),
-      sb
-        .from('uniques')
-        .select('serial,item,place,mined,created_at,vx,vy,vz,chain_tx,token_id')
-        .eq('world', world)
-        .eq('user_id', userId)
-        .order('serial'),
+      sb.from('uniques').select('serial,item,place,mined,created_at,validator_id').eq('world', world).eq('user_id', userId).order('serial'),
     ]);
     if (inv.error) throw inv.error;
     if (uni.error) throw uni.error;
     return { inv: inv.data, uniques: uni.data };
   }
-  // ---------- web3 (validators only): wallet linking, minting, attestation, claiming ----------
-  const walletNonce = () => rpc('act_wallet_nonce');
-  async function loadWallet() {
-    if (!userId) return null;
-    const { data, error } = await sb.from('wallets').select('address').eq('user_id', userId).maybeSingle();
+  async function loadCosmetics() {
+    const { data, error } = await sb.from('cosmetics_owned').select('cosmetic_id').eq('world', world).eq('user_id', userId);
     if (error) throw error;
-    return data ? data.address : null;
+    return data.map(r => r.cosmetic_id);
   }
-  // sb.functions.invoke() doesn't read the JSON body of an error response: its message is the generic
-  // "Edge Function returned a non-2xx status code". The server's real message is in error.context (the
-  // raw Response) — fetch it so we don't lose the actual reason for a refusal.
-  async function functionMessage(error) {
-    if (error && error.context && typeof error.context.json === 'function') {
-      try {
-        const body = await error.context.json();
-        if (body && body.error) return body.error;
-      } catch {
-        /* body not readable: fall back to error.message */
-      }
-    }
-    return (error && error.message) || String(error);
-  }
-  async function linkWallet(address, signature) {
-    const { data, error } = await sb.functions.invoke('link-wallet', { body: { address, signature } });
-    if (error) throw new Error('link-wallet: ' + (await functionMessage(error)));
-    if (data && data.error) throw new Error(data.error);
-    return data;
-  }
-  async function chain(action, args) {
-    const { data, error } = await sb.functions.invoke('chain', { body: { action, world, ...args } });
-    if (error) throw new Error('chain: ' + (await functionMessage(error)));
-    if (data && data.error) throw new Error(data.error);
+  // A player's owned validators, with their current state — fetched on demand (the Validators tab),
+  // not streamed in real time like blocks/claims.
+  async function loadValidators() {
+    const { data, error } = await sb.from('validators').select('*').eq('world', world).eq('owner', userId);
+    if (error) throw error;
     return data;
   }
   const loadClaims = () => readAll('claims', 'cx,cz,owner,owner_name,members', world, ['cx', 'cz']);
@@ -301,13 +274,11 @@ window.Net = (() => {
     act,
     freeze,
     loadInventory,
+    loadCosmetics,
+    loadValidators,
     loadClaims,
     fetchChunk,
     loadArea,
-    walletNonce,
-    loadWallet,
-    linkWallet,
-    chain,
     get online() {
       return online;
     },

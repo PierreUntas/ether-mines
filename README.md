@@ -23,7 +23,7 @@ A block world in Ethereum's colors, built with friends in the browser. You mine,
 - **Circuits made of blocks**: lever and pressure plate (sources), ether cable, lamp and powered door. The current is recomputed continuously around the player and is never saved: only the levers' state is. A plate activates under any player, including a friend.
 - **Logic gates** (Crafting, Circuits): AND (both sides powered), OR (one side or the back), NOT (active as long as the back isn't) and a clock (ticks every second). A gate is placed like a staircase: its output points in the direction you were facing, an arrow marks it on top. They chain together and with cables, enabling code locks, blinkers, or traps.
 - **Progression**: a thread of objectives (button at the top of the screen, O key or Objectives tab) and four tool tiers. Your hand can't cut stone; the wooden pickaxe cuts stone and ore; the crystal pickaxe (unique item) opens geodes; the pure ether pickaxe (unique item) cuts the genesis rock, at the bottom of the world, which gives genesis fragments. With a fragment, shards, and crystals, you forge a validator heart.
-- **Old validators**: a ruin with a dark validator per 80 × 80-block region (the first about forty meters from the sanctuary). Your objective's compass leads to the nearest one. Relighting it with a heart puts it under your name: one crystal a minute, and a validator seal (unique item) as a keepsake. A validator you place yourself mints a crystal every 5 minutes; 5 at most count per player (`002_security.sql`).
+- **Old validators**: a ruin with a dark validator per 80 × 80-block region (the first about forty meters from the sanctuary). Your objective's compass leads to the nearest one. Relighting it with a heart puts it under your name, rolls its rarity (common to legendary), and gives you a validator seal (unique item) as a keepsake. A validator you place yourself works the same way, always common. See "Validators and Gwei" below for the production loop.
 - **Animals**: ether sheep (plains), rabbits (dunes, plains, forests), pink foxes (forests), prism fish (oceans), sky jellyfish (around floating islands). Right-click or short tap to pet them: once a day, a sheep offers ether wool (a block), a fox a flower, a jellyfish a pure shard. They're placed and moved based on the seed and the time: every player sees them in the same spot, with no network traffic.
 - **Rendering**: Three.js r128, pixel art textures generated in code, cast shadows (disabled on mobile), an 8-minute day/night cycle, blocks that glow at night, rippling water, fireflies at night, a placement effect, avatars that breathe and sway while walking.
 - **Settings** (chest's Settings tab, specific to each device): view distance, sharpness, shadows, fireflies, animals, camera sensitivity, frames-per-second counter.
@@ -31,10 +31,10 @@ A block world in Ethereum's colors, built with friends in the browser. You mine,
 - **Fullscreen**: on Android, the game goes fullscreen and landscape when you start playing. On iPhone, Safari doesn't allow this for pages: the title screen offers to add the game to the home screen (Share button → "Add to Home Screen"), from where it opens without bars.
 - **Sound**: entirely synthesized in `src/audio.js` (Web Audio, no file): footsteps and hits per material, breaks, placements, circuit clicks, a musical pad, birds by day, crickets by night, drops underground. M key or ♪ button to mute; the choice is kept in the browser (`ether-mines:son`).
 - **Multiplayer**: other players appear with their nickname, blocks sync live, a chat (Enter, or its icon next to the chat log) and the list of online players.
-- **Tokens (simulated)**: a chest with token sheets (ERC-1155 for resources, ERC-721 for the crystal pickaxe), a workshop, a ledger of mints and burns, a ledger view (T) that highlights your blocks.
-- **Validator seal, for real**: a seal can be minted as a real non-transferable ERC-721 on the Sepolia testnet, then attested and rewarded per epoch. See "Web3 layer".
+- **Tokens (Ethereum's vocabulary, entirely off-chain)**: a chest with token sheets ("minted" for resources, "sealed" for unique items like the crystal pickaxe), a workshop, a ledger of mints and burns, a ledger view (T) that highlights your blocks.
+- **Gwei and validators**: Gwei is the game's own currency, earned from validators you reanimate and spend on repairs, upgrades, and cosmetics. See "Validators and Gwei" below.
 
-Nothing is recorded on a real blockchain, except for validator seals (optional, testnet, no real value — see "Web3 layer").
+Nothing is recorded on a real blockchain. No wallet, no RPC call, nothing to buy with real money: Ethereum's vocabulary is kept as flavor, not as a mechanism. The old optional real-chain mirror (Sepolia) has been retired — see `legacy/README.md`.
 
 ## Stack
 
@@ -52,9 +52,13 @@ Players can't write anything directly: no blocks, no terrain, no chest. Every ac
 | `act_place` | item present in the chest, allowed transform (oriented stairs, door), free cell, correct support, zone not protected |
 | `act_toggle` | a real door or lever, zone not protected |
 | `act_craft` | recipe known to the server, ingredients present |
-| `act_relight` | a real dark validator, validator heart in the chest |
+| `act_relight` | a real dark validator, validator heart in the chest; reanimates it into the `validators` table (random rarity) |
+| `act_attune_validator` | a validator placed/relit before the Gwei pivot, owned by the player, not yet in the `validators` table |
+| `act_maintain_validator` | ownership, reach; settles missed cycles, repairs from "corrupted" (needs a validator heart), pays out net Gwei |
+| `act_upgrade_validator` | ownership, not corrupted, level below 10, enough Gwei (50 × current level) |
+| `act_buy_cosmetic` | not already owned, enough Gwei; grants existing decorative blocks for "block"-category cosmetics |
 | `act_gift` | once a day per animal, 15 gifts a day at most |
-| `act_rewards` | validators signed by the player (5 placed at most: 1 crystal every 5 minutes each; old ones relit: 1 a minute), elapsed time (30 minutes caught up at most) |
+| `act_rewards` | ticks every validator the player owns (lazy, like `players.rewards_at` used to for Ether Crystal), 24 h caught up at most |
 | `act_claim`, `act_unclaim`, `act_member` | plots: cost, limit, owner |
 | every action on a block | public zones (`006_public_zones.sql`): the Atrium and the City can't be mined, built on, or claimed |
 | `act_chest`, `act_chest_move` | chests: a real chest block, within reach, right to build there, items present in the bag or the chest; a broken chest returns its contents to whoever breaks it |
@@ -96,18 +100,16 @@ src/game/               the game, in files loaded in order (shared global scope)
   12-circuits.js        electrical current (levers, cables, lamps, doors)
   13-chunks.js          loading chunks around the player
   14-startup.js         account, title screen, startup
-  15-chain.js           web3 layer (validators, Sepolia)
+  16-mobs.js            hostile mobs, bosses
 src/audio.js            generative sounds (Web Audio)
 supabase/functions/_shared/world.js   world generator (game and server)
-supabase/functions/_shared/rules.js   blocks, items, tiers, recipes (game and server)
+supabase/functions/_shared/rules.js   blocks, items, tiers, recipes, cosmetics (game and server)
 supabase/functions/freeze/            Edge Function: generates and freezes a chunk's terrain
-supabase/functions/link-wallet/       Edge Function: links a wallet via a signed message (web3 layer)
-supabase/functions/chain/             Edge Function: onchain mint/attest/claim (web3 layer)
 supabase/migrations/    database schema, act_* arbitration functions
 supabase/rules.sql      game rules in SQL (generated by tools/rules.mjs)
 supabase/reset.sql      full reset (world, saves, guest accounts)
 tools/rules.mjs         generates supabase/rules.sql
-contracts/              Seal and Network (Foundry + OpenZeppelin) — see "Web3 layer"
+legacy/                 the retired real-blockchain layer (contracts, Edge Functions) — see legacy/README.md
 ```
 
 ## Deploying
@@ -140,6 +142,9 @@ To wipe everything and start over:
 | Plots | Supabase, `claims` table |
 | Chest | Supabase, `inventory` table (read-only for the player) |
 | Unique items (pickaxes, seals) | Supabase, `uniques` table (read-only for the player) |
+| Gwei balance | Supabase, `players` table, `gwei` column (server-only, never part of `state`) |
+| Validators: position, state, rarity, level, production | Supabase, `validators` table (world-readable, written by `act_*` functions) |
+| Owned cosmetics | Supabase, `cosmetics_owned` table (read-only for the player); equipped choice in `players.state` |
 | Game rules | Supabase, `rule_*` tables (from `rules.sql`) |
 | Game preferences: bar, position, seen objectives, ledger | Supabase, `players` table, `state` column (the only part the player can modify); a copy in the browser (`ether-mines:<world>`) |
 | Positions, chat, presence | Supabase Realtime (nothing is kept) |
@@ -197,137 +202,42 @@ Tests run automatically on GitHub on every push (*Actions* tab, *Tests* workflow
 - **Browser playthrough** (solo mode, Chromium): `npm i --no-save playwright@1.56.0 three@0.128.0 && npx playwright install chromium && node tests/navigateur.mjs`.
 - **By hand**: opening `index.html#debug` exposes `window.mines` in the console (including `serverAct(name, args)`, `syncInventory()`, `get(x, y, z)`, `P` the player, `S.day` the time).
 
-## Web3 layer (validators, Sepolia)
+## Validators and Gwei
 
-An optional V1 web3 layer that only covers validators — not plots, not pickaxes, not
-resources. **The game stays free to play, with just a nickname, no wallet needed.** The blockchain
-is only a public, verifiable mirror of a fact that already exists in the database: "this player relit
-this validator." This isn't play-to-earn: nothing has real value (Sepolia is a testnet), nothing
-is for sale, and there is no way to convert anything into real money.
+Ether Mines' economy is entirely off-chain: no wallet, no real chain, nothing of real-world value.
+**Gwei** is the game's own fictional currency (`players.gwei`, a plain Postgres counter — never an
+on-chain token), earned from validators and spent on repairs, upgrades, and cosmetics. `1 Æther = 1000
+Gwei` is a display convention only (the client divides `S.gwei` by 1000 above a threshold); nothing is
+stored in that unit.
 
 ```
-Player (nickname, no wallet)
-   │ relights an old validator — an unchanged game action, still arbitrated by the database
+Player finds a dormant validator (a "Dark Validator" in the ruins, or crafts one)
+   │ act_relight / act_place — a validators row is created, rarity rolled, a seal (item 203) minted
    ▼
-Supabase database (uniques, item 203: world, x, y, z, date)
-   │ the player clicks "Mint," "Attest," or "Claim"
+Validator, active: produces Gwei every cycle (5 minutes) net of its own upkeep
+   │ act_maintain_validator ("attest") — settles elapsed cycles, resets the clock
+   │ left unattested: cycles are missed, production stops, the validator degrades
    ▼
-Edge Functions link-wallet / chain — operator key, Supabase secret, never in the repo
-   │ transaction simulated then sent, gas paid by the operator, never by the player
-   ▼
-Seal (ERC-721 / ERC-5192) and Network — Sepolia
+active ──(3 missed cycles)──> damaged ──(8 missed cycles)──> corrupted
+   ↑ free to repair from damaged                    ↑ needs a Validator Heart (item 105) to repair
 ```
 
-### The two contracts (`contracts/`, Foundry + OpenZeppelin)
+- **Rarity** (rolled on reanimation, never on a crafted validator): common 60%, rare 25%, epic 12%,
+  legendary 3%. Higher rarity means more Gwei per cycle, and a higher upkeep to match.
+- **Level** (`act_upgrade_validator`, 50 × current level in Gwei, 10 at most): +15% to both production
+  and upkeep per level.
+- **Seal** (item 203): bound to one validator (`uniques.validator_id`), minted once, never traded
+  (already enforced before the pivot) — a keepsake, not a credential anyone else can use.
+- **Validators placed or relit before this pivot** keep their block in the world but aren't in the
+  `validators` table: stand in front of one you own and type `/attune` to bring it into the system (same
+  resource cost as a fresh reanimation).
+- **Cosmetics** (`act_buy_cosmetic`, Shop tab): bought with Gwei, purely decorative — never a combat,
+  speed, harvesting, or access advantage. The catalog (`COSMETICS` in `rules.js`) is a separate id space
+  from blocks and items, so it can grow (rarity, limited editions, collections) without touching the
+  append-only block/item numbering.
 
-- **`Seal`**: non-transferable ERC-721 (ERC-5192). One seal per validator, never two: its id
-  (`tokenId`) is computed by the contract itself from `(world, x, y, z)`, never supplied from the outside.
-  Metadata and image generated entirely onchain (`tokenURI`, no external link). `mint()` is reserved
-  to the operator role.
-- **`Network`**: one-day epochs. `attester()` records a seal's participation in the current
-  epoch; once it closes, its attestant count (`n`) is frozen forever. The reward per seal follows
-  the same shape as Ethereum's issuance curve: an epoch's total issuance ∝ √n, so 1/√n per
-  seal. `reclamer()` pays out **real Sepolia ETH**, drawn from the contract's balance — refilled by
-  hand (see below), never deposited by a player. `attester()` and `reclamer()` are also reserved to the
-  operator role; the payout always goes to the seal's actual holder, never to whoever sends the transaction.
-
-Addresses on Sepolia:
-
-- Seal: `0x73215D0e62E16a64A0110889867Cd7EF460F1D4B` — [Etherscan](https://sepolia.etherscan.io/address/0x73215D0e62E16a64A0110889867Cd7EF460F1D4B)
-- Network: `0xE70104D3786c2DE304E0635d27BD8c3e4De48e23` — [Etherscan](https://sepolia.etherscan.io/address/0xE70104D3786c2DE304E0635d27BD8c3e4De48e23)
-
-### Mapping to real Ethereum
-
-| Ether Mines | Real Ethereum |
-| --- | --- |
-| Relighting an old validator, in-game | Depositing 32 ETH into the official deposit contract |
-| Seal (non-transferable ERC-721) | Active validator status |
-| `attester()` once per epoch | Validity attestation every slot (~12 s), by committee |
-| One-day epoch | Real epoch of about 6.4 minutes (32 slots) |
-| An epoch's issuance ∝ √n | Annual issuance ∝ √(total ETH staked) |
-| `reclamer()` on demand | Withdrawing accumulated rewards |
-| `Network`'s balance refilled by hand | New ETH issuance by the protocol |
-
-### What's simplified
-
-- **No slashing**: a missed epoch simply isn't paid, there's no penalty beyond that.
-- **One-day epoch**, much longer than the real ~6.4 minutes — easier to explain, but
-  slower to observe in a demo (expect to wait between two epochs, or reduce `EPOCH_DURATION`
-  for a demo).
-- **No activation queue**: a seal participates starting the current epoch, whereas a real deposit
-  sometimes waits months before becoming an active validator.
-- **Reward funded by hand**, not a real protocol issuance: on a testnet, no one
-  issues new ETH; `Network`'s balance comes from public faucets, refilled manually.
-- **`attester()` is just a record**: no cryptographic verification of a block or a committee,
-  just "this seal is participating in this epoch."
-
-### Technical choices and limits
-
-- **No custody**: no contract ever holds a token on a player's behalf, nor any real
-  deposit. This eliminates the whole class of risks around deposit/withdrawal contracts (the most
-  frequently hacked part of real Ethereum), at the cost of not being able to simulate real staking with capital at risk.
-- **No two-way sync**: an in-game trade never moves the onchain token; since the
-  seal is non-transferable (ERC-5192), the question doesn't even arise the other way. The blockchain
-  stays a mirror, never the engine of the game.
-- **Everything goes through the operator** (`mint`, `attester`, `reclamer` reserved to `OPERATOR_ROLE`): the player
-  never pays gas, but the game depends on the Edge Function's availability for these three actions — a
-  deliberate tradeoff, not an oversight.
-- **Low-privilege operator key**: it can only call these three specific functions. It can neither
-  change roles, nor withdraw `Network`'s balance, nor touch `Seal` or `Network` any other way. A separate
-  admin key (`DEFAULT_ADMIN_ROLE`), used once at deployment then kept offline,
-  is the only one that can change that.
-- **Deliberately narrow scope**, limited to validators: plots and pickaxes were left out.
-  Tokenizing them would have required either custody (the contract holds the token until the player has a
-  wallet) or two-way sync between the game and the chain — both paths explored then
-  dropped, for added risk that far outweighed the real benefit.
-
-### Getting started
-
-1. **A Sepolia wallet to deploy** (`DEPLOYER_PRIVATE_KEY`), with a bit of Sepolia ETH (public faucet).
-   It becomes the admin of both contracts — keep it offline after deployment.
-2. **An address for the operator** (`OPERATOR_ADDRESS`, just the address, not its private key). Its private key
-   becomes the Supabase secret `OPERATOR_PRIVATE_KEY` for the `chain` function — never used to deploy.
-3. **A Sepolia RPC endpoint** (Alchemy, Infura, or a public one like
-   `https://ethereum-sepolia-rpc.publicnode.com`).
-4. **An Etherscan key** (for automatic source verification).
-5. **Deploy and verify**:
-   ```
-   cd contracts
-   forge install foundry-rs/forge-std OpenZeppelin/openzeppelin-contracts --no-git --no-commit
-   DEPLOYER_PRIVATE_KEY=0x… OPERATOR_ADDRESS=0x… \
-     forge script script/Deploy.s.sol:Deploy --rpc-url $SEPOLIA_RPC_URL --broadcast \
-       --verify --etherscan-api-key $ETHERSCAN_API_KEY
-   ```
-   `lib/` isn't checked in (see `contracts/.gitignore`): the first line rebuilds it identically.
-6. **Report the two displayed addresses**: in `src/config.js` (`SEAL_ADDRESS`, `NETWORK_ADDRESS`,
-   `SEPOLIA_RPC_URL` — a public, read-only endpoint, never a private key) and in the Supabase secrets
-   for the `link-wallet`/`chain` functions (`supabase secrets set SEAL_ADDRESS=… NETWORK_ADDRESS=…
-   SEPOLIA_RPC_URL=… OPERATOR_PRIVATE_KEY=…`).
-7. **Run the migration**: `supabase/installation.sql` (already up to date) in the SQL Editor.
-8. **Two balances to refill now and then, from public Sepolia faucets — not for the same purpose**:
-   - **The operator address itself**: it's the one sending the transactions (`mint`, `attester`,
-     `reclamer`), so it pays their gas out of its own pocket. A simple transfer to `OPERATOR_ADDRESS` is enough
-     (from a wallet, or `cast send $OPERATOR_ADDRESS --value 0.02ether --rpc-url $SEPOLIA_RPC_URL --private-key 0x…`).
-     Without this, the `chain` function fails on the very first transaction.
-   - **The `Network` contract**: its balance is what pays the *rewards* given to players (distinct from
-     the gas above):
-     ```
-     cast send $NETWORK_ADDRESS --value 0.05ether --rpc-url $SEPOLIA_RPC_URL --private-key 0x…
-     ```
-   In both cases, an insufficient balance simply makes the action fail cleanly (nothing is lost,
-   no one is stuck): retry after refilling.
-9. **If automatic verification fails**, retry it by hand, for example for `Seal`:
-   ```
-   forge verify-contract <seal_address> src/Seal.sol:Seal --chain sepolia \
-     --etherscan-api-key $ETHERSCAN_API_KEY --constructor-args $(cast abi-encode "constructor(address)" <admin>)
-   ```
-
-### Testing the contracts
-
-`cd contracts && forge test` — 40 tests, including fuzzing (256 runs per property) on computing
-a seal's id, extreme coordinates, and `Network`'s reward curve (no one
-receives more than their share, the amount paid out never exceeds the planned issuance, no way to bypass
-an epoch's closing). Also run on GitHub on every push (*Tests* workflow, *contracts* job).
+See `supabase/migrations/019_gwei_currency.sql` through `022_cosmetics.sql` for the schema, and
+`legacy/README.md` for what used to exist here (a real, optional Sepolia mirror — retired, not deleted).
 
 ## Known limits
 
@@ -335,7 +245,7 @@ an epoch's closing). Also run on GitHub on every push (*Tests* workflow, *contra
 - Objectives are tracked in the browser; they give no reward, so there's nothing to gain by cheating on them.
 - Animals and gifts aren't checked one by one (the server caps gifts at 15 a day).
 - Chat moderation is automatic and simple: no human moderator, and the filter only sees whole words (leetspeak slips through). Several players can share the same nickname; `/report` targets the most recent one.
-- The web3 layer ("Web3 layer") only covers validator seals, not pickaxes or plots — a scope choice, not a technical limit: see "Technical choices and limits" below.
+- Validator ticking is lazy (settled on attest, or on the periodic "collect all"), not a background job: a validator's displayed state can lag a few minutes behind its true state until someone looks.
 - Supabase free tier: the project pauses after a week of inactivity, 2 million realtime messages a month (positions are capped at 5 sends per second per player, only while moving).
 
 ## Monitoring the game

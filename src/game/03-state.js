@@ -40,7 +40,7 @@ let SHADOWS = REG.shadows;
 
 // ---------- state, save ----------
 let KEY = 'ether-mines:solo';
-const SAVE_V = 3;
+const SAVE_V = 4;
 const S0 = () => ({
   v: SAVE_V,
   chunks: {},
@@ -63,6 +63,8 @@ const S0 = () => ({
   totalBurn: 0,
   hp: 10,
   armor: null,
+  gwei: 0, // the game's own fictional currency, server-authoritative (see 019_gwei_currency.sql)
+  cosmetics: [], // owned cosmetic ids (022_cosmetics.sql), server-authoritative
 });
 let S = S0(),
   ME = { id: 'me', name: 'me', color: '#8a7bef' };
@@ -107,9 +109,23 @@ function migrateSave(s) {
     }
     s.v = 3;
   }
+  // v4: off-chain pivot. gwei/cosmetics are new fields, no data to convert: S0()'s defaults already
+  // cover a save that predates them (Object.assign in useState). Also drops the now-unused walletLinked
+  // flag and any onchain fields a seal used to carry (vx/vy/vz/chainTx/tokenId — see 023_remove_onchain.sql).
+  if (s.v < 4) {
+    delete s.walletLinked;
+    for (const n of s.nfts || []) {
+      delete n.vx;
+      delete n.vy;
+      delete n.vz;
+      delete n.chainTx;
+      delete n.tokenId;
+    }
+    s.v = 4;
+  }
 }
 // Season: changing SEASON wipes the saves kept in browsers (do this together with a database reset).
-const SEASON = '8';
+const SEASON = '9'; // off-chain pivot: reset.sql + installation.sql run together with this bump
 try {
   if (localStorage.getItem('ether-mines:saison') !== SEASON) {
     for (const k of Object.keys(localStorage))
@@ -138,6 +154,8 @@ const cloudState = () => {
   delete c.placed;
   delete c.inv;
   delete c.nfts;
+  delete c.gwei;
+  delete c.cosmetics;
   return c;
 };
 async function cloudSave(force) {

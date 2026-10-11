@@ -1,5 +1,5 @@
 # Tests on every push and pull request: syntax, generator and rules, SQL schema and cheating scenarios,
-# browser, and the contracts (Seal, Network).
+# browser.
 name: Tests
 on:
   push:
@@ -50,17 +50,3 @@ jobs:
         run: npm i --no-save playwright@1.56.0 three@0.128.0 && npx playwright install --with-deps chromium
       - name: Solo-mode playthrough in Chromium
         run: node tests/navigateur.mjs
-  contracts:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: foundry-rs/foundry-toolchain@v1
-      - name: Dependencies (forge-std, OpenZeppelin — not checked in, see contracts/remappings.txt)
-        run: |
-          cd contracts
-          forge install foundry-rs/forge-std --no-git --no-commit
-          forge install OpenZeppelin/openzeppelin-contracts --no-git --no-commit
-      - name: Formatting (forge fmt)
-        run: cd contracts && forge fmt --check
-      - name: Foundry tests, including fuzzing (Seal, Network)
-        run: cd contracts && forge test -vv

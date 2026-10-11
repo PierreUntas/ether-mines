@@ -450,7 +450,13 @@ function updateOthers(dt) {
   }
 }
 setInterval(() => {
-  if (SERVER() && booted && playing) serverAct('rewards', {}, null, 'validator rewards');
+  if (!SERVER() || !booted || !playing) return;
+  serverAct('rewards', {}).then(r => {
+    if (!r || r.gwei === undefined) return;
+    S.gwei = r.gwei;
+    if (r.gained > 0) logEv('mint', `${r.gained} Gwei`, 'collected from your validators');
+    ui();
+  });
 }, 60000);
 // Position: at most 5 times a second, only if actually moving, and a sign of life every 4 s.
 // Every send is received by all other players: this is the first real-time message post.
@@ -592,10 +598,19 @@ function command(v) {
     claimCmd(c, rest.join(' ').trim());
     return;
   }
+  if (c === 'attune') {
+    if (!SERVER()) return addChat('World', '#7fe8ff', 'Attuning a validator needs an online game.');
+    if (!target || (target.id !== 13 && target.id !== 74)) {
+      addChat('World', '#7fe8ff', 'Aim at a validator you placed or relit before it was attuned (block 13, or an already-relit one).');
+      return;
+    }
+    attuneValidator(target);
+    return;
+  }
   addChat(
     'World',
     '#7fe8ff',
-    'Commands: /join nickname · /sanctuary · /claim · /unclaim · /invite nickname · /kick nickname · /claims · /trade nickname · /ignore nickname · /listen nickname · /report nickname · /race',
+    'Commands: /join nickname · /sanctuary · /claim · /unclaim · /invite nickname · /kick nickname · /claims · /trade nickname · /attune · /ignore nickname · /listen nickname · /report nickname · /race',
   );
 }
 $('chatForm').addEventListener('submit', e => {
@@ -893,6 +908,7 @@ async function boot(world) {
         const row = await Net.loadPlayer(world);
         if (row && row.state && Object.keys(row.state).length) useState(row.state);
         else cloudDirty = true;
+        if (row) S.gwei = row.gwei || 0; // server-authoritative, never part of state jsonb
       } catch (e) {
         console.warn(e);
         cloudOff = true;
@@ -907,7 +923,9 @@ async function boot(world) {
       } catch (e) {
         console.warn(e);
       }
-      serverAct('rewards', {});
+      serverAct('rewards', {}).then(r => {
+        if (r && r.gwei !== undefined) S.gwei = r.gwei;
+      });
     }
   }
   if (S.pos) {

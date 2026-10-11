@@ -17,6 +17,13 @@ begin
   raise exception 'FAILED: % (accepted when it should have been refused)', label;
 exception when insufficient_privilege then raise notice 'ok: % (refused)', label;
 end $$;
+-- a constraint (not a rights/RLS rule) must refuse the statement, e.g. a partial unique index
+create function pg_temp.refused_by_constraint(label text, stmt text) returns void language plpgsql as $$
+begin
+  execute stmt;
+  raise exception 'FAILED: % (accepted when it should have been refused)', label;
+exception when unique_violation then raise notice 'ok: % (refused)', label;
+end $$;
 grant execute on all functions in schema pg_temp to authenticated;
 
 select v as gy from fixtures where k = 'gy' \gset
@@ -117,16 +124,14 @@ select pg_temp.ok('relight the ruin', act_relight('w', :rx, :ry, :rz, :rx + 0.5,
 select pg_temp.ok('the network counts the relit validator', (act_network('w') ->> 'n')::int = 1 and act_network('w') -> 'top' -> 0 ->> 'n' = '1');
 select pg_temp.ok('the old validator is signed', (select placed_by from blocks where x = :rx and y = :ry and z = :rz) = 'aaaaaaaa-0000-0000-0000-000000000001');
 
--- ---------- seal coordinates and wallet linking (009) ----------
-select pg_temp.ok('seal coordinates recorded', (select (vx, vy, vz) from uniques where item = 203) = (:rx, :ry, :rz));
-select (act_wallet_nonce() ->> 'nonce') as nonce1 \gset
-select pg_temp.ok('wallet-link nonce received', length(:'nonce1') = 32);
-select (act_wallet_nonce() ->> 'nonce') as nonce2 \gset
-select pg_temp.ok('a new nonce replaces the old one', :'nonce1' <> :'nonce2');
-select pg_temp.ok('the nonce is not directly readable', (select count(*) from wallet_nonces) = 0);
-select pg_temp.refused('assign yourself a wallet directly', $q$insert into wallets (user_id, address) values ('aaaaaaaa-0000-0000-0000-000000000001', '0xBAD')$q$);
+-- ---------- validators (020): the seal is bound to a validators row, one seal per validator ----------
 reset role;
-select pg_temp.ok('only one nonce kept per player', (select count(*) from wallet_nonces) = 1);
+select id as vid from validators where world = 'w' and x = :rx and y = :ry and z = :rz \gset
+select pg_temp.ok('relight created a validators row', :vid is not null);
+select pg_temp.ok('the seal points at that validator', (select validator_id from uniques where item = 203) = :vid);
+select pg_temp.ok('the validator starts active, level 1', (select state || ',' || level from validators where id = :vid) = 'active,1');
+select pg_temp.refused_by_constraint('a second seal for the same validator (one seal per validator)',
+  format($f$insert into uniques (user_id, world, serial, item, validator_id) values ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 999, 203, %s)$f$, :vid));
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 
@@ -149,32 +154,50 @@ update players set state = '{"bar": 1}';
 select pg_temp.ok('preferences stay editable', (select state ->> 'bar' from players) = '1');
 select set_recovery_code() as code \gset
 
--- ---------- validator rewards ----------
+-- ---------- validator production and maintenance (021): Gwei, not Ether Crystal ----------
 reset role;
-update players set rewards_at = now() - interval '60 seconds';
-update blocks set updated_at = now() - interval '1 hour' where id = 74; -- relit before the paid period
+update validators set gwei_per_cycle = 12, maintenance_cost = 2,
+  last_cycle_at = now() - interval '10 minutes', last_attested_at = now() - interval '2 minutes'
+  where id = :vid;
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
-select pg_temp.ok('rewards: one old validator, 1 minute → 1 crystal', act_rewards('w') ->> 'n' = '1');
-select pg_temp.ok('reward paid out', (select n from inventory where item = 101) = 6);
+select pg_temp.ok('attesting a maintained validator pays net production (2 cycles x 10)',
+  (act_maintain_validator('w', :vid, :rx + 0.5, :ry, :rz + 2.5) ->> 'gwei')::int = 20);
+select pg_temp.ok('gwei credited to the player, not the inventory', (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 20);
 reset role;
--- 8 placed validators: only 5 count; 10 minutes → (5 + 5) shares × 50 slots / 25 = 20 crystals
-insert into blocks (world, x, y, z, id, placed_by, updated_at) select 'w', 100 + k, 40, 100, 13, 'aaaaaaaa-0000-0000-0000-000000000001', now() - interval '1 day' from generate_series(1, 8) k;
-update players set rewards_at = now() - interval '10 minutes' where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+-- silence for 35 minutes (7 cycles), all unmaintained: act_rewards ticks it without the attest's
+-- auto-repair, so the degraded state is directly observable
+update validators set last_cycle_at = now() - interval '35 minutes', last_attested_at = now() - interval '35 minutes' where id = :vid;
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
-select pg_temp.ok('at most 5 placed validators count', (act_rewards('w') ->> 'n')::int = 20);
+select pg_temp.ok('neglect produces no gwei', (act_rewards('w') ->> 'gained')::int = 0);
 reset role;
-update players set rewards_at = now() - interval '5 hours' where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
-delete from rate_limits where kind = 'rewards'; -- the previous call emptied the reserve
+select pg_temp.ok('7 missed cycles degrade the validator to damaged, balance unchanged',
+  (select state || ',' || missed_cycles from validators where id = :vid) = 'damaged,7'
+  and (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 20);
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
-select pg_temp.ok('at most 30 minutes caught up: 150 slots × 10 shares / 25 = 60', (act_rewards('w') ->> 'n')::int = 60);
-select pg_temp.ok('inventory: 6 + 20 + 60', (select n from inventory where item = 101) = 86);
+select pg_temp.ok('attesting a damaged validator repairs it for free',
+  act_maintain_validator('w', :vid, :rx + 0.5, :ry, :rz + 2.5) -> 'validator' ->> 'state' = 'active');
+select pg_temp.ok('no elapsed cycle since the repair: balance unchanged', (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 20);
+-- upgrade: 50 gwei at level 1, raises both production and upkeep
 reset role;
-delete from blocks where world = 'w' and x between 101 and 108 and y = 40 and z = 100;
+update players set gwei = 1000 where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('upgrade costs 50 gwei at level 1', (act_upgrade_validator('w', :vid) ->> 'cost')::int = 50);
+select pg_temp.ok('level 2, balance debited', (select level from validators where id = :vid) = 2
+  and (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 950);
+-- cosmetics (022): bought with gwei, no gameplay effect, never twice
+select pg_temp.ok('buy a block-pack cosmetic: grants the blocks', (act_buy_cosmetic('w', 5) -> 'inv' ->> '128')::int = 8);
+select pg_temp.ok('gwei debited by its price', (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 750);
+select pg_temp.ok('buying the same cosmetic twice is refused', act_buy_cosmetic('w', 5) ->> 'err' = 'already owned');
+reset role;
+update players set gwei = 50 where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('an unaffordable cosmetic is refused, no debit', act_buy_cosmetic('w', 4) ->> 'err' = 'not enough gwei'
+  and (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 50);
 
 -- ---------- player B ----------
 select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
@@ -188,16 +211,24 @@ select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001
 select pg_temp.ok('A invites Lea', (act_member('w', 'lea', true) ->> 'ok')::boolean);
 select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
 select pg_temp.ok('B mines at A''s place after the invite', (act_mine('w', 21, :gy, 4, null, 20.5, :gy + 1, 6.5) ->> 'ok')::boolean);
+reset role;
+update players set pos_at = null where user_id = 'bbbbbbbb-0000-0000-0000-000000000002'; -- next position is "first known": no distance check
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('B can''t attest A''s validator', act_maintain_validator('w', :vid, :rx + 0.5, :ry, :rz + 2.5) ->> 'err' = 'not your validator');
+select pg_temp.ok('B can''t upgrade A''s validator', act_upgrade_validator('w', :vid) ->> 'err' = 'not your validator');
 
 -- ---------- recovering a game by code ----------
 select pg_temp.ok('unknown code refused', claim_recovery('0000-0000-0000-0000') = -1);
 select pg_temp.ok('B recovers A''s game', claim_recovery(:'code') = 1);
-select pg_temp.ok('the inventory moved over, without duplicates', (select n from inventory where item = 101) = 86 and (select count(*) from inventory where item = 2) = 1);
+select pg_temp.ok('the inventory moved over, without duplicates', (select n from inventory where item = 101) = 5 and (select count(*) from inventory where item = 2) = 1);
 select pg_temp.ok('the unique items followed', (select count(*) from uniques) = 2);
 reset role;
 select pg_temp.ok('A has nothing left', (select count(*) from inventory where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 0);
 select pg_temp.ok('signed blocks followed', (select placed_by from blocks where x = :rx and y = :ry and z = :rz) = 'bbbbbbbb-0000-0000-0000-000000000002');
 select pg_temp.ok('the claim followed', (select owner from claims where cx = 1 and cz = 0) = 'bbbbbbbb-0000-0000-0000-000000000002');
+select pg_temp.ok('the validator followed', (select owner from validators where id = :vid) = 'bbbbbbbb-0000-0000-0000-000000000002');
+select pg_temp.ok('the owned cosmetic followed', (select user_id from cosmetics_owned where cosmetic_id = 5) = 'bbbbbbbb-0000-0000-0000-000000000002');
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
 select pg_temp.ok('rate limit: 20 crafts in a row, some refused', (select count(*) filter (where act_craft('w', 999) ->> 'err' = 'too many actions') from generate_series(1, 20)) >= 5);
@@ -300,13 +331,14 @@ select pg_temp.ok('new game without deleting the record', (act_new_game('w') ->>
 select pg_temp.ok('the jellyfish gifts a crystal', act_gift('w', '9,9:1', 'jellyfish') ->> 'item' = '101');
 select pg_temp.ok('huge chat message refused', act_chat('w', repeat('a', 5000)) ->> 'err' = 'message too long');
 reset role;
--- a validator just placed doesn't count for past time
+-- a validator just placed produces nothing until a full cycle (5 minutes) has elapsed
 insert into blocks (world, x, y, z, id, placed_by) values ('w', 120, 40, 120, 13, 'cccccccc-0000-0000-0000-000000000003');
-update players set rewards_at = now() - interval '20 minutes' where user_id = 'cccccccc-0000-0000-0000-000000000003';
+insert into validators (world, x, y, z, owner, owner_name, state, rarity, level, gwei_per_cycle, maintenance_cost, reanimated_at, last_cycle_at, last_attested_at)
+  values ('w', 120, 40, 120, 'cccccccc-0000-0000-0000-000000000003', 'c', 'active', 'common', 1, 12, 2, now(), now(), now());
 delete from rate_limits where kind = 'rewards';
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'cccccccc-0000-0000-0000-000000000003', false) \g /dev/null
-select pg_temp.ok('validator placed too late: nothing for the past', (act_rewards('w') ->> 'n')::int = 0);
+select pg_temp.ok('freshly placed validator produces nothing yet (0 elapsed cycles)', (act_rewards('w') ->> 'gained')::int = 0);
 reset role;
 -- ---------- public zones (006) ----------
 reset role;
@@ -377,8 +409,8 @@ delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' a
 delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_boss';
 
 -- the network's capstone (014_relight_capstone.sql): crossing a shared milestone mints a Validator Star.
--- Run last (not right after the first relight): it adds a second relit validator owned by player A, which
--- would otherwise throw off the validator-rewards test's "exactly one owned validator" assumption.
+-- Run last, after the recovery-by-code section above: player A has no save left in this world (it moved
+-- to B), so this relight acts on a brand-new player A, with its own fresh validators row.
 select public._set('w', 900, 30, 900, 74, null, null, null); -- a second relit validator elsewhere: count is now 2
 select public._set('w', 900, 30, 910, 73, null, null, null); -- a fresh dark validator to relight, column already whole
 select public._set('w', 902, 30, 912, 127, null, null, null);

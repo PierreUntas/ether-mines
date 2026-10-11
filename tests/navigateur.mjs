@@ -186,6 +186,21 @@ if (errors.length) await fail('errors with the new mobs/armor');
 const m = await page.evaluate(() => ({ active: mines.meshWorker, n: mines.meshCount }));
 if (!m.active) await fail('background meshing did not start');
 if (m.n < 20) await fail('too few chunks displayed: ' + m.n);
+// off-chain pivot: the Validators and Shop tabs render in solo mode too (just with an "online game
+// needed" message, since Gwei and validator production live on the server)
+const panels = await page.evaluate(() => {
+  mines.openTab('validators');
+  const validators = document.getElementById('pbody').textContent;
+  mines.openTab('shop');
+  const shop = document.getElementById('pbody').textContent;
+  mines.openTab('inv');
+  document.getElementById('closeP').click();
+  return { validators, shop, gweiChipExists: !!document.getElementById('gwei') };
+});
+if (!/online game/.test(panels.validators)) await fail('Validators tab did not render: ' + panels.validators);
+if (!/online game/.test(panels.shop)) await fail('Shop tab did not render: ' + panels.shop);
+if (!panels.gweiChipExists) await fail('Gwei HUD chip missing from index.html');
+if (errors.length) await fail('errors opening the Validators/Shop tabs');
 console.log(`Browser: loaded, entered the world, mined and crafted with no error; ${m.n} chunks meshed in the background.`);
 await browser.close();
 server.close();

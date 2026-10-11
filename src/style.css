@@ -265,8 +265,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .tradeRow{font-size:14px;display:flex;gap:8px;align-items:center}
 .tradeMsg{color:var(--pink,#ff9ab8);font-size:14px;margin:0 0 10px}
 .muted-pill{color:var(--muted);font-size:13px}
-/* validators on chain (Sepolia) */
-.sealChain{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;display:grid;gap:4px;font-size:14px}
-.sealChain b{font-family:var(--mono)}
-.sealChain a{color:var(--cyan,#7fe8ff)}
-.sealChain .btnrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+/* shop: a plain color swatch stands in for an icon on cosmetics with no granted item */
+.swatch{width:48px;height:48px;border-radius:10px;display:block}
+/* validators: off-chain production and maintenance */
+.validatorCard .btnrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
