@@ -1,7 +1,10 @@
 -- Dev utility: restocks ONE named test player with a full loadout — every tool/weapon/armor/resource,
 -- every placeable block, one of every unique item (pickaxes, seals, trophies...), a ready-made
 -- validator (no need to find a ruin), and plenty of Gwei. Lets you test the game without redoing every
--- step by hand.
+-- step by hand. Also drags every validator you already own (relit for real, or placed from a crafted
+-- block — each is its own validator, at its own position) to right where you are, so Attest/Upgrade
+-- never refuse "out of reach": real validators stay wherever you last relit/placed them otherwise, often
+-- far from each other and from you.
 --
 -- Not a migration: never run automatically (not touched by tools/installation.mjs, tests/sql/run.sh,
 -- or any client code). Paste into the Supabase SQL Editor yourself and run it whenever you want to
@@ -39,12 +42,12 @@ begin
     end if;
   end loop;
 
-  -- a ready-made validator, right where you last were in-game (so it's actually in reach to attest/
-  -- upgrade), already active — nothing to find or relight
-  if not exists (select 1 from validators where world = w and owner = uid) then
-    select round(pos_x)::int, round(pos_y)::int, round(pos_z)::int into vx, vy, vz from players where user_id = uid and world = w;
-    if vx is null then raise notice 'skipped: % has no known position yet — play a few seconds, then re-run', nickname;
-    else
+  select round(pos_x)::int, round(pos_y)::int, round(pos_z)::int into vx, vy, vz from players where user_id = uid and world = w;
+  if vx is null then
+    raise notice 'skipped validators: % has no known position yet — play a few seconds, then re-run', nickname;
+  else
+    -- a ready-made validator, already active — only the first time, so re-running doesn't keep adding more
+    if not exists (select 1 from validators where world = w and owner = uid) then
       insert into validators (world, x, y, z, owner, owner_name, state, rarity, level,
           gwei_per_cycle, maintenance_cost, reanimated_at, last_cycle_at, last_attested_at)
         values (w, vx, vy, vz, uid, nickname, 'active', 'legendary', 5, 300, 50, now(), now(), now())
@@ -52,6 +55,15 @@ begin
       u := _mint(uid, w, 203, vx || ', ' || vy || ', ' || vz);
       update uniques set validator_id = vid where user_id = uid and world = w and serial = (u ->> 'serial')::int;
     end if;
+
+    -- every validator you own, wherever it actually is (relit for real, or placed from a crafted
+    -- block), dragged next to your current position so none of them refuse "out of reach" anymore.
+    -- Spread on a small grid (not all stacked on the same cell: world+x+y+z is unique).
+    with numbered as (
+      select id, (row_number() over (order by id) - 1)::int as rn from validators where world = w and owner = uid
+    )
+    update validators v set x = vx + (n.rn % 3) - 1, y = vy, z = vz + (n.rn / 3)
+    from numbered n where v.id = n.id;
   end if;
 
   -- plenty of Gwei (never lowers an existing balance)
