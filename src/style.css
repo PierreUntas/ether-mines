@@ -26,7 +26,7 @@ body{background:#1c163a;color:var(--text);font-family:var(--pixel);-webkit-user-
 #hp span{color:var(--burn)}
 #hp span.empty{color:var(--muted);opacity:.35}
 #armor{position:absolute;left:16px;top:calc(env(safe-area-inset-top,0px) + 216px);padding:4px 9px;font-size:12px;color:var(--cyan)}
-#gwei{position:absolute;left:16px;top:calc(env(safe-area-inset-top,0px) + 254px);padding:4px 9px;font-size:12px;color:var(--gold,#ffd95e)}
+#gwei{position:absolute;right:16px;top:calc(env(safe-area-inset-top,0px) + 12px);padding:5px 10px;font-size:14px;color:var(--gold,#ffd95e)}
 button{font-family:var(--pixel);color:var(--text);cursor:pointer}
 button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .hud{position:fixed;inset:0;pointer-events:none;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px calc(env(safe-area-inset-bottom,0px) + 12px)}
@@ -34,7 +34,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 #clock{position:absolute;left:16px;top:calc(env(safe-area-inset-top,0px) + 12px);padding:6px 10px;display:flex;gap:8px;align-items:center;font-size:15px}
 #clock canvas{width:18px;height:18px;image-rendering:pixelated}
 #clock small{font-family:var(--mono);font-size:11px;color:var(--muted)}
-#feed{position:absolute;right:16px;top:calc(env(safe-area-inset-top,0px) + 12px);display:grid;gap:6px;justify-items:end;width:min(300px,55vw)}
+#feed{position:absolute;right:16px;top:calc(env(safe-area-inset-top,0px) + 50px);display:grid;gap:6px;justify-items:end;width:min(300px,55vw)}
 .ev{display:flex;gap:8px;align-items:center;padding:5px 9px;font-size:13px;animation:evin .3s ease-out;transition:opacity .6s}
 .ev b{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.06em;padding:1px 5px;border-radius:4px;color:#1c163a}
 .ev b.mint{background:var(--mint)}.ev b.burn{background:var(--burn)}.ev b.craft{background:var(--gold)}.ev b.nft{background:var(--cyan)}
@@ -154,7 +154,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 #border{position:absolute;left:16px;top:calc(env(safe-area-inset-top,0px) + 54px);padding:6px 10px;display:grid;gap:4px;font-size:12px;font-family:var(--mono);max-width:calc(100% - 32px)}
 #online{top:calc(env(safe-area-inset-top,0px) + 100px)}
 #modeTag{top:calc(env(safe-area-inset-top,0px) + 138px)}
-@media (pointer:coarse){#feed{top:calc(env(safe-area-inset-top,0px) + 58px)}}
+@media (pointer:coarse){#feed{top:calc(env(safe-area-inset-top,0px) + 96px)}}
 
 .cat{margin:14px 0 8px;font-size:12px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .craftFilters{margin-bottom:6px}
