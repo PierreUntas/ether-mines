@@ -34,6 +34,9 @@ select v as s3 from fixtures where k = 's3' \gset
 select v as rx from fixtures where k = 'rx' \gset
 select v as ry from fixtures where k = 'ry' \gset
 select v as rz from fixtures where k = 'rz' \gset
+select v as tcx from fixtures where k = 'tcx' \gset
+select v as tcy from fixtures where k = 'tcy' \gset
+select v as tcz from fixtures where k = 'tcz' \gset
 grant select on fixtures, samples to authenticated;
 
 insert into auth.users values ('aaaaaaaa-0000-0000-0000-000000000001'), ('bbbbbbbb-0000-0000-0000-000000000002');
@@ -456,6 +459,46 @@ select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002
 select pg_temp.ok('a combat-exclusive cosmetic cannot be bought even by id', act_buy_cosmetic('w', 11) ->> 'err' = 'not for sale');
 reset role;
 delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'buy_cosmetic';
+
+-- boss bonus trophies (026_boss_bonus_trophies.sql): an independent ~20% chance of a second unique on
+-- top of the guaranteed main one. Stays as postgres (see the loot-tiers block above) so the mid-loop
+-- rate-limit resets below aren't themselves blocked by RLS.
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+do $$
+declare res jsonb; got_bonus boolean := false; n_main int := 0;
+begin
+  for i in 1..60 loop
+    res := act_loot_mob('w', 'titan', 12.5, 33, 8.5);
+    if (res -> 'unique' ->> 'id') = '205' then n_main := n_main + 1; end if;
+    if (res -> 'bonus' ->> 'id') = '207' then got_bonus := true; end if;
+    delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_boss';
+  end loop;
+  if n_main <> 60 then raise exception 'FAILED: the main trophy should be guaranteed every kill, got % of 60', n_main; end if;
+  if not got_bonus then raise exception 'FAILED: never rolled the bonus trophy over 60 titan kills (~20%% odds each)'; end if;
+  raise notice 'ok: boss kills still guarantee the main trophy, and sometimes mint a second bonus one';
+end $$;
+delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_boss';
+
+-- tower treasure (025_tower_treasure.sql): the chest at (:tcx, :tcy, :tcz) is a synthetic stand-in for
+-- a tower's (tests/fixtures.mjs — no real tower lands in this tiny frozen test area) — generator-only,
+-- no blocks override row, which is exactly the signal act_chest seeds on.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+reset role;
+update players set pos_at = now() - interval '1 hour' where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and world = 'w';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select act_chest('w', :tcx, :tcy, :tcz, :tcx + 0.5, :tcy + 1, :tcz + 0.5) -> 'items' as tchest_items \gset
+select pg_temp.ok('tower chest seeded with 15-25 crystals', ((:'tchest_items')::jsonb ->> '101')::int between 15 and 25);
+select pg_temp.ok('tower chest seeded with 4-8 pure shards', ((:'tchest_items')::jsonb ->> '103')::int between 4 and 8);
+select pg_temp.ok('opening it again gives the same loot, not reseeded',
+  act_chest('w', :tcx, :tcy, :tcz, :tcx + 0.5, :tcy + 1, :tcz + 0.5) -> 'items' = (:'tchest_items')::jsonb);
+select pg_temp.ok('re-placing a chest at that same spot works (the chest item came back when it broke)',
+  (act_place('w', 21, :gy, 4, 98, 98, 20.5, :gy + 1, 6.5) ->> 'ok')::boolean);
+select pg_temp.ok('a fresh player-placed chest gets no free treasure',
+  act_chest('w', 21, :gy, 4, 20.5, :gy + 1, 6.5) -> 'items' = '{}'::jsonb);
+reset role;
+delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'chest';
 
 -- the network's capstone (014_relight_capstone.sql): crossing a shared milestone mints a Validator Star.
 -- Run last, after the recovery-by-code section above: player A has no save left in this world (it moved

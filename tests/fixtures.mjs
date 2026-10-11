@@ -5,8 +5,15 @@ globalThis.atob ??= (s) => Buffer.from(s, 'base64').toString('binary');
 new Function(readFileSync(new URL('../supabase/functions/_shared/world.js', import.meta.url), 'utf8'))();
 const W = globalThis.World;
 const out = [];
-for (const [cx, cz] of [[0, 0], [1, 0], [2, -1], [-1, 0]])
-  out.push(`insert into chunks (world, cx, cz, gen, sy, data) values ('w', ${cx}, ${cz}, ${W.GEN}, ${W.SY}, '${W.encodeChunk(W.genChunk(cx, cz))}');`);
+// a synthetic tower-chest cell inside chunk (1,0): no real tower lands in this tiny frozen test area,
+// but act_chest/act_chest_move must treat "98 with no blocks row" as a tower chest however it got
+// there (025_tower_treasure.sql) — overwritten post-generation, then exported as a fixture below.
+const TCX = 20, TCY = 40, TCZ = 5;
+for (const [cx, cz] of [[0, 0], [1, 0], [2, -1], [-1, 0]]) {
+  const a = W.genChunk(cx, cz);
+  if (cx === 1 && cz === 0) a[W.li(TCX - cx * 16, TCY, TCZ - cz * 16)] = 98;
+  out.push(`insert into chunks (world, cx, cz, gen, sy, data) values ('w', ${cx}, ${cz}, ${W.GEN}, ${W.SY}, '${W.encodeChunk(a)}');`);
+}
 // sample cells: SQL decoding must give exactly the generator's output
 let seed = 7; const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
 const samples = [];
@@ -21,5 +28,5 @@ const col = (x, z) => { const cx = Math.floor(x / 16), cz = Math.floor(z / 16), 
 const c = col(20, 3); let gy = 0; for (let y = W.SY - 1; y > 0; y--) { const v = c(y); if (v && v !== 20 && !(v >= 17 && v <= 19) && ![5, 6, 7].includes(v)) { gy = y; break; } }
 const stones = []; for (let y = gy - 1; y > 0 && stones.length < 6; y--) if (c(y) === 3) stones.push(y);
 const r = W.ruinAt(0, 0);
-out.push(`create table fixtures (k text primary key, v int); insert into fixtures values ('gy', ${gy}), ('gid', ${c(gy)}), ('s1', ${stones[0]}), ('s2', ${stones[1]}), ('s3', ${stones[2]}), ('rx', ${r.x}), ('ry', ${r.y + 1}), ('rz', ${r.z});`);
+out.push(`create table fixtures (k text primary key, v int); insert into fixtures values ('gy', ${gy}), ('gid', ${c(gy)}), ('s1', ${stones[0]}), ('s2', ${stones[1]}), ('s3', ${stones[2]}), ('rx', ${r.x}), ('ry', ${r.y + 1}), ('rz', ${r.z}), ('tcx', ${TCX}), ('tcy', ${TCY}), ('tcz', ${TCZ});`);
 console.log(out.join('\n'));

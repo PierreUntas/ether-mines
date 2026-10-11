@@ -257,6 +257,17 @@ Every regular (non-boss) kill rolls one layer, independent of the mob's own reso
 Boss kills (Genesis Titan, Plasma Core) are untouched: a guaranteed unique trophy on every kill, the
 legendary tier in all but name. See `supabase/migrations/024_loot_tiers.sql`.
 
+A second, rarer trophy can also drop on a boss kill — an independent ~20% chance on top of the
+guaranteed one (Titan Core Shard, Plasma Conduit Core), purely a keepsake like the main trophy, a reason
+to keep farming a boss past the first kill. See `supabase/migrations/026_boss_bonus_trophies.sql`.
+
+### Tower treasure
+
+Every tower (`towerAt()`, `world.js`) guards a chest on the boss's platform at the top, next to the
+Plasma Core, seeded with better-than-average loot (15–25 Ether Crystals, 4–8 Pure Shards, a 50% chance
+of a bonus Genesis Fragment) the first time it's opened — worth the climb even before the fight. See
+`supabase/migrations/025_tower_treasure.sql`.
+
 ## Known limits
 
 - The server checks that reported positions are plausible, not fine-grained physics: a cheater can walk through a wall or fly at running speed. They can't mine from a distance, teleport, or act faster than a human.

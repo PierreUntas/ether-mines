@@ -1220,6 +1220,36 @@ tile(131, (P, E) => {
       } else P(x, y, null);
     }
 });
+tile(133, (P, E) => {
+  // Titan Core Shard: a faceted gem cut from the titan's own heart — basalt facets (Diamond Shard's own
+  // two-tone cut, tile 128) with a thin ember crack down the middle, the Fang's own glow.
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const dx = Math.abs(x - 7),
+        top = y <= 8 && dx <= (y - 1) * 0.5,
+        bottom = y >= 8 && y <= 15 && dx <= (15 - y) * 0.75;
+      if (top || bottom) {
+        const crack = dx < 0.8;
+        const c = crack ? '#ffb347' : x < 7 ? '#6a5a82' : '#7a6a92';
+        P(x, y, c);
+        if (crack) E(x, y, c);
+      } else P(x, y, null);
+    }
+});
+tile(134, (P, E) => {
+  // Plasma Conduit Core: a glowing orb of contained plasma, concentric rings in the core's own magenta.
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const d = Math.hypot(x - 7.5, y - 7.5);
+      if (d > 7) {
+        P(x, y, null);
+        continue;
+      }
+      const c = d < 2.5 ? '#ff9bff' : d < 4.5 ? '#ff6bff' : d < 6 ? '#8a1fb3' : '#4a1268';
+      P(x, y, c);
+      if (d < 4.5) E(x, y, c);
+    }
+});
 // ---------- ink outline ----------
 // ethereum.org's illustrations are drawn with a navy ink line: every solid tile (no transparency)
 // gets an outline, blended with the original color to stay soft. Open-work tiles (leaves, glass, plants) don't get one.

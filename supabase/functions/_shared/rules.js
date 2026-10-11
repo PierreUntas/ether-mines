@@ -114,6 +114,11 @@
   // kill (never crafted, only minted by act_loot_mob, same guaranteed-boss-drop pattern as the Titan
   // Fang). The first ranged weapon: `ranged: 1` is read by src/game/16-mobs.js's fireRanged/updateBolts.
   ITEM[206] = { n: 'Plasma Pistol', icon: 132, dmg: 4, tier: 2, nft: 1, ranged: 1 };
+  // v16: a second, rarer bonus trophy per existing boss (026_boss_bonus_trophies.sql), on top of the
+  // guaranteed main one — purely a keepsake, same never-traded nft:1 convention, a reason to keep
+  // farming a boss beyond the first kill.
+  ITEM[207] = { n: 'Titan Core Shard', icon: 133, nft: 1 };
+  ITEM[208] = { n: 'Plasma Conduit Core', icon: 134, nft: 1 };
   const reqTier = id => (B[id] ? (B[id].tier ?? (B[id].stone ? 1 : 0)) : 0);
   const RECIPES = [
     { out: 9, n: 4, need: { 5: 1 }, d: 'Cut up a log' },

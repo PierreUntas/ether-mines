@@ -690,6 +690,11 @@ function lootMob(type) {
         toastInfo((BOSS_TOAST[r.unique.id] || (() => `${ITEM[r.unique.id].n} earned`))());
         Sound.chime();
       }
+      if (r && r.bonus) {
+        addUnique(r.bonus);
+        toastInfo(`Bonus drop: ${ITEM[r.bonus.id].n}!`);
+        Sound.chime();
+      }
       if (r && r.gwei) {
         S.gwei = r.total_gwei;
         toastInfo(`+${r.gwei} Gwei — dropped by a ${MK[type].n.toLowerCase()}`);
@@ -709,6 +714,12 @@ function lootMob(type) {
     mintNft(id, null);
     toastInfo(BOSS_TOAST[id]());
     Sound.chime();
+    if (Math.random() < 0.2) {
+      const bonusId = type === 'titan' ? 207 : 208;
+      mintNft(bonusId, null);
+      toastInfo(`Bonus drop: ${ITEM[bonusId].n}!`);
+      Sound.chime();
+    }
     return;
   }
   const r = Math.random();
