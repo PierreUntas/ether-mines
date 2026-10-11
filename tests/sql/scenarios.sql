@@ -174,22 +174,26 @@ reset role;
 -- back to a normal in-world spot: this row (position included) later becomes B's via claim_recovery,
 -- and a stray far-away position would otherwise break B's own position checks much further down
 update players set pos_x = 20.5, pos_y = :gy + 1, pos_z = 6.5, pos_at = null where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
--- silence for 25 hours (past the 24h grace window), all unmaintained: act_rewards ticks it without the
--- attest's auto-repair, so the degraded state is directly observable. 24h catch-up cap -> 288 cycles.
+-- silence for 25 hours (past the 24h health-check grace window): production still pays out in full
+-- (24h catch-up cap -> 288 cycles), only the health check is missed and the validator degrades
 update validators set last_cycle_at = now() - interval '25 hours', last_attested_at = now() - interval '25 hours' where id = :vid;
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
-select pg_temp.ok('neglect past the grace window produces no gwei', (act_rewards('w') ->> 'gained')::int = 0);
+select pg_temp.ok('neglect past the grace window still pays out production (288 cycles x 10 net)',
+  (act_rewards('w') ->> 'gained')::int = 2880);
 reset role;
-select pg_temp.ok('288 missed cycles degrade the validator to corrupted, balance unchanged',
-  (select state || ',' || missed_cycles from validators where id = :vid) = 'corrupted,288'
-  and (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 20);
-reset role;
+select pg_temp.ok('288 missed health checks degrade the validator to corrupted',
+  (select state || ',' || missed_cycles from validators where id = :vid) = 'corrupted,288');
+select pg_temp.ok('balance reflects the production that was never clawed back (20 + 2880)',
+  (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 2900);
+-- pin last_cycle_at to "now" so the next calls' own ticks are no-ops: keeps the balance assertions below exact
+update validators set last_cycle_at = now() where id = :vid;
 delete from inventory where user_id = 'aaaaaaaa-0000-0000-0000-000000000001' and world = 'w' and item = 105;
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 select pg_temp.ok('attesting a corrupted validator without a validator heart is refused',
   act_maintain_validator('w', :vid) ->> 'err' = 'corrupted: needs a validator heart to repair');
+select pg_temp.ok('a refused repair attempt does not touch the balance', (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 2900);
 reset role;
 insert into inventory (user_id, world, item, n) values ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 105, 1)
   on conflict (user_id, world, item) do update set n = 1;
@@ -199,7 +203,7 @@ select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001
 select pg_temp.ok('a validator heart repairs a corrupted validator',
   act_maintain_validator('w', :vid) -> 'validator' ->> 'state' = 'active');
 select pg_temp.ok('the heart was consumed', (select coalesce(n, 0) from inventory where user_id = 'aaaaaaaa-0000-0000-0000-000000000001' and world = 'w' and item = 105) = 0);
-select pg_temp.ok('no elapsed cycle since the repair: balance unchanged', (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 20);
+select pg_temp.ok('no elapsed cycle since the repair: balance unchanged', (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 2900);
 -- upgrade: 50 gwei at level 1, raises both production and upkeep
 reset role;
 update players set gwei = 1000 where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
