@@ -838,25 +838,38 @@
           }
         }
     }
-    // the validators' path: polished-granite slabs, a neon strip, lampposts — graded flat at its own
-    // centerline (heightAt averaged there, not the raw per-column height, which made the pavement step
-    // up and down with every small bump) then blended back toward the untouched natural height across
-    // the lane's width, so the paved edge never meets whatever's just outside it as a hard cliff —
-    // the same lerp-toward-natural shape heightAt itself already uses for the Atrium/City/Circuits plateaus.
+    // the validators' path: polished-granite slabs, a neon strip, lampposts — a real cut-and-fill
+    // regrade to a locally smoothed height (a small box average around each column), not just
+    // restamping one surface block at that height the way earlier attempts here did: without actually
+    // filling the gap when the smoothed height came out above the column's true terrain, or clearing
+    // what stood taller when it came out below, the "flattened" pavement was either floating over a
+    // hole or buried under the original bumpy ground it was supposed to replace. And the surface itself
+    // is now set across the lane's whole width, not just its center three columns: the flanking,
+    // lamppost-side columns used to get no explicit surface block at all outside the one-in-eight rows
+    // that actually place a lamppost, so most of the lane's edge was whatever happened to survive the
+    // regrade underneath — raw granite fill or bare natural ground — instead of the same polished
+    // surface as the center, which is what actually read as a patchy, mismatched platform.
     for (let lz = 0; lz < CH; lz++) {
       const z = z0 + lz;
-      let hsum = 0;
-      for (let dz = -2; dz <= 2; dz++) hsum += heightAt(SPAWN.x, z + dz);
-      const flatH = hsum / 5;
       for (let lx = 0; lx < CH; lx++) {
         const x = x0 + lx;
         if (!onPath(x, z, 2)) continue;
-        const e = Math.abs(x - SPAWN.x),
-          blend = sm(clamp((2.5 - e) / 2.5, 0, 1)),
-          h = Math.round(lerp(heightAt(x, z), flatH, blend));
+        let hsum = 0,
+          n = 0;
+        for (let dx = -2; dx <= 2; dx++)
+          for (let dz = -2; dz <= 2; dz++) {
+            hsum += heightAt(x + dx, z + dz);
+            n++;
+          }
+        const h = Math.round(hsum / n),
+          natural = heightAt(x, z),
+          e = Math.abs(x - SPAWN.x);
         if (h <= SEA) continue;
+        if (h > natural)
+          for (let y = natural + 1; y < h; y++) a[li(lx, y, lz)] = 3; // fill: granite, like the Atrium's own foundations
+        else if (h < natural) for (let y = h + 1; y <= natural + 4; y++) a[li(lx, y, lz)] = 0; // cut: clear whatever stood taller here
+        a[li(lx, h, lz)] = e === 0 && ((z % 4) + 4) % 4 === 0 ? 128 : 80; // the lane's own surface, full width
         if (e <= 1) {
-          a[li(lx, h, lz)] = e === 0 && ((z % 4) + 4) % 4 === 0 ? 128 : 80;
           for (let k = 1; k <= 3; k++) a[li(lx, h + k, lz)] = 0;
         } else if (((z % 8) + 8) % 8 === 0) {
           a[li(lx, h + 1, lz)] = a[li(lx, h + 2, lz)] = 127;
