@@ -1,6 +1,15 @@
 // Ether Mines · Interface: bar, chest, crafting, ledger, objectives.
 // The files in src/game/ load in order and share the same global scope.
 'use strict';
+// Gwei's icon: the same faceted diamond silhouette as the great diamond's orbiting stars (ethGeo,
+// 04-render.js), flattened to 2D, in its own gold tones — Ethereum's diamond mark, reinterpreted.
+const ethIcon =
+  '<svg class="ethIcon" viewBox="0 0 16 16" aria-hidden="true">' +
+  '<path d="M8 1 L1 8 L8 8 Z" fill="#fff3c2"/>' +
+  '<path d="M8 1 L8 8 L15 8 Z" fill="#ffd95e"/>' +
+  '<path d="M8 8 L1 8 L8 15 Z" fill="#ffb36b"/>' +
+  '<path d="M8 8 L15 8 L8 15 Z" fill="#ffe9a8"/>' +
+  '</svg>';
 // ---------- ledger view (owned blocks) ----------
 let regLines = null;
 function buildRegView() {
@@ -98,7 +107,7 @@ function ui() {
   if (!armorEl.hidden) armorEl.textContent = `🛡 ${ITEM[S.armor].n} · -${Math.round(ITEM[S.armor].armor * 100)}% dmg`;
   const gweiEl = $('gwei');
   gweiEl.hidden = !SERVER();
-  if (!gweiEl.hidden) gweiEl.textContent = `⬡ ${S.gwei || 0} Gwei`;
+  if (!gweiEl.hidden) gweiEl.innerHTML = `${ethIcon} ${S.gwei || 0} Gwei`;
   updateArmorVisual(SELF);
   updateCapeVisual(SELF);
   updateAvatarHand(SELF);
@@ -768,7 +777,7 @@ function renderValidators(body) {
       'beforeend',
       `<h3>${v.rarity[0].toUpperCase() + v.rarity.slice(1)} validator · level ${v.level}</h3>
        <p>${v.x}, ${v.y}, ${v.z} · <span class="pill">${VALIDATOR_STATE_LABEL[v.state]}</span></p>
-       <p>⬡ ${net} Gwei net per cycle (${v.gwei_per_cycle} produced − ${v.maintenance_cost} upkeep)${v.missed_cycles ? ` · ${v.missed_cycles} cycle${v.missed_cycles > 1 ? 's' : ''} missed` : ''}</p>`,
+       <p>${ethIcon} ${net} Gwei net per cycle (${v.gwei_per_cycle} produced − ${v.maintenance_cost} upkeep)${v.missed_cycles ? ` · ${v.missed_cycles} cycle${v.missed_cycles > 1 ? 's' : ''} missed` : ''}</p>`,
     );
     const br = document.createElement('div');
     br.className = 'btnrow';
