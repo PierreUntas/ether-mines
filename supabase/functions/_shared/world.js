@@ -838,20 +838,22 @@
           }
         }
     }
-    // the validators' path: polished-granite slabs, a neon strip, lampposts — graded flat across
-    // small-scale terrain noise (heightAt averaged along the centerline) instead of following the raw
-    // per-column height, which made the pavement step up and down with every bump in the ground. Still
-    // follows the land's broader rise and fall (and the Atrium/City's own flat plateaus) since that
-    // part of heightAt's blend only depends on z here, not the noise octaves this smooths out.
+    // the validators' path: polished-granite slabs, a neon strip, lampposts — graded flat at its own
+    // centerline (heightAt averaged there, not the raw per-column height, which made the pavement step
+    // up and down with every small bump) then blended back toward the untouched natural height across
+    // the lane's width, so the paved edge never meets whatever's just outside it as a hard cliff —
+    // the same lerp-toward-natural shape heightAt itself already uses for the Atrium/City/Circuits plateaus.
     for (let lz = 0; lz < CH; lz++) {
       const z = z0 + lz;
       let hsum = 0;
       for (let dz = -2; dz <= 2; dz++) hsum += heightAt(SPAWN.x, z + dz);
-      const h = Math.round(hsum / 5);
+      const flatH = hsum / 5;
       for (let lx = 0; lx < CH; lx++) {
         const x = x0 + lx;
         if (!onPath(x, z, 2)) continue;
-        const e = Math.abs(x - SPAWN.x);
+        const e = Math.abs(x - SPAWN.x),
+          blend = sm(clamp((2.5 - e) / 2.5, 0, 1)),
+          h = Math.round(lerp(heightAt(x, z), flatH, blend));
         if (h <= SEA) continue;
         if (e <= 1) {
           a[li(lx, h, lz)] = e === 0 && ((z % 4) + 4) % 4 === 0 ? 128 : 80;
