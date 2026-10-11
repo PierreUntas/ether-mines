@@ -725,27 +725,30 @@ async function updateValidators() {
     console.error(e);
     return;
   }
-  if (tab === 'quest' && !$('panel').hidden) renderPanel();
+  if (tab === 'validators' && !$('panel').hidden) renderPanel();
 }
 async function maintainValidator(v, btn) {
   if (btn) freezeBtn(btn, 'Attesting…');
   const r = await serverAct('maintain_validator', { validator_id: v.id }, null, 'validator attested');
-  if (!r) return;
-  S.attested = 1;
-  dirty = true;
-  if (r.gwei !== undefined) S.gwei = r.gwei;
-  toastInfo(r.validator.state === 'active' ? 'Validator attested: Gwei collected, upkeep paid.' : 'Validator attested.');
-  Sound.chime();
+  if (r) {
+    S.attested = 1;
+    dirty = true;
+    if (r.gwei !== undefined) S.gwei = r.gwei;
+    toastInfo(r.validator.state === 'active' ? 'Validator attested: Gwei collected, upkeep paid.' : 'Validator attested.');
+    Sound.chime();
+  }
+  // re-render even on refusal (e.g. out of reach): otherwise the button stays frozen on "Attesting…"
   updateValidators();
   ui();
 }
 async function upgradeValidator(v, btn) {
   if (btn) freezeBtn(btn, 'Upgrading…');
   const r = await serverAct('upgrade_validator', { validator_id: v.id }, null, 'validator upgraded');
-  if (!r) return;
-  if (r.gwei !== undefined) S.gwei = r.gwei;
-  toastInfo(`Validator upgraded to level ${r.validator.level}.`);
-  Sound.chime();
+  if (r) {
+    if (r.gwei !== undefined) S.gwei = r.gwei;
+    toastInfo(`Validator upgraded to level ${r.validator.level}.`);
+    Sound.chime();
+  }
   updateValidators();
   ui();
 }
@@ -801,11 +804,13 @@ function renderValidators(body) {
 async function buyCosmetic(c, btn) {
   if (btn) freezeBtn(btn, 'Buying…');
   const r = await serverAct('buy_cosmetic', { cosmetic_id: +c.id }, null, 'cosmetic bought');
-  if (!r) return;
-  S.cosmetics.push(+c.id);
-  if (r.gwei !== undefined) S.gwei = r.gwei;
-  toastInfo(`${c.n} bought.`);
-  Sound.chime();
+  if (r) {
+    S.cosmetics.push(+c.id);
+    if (r.gwei !== undefined) S.gwei = r.gwei;
+    toastInfo(`${c.n} bought.`);
+    Sound.chime();
+  }
+  // re-render even on refusal (e.g. not enough Gwei): otherwise the button stays frozen on "Buying…"
   ui();
 }
 function renderShop(body) {
