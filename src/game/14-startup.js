@@ -598,19 +598,10 @@ function command(v) {
     claimCmd(c, rest.join(' ').trim());
     return;
   }
-  if (c === 'attune') {
-    if (!SERVER()) return addChat('World', '#7fe8ff', 'Attuning a validator needs an online game.');
-    if (!target || (target.id !== 13 && target.id !== 74)) {
-      addChat('World', '#7fe8ff', 'Aim at a validator you placed or relit before it was attuned (block 13, or an already-relit one).');
-      return;
-    }
-    attuneValidator(target);
-    return;
-  }
   addChat(
     'World',
     '#7fe8ff',
-    'Commands: /join nickname · /sanctuary · /claim · /unclaim · /invite nickname · /kick nickname · /claims · /trade nickname · /attune · /ignore nickname · /listen nickname · /report nickname',
+    'Commands: /join nickname · /sanctuary · /claim · /unclaim · /invite nickname · /kick nickname · /claims · /trade nickname · /ignore nickname · /listen nickname · /report nickname',
   );
 }
 $('chatForm').addEventListener('submit', e => {

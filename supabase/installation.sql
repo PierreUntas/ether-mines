@@ -1816,8 +1816,7 @@ end $$;
 -- 020: validators become real rows (position, state, rarity, level, production), not just a block id
 -- counted on the fly. A validator is dormant until reanimated (relit from a ruin, or crafted and placed);
 -- its seal (item 203, already non-transferable) now points at the row instead of carrying raw onchain
--- coordinates. Pre-pivot placed/relit validators are NOT backfilled here on purpose: they go back to
--- needing reanimation under the new rules (see act_attune_validator, 021_gwei_cycle_and_maintenance.sql).
+-- coordinates.
 -- Requires 001_schema.sql, 002_security.sql, 012_relight_column.sql. Replayable without error.
 
 create table if not exists public.validators (
@@ -2085,53 +2084,6 @@ declare me uuid := _me_or_fail(w);
 begin
   if not _rate(me, 'upgrade_validator', 0.2, 2) then return _no('too many actions'); end if;
   return _core_upgrade_validator(w, validator_id);
-end $$;
-
--- One-time catch-up for validators placed/relit before this pivot: 020_validators.sql deliberately
--- didn't backfill them, so a block 13 or 74 the caller signed (placed_by) with no row yet needs this
--- to join the new system — same resource cost as a fresh reanimation (a crafted validator is common
--- rarity only; a relit one still rolls its rarity and mints a fresh seal).
-create or replace function public._core_attune_validator(w text, px int, py int, pz int) returns jsonb
-language plpgsql security definer set search_path = public as $$
-declare me uuid := auth.uid(); pl players; cur int; inv jsonb := '{}'; rarity text; stats jsonb; vid bigint; u jsonb;
-begin
-  pl := _player(me, w);
-  cur := _cell(w, px, py, pz);
-  if cur not in (13, 74) then return _no('not a validator', jsonb_build_object('cell', cur)); end if;
-  if (select placed_by from blocks where world = w and x = px and y = py and z = pz) <> me::text then
-    return _no('not your validator');
-  end if;
-  if exists (select 1 from validators where world = w and x = px and y = py and z = pz) then
-    return _no('already attuned');
-  end if;
-  if cur = 74 then
-    if _count(me, w, 105) < 1 then return _no('needs a validator heart'); end if;
-    inv := _give(me, w, 105, -1, inv);
-    rarity := _pick_rarity();
-  else
-    if _count(me, w, 101) < 2 then return _no('needs 2 ether crystals'); end if;
-    inv := _give(me, w, 101, -2, inv);
-    rarity := 'common';
-  end if;
-  stats := _validator_stats(rarity, 1);
-  insert into validators (world, x, y, z, owner, owner_name, state, rarity, level, gwei_per_cycle, maintenance_cost, reanimated_at, last_cycle_at)
-    values (w, px, py, pz, me, pl.name, 'active', rarity, 1, (stats ->> 'gwei_per_cycle')::int, (stats ->> 'maintenance_cost')::int, now(), now())
-    returning id into vid;
-  if cur = 74 then
-    u := _mint(me, w, 203, px || ', ' || py || ', ' || pz);
-    update uniques set validator_id = vid where user_id = me and world = w and serial = (u ->> 'serial')::int;
-  end if;
-  return jsonb_build_object('ok', true, 'inv', inv, 'validator', vid, 'unique', u);
-end $$;
-
-create or replace function public.act_attune_validator(w text, px int, py int, pz int, ex real, ey real, ez real) returns jsonb
-language plpgsql security definer set search_path = public as $$
-declare me uuid := _me_or_fail(w); e text;
-begin
-  if not _rate(me, 'attune_validator', 0.3, 3) then return _no('too many actions'); end if;
-  e := _check_pos(me, w, ex, ey, ez, px, py, pz);
-  if e is not null then return _no(e); end if;
-  return _core_attune_validator(w, px, py, pz);
 end $$;
 
 -- "Collect all": ticks every validator the caller owns and reports the total Gwei gained. act_rewards

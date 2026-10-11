@@ -1,8 +1,7 @@
 -- 020: validators become real rows (position, state, rarity, level, production), not just a block id
 -- counted on the fly. A validator is dormant until reanimated (relit from a ruin, or crafted and placed);
 -- its seal (item 203, already non-transferable) now points at the row instead of carrying raw onchain
--- coordinates. Pre-pivot placed/relit validators are NOT backfilled here on purpose: they go back to
--- needing reanimation under the new rules (see act_attune_validator, 021_gwei_cycle_and_maintenance.sql).
+-- coordinates.
 -- Requires 001_schema.sql, 002_security.sql, 012_relight_column.sql. Replayable without error.
 
 create table if not exists public.validators (

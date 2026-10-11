@@ -747,7 +747,7 @@ function renderValidators(body) {
   }
   body.insertAdjacentHTML(
     'beforeend',
-    '<p class="qintro">Each validator produces Gwei every cycle (5 minutes) once attested. Neglect it and it degrades — damaged first, then corrupted (needs a Validator Heart to repair). Aim at one of your own validators and type <code>/attune</code> to bring an older one into this system.</p>',
+    '<p class="qintro">Each validator produces Gwei every cycle (5 minutes) once attested. Neglect it and it degrades — damaged first, then corrupted (needs a Validator Heart to repair).</p>',
   );
   if (!VALIDATORS.loaded) {
     body.insertAdjacentHTML('beforeend', '<p class="qintro">Loading your validators…</p>');

@@ -53,7 +53,6 @@ Players can't write anything directly: no blocks, no terrain, no chest. Every ac
 | `act_toggle` | a real door or lever, zone not protected |
 | `act_craft` | recipe known to the server, ingredients present |
 | `act_relight` | a real dark validator, validator heart in the chest; reanimates it into the `validators` table (random rarity) |
-| `act_attune_validator` | a validator placed/relit before the Gwei pivot, owned by the player, not yet in the `validators` table |
 | `act_maintain_validator` | ownership, reach; settles missed cycles, repairs from "corrupted" (needs a validator heart), pays out net Gwei |
 | `act_upgrade_validator` | ownership, not corrupted, level below 10, enough Gwei (50 × current level) |
 | `act_buy_cosmetic` | not already owned, enough Gwei; grants existing decorative blocks for "block"-category cosmetics |
@@ -228,9 +227,6 @@ active ──(3 missed cycles)──> damaged ──(8 missed cycles)──> cor
   and upkeep per level.
 - **Seal** (item 203): bound to one validator (`uniques.validator_id`), minted once, never traded
   (already enforced before the pivot) — a keepsake, not a credential anyone else can use.
-- **Validators placed or relit before this pivot** keep their block in the world but aren't in the
-  `validators` table: stand in front of one you own and type `/attune` to bring it into the system (same
-  resource cost as a fresh reanimation).
 - **Cosmetics** (`act_buy_cosmetic`, Shop tab): bought with Gwei, purely decorative — never a combat,
   speed, harvesting, or access advantage. The catalog (`COSMETICS` in `rules.js`) is a separate id space
   from blocks and items, so it can grow (rarity, limited editions, collections) without touching the

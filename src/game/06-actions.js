@@ -55,7 +55,6 @@ const WITH_POSITION = new Set([
   'place',
   'toggle',
   'relight',
-  'attune_validator',
   'maintain_validator',
   'claim',
   'pos',
@@ -593,18 +592,6 @@ function relight(t) {
   rebuildAt(t.x, t.z);
   ui();
   if (regView) buildRegView();
-}
-// A validator placed or relit before the off-chain pivot has no row in the validators table yet (see
-// 020_validators.sql): aim at it and type /attune to bring it into the new system, same resource cost
-// as a fresh reanimation.
-function attuneValidator(t) {
-  serverAct('attune_validator', { px: t.x, py: t.y, pz: t.z }).then(r => {
-    if (!r) return;
-    if (r.unique) addUnique(r.unique);
-    syncInventory();
-    toastInfo('Validator attuned: it now joins the Gwei economy.');
-    Sound.chime();
-  });
 }
 // ---------- table and bed: eating and sleeping (simulated client-side, no actual value) ----------
 function eat() {
