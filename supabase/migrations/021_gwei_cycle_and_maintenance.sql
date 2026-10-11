@@ -3,7 +3,10 @@
 -- maintenance_cost). Left unattended, cycles are "missed": no Gwei, and after 3/8 missed cycles the
 -- validator degrades active -> damaged -> corrupted (corrupted needs a Validator Heart to repair).
 -- Ticking is lazy (like the old rewards_at), never a background job: settled on attest and on the
--- periodic "collect all" (act_rewards, now paying Gwei instead of Ether Crystal).
+-- periodic "collect all" (act_rewards, now paying Gwei instead of Ether Crystal). Attesting has no reach
+-- check, unlike mining/placing/relighting: a real Ethereum validator attests over the network, not by
+-- being physically near anything, so the fiction holds up fine without it — and it would otherwise force
+-- a player with validators scattered around the world back to each one every ~10 minutes.
 -- Requires 001_schema.sql, 002_security.sql, 019_gwei_currency.sql, 020_validators.sql. Replayable without error.
 
 create or replace function public._tick_validator(w text, vid bigint) returns validators
@@ -51,15 +54,14 @@ begin
   return jsonb_build_object('ok', true, 'inv', inv, 'validator', row_to_json(v), 'gwei', _gwei_balance(me, w));
 end $$;
 
-create or replace function public.act_maintain_validator(w text, validator_id bigint, ex real, ey real, ez real) returns jsonb
+-- The 5-argument version (ex/ey/ez for a reach check) predates this: CREATE OR REPLACE can't change a
+-- function's parameter list, so the old overload needs dropping explicitly or it lingers alongside this one.
+drop function if exists public.act_maintain_validator(text, bigint, real, real, real);
+create or replace function public.act_maintain_validator(w text, validator_id bigint) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare me uuid := _me_or_fail(w); e text; v validators;
+declare me uuid := _me_or_fail(w);
 begin
   if not _rate(me, 'maintain_validator', 0.3, 3) then return _no('too many actions'); end if;
-  select * into v from validators where id = validator_id and world = w;
-  if not found then return _no('unknown validator'); end if;
-  e := _check_pos(me, w, ex, ey, ez, v.x, v.y, v.z);
-  if e is not null then return _no(e); end if;
   return _core_maintain_validator(w, validator_id);
 end $$;
 

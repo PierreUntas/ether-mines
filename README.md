@@ -53,7 +53,7 @@ Players can't write anything directly: no blocks, no terrain, no chest. Every ac
 | `act_toggle` | a real door or lever, zone not protected |
 | `act_craft` | recipe known to the server, ingredients present |
 | `act_relight` | a real dark validator, validator heart in the chest; reanimates it into the `validators` table (random rarity) |
-| `act_maintain_validator` | ownership, reach; settles missed cycles, repairs from "corrupted" (needs a validator heart), pays out net Gwei |
+| `act_maintain_validator` | ownership; settles missed cycles, repairs from "corrupted" (needs a validator heart), pays out net Gwei — no reach check, attests remotely like a real validator |
 | `act_upgrade_validator` | ownership, not corrupted, level below 10, enough Gwei (50 × current level) |
 | `act_buy_cosmetic` | not already owned, enough Gwei; grants existing decorative blocks for "block"-category cosmetics |
 | `act_gift` | once a day per animal, 15 gifts a day at most |
@@ -225,6 +225,9 @@ active ──(3 missed cycles)──> damaged ──(8 missed cycles)──> cor
   legendary 3%. Higher rarity means more Gwei per cycle, and a higher upkeep to match.
 - **Level** (`act_upgrade_validator`, 50 × current level in Gwei, 10 at most): +15% to both production
   and upkeep per level.
+- **Attesting is remote**: unlike mining, placing, or relighting, `act_maintain_validator` has no reach
+  check — you don't need to stand next to a validator to attest it, from the Validators tab, wherever it
+  is. A real validator attests over the network, not by being physically near anything.
 - **Seal** (item 203): bound to one validator (`uniques.validator_id`), minted once, never traded
   (already enforced before the pivot) — a keepsake, not a credential anyone else can use.
 - **Cosmetics** (`act_buy_cosmetic`, Shop tab): bought with Gwei, purely decorative — never a combat,

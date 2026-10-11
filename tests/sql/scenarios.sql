@@ -161,10 +161,19 @@ update validators set gwei_per_cycle = 12, maintenance_cost = 2,
   where id = :vid;
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
-select pg_temp.ok('attesting a maintained validator pays net production (2 cycles x 10)',
-  (act_maintain_validator('w', :vid, :rx + 0.5, :ry, :rz + 2.5) ->> 'gwei')::int = 20);
+select pg_temp.ok('attesting a maintained validator pays net production (2 cycles x 10), no reach needed',
+  (act_maintain_validator('w', :vid) ->> 'gwei')::int = 20);
 select pg_temp.ok('gwei credited to the player, not the inventory', (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 20);
 reset role;
+-- proves the no-reach-check claim for real: far enough that a position check would refuse "too far"
+update players set pos_x = 50000, pos_y = 40, pos_z = 50000, pos_at = now() where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('attesting works from anywhere, not just next to the validator', (act_maintain_validator('w', :vid) ->> 'ok')::boolean);
+reset role;
+-- back to a normal in-world spot: this row (position included) later becomes B's via claim_recovery,
+-- and a stray far-away position would otherwise break B's own position checks much further down
+update players set pos_x = 20.5, pos_y = :gy + 1, pos_z = 6.5, pos_at = null where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
 -- silence for 35 minutes (7 cycles), all unmaintained: act_rewards ticks it without the attest's
 -- auto-repair, so the degraded state is directly observable
 update validators set last_cycle_at = now() - interval '35 minutes', last_attested_at = now() - interval '35 minutes' where id = :vid;
@@ -178,7 +187,7 @@ select pg_temp.ok('7 missed cycles degrade the validator to damaged, balance unc
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 select pg_temp.ok('attesting a damaged validator repairs it for free',
-  act_maintain_validator('w', :vid, :rx + 0.5, :ry, :rz + 2.5) -> 'validator' ->> 'state' = 'active');
+  act_maintain_validator('w', :vid) -> 'validator' ->> 'state' = 'active');
 select pg_temp.ok('no elapsed cycle since the repair: balance unchanged', (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 20);
 -- upgrade: 50 gwei at level 1, raises both production and upkeep
 reset role;
@@ -211,11 +220,7 @@ select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001
 select pg_temp.ok('A invites Lea', (act_member('w', 'lea', true) ->> 'ok')::boolean);
 select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
 select pg_temp.ok('B mines at A''s place after the invite', (act_mine('w', 21, :gy, 4, null, 20.5, :gy + 1, 6.5) ->> 'ok')::boolean);
-reset role;
-update players set pos_at = null where user_id = 'bbbbbbbb-0000-0000-0000-000000000002'; -- next position is "first known": no distance check
-set role authenticated;
-select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
-select pg_temp.ok('B can''t attest A''s validator', act_maintain_validator('w', :vid, :rx + 0.5, :ry, :rz + 2.5) ->> 'err' = 'not your validator');
+select pg_temp.ok('B can''t attest A''s validator (no reach check, ownership still enforced)', act_maintain_validator('w', :vid) ->> 'err' = 'not your validator');
 select pg_temp.ok('B can''t upgrade A''s validator', act_upgrade_validator('w', :vid) ->> 'err' = 'not your validator');
 
 -- ---------- recovering a game by code ----------
