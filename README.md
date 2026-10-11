@@ -215,7 +215,8 @@ Player finds a dormant validator (a "Dark Validator" in the ruins, or crafts one
    ▼
 Validator, active: produces Gwei every cycle (5 minutes) net of its own upkeep
    │ act_maintain_validator ("attest") — settles elapsed cycles, resets the clock
-   │ left unattested: cycles are missed, production stops, the validator degrades
+   │ attested within the last 24h: fully maintained, no penalty for a normal day or two away
+   │ longer than that: cycles are missed, production stops, the validator degrades
    ▼
 active ──(3 missed cycles)──> damaged ──(8 missed cycles)──> corrupted
    ↑ free to repair from damaged                    ↑ needs a Validator Heart (item 105) to repair
@@ -225,9 +226,10 @@ active ──(3 missed cycles)──> damaged ──(8 missed cycles)──> cor
   legendary 3%. Higher rarity means more Gwei per cycle, and a higher upkeep to match.
 - **Level** (`act_upgrade_validator`, 50 × current level in Gwei, 10 at most): +15% to both production
   and upkeep per level.
-- **Attesting is remote**: unlike mining, placing, or relighting, `act_maintain_validator` has no reach
-  check — you don't need to stand next to a validator to attest it, from the Validators tab, wherever it
-  is. A real validator attests over the network, not by being physically near anything.
+- **Attesting is remote and daily, not real-time**: `act_maintain_validator` has no reach check — attest
+  from the Validators tab, wherever the validator actually is — and the 24h grace window (matching the
+  24h catch-up cap on production) means checking in once a day is enough to never miss a cycle. A real
+  validator attests over the network and keeps running whether or not its operator is watching.
 - **Seal** (item 203): bound to one validator (`uniques.validator_id`), minted once, never traded
   (already enforced before the pivot) — a keepsake, not a credential anyone else can use.
 - **Cosmetics** (`act_buy_cosmetic`, Shop tab): bought with Gwei, purely decorative — never a combat,

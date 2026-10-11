@@ -1992,14 +1992,16 @@ end $$;
 
 -- ════════════════ 021_gwei_cycle_and_maintenance.sql ════════════════
 -- 021: the validator production loop. A cycle is 5 minutes; a validator attested (act_maintain_validator)
--- within the last two cycles keeps producing at full rate, net of its upkeep (gwei_per_cycle -
--- maintenance_cost). Left unattended, cycles are "missed": no Gwei, and after 3/8 missed cycles the
--- validator degrades active -> damaged -> corrupted (corrupted needs a Validator Heart to repair).
--- Ticking is lazy (like the old rewards_at), never a background job: settled on attest and on the
--- periodic "collect all" (act_rewards, now paying Gwei instead of Ether Crystal). Attesting has no reach
--- check, unlike mining/placing/relighting: a real Ethereum validator attests over the network, not by
--- being physically near anything, so the fiction holds up fine without it — and it would otherwise force
--- a player with validators scattered around the world back to each one every ~10 minutes.
+-- within the last 24 hours keeps producing at full rate, net of its upkeep (gwei_per_cycle -
+-- maintenance_cost) — a daily check-in is enough, no penalty for a normal day or two away: a real
+-- validator keeps running whether or not its operator is watching. Left unattended past that, cycles are
+-- "missed": no Gwei, and after 3/8 missed cycles the validator degrades active -> damaged -> corrupted
+-- (corrupted needs a Validator Heart to repair). Ticking is lazy (like the old rewards_at), never a
+-- background job: settled on attest and on the periodic "collect all" (act_rewards, now paying Gwei
+-- instead of Ether Crystal). Attesting has no reach check, unlike mining/placing/relighting: a real
+-- Ethereum validator attests over the network, not by being physically near anything, so the fiction
+-- holds up fine without it — and it would otherwise force a player with validators scattered around the
+-- world back to each one just to keep them running.
 -- Requires 001_schema.sql, 002_security.sql, 019_gwei_currency.sql, 020_validators.sql. Replayable without error.
 
 create or replace function public._tick_validator(w text, vid bigint) returns validators
@@ -2010,9 +2012,10 @@ begin
   if not found or v.state = 'dormant' or v.owner is null or v.last_cycle_at is null then return v; end if;
   cycles := floor(least(extract(epoch from now() - v.last_cycle_at), 86400) / 300)::int; -- 24h catch-up cap, 300s = 1 cycle
   if cycles <= 0 then return v; end if;
-  -- maintained = attested within the last two cycles, counting back from now (not from last_cycle_at,
-  -- which would let one attestation count as "maintained" forever if nobody ever ticks again)
-  maintained := v.last_attested_at is not null and v.last_attested_at >= now() - interval '600 seconds';
+  -- maintained = attested within the last 24h, counting back from now (not from last_cycle_at, which
+  -- would let one attestation count as "maintained" forever if nobody ever ticks again); matches the
+  -- 24h catch-up cap above, so a daily visit always arrives fully maintained
+  maintained := v.last_attested_at is not null and v.last_attested_at >= now() - interval '24 hours';
   if maintained then
     net := greatest(v.gwei_per_cycle - v.maintenance_cost, 0) * cycles;
     if net > 0 then perform _gwei(v.owner, w, net); end if;
