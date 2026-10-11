@@ -838,36 +838,37 @@
           }
         }
     }
-    // the validators' path: polished-granite slabs, a neon strip, lampposts — a real cut-and-fill
-    // regrade to a locally smoothed height (a small box average around each column), not just
-    // restamping one surface block at that height the way earlier attempts here did: without actually
-    // filling the gap when the smoothed height came out above the column's true terrain, or clearing
-    // what stood taller when it came out below, the "flattened" pavement was either floating over a
-    // hole or buried under the original bumpy ground it was supposed to replace. And the surface itself
-    // is now set across the lane's whole width, not just its center three columns: the flanking,
-    // lamppost-side columns used to get no explicit surface block at all outside the one-in-eight rows
-    // that actually place a lamppost, so most of the lane's edge was whatever happened to survive the
-    // regrade underneath — raw granite fill or bare natural ground — instead of the same polished
-    // surface as the center, which is what actually read as a patchy, mismatched platform.
+    // the validators' path: polished-granite slabs, a neon strip, lampposts. Three attempts at
+    // smoothing this against the raw per-column terrain each made things worse, the last one bad
+    // enough to throw up multi-block towers near the Atrium's own steep blend zone — some average
+    // sampled a few blocks out came back wildly different from the column directly underfoot, and nothing
+    // bounded how large a fill or cut that mismatch could produce. This one can't do that by
+    // construction: h is never anything but the column's own true height, optionally nudged by exactly
+    // one block toward its immediate neighbors' majority, so the biggest possible fill or cut is one
+    // block, on purpose, every time — no average, no reach beyond next-door, no room for a steep blend
+    // zone to produce a tower however the noise happens to line up.
     for (let lz = 0; lz < CH; lz++) {
       const z = z0 + lz;
       for (let lx = 0; lx < CH; lx++) {
         const x = x0 + lx;
         if (!onPath(x, z, 2)) continue;
-        let hsum = 0,
-          n = 0;
-        for (let dx = -2; dx <= 2; dx++)
-          for (let dz = -2; dz <= 2; dz++) {
-            hsum += heightAt(x + dx, z + dz);
-            n++;
-          }
-        const h = Math.round(hsum / n),
-          natural = heightAt(x, z),
+        const natural = heightAt(x, z);
+        let up = 0,
+          down = 0;
+        for (const [dx, dz] of [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1],
+        ]) {
+          const d = heightAt(x + dx, z + dz) - natural;
+          if (d === 1) up++;
+          else if (d === -1) down++;
+        }
+        const h = up >= 3 ? natural + 1 : down >= 3 ? natural - 1 : natural, // only follow the neighbors when they clearly agree
           e = Math.abs(x - SPAWN.x);
         if (h <= SEA) continue;
-        if (h > natural)
-          for (let y = natural + 1; y < h; y++) a[li(lx, y, lz)] = 3; // fill: granite, like the Atrium's own foundations
-        else if (h < natural) for (let y = h + 1; y <= natural + 4; y++) a[li(lx, y, lz)] = 0; // cut: clear whatever stood taller here
+        if (h < natural) for (let y = h + 1; y <= natural; y++) a[li(lx, y, lz)] = 0; // cut: at most one block
         a[li(lx, h, lz)] = e === 0 && ((z % 4) + 4) % 4 === 0 ? 128 : 80; // the lane's own surface, full width
         if (e <= 1) {
           for (let k = 1; k <= 3; k++) a[li(lx, h + k, lz)] = 0;
