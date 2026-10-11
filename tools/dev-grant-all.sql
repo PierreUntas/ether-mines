@@ -15,6 +15,9 @@ declare
   r        record;
   vid      bigint;
   u        jsonb;
+  vx       int;
+  vy       int;
+  vz       int;
 begin
   select user_id into uid from players where world = w and lower(name) = lower(nickname);
   if uid is null then raise exception 'no player named % in world %', nickname, w; end if;
@@ -36,14 +39,19 @@ begin
     end if;
   end loop;
 
-  -- a ready-made validator, far out of the way, already active — nothing to find or relight
+  -- a ready-made validator, right where you last were in-game (so it's actually in reach to attest/
+  -- upgrade), already active — nothing to find or relight
   if not exists (select 1 from validators where world = w and owner = uid) then
-    insert into validators (world, x, y, z, owner, owner_name, state, rarity, level,
-        gwei_per_cycle, maintenance_cost, reanimated_at, last_cycle_at, last_attested_at)
-      values (w, 9000, 34, 9000, uid, nickname, 'active', 'legendary', 5, 300, 50, now(), now(), now())
-      returning id into vid;
-    u := _mint(uid, w, 203, '9000, 34, 9000');
-    update uniques set validator_id = vid where user_id = uid and world = w and serial = (u ->> 'serial')::int;
+    select round(pos_x)::int, round(pos_y)::int, round(pos_z)::int into vx, vy, vz from players where user_id = uid and world = w;
+    if vx is null then raise notice 'skipped: % has no known position yet — play a few seconds, then re-run', nickname;
+    else
+      insert into validators (world, x, y, z, owner, owner_name, state, rarity, level,
+          gwei_per_cycle, maintenance_cost, reanimated_at, last_cycle_at, last_attested_at)
+        values (w, vx, vy, vz, uid, nickname, 'active', 'legendary', 5, 300, 50, now(), now(), now())
+        returning id into vid;
+      u := _mint(uid, w, 203, vx || ', ' || vy || ', ' || vz);
+      update uniques set validator_id = vid where user_id = uid and world = w and serial = (u ->> 'serial')::int;
+    end if;
   end if;
 
   -- plenty of Gwei (never lowers an existing balance)
