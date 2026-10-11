@@ -561,6 +561,27 @@ select pg_temp.ok('resolving again is a no-op: score unchanged', (select score f
 select pg_temp.ok('resolving again is a no-op: balance unchanged', (select gwei from players where user_id = 'cccccccc-0000-0000-0000-000000000003' and world = 'w') = :c_gwei_before + 50);
 delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'network';
 
+-- a successful defense also counts toward each contributor's own tally, not just the payout (028_leaderboard.sql)
+select pg_temp.ok('a successful defense counts toward each contributor''s own tally',
+  (select defenses_won from players where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and world = 'w') = 1
+  and (select defenses_won from players where user_id = 'cccccccc-0000-0000-0000-000000000003' and world = 'w') = 1);
+select pg_temp.ok('gwei_earned only grows: C''s fresh cumulative total matches the payout exactly (never spent, so balance = earned)',
+  (select gwei_earned from players where user_id = 'cccccccc-0000-0000-0000-000000000003' and world = 'w') = :c_gwei_before + 50);
+
+-- leaderboard (act_leaderboard, 028_leaderboard.sql): the three rankings reflect what just happened.
+select coalesce(name, 'anonymous') as c_name from players where user_id = 'cccccccc-0000-0000-0000-000000000003' and world = 'w' \gset
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'cccccccc-0000-0000-0000-000000000003', false) \g /dev/null
+select act_leaderboard('w') as lb \gset
+select pg_temp.ok('leaderboard: C appears in the gwei-earned ranking with the right amount',
+  exists (select 1 from jsonb_array_elements((:'lb')::jsonb -> 'gwei') e where e ->> 'name' = :'c_name' and (e ->> 'n')::int = :c_gwei_before + 50));
+select pg_temp.ok('leaderboard: C appears in the defenses-repelled ranking',
+  exists (select 1 from jsonb_array_elements((:'lb')::jsonb -> 'defenses') e where e ->> 'name' = :'c_name' and (e ->> 'n')::int = 1));
+select pg_temp.ok('leaderboard: C''s one active validator (fixture from the 007_network.sql section above) shows up too',
+  exists (select 1 from jsonb_array_elements((:'lb')::jsonb -> 'validators') e where e ->> 'name' = 'c' and (e ->> 'n')::int = 1));
+reset role;
+delete from rate_limits where user_id = 'cccccccc-0000-0000-0000-000000000003' and kind = 'leaderboard';
+
 -- the network's capstone (014_relight_capstone.sql): crossing a shared milestone mints a Validator Star.
 -- Run last, after the recovery-by-code section above: player A has no save left in this world (it moved
 -- to B), so this relight acts on a brand-new player A, with its own fresh validators row.

@@ -245,6 +245,106 @@ function updateAttackBanner() {
     kills = NETWORK.attack && NETWORK.attack.window_id === aw.windowId ? NETWORK.attack.kills : 0;
   el.textContent = `⚡ The network is under attack — defend the Atrium · ${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')} · ${kills} corrupted node${kills === 1 ? '' : 's'} defeated`;
 }
+// ---------- the leaderboard monument (028_leaderboard.sql): what other players are doing, standing in
+// the City instead of buried in a tab — a canvas-texture sign, the same pattern already used for every
+// procedural icon (01-textures.js) and the butterflies' sprites (05-player.js), just redrawn on poll
+// instead of drawn once. No new rendering infrastructure. ----------
+const LEADERBOARD = { gwei: [], validators: [], defenses: [], t: 0 },
+  lbCanvas = document.createElement('canvas');
+lbCanvas.width = 512;
+lbCanvas.height = 768;
+const lbCtx = lbCanvas.getContext('2d'),
+  lbTex = new THREE.CanvasTexture(lbCanvas),
+  lbMat = new THREE.MeshBasicMaterial({ map: lbTex, transparent: true, fog: false, side: THREE.DoubleSide }),
+  LB_W = 1.6,
+  LB_H = 2.4, // same 2:3 ratio as the 512x768 canvas — a small side plaque, not a monument: read up
+  // close by anyone curious, never the dominant thing in view
+  lbSign = new THREE.Mesh(new THREE.PlaneGeometry(LB_W, LB_H), lbMat);
+// off to the side of the main entrance path (not centered on it, where it'd be the first and only
+// thing in view) and clear of any nearby structure, checked against the real block data.
+lbSign.position.set(CITY.x - 7, CITY.Y + 1 + LB_H / 2, CITY.z + CITY.R - 4);
+scene.add(lbSign);
+{
+  // a cyan-framed, tinted-glass pedestal — the HUD's own translucent-indigo panel language (.card,
+  // style.css), not a flat opaque slab — the Holo Screen block's "glowing pane" vocabulary (129, rules.js)
+  const frameMat = new THREE.MeshBasicMaterial({ color: 0x3a2d6e, transparent: true, opacity: 0.5, fog: false }),
+    edgeMat = new THREE.MeshBasicMaterial({ color: 0x7fe8ff, fog: false });
+  const back = new THREE.Mesh(new THREE.BoxGeometry(LB_W + 0.3, LB_H + 0.3, 0.2), frameMat);
+  back.position.set(lbSign.position.x, lbSign.position.y, lbSign.position.z - 0.15);
+  scene.add(back);
+  const post = new THREE.Mesh(new THREE.BoxGeometry(0.5, CITY.Y + 1, 0.5), edgeMat);
+  post.position.set(lbSign.position.x, (CITY.Y + 1) / 2, lbSign.position.z - 0.15);
+  scene.add(post);
+}
+function drawLeaderboard() {
+  const c = lbCtx;
+  c.clearRect(0, 0, 512, 768);
+  // tinted glass, the HUD's own .card gradient (style.css) translated to canvas, not a flat slab
+  const grad = c.createLinearGradient(0, 0, 512, 768);
+  grad.addColorStop(0, 'rgba(66,52,128,.74)');
+  grad.addColorStop(0.5, 'rgba(44,32,92,.7)');
+  grad.addColorStop(1, 'rgba(30,22,64,.74)');
+  c.fillStyle = grad;
+  c.fillRect(0, 0, 512, 768);
+  c.strokeStyle = '#7fe8ff';
+  c.lineWidth = 6;
+  c.strokeRect(6, 6, 500, 756);
+  c.textAlign = 'center';
+  c.fillStyle = '#ffd95e';
+  c.font = '600 34px "IBM Plex Mono", monospace';
+  c.fillText('NETWORK LEADERBOARD', 256, 62);
+  c.strokeStyle = 'rgba(127,232,255,.4)';
+  c.lineWidth = 2;
+  c.beginPath();
+  c.moveTo(40, 84);
+  c.lineTo(472, 84);
+  c.stroke();
+  const sections = [
+    ['⚡ Gwei earned', LEADERBOARD.gwei, '#ffd95e'],
+    ['🛡 Validators kept active', LEADERBOARD.validators, '#7fe8ff'],
+    ['⚔ Attacks repelled', LEADERBOARD.defenses, '#ff9ab8'],
+  ];
+  let y = 150;
+  for (const [label, rows, color] of sections) {
+    c.textAlign = 'left';
+    c.fillStyle = color;
+    c.font = '600 26px "IBM Plex Mono", monospace';
+    c.fillText(label, 40, y);
+    y += 40;
+    c.font = '22px "IBM Plex Mono", monospace';
+    if (!rows.length) {
+      c.fillStyle = 'rgba(255,255,255,.4)';
+      c.fillText('— nobody yet —', 56, y);
+      y += 34;
+    } else {
+      rows.slice(0, 5).forEach((r, i) => {
+        c.fillStyle = i === 0 ? '#fff3c2' : 'rgba(244,241,255,.85)';
+        c.fillText(`${i + 1}. ${r.name}`, 56, y);
+        c.textAlign = 'right';
+        c.fillText(String(r.n), 472, y);
+        c.textAlign = 'left';
+        y += 32;
+      });
+    }
+    y += 36;
+  }
+  lbTex.needsUpdate = true;
+}
+async function updateLeaderboard() {
+  LEADERBOARD.t = 60;
+  if (!SERVER()) return;
+  try {
+    const r = await Net.act('leaderboard', {});
+    if (!r || !r.ok) return;
+    LEADERBOARD.gwei = r.gwei || [];
+    LEADERBOARD.validators = r.validators || [];
+    LEADERBOARD.defenses = r.defenses || [];
+  } catch (e) {
+    return;
+  }
+  drawLeaderboard();
+}
+drawLeaderboard(); // the frame reads sensibly ("— nobody yet —") even solo or before the first poll
 function networkStatus() {
   const g = TIERS.find(p => p > NETWORK.n);
   return g
@@ -665,6 +765,8 @@ function updateQuest(dt) {
   NETWORK.t -= 0.4;
   if (NETWORK.t <= 0) updateNetwork();
   updateAttackBanner();
+  LEADERBOARD.t -= 0.4;
+  if (LEADERBOARD.t <= 0) updateLeaderboard();
   if (tab === 'validators' && !$('panel').hidden) {
     VALIDATORS.t -= 0.4;
     if (VALIDATORS.t <= 0) updateValidators();

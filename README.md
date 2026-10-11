@@ -285,6 +285,15 @@ even with zero kills — no punishment for nobody's timezone, but a successful d
 A running, server-wide defense score (`network_score`) never resets and recolors the great diamond in
 the sky at each tier it crosses. See `supabase/migrations/027_network_attack.sql`.
 
+### The leaderboard monument
+
+What other players are doing, standing in the City instead of buried in a tab: a sign near the City's
+entrance (`src/game/07-interface.js`'s `lbSign`) showing the top 5 by Gwei earned (a cumulative counter,
+`players.gwei_earned` — spending never lowers your rank, only earning raises it), by validators currently
+kept active, and by network attacks repelled. No new rendering: a canvas texture redrawn on the same
+60-second poll as the network panel, the same pattern already used for every procedural icon and the
+butterflies' sprites. See `supabase/migrations/028_leaderboard.sql`.
+
 ## Known limits
 
 - The server checks that reported positions are plausible, not fine-grained physics: a cheater can walk through a wall or fly at running speed. They can't mine from a distance, teleport, or act faster than a human.
