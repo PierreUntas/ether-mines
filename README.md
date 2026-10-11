@@ -1,5 +1,7 @@
 # Ether Mines
 
+**Play: [ethermines.org](https://ethermines.org)** — free, in the browser, no download.
+
 A block world in Ethereum's colors, built with friends in the browser. You mine, craft, and build, and every block and item behaves like a token: mining mints, placing burns, and every placed block carries its author's name. The world is infinite: the terrain generates as you go.
 
 ## What's in it
