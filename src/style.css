@@ -26,6 +26,7 @@ body{background:#1c163a;color:var(--text);font-family:var(--pixel);-webkit-user-
 #hp span{color:var(--burn)}
 #hp span.empty{color:var(--muted);opacity:.35}
 #armor{position:absolute;left:16px;top:calc(env(safe-area-inset-top,0px) + 216px);padding:4px 9px;font-size:12px;color:var(--cyan)}
+#gwei{position:absolute;left:16px;top:calc(env(safe-area-inset-top,0px) + 254px);padding:4px 9px;font-size:12px;color:var(--gold,#ffd95e)}
 button{font-family:var(--pixel);color:var(--text);cursor:pointer}
 button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .hud{position:fixed;inset:0;pointer-events:none;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px calc(env(safe-area-inset-bottom,0px) + 12px)}

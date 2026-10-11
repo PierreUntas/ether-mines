@@ -610,7 +610,7 @@ function command(v) {
   addChat(
     'World',
     '#7fe8ff',
-    'Commands: /join nickname · /sanctuary · /claim · /unclaim · /invite nickname · /kick nickname · /claims · /trade nickname · /attune · /ignore nickname · /listen nickname · /report nickname · /race',
+    'Commands: /join nickname · /sanctuary · /claim · /unclaim · /invite nickname · /kick nickname · /claims · /trade nickname · /attune · /ignore nickname · /listen nickname · /report nickname',
   );
 }
 $('chatForm').addEventListener('submit', e => {
