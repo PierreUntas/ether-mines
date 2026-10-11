@@ -1,6 +1,6 @@
 # Ether Mines — pointers for Claude Code
 
-Minecraft-style block game set in the Ethereum universe. Static site (ether-mines.vercel.app) + Supabase. The README describes the whole game; this file only keeps the working rules.
+Minecraft-style block game set in the Ethereum universe. Static site (ethermines.org, also ether-mines.vercel.app) + Supabase. The README describes the whole game; this file only keeps the working rules.
 
 ## Architecture
 - **Client**: no build. Three.js r128, classic scripts `src/game/NN-*.js` loaded in order by `index.html` and sharing the global scope (a test checks the order). Modules shared between client and server: `supabase/functions/_shared/world.js` (generator), `rules.js` (blocks, items, recipes), `src/mesh.js`.
