@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP: below this layer, geodes and large caves
-  const GEN = 20; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example; 12: new seed; the Circuits Complex, its own standalone landmark with 5 separate rooms, replaces the in-City workshop; 13: towers, guarded by mobs with a boss at the top; 14: towers were far too sparse (8.5% of eligible regions, nearest ~264m from spawn) — loosened the height ceiling, flatness tolerance, and dropped the dunes exclusion, purely additive; 15: towers enlarged (7x7/4-tall -> 9x9/5-tall, too cramped to fight in); 16: towers enlarged again (9x9/5-tall -> 13x13/6-tall), more wardens per floor; 17: towers re-skinned futuristic — polished granite + cyan-neon trim, holo-screen windows, neon floor grid; 18: towers' entrance gap replaced with a real closed door; 19: a treasure chest on the boss's platform; 20: the validators' path graded flat instead of following every terrain bump) : bump it on every terrain change (already-frozen chunks don't move)
+  const GEN = 21; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example; 12: new seed; the Circuits Complex, its own standalone landmark with 5 separate rooms, replaces the in-City workshop; 13: towers, guarded by mobs with a boss at the top; 14: towers were far too sparse (8.5% of eligible regions, nearest ~264m from spawn) — loosened the height ceiling, flatness tolerance, and dropped the dunes exclusion, purely additive; 15: towers enlarged (7x7/4-tall -> 9x9/5-tall, too cramped to fight in); 16: towers enlarged again (9x9/5-tall -> 13x13/6-tall), more wardens per floor; 17: towers re-skinned futuristic — polished granite + cyan-neon trim, holo-screen windows, neon floor grid; 18: towers' entrance gap replaced with a real closed door; 19: a treasure chest on the boss's platform; 20: the validators' path graded flat (several iterations); 21: the Atrium/City/Circuits plateaus fall off into the natural terrain over a much wider band, so the edge of their flat ground doesn't land on a steep bit of the mountain noise) : bump it on every terrain change (already-frozen chunks don't move)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -234,14 +234,18 @@
     const c = vn2(x / 40, z / 40, 1) * 0.6 + vn2(x / 17, z / 17, 2) * 0.3 + vn2(x / 7, z / 7, 3) * 0.1;
     const m = sm(clamp((vn2(x / 64 + 10, z / 64 + 10, 4) - 0.52) / 0.25, 0, 1));
     const d = Math.hypot(x - SPAWN.x, z - SPAWN.z),
-      flat = sm(clamp((d - 5) / 10, 0, 1)),
+      // widened from /10: the natural terrain's own mountain term below can swing height by ~30
+      // blocks, so a 10-block falloff could still land a steep little cliff or hill right at the
+      // edge of the Atrium's flat plateau — exactly where the validators path starts. A wider
+      // falloff keeps the ground closer to flat for longer before natural noise takes over.
+      flat = sm(clamp((d - 5) / 22, 0, 1)),
       oc = sm(clamp((0.4 - contAt(x, z)) / 0.1, 0, 1));
     const land = DY + 12 + c * 14 + m * 18 * vn2(x / 16, z / 16, 5),
       sea = DY + 5 + vn2(x / 9, z / 9, 11) * 5;
     const dc = Math.hypot(x - CITY.x, z - CITY.z),
-      city = sm(clamp((dc - CITY.R) / 12, 0, 1)); // the City sits on a plateau that blends into the terrain
+      city = sm(clamp((dc - CITY.R) / 26, 0, 1)); // the City sits on a plateau that blends into the terrain — same widened falloff, same reason
     const dcc = Math.hypot(x - CIRCUITS.x, z - CIRCUITS.z),
-      circuits = sm(clamp((dcc - CIRCUITS.R) / 10, 0, 1)); // the Circuits Complex, its own small plateau
+      circuits = sm(clamp((dcc - CIRCUITS.R) / 20, 0, 1)); // the Circuits Complex, its own small plateau
     const natural = lerp(DY + 20, lerp(land, sea, oc), flat),
       withCircuits = lerp(CIRCUITS.Y + 0.5, natural, circuits);
     return Math.floor(lerp(CITY.Y + 0.5, withCircuits, city));
