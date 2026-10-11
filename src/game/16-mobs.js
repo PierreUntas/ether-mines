@@ -520,7 +520,7 @@ function syncNightProwler(cx, cz) {
   if (skyU.night.value < 0.55) return;
   const x0 = cx * CH,
     z0 = cz * CH;
-  if (sanctuary(x0 + 8, z0 + 8) || hash(cx * 23 + 9, cz * 31 + 13, 310) > 0.3) return;
+  if (mobSafe(x0 + 8, z0 + 8) || hash(cx * 23 + 9, cz * 31 + 13, 310) > 0.3) return;
   const hx = x0 + 2 + Math.floor(hash(cx, cz, 311) * 12),
     hz = z0 + 2 + Math.floor(hash(cx, cz, 312) * 12);
   if (heightAt(hx, hz) <= SEA + 1 || islandTop(hx, hz) > 0) return; // no prowlers over water or islands
@@ -890,7 +890,7 @@ function updateMobs(dt) {
       const K = MK[a.type],
         p = a.g.position,
         d = Math.hypot(p.x - P.x, p.y - P.y, p.z - P.z), // in 3D: a buried mob doesn't bite through rock
-        aggro = d < K.aggro && !sanctuary(p.x, p.z);
+        aggro = d < K.aggro && !mobSafe(p.x, p.z);
       let tx, tz;
       if (aggro) {
         tx = P.x;
