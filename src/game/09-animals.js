@@ -32,12 +32,12 @@ const AK = {
 };
 // ---------- villagers ----------
 // They live in the Atrium and the City, always in the same place for everyone. You talk to them like you pet an animal.
-// tenue : [habit, accent, cheveux, peau] ; coiffe : 'chapeau', 'diademe', 'capuche' ou rien.
+// outfit: [garment, accent, hair, skin]; headwear: 'hat', 'tiara', 'hood', or none.
 const VILLAGERS = [
   {
     x: SPAWN.x,
     z: SPAWN.z + 5,
-    name: 'Solène',
+    name: 'Thea',
     role: 'guardian of the Atrium',
     outfit: ['#8a7bef', '#ffd95e', '#3a3480', '#f6d3b8'],
     headwear: 'tiara',
@@ -50,7 +50,7 @@ const VILLAGERS = [
   {
     x: SPAWN.x - 3,
     z: SPAWN.z + 4,
-    name: 'Noé',
+    name: 'Milo',
     role: 'builder',
     outfit: ['#ffb37a', '#6a58e0', '#7a4a2a', '#e8b890'],
     headwear: 'hat',
@@ -63,7 +63,7 @@ const VILLAGERS = [
   {
     x: SPAWN.x,
     z: SPAWN.z - 11,
-    name: 'Iris',
+    name: 'Sage',
     role: 'cartographer',
     outfit: ['#9fe3c4', '#ff9ab8', '#2a2550', '#c98a64'],
     says: [
@@ -93,7 +93,7 @@ const VILLAGERS = [
   {
     x: CITY.x - 12,
     z: CITY.z + 13,
-    name: 'Lune',
+    name: 'Luna',
     role: 'merchant',
     outfit: ['#ff9ab8', '#ffd95e', '#5a3a80', '#e8b890'],
     headwear: 'hat',
@@ -106,7 +106,7 @@ const VILLAGERS = [
   {
     x: CITY.x - 11,
     z: CITY.z - 11,
-    name: 'Maëlle',
+    name: 'Nadia',
     role: 'librarian',
     outfit: ['#b6a4ff', '#7fe8ff', '#8a5a3a', '#f6d3b8'],
     says: [
@@ -118,7 +118,7 @@ const VILLAGERS = [
   {
     x: CITY.x + 12,
     z: CITY.z - 10,
-    name: 'Basile',
+    name: 'Felix',
     role: 'gardener',
     outfit: ['#9fe3c4', '#ffb37a', '#4a4a4a', '#c98a64'],
     headwear: 'hat',
@@ -131,7 +131,7 @@ const VILLAGERS = [
   {
     x: CITY.x + 2,
     z: CITY.z + 1,
-    name: 'Céleste',
+    name: 'Celeste',
     role: 'oracle of the diamond',
     outfit: ['#f4f1ff', '#8a7bef', '#ffd95e', '#f6d3b8'],
     headwear: 'tiara',
@@ -144,7 +144,7 @@ const VILLAGERS = [
   {
     x: CITY.x + 2,
     z: CITY.z - 11,
-    name: 'Hector',
+    name: 'Victor',
     role: 'ledger scribe',
     outfit: ['#6a58e0', '#ffd95e', '#d8d8e8', '#e8b890'],
     says: [
@@ -788,6 +788,22 @@ function talk(a) {
     S.met[h.name] = 1;
     dirty = true;
   }
+}
+// a brand-new arrival's very first moment: Thea speaks before the player has to go find and click
+// anyone (14-startup.js's S.seen.intro) — her own fixed opening line, the same dialogue bubble talk()
+// uses, just without needing a live villager instance to already be loaded nearby.
+function greetPlayer() {
+  const h = VILLAGERS[0],
+    t = h.says[0],
+    el = $('dialogue');
+  el.innerHTML = `<b style="color:${h.outfit[0]}">${h.name}</b><i>${h.role}</i><p></p>`;
+  el.querySelector('p').textContent = t;
+  el.hidden = false;
+  clearTimeout(saysT);
+  saysT = setTimeout(() => (el.hidden = true), 4500 + t.length * 45);
+  Sound.animal('villager', 1);
+  S.met = S.met || {};
+  S.met[h.name] = 1;
 }
 function petAnimal(a) {
   const K = AK[a.type],

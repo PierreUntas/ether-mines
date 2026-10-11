@@ -119,10 +119,10 @@ const life = await page.evaluate(async () => {
   let l = [];
   while (performance.now() - t0 < 30000) {
     l = [...ANIMALS.values()].flat();
-    if (l.some(a => a.type === 'shiba') && l.some(a => a.h?.name === 'Solène')) break;
+    if (l.some(a => a.type === 'shiba') && l.some(a => a.h?.name === 'Thea')) break;
     await new Promise(r => setTimeout(r, 500));
   }
-  const s = l.find(a => a.h?.name === 'Solène');
+  const s = l.find(a => a.h?.name === 'Thea');
   if (s) petAnimal(s);
   const bubble = !document.getElementById('dialogue').hidden && document.getElementById('dialogue').textContent;
   changeView();

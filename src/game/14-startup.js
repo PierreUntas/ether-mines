@@ -843,8 +843,11 @@ $('play').onclick = async () => {
   tryLock();
   if (!S.seen.intro) {
     S.seen.intro = 1;
-    logEv('nft', 'Welcome to the validator sanctuary', '');
-    setTimeout(() => logEv('mint', 'Mine a block', 'it becomes a token in your chest'), 900);
+    // a stronger first moment than a feed toast: Thea, the Atrium's own guardian, greets a brand-new
+    // arrival before they have to go find and click anyone — a short delay so the world has rendered
+    // first, instead of popping up over a still-loading view
+    setTimeout(() => greetPlayer(), 600);
+    setTimeout(() => logEv('mint', 'Mine a block', 'it becomes a token in your chest'), 10500);
   }
 };
 $('copyUrl').onclick = async () => {
