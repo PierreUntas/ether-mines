@@ -40,7 +40,7 @@
     const verb = ctx.createConvolver();
     verb.buffer = impulse(3.2, 2.4);
     const wet = ctx.createGain();
-    wet.gain.value = 0.32; // turned down from 0.45: less wash, so the pad reads less "celestial" and the typewriter's blip() cuts through
+    wet.gain.value = 0.24; // turned down again (0.45 -> 0.32 -> 0.24): less wash, so the pad reads less "celestial" and the typewriter's blip() cuts through
     amb.connect(verb);
     verb.connect(wet);
     wet.connect(master);
@@ -181,7 +181,7 @@
     // amb's target gain in tick(), and padChord()/bell()'s own levels, below)
     blip() {
       if (!ctx) return;
-      tone(880 + Math.random() * 180, 'triangle', 0.13, 0.06);
+      tone(880 + Math.random() * 180, 'triangle', 0.17, 0.06);
     },
     plate() {
       if (!ctx) return;
@@ -279,7 +279,7 @@
     tick(dt, night, under, water) {
       if (!ctx || !on) return;
       const T = now();
-      amb.gain.setTargetAtTime(0.6, T, 1.5); // turned down from 0.9 so the dialogue typewriter's blip() stands out over it
+      amb.gain.setTargetAtTime(0.48, T, 1.5); // turned down again (0.9 -> 0.6 -> 0.48) so the dialogue typewriter's blip() stands out over it
       padLP.frequency.setTargetAtTime(water ? 380 : under ? 600 : 900 + (1 - night) * 900, T, 0.8);
       birdT -= dt;
       if (birdT <= 0) {
@@ -315,7 +315,7 @@
       { idx: [0, 2, 4, 6], home: 0 },
       { idx: [6, 4, 2, 0], home: 2 },
     ];
-  function bell(n, t, gain = 0.075, dest = amb) {
+  function bell(n, t, gain = 0.065, dest = amb) {
     const f = midi(n);
     tone(f, 'sine', gain, 2.4, t, dest, 0, 0.005);
     tone(f * 2.01, 'sine', gain * 0.35, 1.2, t, dest, 0, 0.005);
@@ -342,8 +342,8 @@
         o.frequency.value = midi(n);
         o.detune.value = det;
         g.gain.setValueAtTime(0, T);
-        g.gain.linearRampToValueAtTime(0.032, T + 3); // turned down from 0.05: this chord swell was the main "celestial" sound Pierre wanted quieter
-        g.gain.setValueAtTime(0.032, T + 7);
+        g.gain.linearRampToValueAtTime(0.024, T + 3); // turned down again (0.05 -> 0.032 -> 0.024): this chord swell was the main "celestial" sound Pierre wanted quieter
+        g.gain.setValueAtTime(0.024, T + 7);
         g.gain.linearRampToValueAtTime(0, T + 11.5);
         o.connect(g);
         g.connect(padLP);
