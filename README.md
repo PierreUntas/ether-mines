@@ -282,6 +282,19 @@ its health. Both must fall together. They never leave their disc. The win (repor
 `merge_twins`, `030_merge_twins.sql`) mints the **Merge Aegis** (item 209), the best armor in the game
 (−60% damage), and with a ~20% chance a **Difficulty Bomb Fragment** (210) as a keepsake.
 
+### Creatures that stand out
+
+The bosses each have their own silhouette (`buildMob()`, `src/game/16-mobs.js`): the **Genesis Titan** is
+a hunched colossus of genesis rock with a crown of spikes and a burning gold core; the **Plasma Core** is a
+machine heart of magenta plasma in a dark cage, three rings of plates spinning around it, floating over its
+tower's loggia; **Tower Wardens** are tall sentry knights with a tower shield and a halberd.
+
+Two kinds of enemies hit from a distance (`MK[type].ranged`, `rangedAttack()`): **Tower Turrets**, bolted
+to the first and second floors of every tower, swell their lens while charging, then fire one slow bolt;
+the **Plasma Core** fires bursts of three when you keep your distance, and rams you up close. Shots only
+leave along a clear line of sight, and a bolt dies on the first solid block: sidestep it, or put a wall
+between you. Turrets drop nothing of their own (the server's loot tiers still roll on every kill).
+
 ### Tower treasure
 
 Every tower (`towerAt()`, `world.js`) guards a chest on the boss's platform at the top, next to the

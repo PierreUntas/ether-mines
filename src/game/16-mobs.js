@@ -24,12 +24,38 @@ const MK = {
   sentinel: { n: 'Geode Sentinel', hp: 14, dmg: 2.6, sp: 2.3, aggro: 12, atk: 1.3, cd: 0.9, kb: 4, hit: [0.6, 1.2, 0.6] },
   wraith: { n: 'Genesis Wraith', hp: 22, dmg: 3.8, sp: 2.4, aggro: 14, atk: 1.5, cd: 1.0, kb: 3, hit: [0.9, 2.1, 0.8] },
   // a single, fixed-location boss (not one-per-chunk like the others): see spawnMobChunk's BOSS_CX/BOSS_CZ check
-  titan: { n: 'Genesis Titan', hp: 90, dmg: 7.5, sp: 2.0, aggro: 17, atk: 1.6, cd: 1.1, kb: 2, hit: [1.3, 2.8, 1.0] },
+  titan: { n: 'Genesis Titan', hp: 90, dmg: 7.5, sp: 2.0, aggro: 17, atk: 1.9, cd: 1.1, kb: 2, hit: [1.6, 3.6, 1.4] },
   // towers (towerAt(), world.js): a warden per floor on the way up, a Plasma Core at the top —
   // repeatable, unlike the Titan, so every tower has its own — already fast before this pass, so
   // only hp/dmg/cd moved
-  warden: { n: 'Tower Warden', hp: 16, dmg: 3.2, sp: 3.6, aggro: 13, atk: 1.3, cd: 0.8, kb: 3, hit: [0.8, 1.9, 0.7] },
-  plasma_core: { n: 'Plasma Core', hp: 45, dmg: 5.5, sp: 3.0, aggro: 15, atk: 1.6, cd: 0.9, kb: 2, hit: [1.1, 2.4, 0.85] },
+  warden: { n: 'Tower Warden', hp: 16, dmg: 3.2, sp: 3.6, aggro: 13, atk: 1.5, cd: 0.8, kb: 3, hit: [0.8, 2.3, 0.7] },
+  // tower turrets: bolted to a floor (sp 0), they charge then fire a slow bolt you can sidestep or
+  // block with a wall — the first enemy that hits from a distance (ranged, see fireMobBolt)
+  turret: {
+    n: 'Tower Turret',
+    hp: 12,
+    dmg: 0,
+    sp: 0,
+    aggro: 14,
+    atk: 0,
+    cd: 2.0,
+    kb: 0,
+    hit: [0.9, 1.5, 0.9],
+    ranged: { dmg: 2.5, speed: 9, charge: 0.7, burst: 1, color: 0x5fe8ff },
+  },
+  // floats over its loggia: rams you up close, and from further away fires bursts of plasma bolts
+  plasma_core: {
+    n: 'Plasma Core',
+    hp: 45,
+    dmg: 5.5,
+    sp: 3.0,
+    aggro: 15,
+    atk: 1.8,
+    cd: 0.9,
+    kb: 2,
+    hit: [1.4, 2.6, 1.4],
+    ranged: { dmg: 3, speed: 11, charge: 0.5, burst: 3, gap: 0.22, every: 2.6, min: 3, color: 0xff5bff },
+  },
   // guards the Ether Gardens (gardenAt(), world.js), same ground pathing as every validator/rock guard above
   garden_guardian: { n: 'Garden Guardian', hp: 15, dmg: 2.9, sp: 2.3, aggro: 12, atk: 1.3, cd: 0.9, kb: 3, hit: [0.7, 1.6, 0.6] },
   // only out on the open surface after dark (synced in updateMobs, not a fixed per-chunk spawn like
@@ -73,7 +99,7 @@ function buildMob(a) {
     const hd = (parts.head = pivot(g, 0, 1.15, 0));
     abox(hd, 0.05, 0.05, 0.02, glow, -0.1, 0, 0.26, true);
     abox(hd, 0.05, 0.05, 0.02, glow, 0.1, 0, 0.26, true);
-  } else if (a.type === 'guardian' || a.type === 'warden' || a.type === 'garden_guardian' || a.type === 'corrupted_node') {
+  } else if (a.type === 'guardian' || a.type === 'garden_guardian' || a.type === 'corrupted_node') {
     // reuses the validator robot's silhouette (09-animals.js): corrupted tones (rust and red cracks)
     // for a guardian, a cyan tech palette for a tower warden, a mossy green one for a garden
     // guardian, an alarm-red one for a corrupted node (027_network_attack.sql) — same geometry
@@ -118,14 +144,119 @@ function buildMob(a) {
       abox(g, w, h, w, crystal, dx, 0.9 + h / 2, dz, true, 0.78);
       abox(g, w * 0.5, h * 0.25, w * 0.5, light, dx, 0.9 + h, dz, true);
     }
-  } else if (a.type === 'wraith' || a.type === 'titan' || a.type === 'plasma_core') {
-    // bigger, ancient version of the corrupted guardian, made of the rock it guards: basalt with ember cracks.
-    // The titan is the same design, scaled up with brighter cracks (below) — an ancient, massive wraith, not
-    // a new model. The Plasma Core (towers) reuses it too: a violet body and magenta plasma cracks.
-    const body = a.type === 'plasma_core' ? '#241a44' : '#3a2d52',
-      head = a.type === 'plasma_core' ? '#2e2158' : '#4a3b68',
+  } else if (a.type === 'warden') {
+    // tower warden: a tall, slender sentry knight in the tower's own palette (marble white armor, cyan
+    // neon), a crested helm with a glowing visor slit, a tower shield on one arm and a halberd in the
+    // other — nothing like the squat ruin robots
+    const plate = '#e9e4f5',
+      dark = '#2a2448',
+      neon = '#5fe8ff';
+    abox(g, 0.56, 0.7, 0.36, plate, 0, 1.35, 0);
+    abox(g, 0.06, 0.6, 0.04, neon, 0, 1.35, 0.19, true);
+    abox(g, 0.62, 0.14, 0.4, dark, 0, 1.0, 0);
+    const hd = (parts.head = pivot(g, 0, 1.78, 0));
+    abox(hd, 0.32, 0.36, 0.32, plate, 0, 0.12, 0);
+    abox(hd, 0.26, 0.05, 0.04, neon, 0, 0.14, 0.17, true);
+    abox(hd, 0.06, 0.16, 0.36, neon, 0, 0.38, 0, true);
+    const shieldArm = pivot(g, -0.38, 1.6, 0);
+    abox(shieldArm, 0.14, 0.5, 0.16, dark, 0, -0.25, 0);
+    abox(shieldArm, 0.08, 0.9, 0.56, plate, -0.12, -0.45, 0.12);
+    abox(shieldArm, 0.04, 0.6, 0.06, neon, -0.17, -0.45, 0.12, true);
+    const halberdArm = pivot(g, 0.38, 1.6, 0);
+    abox(halberdArm, 0.14, 0.5, 0.16, dark, 0, -0.25, 0);
+    abox(halberdArm, 0.06, 2.0, 0.06, dark, 0.06, 0.1, 0.18);
+    abox(halberdArm, 0.04, 0.34, 0.26, neon, 0.06, 1.05, 0.28, true);
+    for (const x of [-0.14, 0.14]) {
+      const l = pivot(g, x, 1.0, 0);
+      abox(l, 0.16, 0.6, 0.18, dark, 0, -0.3, 0);
+      abox(l, 0.2, 0.32, 0.24, plate, 0, -0.78, 0.02);
+      parts.legs.push(l);
+    }
+  } else if (a.type === 'titan') {
+    // the Genesis Titan: a hunched colossus of genesis rock — a massive back and shoulders, its head
+    // sunk between them with two gold eyes, a gold core burning in its chest, a crown of rock spikes,
+    // long arms ending in fists that almost drag on the ground
+    const rock = '#5e4f80',
+      deep = '#3a2d52',
+      gold = '#ffe066';
+    abox(g, 1.3, 1.0, 0.9, rock, 0, 1.55, -0.05);
+    abox(g, 1.0, 0.6, 0.8, deep, 0, 0.95, 0);
+    abox(g, 0.36, 0.36, 0.08, gold, 0, 1.5, 0.43, true);
+    abox(g, 0.12, 0.5, 0.06, gold, 0.36, 1.7, 0.42, true);
+    for (const [x, h] of [
+      [-0.45, 0.4],
+      [-0.15, 0.55],
+      [0.15, 0.5],
+      [0.45, 0.38],
+    ])
+      abox(g, 0.18, h, 0.18, rock, x, 2.05 + h / 2, -0.25);
+    const hd = (parts.head = pivot(g, 0, 1.85, 0.42));
+    abox(hd, 0.42, 0.3, 0.3, deep, 0, 0, 0);
+    abox(hd, 0.1, 0.07, 0.04, gold, -0.11, 0.02, 0.16, true);
+    abox(hd, 0.1, 0.07, 0.04, gold, 0.11, 0.02, 0.16, true);
+    for (const x of [-0.8, 0.8]) {
+      const arm = pivot(g, x, 1.85, 0);
+      abox(arm, 0.32, 1.1, 0.32, rock, 0, -0.55, 0);
+      abox(arm, 0.44, 0.4, 0.44, deep, 0, -1.25, 0.04);
+      abox(arm, 0.08, 0.5, 0.3, gold, x > 0 ? 0.13 : -0.13, -0.6, 0, true);
+    }
+    for (const x of [-0.3, 0.3]) {
+      const l = pivot(g, x, 0.7, 0);
+      abox(l, 0.36, 0.7, 0.4, deep, 0, -0.35, 0);
+      parts.legs.push(l);
+    }
+  } else if (a.type === 'plasma_core') {
+    // the Plasma Core: not a creature but a machine heart floating over the tower's loggia — a rounded
+    // core of magenta plasma inside a dark armored cage, three rings of plates spinning around it
+    const plasma = '#ff5bff',
+      hot = '#ffc2ff',
+      shell = '#241a44';
+    for (const [w, h] of [
+      [0.9, 0.5],
+      [0.7, 0.9],
+      [0.5, 1.1],
+    ])
+      abox(g, w, h, w, plasma, 0, 1.2, 0, true, 0.9);
+    abox(g, 0.36, 0.36, 0.36, hot, 0, 1.2, 0, true);
+    for (const [x, z] of [
+      [-0.5, -0.5],
+      [0.5, -0.5],
+      [-0.5, 0.5],
+      [0.5, 0.5],
+    ])
+      abox(g, 0.12, 1.3, 0.12, shell, x, 1.2, z);
+    abox(g, 1.1, 0.12, 1.1, shell, 0, 0.55, 0);
+    abox(g, 1.1, 0.12, 1.1, shell, 0, 1.85, 0);
+    parts.head = pivot(g, 0, 1.2, 0);
+    parts.rings = [];
+    for (let k = 0; k < 3; k++) {
+      const ring = pivot(g, 0, 1.2, 0);
+      ring.rotation.x = (k * Math.PI) / 3;
+      for (let i = 0; i < 6; i++) {
+        const an = (i * Math.PI) / 3;
+        abox(ring, 0.2, 0.08, 0.2, i % 2 ? plasma : shell, Math.cos(an) * 1.0, 0, Math.sin(an) * 1.0, i % 2 === 1);
+      }
+      parts.rings.push(ring);
+    }
+  } else if (a.type === 'turret') {
+    // tower turret: a squat pylon bolted to the floor, a head that turns to track you, a cyan lens that
+    // swells as it charges a shot (updateMobs) — the first enemy that hits from a distance
+    const base = '#2a2448',
+      plate = '#e9e4f5',
+      neon = '#5fe8ff';
+    abox(g, 0.7, 0.2, 0.7, base, 0, 0.1, 0);
+    abox(g, 0.34, 0.6, 0.34, plate, 0, 0.5, 0);
+    abox(g, 0.4, 0.06, 0.4, neon, 0, 0.62, 0, true);
+    const hd = (parts.head = pivot(g, 0, 0.95, 0));
+    abox(hd, 0.5, 0.32, 0.5, base, 0, 0, 0);
+    abox(hd, 0.16, 0.16, 0.4, plate, 0, 0, 0.36);
+    parts.lens = abox(hd, 0.12, 0.12, 0.06, neon, 0, 0, 0.58, true);
+  } else if (a.type === 'wraith') {
+    // bigger, ancient version of the corrupted guardian, made of the rock it guards: basalt with ember cracks
+    const body = '#3a2d52',
+      head = '#4a3b68',
       panel = '#241a3c',
-      crack = a.type === 'titan' ? '#ffe066' : a.type === 'plasma_core' ? '#ff5bff' : '#ffb347';
+      crack = '#ffb347';
     abox(g, 0.86, 0.74, 0.6, body, 0, 1.3, 0);
     abox(g, 0.6, 0.5, 0.07, panel, 0, 1.3, 0.31);
     abox(g, 0.3, 0.2, 0.06, crack, 0.13, 1.18, 0.35, true);
@@ -299,10 +430,12 @@ function buildMob(a) {
       abox(ring, 0.18, 0.18, 0.18, i % 2 ? lav : core, Math.cos(an) * 0.75, 0, Math.sin(an) * 0.75, true);
     }
   }
-  if (a.type === 'titan') g.scale.setScalar(1.6);
+  if (a.type === 'titan') g.scale.setScalar(1.7);
+  else if (a.type === 'warden') g.scale.setScalar(1.1);
   else if (a.type === 'pow_twin') g.scale.setScalar(1.5);
   else if (a.type === 'pos_twin') g.scale.setScalar(1.4);
-  else if (a.type === 'plasma_core') g.scale.setScalar(1.25);
+  else if (a.type === 'plasma_core') g.scale.setScalar(1.15);
+  else if (a.type === 'turret') g.scale.setScalar(1.25);
   a.g = g;
   a.parts = parts;
   g.position.set(a.hx, a.hy, a.hz);
@@ -486,7 +619,12 @@ function spawnMobChunk(cx, cz) {
           list.push(mkMob('warden', k, 140 + fi * 3 + i, hx, t.y + fy, hz, null));
         }
       });
-      list.push(mkMob('plasma_core', k, 150, t.x + 0.5, t.y + 19, t.z + 0.5, null));
+      const core = mkMob('plasma_core', k, 150, t.x + 0.5, t.y + 21, t.z + 0.5, null);
+      core.arena = { x: t.x + 0.5, z: t.z + 0.5, r: 4.5, y: t.y + 20 }; // floats over the loggia (under its roof at t.y + 24), never leaves it
+      list.push(core);
+      // a turret on the first and second floors, in the corner across from the ladder (world.js LADX/LADZ)
+      list.push(mkMob('turret', k, 155, t.x - 3.5, t.y + 7, t.z + 4.5, null));
+      list.push(mkMob('turret', k, 156, t.x + 4.5, t.y + 13, t.z + 4.5, null));
     }
   }
   // the Merge Sanctum's twins (mergeAt(), world.js): proof-of-work on the forge half (west), proof-of-
@@ -755,7 +893,102 @@ function fireRanged(dt) {
   BOLTS.push({ m, vx: dir.x * BOLT_SPEED, vy: dir.y * BOLT_SPEED, vz: dir.z * BOLT_SPEED, life: BOLT_LIFE, dmg: heldDmg() });
   Sound.shoot();
 }
+// ---------- mobs that hit from a distance: turrets and the Plasma Core ----------
+// A charge (a turret's lens swells, so you see it coming), then a burst of slow bolts aimed where you
+// stand when each leaves — sidestep them, or put a wall between you: a bolt dies on the first solid block.
+const MOB_BOLTS = [],
+  mobBoltMats = new Map();
+const MOB_BOLT_LIFE = 3;
+// is there a clear line from (a) to (b)? half-block steps through the world
+function lineClear(ax, ay, az, bx, by, bz) {
+  const dist = Math.hypot(bx - ax, by - ay, bz - az),
+    n = Math.ceil(dist / 0.5);
+  for (let i = 1; i < n; i++) {
+    const t = i / n;
+    if (isSolid(get(Math.floor(ax + (bx - ax) * t), Math.floor(ay + (by - ay) * t), Math.floor(az + (bz - az) * t)))) return false;
+  }
+  return true;
+}
+// where a mob's shots leave from: a turret's lens, the middle of anything else
+function mobEye(a) {
+  const p = a.g.position;
+  return [p.x, p.y + MK[a.type].hit[1] * (a.type === 'turret' ? 0.8 : 0.5), p.z];
+}
+function fireMobBolt(a, R) {
+  const [x, y, z] = mobEye(a),
+    tx = P.x,
+    ty = P.y + 1.2,
+    tz = P.z,
+    dd = Math.hypot(tx - x, ty - y, tz - z) || 1;
+  if (!mobBoltMats.has(R.color)) mobBoltMats.set(R.color, new THREE.MeshBasicMaterial({ color: R.color }));
+  const m = new THREE.Mesh(boltGeo, mobBoltMats.get(R.color));
+  m.scale.setScalar(1.6);
+  m.position.set(x, y, z);
+  scene.add(m);
+  MOB_BOLTS.push({
+    m,
+    vx: ((tx - x) / dd) * R.speed,
+    vy: ((ty - y) / dd) * R.speed,
+    vz: ((tz - z) / dd) * R.speed,
+    life: MOB_BOLT_LIFE,
+    dmg: R.dmg,
+    ox: x,
+    oz: z,
+  });
+  Sound.hit('pierre');
+}
+function rangedAttack(a, K, aggro, d, dt) {
+  const R = K.ranged;
+  if (a.shots > 0) {
+    // mid-burst: the next bolt after a short gap
+    a.gapT -= dt;
+    if (a.gapT <= 0) {
+      fireMobBolt(a, R);
+      a.shots--;
+      a.gapT = R.gap || 0.2;
+    }
+    return;
+  }
+  const [ex, ey, ez] = mobEye(a),
+    canShoot = aggro && d > (R.min || 0) && lineClear(ex, ey, ez, P.x, P.y + 1.2, P.z);
+  if (a.chargeT > 0) {
+    a.chargeT -= dt;
+    if (a.parts.lens) a.parts.lens.scale.setScalar(1 + (1 - a.chargeT / R.charge) * 1.8);
+    if (a.chargeT <= 0) {
+      if (a.parts.lens) a.parts.lens.scale.setScalar(1);
+      if (canShoot) {
+        fireMobBolt(a, R);
+        a.shots = (R.burst || 1) - 1;
+        a.gapT = R.gap || 0.2;
+      }
+      a.rangedT = R.every || K.cd;
+    }
+    return;
+  }
+  a.rangedT = Math.max(0, (a.rangedT || 0) - dt);
+  if (canShoot && a.rangedT <= 0) a.chargeT = R.charge;
+}
+function updateMobBolts(dt) {
+  for (let i = MOB_BOLTS.length - 1; i >= 0; i--) {
+    const b = MOB_BOLTS[i],
+      p = b.m.position;
+    b.life -= dt;
+    p.x += b.vx * dt;
+    p.y += b.vy * dt;
+    p.z += b.vz * dt;
+    let dead = b.life <= 0 || isSolid(get(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z)));
+    if (!dead && Math.abs(p.x - P.x) < 0.45 && Math.abs(p.z - P.z) < 0.45 && p.y > P.y && p.y < P.y + 1.85) {
+      if (hurtT <= 0) hurtPlayer(b.dmg, b.ox, b.oz);
+      dead = true;
+    }
+    if (dead) {
+      scene.remove(b.m);
+      MOB_BOLTS.splice(i, 1);
+    }
+  }
+}
 function updateBolts(dt) {
+  updateMobBolts(dt);
   for (let i = BOLTS.length - 1; i >= 0; i--) {
     const b = BOLTS[i];
     b.life -= dt;
@@ -1032,22 +1265,24 @@ function updateMobs(dt) {
       // just lerp toward a free vertical target instead: the player's height when giving chase
       // (clamped to the water column for a lurker, which can't leave its water), or a gentle bob
       // near home otherwise — a bat's cave air pocket is tight, so its bob is much smaller
-      if (a.type === 'sky_raider' || a.type === 'water_lurker' || a.type === 'bat' || a.type === 'pos_twin') {
+      if (a.type === 'sky_raider' || a.type === 'water_lurker' || a.type === 'bat' || a.type === 'pos_twin' || a.type === 'plasma_core') {
         const T = Date.now() / 1000;
         const ty =
-          a.type === 'pos_twin'
-            ? Math.max(a.arena.y + 0.3, aggro ? P.y + 0.4 : a.hy + Math.sin(T * 0.9 + a.ph) * 0.6)
-            : a.type === 'water_lurker'
-              ? aggro
-                ? clamp(P.y, a.wlo + 0.4, a.hy - 0.2)
-                : a.hy - 0.5 + Math.sin(T * 0.5 + a.ph) * 0.3
-              : a.type === 'bat'
+          a.type === 'plasma_core'
+            ? clamp(aggro ? P.y + 0.2 : a.arena.y + 0.5 + Math.sin(T * 0.8 + a.ph) * 0.3, a.arena.y + 0.2, a.arena.y + 1)
+            : a.type === 'pos_twin'
+              ? Math.max(a.arena.y + 0.3, aggro ? P.y + 0.4 : a.hy + Math.sin(T * 0.9 + a.ph) * 0.6)
+              : a.type === 'water_lurker'
                 ? aggro
-                  ? P.y + 0.3
-                  : a.hy + Math.sin(T * 1.4 + a.ph) * 0.4
-                : aggro
-                  ? P.y + 0.5
-                  : a.hy + Math.sin(T * 0.6 + a.ph) * 1.1;
+                  ? clamp(P.y, a.wlo + 0.4, a.hy - 0.2)
+                  : a.hy - 0.5 + Math.sin(T * 0.5 + a.ph) * 0.3
+                : a.type === 'bat'
+                  ? aggro
+                    ? P.y + 0.3
+                    : a.hy + Math.sin(T * 1.4 + a.ph) * 0.4
+                  : aggro
+                    ? P.y + 0.5
+                    : a.hy + Math.sin(T * 0.6 + a.ph) * 1.1;
         p.y += (ty - p.y) * Math.min(1, dt * 3);
       } else {
         const gr = groundAt(nx, nz, p.y + 0.3, false, 2);
@@ -1061,9 +1296,12 @@ function updateMobs(dt) {
       } else if (a.parts.tail) a.parts.tail.rotation.y = Math.sin((Date.now() / 1000) * 4 + a.ph) * 0.4;
       else if (a.parts.ring)
         a.parts.ring.rotation.y += dt * 2.2; // the staked cubes orbit the crystal
+      else if (a.parts.rings)
+        a.parts.rings.forEach((r, i2) => (r.rotation.y += dt * (1.2 + i2 * 0.7))); // the Plasma Core's cage spins
       else p.y += Math.sin(a.walk) * 0.01; // the shadow floats, no legs
       if (a.parts.drill) a.parts.drill.rotation.y += dt * (aggro ? 14 : 3); // the rig's drill never stops
       a.atkT = Math.max(0, (a.atkT || 0) - dt);
+      if (K.ranged) rangedAttack(a, K, aggro, d, dt);
       if (aggro && d < K.atk && hurtT <= 0 && a.atkT <= 0) {
         a.atkT = K.cd;
         hurtPlayer(K.dmg, p.x, p.z);

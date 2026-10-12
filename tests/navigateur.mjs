@@ -181,6 +181,23 @@ if (!combat.gone) await fail('dead mob was not removed from MOBS: ' + JSON.strin
 if (combat.hpAfter !== combat.hpBefore - 3) await fail('hurtPlayer did not reduce hp correctly: ' + JSON.stringify(combat));
 if (combat.hpAfterDeath !== 10 || !combat.atSanctuary) await fail('death did not respawn at the sanctuary with full health: ' + JSON.stringify(combat));
 if (errors.length) await fail('errors during combat');
+// a tower turret charges, fires a bolt along a clear line, and the bolt hurts the player
+const turret = await page.evaluate(() => {
+  const P = mines.P, x = Math.floor(P.x), y = Math.floor(P.y), z = Math.floor(P.z);
+  for (let dz = 1; dz <= 6; dz++) for (let dy = 0; dy <= 2; dy++) mines.commit(`${x},${y + dy},${z + dz}`, 0, null);
+  const t = mines.mkMob('turret', 'test-turret', 0, x + 0.5, y, z + 5.5, null);
+  mines.MOBS.set('test-turret', [t]);
+  hurtT = 0; // no grace left over from the combat test above
+  const hp0 = mines.S.hp;
+  rangedAttack(t, MK.turret, true, 5, 0.1); // starts charging
+  rangedAttack(t, MK.turret, true, 5, 1.0); // charge done: fires
+  const fired = MOB_BOLTS.length;
+  for (let i = 0; i < 40 && MOB_BOLTS.length; i++) updateMobBolts(0.05);
+  mines.MOBS.delete('test-turret');
+  scene.remove(t.g);
+  return { fired, hpLost: hp0 - mines.S.hp };
+});
+if (turret.fired !== 1 || !(turret.hpLost > 0)) await fail('turret: ' + JSON.stringify(turret));
 // the Merge twins: the first one down only goes dormant; both down together ends it and mints the Aegis
 const twins = await page.evaluate(async () => {
   const P = mines.P,
