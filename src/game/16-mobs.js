@@ -51,7 +51,13 @@ const MK = {
   // the network attack event (027_network_attack.sql, syncNetworkAttack below): only exists near the
   // Atrium, only during the hourly window — group-fight weight, not solo-trivial, not boss-tier
   corrupted_node: { n: 'Corrupted Node', hp: 20, dmg: 3.4, sp: 2.6, aggro: 14, atk: 1.3, cd: 0.9, kb: 3, hit: [0.8, 1.8, 0.7] },
+  // the Merge Sanctum's twin bosses (mergeAt(), world.js): a slow, heavy proof-of-work rig and a fast,
+  // floating proof-of-stake crystal. Strike one down and it only falls dormant for TWIN_DOWN seconds:
+  // unless its twin falls too in that window, it rises again. Both must go down together (damageMob).
+  pow_twin: { n: 'Proof-of-Work', hp: 60, dmg: 6, sp: 2.0, aggro: 16, atk: 1.8, cd: 1.2, kb: 2, hit: [1.3, 2.7, 1.1] },
+  pos_twin: { n: 'Proof-of-Stake', hp: 40, dmg: 4, sp: 3.4, aggro: 16, atk: 1.6, cd: 0.8, kb: 3, hit: [1.0, 1.4, 1.0] },
 };
+const TWIN_DOWN = 12;
 // the Genesis Titan's lair: one fixed chunk, far from spawn, like a hand-placed landmark (ruinAt(0, 0)'s
 // special-cased first ruin) rather than resource-distributed like every other mob
 const BOSS_CX = Math.floor((SPAWN.x + 160) / CH),
@@ -250,8 +256,52 @@ function buildMob(a) {
     abox(hd, 0.05, 0.05, 0.02, glow, 0.09, 0.03, 0.17, true);
     parts.tail = pivot(g, 0, 0.4, -0.75);
     abox(parts.tail, 0.22, 0.22, 0.5, scale, 0, 0, -0.2, true, 0.7);
+  } else if (a.type === 'pow_twin') {
+    // a hulking mining rig: an iron furnace body with a glowing grate, a smokestack, a drill for an arm
+    const iron = '#3a2a2a',
+      dark = '#21161a',
+      fire = '#ff8a3d',
+      ember = '#ffd166';
+    abox(g, 0.9, 0.8, 0.7, iron, 0, 1.3, 0);
+    abox(g, 0.56, 0.4, 0.06, dark, 0, 1.25, 0.36);
+    for (const y of [1.14, 1.26, 1.38]) abox(g, 0.48, 0.05, 0.07, fire, 0, y, 0.37, true);
+    abox(g, 0.16, 0.5, 0.16, dark, 0.28, 1.95, -0.2);
+    abox(g, 0.1, 0.06, 0.1, ember, 0.28, 2.22, -0.2, true);
+    const hd = (parts.head = pivot(g, 0, 1.78, 0.05));
+    abox(hd, 0.36, 0.22, 0.3, dark, 0, 0.08, 0);
+    abox(hd, 0.26, 0.06, 0.04, fire, 0, 0.1, 0.16, true);
+    const drill = pivot(g, 0.58, 1.5, 0);
+    abox(drill, 0.2, 0.5, 0.2, iron, 0, -0.25, 0);
+    for (let i = 0; i < 4; i++) abox(drill, 0.22 - i * 0.05, 0.1, 0.22 - i * 0.05, i % 2 ? ember : '#8a7f86', 0, -0.55 - i * 0.1, 0);
+    const claw = pivot(g, -0.58, 1.5, 0);
+    abox(claw, 0.2, 0.6, 0.2, iron, 0, -0.3, 0);
+    parts.drill = drill;
+    for (const x of [-0.22, 0.22]) {
+      const l = pivot(g, x, 0.92, 0);
+      abox(l, 0.24, 0.6, 0.26, dark, 0, -0.3, 0);
+      abox(l, 0.28, 0.3, 0.32, iron, 0, -0.66, 0.02);
+      parts.legs.push(l);
+    }
+  } else if (a.type === 'pos_twin') {
+    // a floating proof-of-stake crystal: a tall lavender shard, a white core, four staked cubes orbiting it
+    const lav = '#c9b8ff',
+      deep = '#8a7bef',
+      core = '#f4f1ff';
+    abox(g, 0.5, 1.1, 0.5, lav, 0, 0.9, 0, true, 0.85);
+    abox(g, 0.34, 0.4, 0.34, deep, 0, 1.6, 0, true, 0.9);
+    abox(g, 0.2, 0.3, 0.2, core, 0, 1.92, 0, true);
+    abox(g, 0.3, 0.3, 0.3, deep, 0, 0.25, 0, true, 0.9);
+    abox(g, 0.18, 0.18, 0.06, core, 0, 1.0, 0.27, true);
+    parts.head = pivot(g, 0, 1.6, 0);
+    const ring = (parts.ring = pivot(g, 0, 1.0, 0));
+    for (let i = 0; i < 4; i++) {
+      const an = (i * Math.PI) / 2;
+      abox(ring, 0.18, 0.18, 0.18, i % 2 ? lav : core, Math.cos(an) * 0.75, 0, Math.sin(an) * 0.75, true);
+    }
   }
   if (a.type === 'titan') g.scale.setScalar(1.6);
+  else if (a.type === 'pow_twin') g.scale.setScalar(1.5);
+  else if (a.type === 'pos_twin') g.scale.setScalar(1.4);
   else if (a.type === 'plasma_core') g.scale.setScalar(1.25);
   a.g = g;
   a.parts = parts;
@@ -437,6 +487,20 @@ function spawnMobChunk(cx, cz) {
         }
       });
       list.push(mkMob('plasma_core', k, 150, t.x + 0.5, t.y + 19, t.z + 0.5, null));
+    }
+  }
+  // the Merge Sanctum's twins (mergeAt(), world.js): proof-of-work on the forge half (west), proof-of-
+  // stake over the crystal half (east), linked so each knows when the other falls; both stay on the disc
+  {
+    const m = mergeAt(Math.floor((x0 + 8) / MERGE), Math.floor((z0 + 8) / MERGE));
+    if (m && cOf(m.x) === cx && cOf(m.z) === cz) {
+      const arena = { x: m.x + 0.5, z: m.z + 0.5, r: MERGE_R - 1.5, y: m.y + 1 },
+        pw = mkMob('pow_twin', k, 160, m.x - 5.5, m.y + 1, m.z + 0.5, null),
+        ps = mkMob('pos_twin', k, 161, m.x + 6.5, m.y + 2.5, m.z + 0.5, null);
+      pw.arena = ps.arena = arena;
+      pw.twin = ps;
+      ps.twin = pw;
+      list.push(pw, ps);
     }
   }
   // the Genesis Titan: a single boss in its own fixed lair (BOSS_CX/BOSS_CZ), not distributed per-chunk
@@ -631,6 +695,23 @@ function damageMob(a, dmg, fromX, fromZ) {
   a.kbx = (dx / dd) * K.kb;
   a.kbz = (dz / dd) * K.kb;
   a.kbT = 0.25;
+  if (a.hp <= 0 && a.twin) {
+    // the Merge twins: the first to fall only goes dormant; if its twin is already dormant, both are
+    // done for good — together, which is the only way they stay down
+    a.hp = 0;
+    Sound.animal(a.type, 1);
+    S.killedMob = 1;
+    dirty = true;
+    if (a.twin.hp > 0) {
+      a.down = TWIN_DOWN;
+      toastInfo(`${MK[a.type].n} falls dormant… strike ${MK[a.twin.type].n} down within ${TWIN_DOWN} s, or it rises again`);
+    } else {
+      a.down = a.twin.down = 0;
+      a.dying = a.twin.dying = 0.4;
+      lootMob('merge_twins');
+    }
+    return;
+  }
   if (a.hp <= 0) {
     a.hp = 0;
     a.dying = 0.4;
@@ -720,6 +801,7 @@ function updateBolts(dt) {
 const BOSS_TOAST = {
   205: () => `The Genesis Titan falls! ${ITEM[205].n} earned — a cape of its own hide. Hold jump while falling to glide.`,
   206: () => `The Plasma Core shatters! ${ITEM[206].n} earned — hold it and click to fire.`,
+  209: () => `The Merge is complete! ${ITEM[209].n} earned — equip it from your chest to shrug off most of a hit.`,
 };
 function lootMob(type) {
   if (SERVER()) {
@@ -752,13 +834,13 @@ function lootMob(type) {
     });
     return;
   }
-  if (type === 'titan' || type === 'plasma_core') {
-    const id = type === 'titan' ? 205 : 206;
+  if (type === 'titan' || type === 'plasma_core' || type === 'merge_twins') {
+    const id = type === 'titan' ? 205 : type === 'plasma_core' ? 206 : 209;
     mintNft(id, null);
     toastInfo(BOSS_TOAST[id]());
     Sound.chime();
     if (Math.random() < 0.2) {
-      const bonusId = type === 'titan' ? 207 : 208;
+      const bonusId = type === 'titan' ? 207 : type === 'plasma_core' ? 208 : 210;
       mintNft(bonusId, null);
       toastInfo(`Bonus drop: ${ITEM[bonusId].n}!`);
       Sound.chime();
@@ -879,6 +961,20 @@ function updateMobs(dt) {
   for (const list of MOBS.values())
     for (let i = list.length - 1; i >= 0; i--) {
       const a = list[i];
+      if (a.hp <= 0 && a.down > 0) {
+        // a dormant Merge twin: shrunk and spinning on the spot, until its window runs out
+        a.down -= dt;
+        a.g.scale.setScalar(0.5);
+        a.g.rotation.y += dt * 3;
+        if (a.down <= 0) {
+          a.down = 0;
+          a.hp = Math.round(MK[a.type].hp * 0.6);
+          a.g.scale.setScalar(a.type === 'pow_twin' ? 1.5 : 1.4);
+          toastInfo(`${MK[a.type].n} rises again — they must fall together`);
+          Sound.animal(a.type, 1);
+        }
+        continue;
+      }
       if (a.hp <= 0) {
         a.dying -= dt;
         a.g.scale.setScalar(Math.max(0, a.dying / 0.4));
@@ -920,26 +1016,38 @@ function updateMobs(dt) {
         nx += a.kbx * dt;
         nz += a.kbz * dt;
       }
+      if (a.arena) {
+        // the twins never leave their disc: pulled back onto it at its edge
+        const ox = nx - a.arena.x,
+          oz = nz - a.arena.z,
+          od = Math.hypot(ox, oz);
+        if (od > a.arena.r) {
+          nx = a.arena.x + (ox / od) * a.arena.r;
+          nz = a.arena.z + (oz / od) * a.arena.r;
+        }
+      }
       p.x = nx;
       p.z = nz;
       // flying (sky_raider, bat) and swimming (water_lurker) mobs skip the ground snap entirely and
       // just lerp toward a free vertical target instead: the player's height when giving chase
       // (clamped to the water column for a lurker, which can't leave its water), or a gentle bob
       // near home otherwise — a bat's cave air pocket is tight, so its bob is much smaller
-      if (a.type === 'sky_raider' || a.type === 'water_lurker' || a.type === 'bat') {
+      if (a.type === 'sky_raider' || a.type === 'water_lurker' || a.type === 'bat' || a.type === 'pos_twin') {
         const T = Date.now() / 1000;
         const ty =
-          a.type === 'water_lurker'
-            ? aggro
-              ? clamp(P.y, a.wlo + 0.4, a.hy - 0.2)
-              : a.hy - 0.5 + Math.sin(T * 0.5 + a.ph) * 0.3
-            : a.type === 'bat'
+          a.type === 'pos_twin'
+            ? Math.max(a.arena.y + 0.3, aggro ? P.y + 0.4 : a.hy + Math.sin(T * 0.9 + a.ph) * 0.6)
+            : a.type === 'water_lurker'
               ? aggro
-                ? P.y + 0.3
-                : a.hy + Math.sin(T * 1.4 + a.ph) * 0.4
-              : aggro
-                ? P.y + 0.5
-                : a.hy + Math.sin(T * 0.6 + a.ph) * 1.1;
+                ? clamp(P.y, a.wlo + 0.4, a.hy - 0.2)
+                : a.hy - 0.5 + Math.sin(T * 0.5 + a.ph) * 0.3
+              : a.type === 'bat'
+                ? aggro
+                  ? P.y + 0.3
+                  : a.hy + Math.sin(T * 1.4 + a.ph) * 0.4
+                : aggro
+                  ? P.y + 0.5
+                  : a.hy + Math.sin(T * 0.6 + a.ph) * 1.1;
         p.y += (ty - p.y) * Math.min(1, dt * 3);
       } else {
         const gr = groundAt(nx, nz, p.y + 0.3, false, 2);
@@ -951,7 +1059,10 @@ function updateMobs(dt) {
         const T = Date.now() / 1000;
         a.parts.wings.forEach((w, i2) => (w.rotation.z = (i2 ? 1 : -1) * (0.3 + Math.sin(T * 8 + a.ph) * 0.5)));
       } else if (a.parts.tail) a.parts.tail.rotation.y = Math.sin((Date.now() / 1000) * 4 + a.ph) * 0.4;
+      else if (a.parts.ring)
+        a.parts.ring.rotation.y += dt * 2.2; // the staked cubes orbit the crystal
       else p.y += Math.sin(a.walk) * 0.01; // the shadow floats, no legs
+      if (a.parts.drill) a.parts.drill.rotation.y += dt * (aggro ? 14 : 3); // the rig's drill never stops
       a.atkT = Math.max(0, (a.atkT || 0) - dt);
       if (aggro && d < K.atk && hurtT <= 0 && a.atkT <= 0) {
         a.atkT = K.cd;

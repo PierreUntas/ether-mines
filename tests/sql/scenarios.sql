@@ -677,4 +677,17 @@ set role authenticated;
 select pg_temp.ok('circuits pay once an AND, an OR and a NOT stand', (act_claim_chapter('w', 'circuits') ->> 'total_gwei')::int = 150);
 reset role;
 select pg_temp.ok('chapter Gwei counts toward the leaderboard', (select gwei_earned from players where user_id = 'c4000000-0000-0000-0000-000000000004') = 150);
+-- the Merge twins (030): a guaranteed Merge Aegis, then chapter 5 pays against it
+reset role;
+delete from rate_limits;
+update players set pos_x = 12.5, pos_y = 33, pos_z = 8.5, pos_at = now() where user_id = 'c4000000-0000-0000-0000-000000000004';
+set role authenticated;
+select pg_temp.ok('chapter 5 needs the Merge Aegis', act_claim_chapter('w', 'merge') ->> 'err' = 'chapter not finished');
+select pg_temp.ok('bringing down the twins mints the Merge Aegis', act_loot_mob('w', 'merge_twins', 12.5, 33, 8.5) -> 'unique' ->> 'id' = '209');
+select pg_temp.ok('a second report right away is rate-limited', act_loot_mob('w', 'merge_twins', 12.5, 33, 8.5) ->> 'err' = 'too many actions');
+reset role;
+delete from rate_limits;
+set role authenticated;
+select pg_temp.ok('chapter 5 pays 600 Gwei', (act_claim_chapter('w', 'merge') ->> 'gwei')::int = 600);
+reset role;
 \echo Chapter scenarios pass.

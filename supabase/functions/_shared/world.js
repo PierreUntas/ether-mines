@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP: below this layer, geodes and large caves
-  const GEN = 23; // generator version: bump it on every terrain change (already-frozen chunks don't move); history in docs/generator-history.md
+  const GEN = 24; // generator version: bump it on every terrain change (already-frozen chunks don't move); history in docs/generator-history.md
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -291,6 +291,30 @@
     if (rg && Math.hypot(rg.x - x, rg.z - z) < 20) return null;
     if (islandZone(x, z) || inCity(x, z, 20) || inCircuits(x, z, 20)) return null;
     return { x, z, y };
+  }
+  // the Merge Sanctum (one per 192x192 region, or none): a floating arena in the sky, half
+  // proof-of-work forge, half proof-of-stake crystal, where the twin bosses wait (16-mobs.js), reached
+  // by the Beacon Stair, a spiral of floating steps on its south side. Its platform's walking surface
+  // stands at MERGE_Y + 1; the stair's foot at the returned (sx, sz).
+  const MERGE = 192,
+    MERGE_Y = DY + 36,
+    MERGE_R = 12;
+  function mergeAt(mx, mz) {
+    if (hash(mx * 13 + 5, mz * 17 + 9, 300) > 0.8) return null;
+    const x = mx * MERGE + 40 + Math.floor(hash(mx, mz, 301) * (MERGE - 80)),
+      z = mz * MERGE + 40 + Math.floor(hash(mx, mz, 302) * (MERGE - 80));
+    if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 110 || heightAt(x, z) > MERGE_Y - 8) return null;
+    if (inCity(x, z, 40) || inCircuits(x, z, 40)) return null;
+    for (let tz = Math.floor((z - 40) / TOWER); tz <= Math.floor((z + 40) / TOWER); tz++)
+      for (let tx = Math.floor((x - 40) / TOWER); tx <= Math.floor((x + 40) / TOWER); tx++) {
+        const t = towerAt(tx, tz);
+        if (t && Math.hypot(t.x - x, t.z - z) < 34) return null;
+      }
+    const sx = x,
+      sz = z + MERGE_R + 5,
+      g = heightAt(sx, sz);
+    if (g >= MERGE_Y - 3) return null;
+    return { x, z, y: MERGE_Y, sx, sz, g: Math.max(g, SEA) };
   }
   // floating islands: rock clouds between DY+31 and DY+45, far from the sanctuary, never above the mountains
   const islandZone = (x, z) =>
@@ -644,6 +668,106 @@
         // spot at the tower's center (src/game/16-mobs.js) — seeded with better-than-average loot the
         // first time it's opened (025_tower_treasure.sql)
         put(tx0 - 3, ty + 20, tz0 - 3, 98);
+      }
+    // the Merge Sanctum (mergeAt()): a floating disc split down the middle, proof-of-work forge to the
+    // west (granite, coral, lanterns), proof-of-stake crystal to the east (marble, lavender, crystal),
+    // a cyan neon seam where they meet, and over its center a two-tone diamond merging into one.
+    // The twin bosses' spots (16-mobs.js) are 6 blocks west and east of the center, on the floor.
+    for (let mz = Math.floor((z0 - 24) / MERGE); mz <= Math.floor((z0 + CH + 24) / MERGE); mz++)
+      for (let mx = Math.floor((x0 - 24) / MERGE); mx <= Math.floor((x0 + CH + 24) / MERGE); mx++) {
+        const m = mergeAt(mx, mz);
+        if (!m) continue;
+        const { x: X, z: Z, y: Y } = m;
+        for (let dx = -14; dx <= 14; dx++)
+          for (let dz = -14; dz <= 14; dz++) {
+            const r = Math.hypot(dx, dz),
+              x = X + dx,
+              z = Z + dz,
+              pow = dx < 0;
+            if (r > 13.5) continue;
+            for (let y = Y + 1; y < SY; y++) put(x, y, z, 0);
+            if (r > MERGE_R + 0.4) continue;
+            // the floor: two halves, a cyan seam, an accent ring, a rim
+            const rim = r > MERGE_R - 0.6;
+            put(
+              x,
+              Y,
+              z,
+              dx === 0 ? 128 : rim ? (pow ? 80 : 15) : r >= 6.5 && r < 7.5 ? (pow ? 27 : 22) : r < 3 && !pow ? 81 : pow ? 80 : 15,
+            );
+            // the underside: a rock cone with ether veins and a crystal tip
+            const depth = Math.floor((MERGE_R + 0.4 - r) * 0.6) + 1;
+            for (let k = 1; k <= depth; k++) put(x, Y - k, z, k === depth && r < 1 ? 83 : hash(x * 3 + k, z, 303) < 0.08 ? 8 : 3);
+            // a low rail around the rim, open to the south where the bridge arrives
+            if (rim && !(dz > 0 && Math.abs(dx) <= 1)) put(x, Y + 1, z, pow ? 35 : 34);
+          }
+        // eight columns, lanterns on top: plain lanterns on the forge side, pink ones on the crystal side
+        for (let k = 0; k < 8; k++) {
+          const an = ((k + 0.5) * Math.PI) / 4,
+            dx = Math.round(Math.cos(an) * 10),
+            dz = Math.round(Math.sin(an) * 10);
+          for (let h = 1; h <= 6; h++) put(X + dx, Y + h, Z + dz, h === 3 ? (dx < 0 ? 27 : 22) : dx < 0 ? 80 : 127);
+          put(X + dx, Y + 7, Z + dz, dx < 0 ? 14 : 84);
+        }
+        // the forge (west) and the crystal obelisk (east), behind each twin's spot
+        for (const [ddx, ddz] of [
+          [0, 0],
+          [0, 1],
+          [0, -1],
+        ]) {
+          put(X - 9 + ddx, Y + 1, Z + ddz, 27);
+          put(X - 9 + ddx, Y + 2, Z + ddz, ddz ? 80 : 14);
+          put(X + 9 + ddx, Y + 1, Z + ddz, 22);
+        }
+        for (let h = 2; h <= 5; h++) put(X + 9, Y + h, Z, 83);
+        // the merging diamond, floating above the center: peach west, lavender east, a diamond-block seam
+        // and a radiant heart where the two halves meet (its tip at Y + 14 = 62, under the world's ceiling)
+        for (let dy = -3; dy <= 3; dy++)
+          for (let dx = -3; dx <= 3; dx++)
+            for (let dz = -3; dz <= 3; dz++)
+              if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) <= 3)
+                put(X + dx, Y + 11 + dy, Z + dz, dx < 0 ? 25 : dx > 0 ? 22 : dy === 0 && dz === 0 ? 145 : 130);
+        // the Beacon Stair: a marble core ringed by floating steps, half a block higher each, from the
+        // ground (or the sea) up to the bridge; the last step is the ring's north-middle cell
+        const { sx, sz } = m,
+          G = m.g + 1,
+          N = 2 * (Y + 1 - G),
+          ring = [];
+        for (let i = -2; i <= 2; i++) ring.push([i, -2]);
+        for (let i = -1; i <= 2; i++) ring.push([2, i]);
+        for (let i = 1; i >= -2; i--) ring.push([i, 2]);
+        for (let i = 1; i >= -1; i--) ring.push([-2, i]);
+        // ring now runs clockwise from the north-west corner; start it at the north-middle cell
+        const start = ring.findIndex(([a, b]) => a === 0 && b === -2);
+        // a marble landing around the stair's foot, so the first step is always half a block up
+        // whatever the ground does there (a slope, a dip, the sea): filled down to the ground, cleared above
+        for (let dx = -3; dx <= 3; dx++)
+          for (let dz = -3; dz <= 3; dz++) {
+            put(sx + dx, G - 1, sz + dz, Math.max(Math.abs(dx), Math.abs(dz)) === 3 ? 22 : 15);
+            for (let y = G - 2; y >= G - 8; y--) {
+              const c = at(sx + dx, y, sz + dz);
+              if (c > 0 && c !== 11) break;
+              put(sx + dx, y, sz + dz, 3);
+            }
+            for (let y = G; y <= G + 3; y++) put(sx + dx, y, sz + dz, 0);
+          }
+        for (let y = m.g - 2; y <= Y; y++)
+          for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) put(sx + dx, y, sz + dz, (y - G) % 8 === 7 ? 22 : 15);
+        for (let i = 0; i < N; i++) {
+          const [dx, dz] = ring[(((start - (N - 1 - i)) % 16) + 16) % 16],
+            s2 = 2 * G + i + 1, // twice the standing height on this step
+            x = sx + dx,
+            z = sz + dz,
+            y = s2 % 2 ? (s2 - 1) / 2 : s2 / 2 - 1;
+          put(x, y, z, s2 % 2 ? 34 : 15);
+          for (let k = 1; k <= 3; k++) put(x, y + k, z, 0);
+        }
+        // the bridge from the last step to the platform's open rim
+        for (let dz = 13; dz <= 14; dz++)
+          for (let dx = -1; dx <= 1; dx++) {
+            put(X + dx, Y, Z + dz, dx ? 15 : 128);
+            for (let k = 1; k <= 3; k++) put(X + dx, Y + k, Z + dz, 0);
+          }
       }
     // the City, column by column (each column depends only on x and z)
     if (inCity(x0 + 8, z0 + 8, 12)) {
@@ -1132,6 +1256,9 @@
     gardenAt,
     towerAt,
     TOWER,
+    mergeAt,
+    MERGE,
+    MERGE_R,
     CITY,
     inCity,
     CIRCUITS,

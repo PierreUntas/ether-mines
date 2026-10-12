@@ -67,7 +67,7 @@ const chapters = await page.evaluate(async () => {
   togglePanel();
   return { seen: !!S.chSeen?.genesis, forge: !!S.chSeen?.['forge:in'], said, hud: document.getElementById('quest').textContent, shown, locked };
 });
-if (!chapters.seen || !chapters.forge || !/Pathfinder/.test(chapters.said) || !/^The Forge/.test(chapters.hud) || chapters.shown !== 5 || chapters.locked !== 2)
+if (!chapters.seen || !chapters.forge || !/Pathfinder/.test(chapters.said) || !/^The Forge/.test(chapters.hud) || chapters.shown !== 6 || chapters.locked !== 3)
   await fail('chapters: ' + JSON.stringify(chapters));
 // shaped blocks: a pressure plate you walk on, a staircase, a cable
 const plate = await page.evaluate(() => {
@@ -181,6 +181,29 @@ if (!combat.gone) await fail('dead mob was not removed from MOBS: ' + JSON.strin
 if (combat.hpAfter !== combat.hpBefore - 3) await fail('hurtPlayer did not reduce hp correctly: ' + JSON.stringify(combat));
 if (combat.hpAfterDeath !== 10 || !combat.atSanctuary) await fail('death did not respawn at the sanctuary with full health: ' + JSON.stringify(combat));
 if (errors.length) await fail('errors during combat');
+// the Merge twins: the first one down only goes dormant; both down together ends it and mints the Aegis
+const twins = await page.evaluate(async () => {
+  const P = mines.P,
+    arena = { x: P.x, z: P.z, r: 10, y: P.y },
+    pw = mines.mkMob('pow_twin', 'test-twins', 0, P.x + 2, P.y, P.z, null),
+    ps = mines.mkMob('pos_twin', 'test-twins', 1, P.x - 2, P.y + 1, P.z, null);
+  pw.arena = ps.arena = arena;
+  pw.twin = ps;
+  ps.twin = pw;
+  mines.MOBS.set('test-twins', [pw, ps]);
+  damageMob(pw, 999, P.x, P.z);
+  const dormant = pw.hp === 0 && pw.down > 0 && !pw.dying && ps.hp > 0;
+  pw.down = 0.3; // let it rise again quickly (one mob tick, without the game loop running)
+  updateMobs(0.5);
+  const rose = pw.hp > 0;
+  damageMob(pw, 999, P.x, P.z);
+  damageMob(ps, 999, P.x, P.z);
+  const both = pw.dying > 0 && ps.dying > 0;
+  await new Promise(r => setTimeout(r, 300));
+  mines.MOBS.delete('test-twins');
+  return { dormant, rose, both, aegis: mines.S.nfts.some(n => n.id === 209) };
+});
+if (!twins.dormant || !twins.rose || !twins.both || !twins.aegis) await fail('merge twins: ' + JSON.stringify(twins));
 // combat v2: the two new mob types build and take damage, armor reduces incoming damage
 const combat2 = await page.evaluate(() => {
   const P = mines.P,

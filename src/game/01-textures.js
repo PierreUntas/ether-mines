@@ -1134,6 +1134,40 @@ function armorIcon(P, E, glow) {
 }
 tile(123, (P, E) => armorIcon(P, E, '#00eaff')); // Volt Plating
 tile(124, (P, E) => armorIcon(P, E, '#c9a6ff')); // Pure Ether Plating
+tile(135, (P, E) => {
+  // Merge Aegis: the plating silhouette, its seam gold, its two halves the twins' colors (peach | lavender)
+  armorIcon(P, E, '#ffd166');
+  for (let y = 3; y < 13; y++)
+    for (let x = 0; x < 16; x++) {
+      if (x === 7 || x === 8) continue;
+      const half = y < 5 ? 6 : y < 10 ? 5 : 4;
+      if (x > 8 - half && x < 7 + half && y > 2 && y < 13 && (x + y) % 3 === 0) P(x, y, x < 8 ? '#ffcfae' : '#c9b8ff');
+    }
+});
+tile(136, (P, E) => {
+  // Difficulty Bomb Fragment: a cracked round shell, a short lit fuse on top
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const d = Math.hypot(x - 7.5, y - 9);
+      if (d > 5.6) {
+        P(x, y, null);
+        continue;
+      }
+      P(x, y, d < 2 ? '#3a2d52' : x < 8 ? '#2a1838' : '#1c1029');
+      if (Math.abs(x - y + 2) < 0.6 && d < 5) {
+        P(x, y, '#ff8a3d');
+        E(x, y, '#ff8a3d');
+      }
+    }
+  for (const [x, y, c] of [
+    [8, 3, '#8a7f86'],
+    [9, 2, '#8a7f86'],
+    [10, 1, '#ffd166'],
+  ]) {
+    P(x, y, c);
+    if (c === '#ffd166') E(x, y, c);
+  }
+});
 tile(125, (P, E, i) => {
   // Pillow: a soft cream cushion with a shadowed fold down the middle.
   noise(P, i, '#fbf6ea', [

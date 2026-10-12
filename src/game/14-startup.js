@@ -181,7 +181,7 @@ function updateArmorVisual(av) {
   const it = ITEM[S.armor];
   av.plate.visible = !!it;
   if (it) {
-    const c = +S.armor === 108 ? 0x00eaff : 0xc9a6ff;
+    const c = +S.armor === 108 ? 0x00eaff : +S.armor === 209 ? 0xffd166 : 0xc9a6ff;
     for (const child of av.plate.children) {
       child.material.color.setHex(c);
       child.material.emissive.setHex(c);

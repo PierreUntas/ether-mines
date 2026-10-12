@@ -245,6 +245,25 @@ QUESTS.push(
     h: 'Climb a tower past the wardens on each floor: the Plasma Core waits at the top, next to its treasure.',
     ok: () => hasNft(206),
   },
+  // chapter 5, The Merge (030_merge_twins.sql)
+  {
+    id: 'mergeVisit',
+    t: 'Climb to the Merge Sanctum',
+    h: 'A floating arena far from the Atrium: the compass points to the nearest. Its Beacon Stair spirals up from the ground.',
+    ok: () => !!S.visitedMerge,
+  },
+  {
+    id: 'mergeTwins',
+    t: 'Bring down the twins together',
+    h: 'Proof-of-Work and Proof-of-Stake guard the sanctum. One struck down rises again after 12 s unless the other falls too.',
+    ok: () => hasNft(209),
+  },
+  {
+    id: 'mergeWear',
+    t: 'Wear the Merge Aegis',
+    h: 'Open your chest, pick the Aegis, and equip it.',
+    ok: () => String(S.armor) === '209',
+  },
 );
 const QBY = Object.fromEntries(QUESTS.map(q => [q.id, q]));
 // ---------- story chapters (029_chapters.sql) ----------
@@ -289,6 +308,16 @@ const CHAPTERS = [
     outro: 'The network stands, and it stands because of you. Wear it proudly, Network Guardian.',
   },
   {
+    id: 'merge',
+    n: 'The Merge',
+    title: 20,
+    gwei: 600,
+    q: ['mergeVisit', 'mergeTwins', 'mergeWear'],
+    intro:
+      'Up in the sky floats a sanctum where work and stake were made one. Its twin guardians never fall alone: strike them down together.',
+    outro: 'Work and stake, merged at last. That aegis was forged for you, Merge Keeper.',
+  },
+  {
     id: 'circuits',
     n: 'Circuits',
     side: 'genesis',
@@ -306,7 +335,7 @@ const chapterOpen = c =>
   c.side ? chapterDone(CHAPTERS.find(o => o.id === c.side)) : MAIN_CHAPTERS.slice(0, MAIN_CHAPTERS.indexOf(c)).every(chapterDone);
 const currentChapter = () => MAIN_CHAPTERS.find(c => !chapterDone(c)) || null;
 // the title shown under your name: the furthest one you hold
-const TITLE_RANK = [18, 17, 16, 19, 15];
+const TITLE_RANK = [20, 18, 17, 16, 19, 15];
 const bestTitle = () => {
   const id = TITLE_RANK.find(t => S.cosmetics.includes(t));
   return id ? COSMETICS[id].n : '';
@@ -832,6 +861,9 @@ function announce(title, sub) {
 function placeHere() {
   if (Math.hypot(P.x - SPAWN.x - 0.5, P.z - SPAWN.z - 0.5) <= 8) return ['The Atrium', 'sanctuary of the first validator'];
   if (inCity(P.x, P.z)) return ['The City', 'under the great diamond'];
+  const mg = mergeAt(Math.floor(P.x / MERGE), Math.floor(P.z / MERGE));
+  if (mg && Math.hypot(mg.x - P.x, mg.z - P.z) < MERGE_R + 1 && P.y > mg.y && P.y < mg.y + 12)
+    return ['The Merge Sanctum', 'where work and stake become one'];
   if (onPath(Math.floor(P.x), Math.floor(P.z), 2)) return ['The validators path', 'from the Atrium to the City'];
   const r = ruinAt(Math.floor(P.x / RUIN), Math.floor(P.z / RUIN));
   if (r && Math.hypot(r.x - P.x, r.z - P.z) < 7 && Math.abs(r.y - P.y) < 8) return ['Old ruins', 'a validator waits here for its heart'];
@@ -848,6 +880,10 @@ function updatePlace() {
     S.visitedCity = 1;
     dirty = true;
   }
+  if (name === 'The Merge Sanctum' && !S.visitedMerge) {
+    S.visitedMerge = 1;
+    dirty = true;
+  }
   if (name === placeSeen) return;
   placeSeen = name;
   if (l) announce(l[0], l[1]);
@@ -857,6 +893,19 @@ function questIndex() {
   const c = currentChapter(),
     id = c && c.q.find(q => !QBY[q].ok());
   return id ? QUESTS.indexOf(QBY[id]) : QUESTS.length;
+}
+function nearestMerge() {
+  const mx = Math.floor(P.x / MERGE),
+    mz = Math.floor(P.z / MERGE);
+  let best = null;
+  for (let dz = -2; dz <= 2; dz++)
+    for (let dx = -2; dx <= 2; dx++) {
+      const m = mergeAt(mx + dx, mz + dz);
+      if (!m) continue;
+      const d = Math.hypot(m.sx + 0.5 - P.x, m.sz + 0.5 - P.z);
+      if (!best || d < best.d) best = { ...m, d };
+    }
+  return best;
 }
 function nearestTower() {
   const tx = Math.floor(P.x / TOWER),
@@ -987,6 +1036,10 @@ function updateQuest(dt) {
   if (q && q.id === 'plasma') {
     const t = nearestTower();
     if (t) html += `<span class="compass">${arrowTo(t.x + 0.5, t.z + 0.5)} tower at ${Math.round(t.d)} m</span>`;
+  }
+  if (q && (q.id === 'mergeVisit' || q.id === 'mergeTwins')) {
+    const m = nearestMerge();
+    if (m) html += `<span class="compass">${arrowTo(m.sx + 0.5, m.sz + 0.5)} sanctum at ${Math.round(m.d)} m</span>`;
   }
   if (S.got[104]) {
     const bx = BOSS_CX * CH + 8.5,
