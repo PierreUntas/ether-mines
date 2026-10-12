@@ -100,6 +100,10 @@ const errors = [];
 page.on('pageerror', e => errors.push(String(e)));
 await page.addInitScript(() => localStorage.setItem('ether-mines:profil', JSON.stringify({ id: 'capture', name: 'Camera', color: '#8a7bef' })));
 await page.route('**/three.min.js', r => r.fulfill({ path: three, contentType: 'application/javascript' }));
+// Bloom post-processing scripts (three/examples/js) come from the local three package, not the CDN.
+await page.route(/\/three@0\.128\.0\/examples\/js\//, (r) =>
+  r.fulfill({ path: join(dirname(three), '..', r.request().url().split('/three@0.128.0/')[1]), contentType: 'application/javascript' }),
+);
 await page.route('**/supabase.js', r => r.fulfill({ body: '', contentType: 'application/javascript' }));
 await page.route('**/src/config.js', r => r.fulfill({ body: 'window.CONFIG={}', contentType: 'application/javascript' }));
 await page.route(/_vercel/, r => r.abort());
