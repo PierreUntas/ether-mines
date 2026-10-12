@@ -259,7 +259,9 @@ insert into public.rule_items (id, name, tool, tier, uniq) values
 (205,'Genesis Titan Fang',1,0,true),
 (206,'Plasma Pistol',1,2,true),
 (207,'Titan Core Shard',1,0,true),
-(208,'Plasma Conduit Core',1,0,true);
+(208,'Plasma Conduit Core',1,0,true),
+(209,'Merge Aegis',1,3,true),
+(210,'Difficulty Bomb Fragment',1,0,true);
 insert into public.rule_recipes (out_item, n, need, uniq) values
 (9,4,'{"5":1}'::jsonb,false),
 (102,1,'{"9":3}'::jsonb,false),
@@ -347,5 +349,6 @@ insert into public.rule_cosmetics (id, name, price, category, grant_item, grant_
 (16,'Smith',0,'title',null,null),
 (17,'Awakener',0,'title',null,null),
 (18,'Network Guardian',0,'title',null,null),
-(19,'Circuit Sage',0,'title',null,null);
+(19,'Circuit Sage',0,'title',null,null),
+(20,'Merge Keeper',0,'title',null,null);
 commit;

@@ -119,6 +119,10 @@
   // farming a boss beyond the first kill.
   ITEM[207] = { n: 'Titan Core Shard', icon: 133, nft: 1 };
   ITEM[208] = { n: 'Plasma Conduit Core', icon: 134, nft: 1 };
+  // v17: the Merge Sanctum's twin bosses (030_merge_twins.sql): the best armor in the game, minted on
+  // every win over both twins together, and a rarer keepsake on top (same ~20% bonus as 026)
+  ITEM[209] = { n: 'Merge Aegis', icon: 135, armor: 0.6, tier: 3, nft: 1 };
+  ITEM[210] = { n: 'Difficulty Bomb Fragment', icon: 136, nft: 1 };
   const reqTier = id => (B[id] ? (B[id].tier ?? (B[id].stone ? 1 : 0)) : 0);
   const RECIPES = [
     { out: 9, n: 4, need: { 5: 1 }, d: 'Cut up a log' },
@@ -306,6 +310,7 @@
     17: { n: 'Awakener', category: 'title', price: 0 },
     18: { n: 'Network Guardian', category: 'title', price: 0 },
     19: { n: 'Circuit Sage', category: 'title', price: 0 },
+    20: { n: 'Merge Keeper', category: 'title', price: 0 }, // v18: chapter 5, the Merge (030_merge_twins.sql)
   };
   // what a placed item becomes: block with the same id, except stairs (4 orientations) and doors (4 orientations, 2 halves)
   function placeIds(it) {

@@ -264,6 +264,22 @@ A second, rarer trophy can also drop on a boss kill — an independent ~20% chan
 guaranteed one (Titan Core Shard, Plasma Conduit Core), purely a keepsake like the main trophy, a reason
 to keep farming a boss past the first kill. See `supabase/migrations/026_boss_bonus_trophies.sql`.
 
+### The Merge Sanctum
+
+A floating arena in the sky (`mergeAt()`, `world.js`; one per 192 × 192 region, the nearest about
+170 blocks west of the Atrium, over the sea), split down the middle: a proof-of-work forge to the west
+(granite, coral, a furnace) and a proof-of-stake crystal half to the east (marble, lavender, a crystal
+obelisk), a cyan seam where they meet and a two-tone diamond merging above the center. The **Beacon
+Stair**, a spiral of floating steps half a block apart around a marble core, climbs from a landing on the
+ground (or the sea) to a bridge on the south side.
+
+It is guarded by twin bosses (`src/game/16-mobs.js`): **Proof-of-Work**, a slow, heavy mining rig, and
+**Proof-of-Stake**, a fast floating crystal with four staked cubes orbiting it. Strike one down and it
+only falls dormant for 12 seconds: unless its twin falls too in that window, it rises again with 60% of
+its health. Both must fall together. They never leave their disc. The win (reported once, as
+`merge_twins`, `030_merge_twins.sql`) mints the **Merge Aegis** (item 209), the best armor in the game
+(−60% damage), and with a ~20% chance a **Difficulty Bomb Fragment** (210) as a keepsake.
+
 ### Tower treasure
 
 Every tower (`towerAt()`, `world.js`) guards a chest on the boss's platform at the top, next to the
@@ -300,13 +316,14 @@ unlocks once the chapter it follows is done; inside a chapter, objectives can be
 | 2 · The Forge | crystal pickaxe, geode, pure ether pickaxe, a weapon, a mob | 100 Gwei · title *Smith* |
 | 3 · The Awakening | genesis rock, validator heart, relight a validator, attest it | 200 Gwei · title *Awakener* |
 | 4 · The Network | 3 validators, a trade, defend the Atrium, the Plasma Core, the Genesis Titan | 400 Gwei · title *Network Guardian* |
+| 5 · The Merge | climb to the Merge Sanctum, bring down both twins together, wear the Merge Aegis | 600 Gwei · title *Merge Keeper* |
 | Side · Circuits (after Genesis) | the five gate builds of the Circuits Complex | 100 Gwei · title *Circuit Sage* |
 
-After chapter 4, the validator milestones (3, 7, 12… 100 relit) take over. Most objectives are client
+After chapter 5, the validator milestones (3, 7, 12… 100 relit) take over. Most objectives are client
 flags, so the reward (`act_claim_chapter`, `029_chapters.sql`) is only paid against proofs the server
 checks itself: a pickaxe for Genesis, the pure ether pickaxe for the Forge, a validator for the
 Awakening, three validators + both boss trophies + a kill during a network attack for the Network, and
-an AND, an OR and a NOT gate placed by you for Circuits. Titles are never-sold cosmetics (ids 15–19);
+an AND, an OR and a NOT gate placed by you for Circuits, the Merge Aegis for the Merge. Titles are never-sold cosmetics (ids 15–19);
 owning one is what marks its chapter as claimed. The furthest title shows under your name for the other
 players. Existing saves keep their progress: what was already done counts, and its rewards are claimed
 on the next online session.
