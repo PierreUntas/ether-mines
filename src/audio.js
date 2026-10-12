@@ -64,10 +64,14 @@
     s.start(t, Math.random() * 1.2);
     s.stop(t + dec + 0.05);
   }
-  function tone(freq, type, peak, dec, t = now(), dest = sfx, slide = 0, a = 0.005) {
+  function tone(freq, type, peak, dec, t = now(), dest = sfx, slide = 0, a = 0.005, bend = 0) {
     const o = ctx.createOscillator();
     o.type = type;
-    o.frequency.setValueAtTime(freq, t);
+    if (bend) {
+      // a quick pitch bend into true pitch right at the attack, like a koto string settling after a pluck
+      o.frequency.setValueAtTime(freq * bend, t);
+      o.frequency.exponentialRampToValueAtTime(freq, t + Math.min(0.05, dec * 0.3));
+    } else o.frequency.setValueAtTime(freq, t);
     if (slide) o.frequency.exponentialRampToValueAtTime(freq * slide, t + dec);
     const g = ctx.createGain();
     env(g, t, a, peak, dec);
@@ -142,7 +146,7 @@
     // player who's heard it drift by in the background recognizes it here on purpose.
     theme() {
       if (!ctx) return;
-      signature(now(), sfx, 0, 0.16, 0.42);
+      signature(now(), sfx, 0, 0.18);
     },
     click() {
       if (!ctx) return;
@@ -256,24 +260,39 @@
         else if (night < 0.4 && Math.random() < 0.8) bird(T);
         else if (night > 0.6) cricket(T);
       }
+      // a distant temple bell, rare enough to stay an event rather than a loop -- about once every
+      // one to three minutes, never underwater (it reads as an outdoor/open-air sound)
+      bellT -= dt;
+      if (bellT <= 0) {
+        bellT = 70 + Math.random() * 110;
+        if (!under) templeBell(T);
+      }
     },
   };
-  // ambiance: sparse piano-like plucks wandering a simple scale, through a generous echo, with long
-  // quiet rests between phrases — closer to the spaced-out, wistful feel of a classic block-game
-  // soundtrack than a continuously sustained pad (replaces the old 4-voice drone).
+  // ambiance: sparse koto-like plucks wandering a hirajoshi scale, through a generous echo, with
+  // long quiet rests between phrases — closer to a zen-garden soundtrack (Hirajoshi: the half-steps
+  // in it, B-C and E-F here, are what read as distinctly Japanese, versus a plain minor/pentatonic
+  // scale) than a continuously sustained pad (replaces the old 4-voice drone, then a first plain
+  // A-minor wander).
   let padLP = null,
-    birdT = 3;
+    birdT = 3,
+    bellT = 60 + Math.random() * 60;
   const ROOT = 220, // A3
-    SCALE = [0, 2, 3, 5, 7, 9, 10], // A natural minor: simple and easy to wander in, a little wistful
-    MOTIF = [0, 3, 7, 5, 0]; // the signature: rises through the A-minor triad, dips, resolves home --
-  // fixed on purpose, unlike the random wander below, so it's the one phrase a player can learn to recognize
+    SCALE = [0, 2, 3, 7, 8], // A hirajoshi: A, B, C, E, F
+    MOTIF = [0, 3, 7, 8]; // the signature's quick rising flourish: A, C, E, F -- lands on the tense
+  // half-step above the fifth, then (see signature() below) a breath of silence before resolving
+  // home. Fixed on purpose, unlike the random wander, so it's the one phrase a player can learn.
   function pluck(T, deg, oct, peak, dest = padLP) {
     const f = ROOT * Math.pow(2, oct) * Math.pow(2, deg / 12);
-    tone(f, 'triangle', peak, 1.8 + Math.random() * 0.8, T, dest, 0, 0.012);
-    tone(f * 2, 'sine', peak * 0.22, 1.1, T, dest, 0, 0.008); // a touch of shimmer on top
+    tone(f, 'triangle', peak, 1.8 + Math.random() * 0.8, T, dest, 0, 0.006, 1.045); // a quick koto-like bend into pitch
+    tone(f * 1.5, 'sine', peak * 0.18, 1.1, T, dest, 0, 0.008); // a fifth above, bell-like rather than a plain octave
   }
-  function signature(T, dest, oct = 0, peak = 0.22, step = 0.46) {
-    MOTIF.forEach((deg, i) => pluck(T + i * step, deg, oct, peak - i * 0.012, dest));
+  // the flourish, then "ma" -- a deliberate breath of silence -- before the note that resolves it
+  // home, held a touch longer and louder: the landing, not just the last note of a scale run
+  function signature(T, dest, oct = 0, peak = 0.22) {
+    const step = 0.2;
+    MOTIF.forEach((deg, i) => pluck(T + i * step, deg, oct, peak - i * 0.01, dest));
+    pluck(T + MOTIF.length * step + 0.85, 0, oct, peak * 1.15, dest);
   }
   function startPad() {
     padLP = ctx.createBiquadFilter();
@@ -302,7 +321,7 @@
       // often enough across a session to become familiar, never so often it stops being special
       if (Math.random() < 0.35) {
         signature(T, padLP, Math.random() < 0.3 ? 1 : 0);
-        setTimeout(phrase, MOTIF.length * 460 + 14000 + Math.random() * 18000);
+        setTimeout(phrase, 1700 + 14000 + Math.random() * 18000); // ~ the motif's own flourish + "ma" + landing
         return;
       }
       const len = 4 + Math.floor(Math.random() * 4), // 4 to 7 notes
@@ -319,6 +338,14 @@
       setTimeout(phrase, (t - T) * 1000 + 14000 + Math.random() * 18000); // a long rest before the next phrase
     }
     setTimeout(phrase, 3000 + Math.random() * 6000); // not the instant you spawn
+  }
+  // a distant struck bell/singing bowl: a low fundamental, a fifth, and a touch of inharmonic
+  // shimmer above it -- the kind of rare, open-air event a zen-garden soundtrack leans on for scale
+  function templeBell(T) {
+    const f = ROOT / 2; // A2, low and resonant
+    tone(f, 'sine', 0.14, 3.4, T, amb, 0, 0.015);
+    tone(f * 1.5, 'sine', 0.05, 2.8, T, amb, 0, 0.015);
+    tone(f * 2.37, 'sine', 0.025, 1.9, T + 0.015, amb, 0, 0.015); // slightly off-harmonic: bowl, not organ
   }
   function bird(T) {
     const n = 2 + Math.floor(Math.random() * 4),
