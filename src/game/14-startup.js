@@ -435,6 +435,10 @@ Net.on('hit', p => {
 let usernameFlagged = false;
 Net.on('status', s => {
   if (s === 'SAVE_ERROR') logEv('burn', 'Save refused by the server', 'check the Supabase schema');
+  if (s === 'USERNAME_REFUSED' && !usernameFlagged) {
+    usernameFlagged = true;
+    logEv('burn', `The nickname "${ME.name}" isn't allowed`, 'pick another one (Escape, then the menu) to save your progress');
+  }
   if (s === 'USERNAME_TAKEN' && !usernameFlagged) {
     usernameFlagged = true;
     logEv(
@@ -824,18 +828,22 @@ $('play').onclick = async () => {
       $('play').disabled = true;
       $('netStatus').textContent = 'Checking nickname…';
       let taken = false,
+        refused = false,
         failure = null;
       try {
-        taken = await Net.isUsernameTaken(world, name);
+        refused = !(await Net.isUsernameAllowed(name));
+        if (!refused) taken = await Net.isUsernameTaken(world, name);
       } catch (e) {
         failure = e;
       }
       $('play').disabled = false;
       $('netStatus').textContent = '';
-      if (taken || failure) {
-        $('netStatus').textContent = taken
-          ? `The nickname "${name}" is already taken in this world. Pick another one. If it's yours on another device, use your recovery code.`
-          : 'Connection failed: ' + (failure.message || failure) + '. Check src/config.js and the schema.';
+      if (refused || taken || failure) {
+        $('netStatus').textContent = refused
+          ? `The nickname "${name}" isn't allowed. Pick another one.`
+          : taken
+            ? `The nickname "${name}" is already taken in this world. Pick another one. If it's yours on another device, use your recovery code.`
+            : 'Connection failed: ' + (failure.message || failure) + '. Check src/config.js and the schema.';
         $('pseudo').focus();
         return;
       }

@@ -703,3 +703,22 @@ set role authenticated;
 select pg_temp.ok('chapter 5 pays 600 Gwei', (act_claim_chapter('w', 'merge') ->> 'gwei')::int = 600);
 reset role;
 \echo Chapter scenarios pass.
+
+-- ---------- nickname filter (031_nickname_filter.sql) ----------
+select pg_temp.ok('a plain nickname passes', is_username_allowed('Pierre') and is_username_allowed('Dickens') and is_username_allowed('Yoshitaka') and is_username_allowed('Hana_57'));
+select pg_temp.ok('a banned word is refused, glued or in leetspeak', not is_username_allowed('xXfuckXx') and not is_username_allowed('B1tch') and not is_username_allowed('Big_Dick') and not is_username_allowed('le.connard'));
+reset role;
+insert into auth.users values ('d5000000-0000-0000-0000-000000000005');
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'd5000000-0000-0000-0000-000000000005', false) \g /dev/null
+do $$ begin
+  insert into players (user_id, world, name) values ('d5000000-0000-0000-0000-000000000005', 'w', 'Sal0pe');
+  raise exception 'FAILED: a banned nickname was saved';
+exception when raise_exception then
+  if sqlerrm not like '%username not allowed%' then raise; end if;
+  raise notice 'ok: a banned nickname is refused when saving';
+end $$;
+insert into players (user_id, world, name) values ('d5000000-0000-0000-0000-000000000005', 'w', 'Ines');
+select pg_temp.ok('a fine nickname saves', (select name from players where user_id = 'd5000000-0000-0000-0000-000000000005') = 'Ines');
+reset role;
+\echo Nickname filter scenarios pass.

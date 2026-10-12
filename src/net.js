@@ -48,6 +48,13 @@ window.Net = (() => {
     const { data, error } = await client().rpc('is_username_taken', { w, uname: name, uid: userId, previous: null });
     return !error && data === true;
   }
+  // does this nickname pass the banned-word filter? (is_username_allowed, 031_nickname_filter.sql)
+  async function isUsernameAllowed(name) {
+    if (!enabled) return true;
+    await auth();
+    const { data, error } = await client().rpc('is_username_allowed', { uname: name });
+    return error ? true : data !== false; // the server's own guard still refuses it on save
+  }
   async function loadPlayer(w) {
     const { data, error } = await client()
       .from('players')
@@ -65,7 +72,15 @@ window.Net = (() => {
       .upsert({ user_id: userId, world: w, name, color, state, updated_at: new Date().toISOString() }, { onConflict: 'user_id,world' });
     if (error) {
       console.error(error);
-      emit('status', /username already taken|players_username/.test(error.message || '') ? 'USERNAME_TAKEN' : 'SAVE_ERROR');
+      const m = error.message || '';
+      emit(
+        'status',
+        /username not allowed/.test(m)
+          ? 'USERNAME_REFUSED'
+          : /username already taken|players_username/.test(m)
+            ? 'USERNAME_TAKEN'
+            : 'SAVE_ERROR',
+      );
       return false;
     }
     return true;
@@ -264,6 +279,7 @@ window.Net = (() => {
     auth,
     loadPlayer,
     isUsernameTaken,
+    isUsernameAllowed,
     savePlayer,
     deletePlayer,
     recoveryCode,
