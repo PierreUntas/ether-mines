@@ -394,15 +394,26 @@ begin
   for i in 1..5 loop
     res := act_loot_mob('w', 'wraith', 12.5, 33, 8.5);
     if (res ->> 'ok')::boolean is true then ok_count := ok_count + 1; end if;
-    if res ->> 'item' is not null then got := true; end if;
   end loop;
   if ok_count <> 5 then raise exception 'FAILED: expected 5 allowed loot rolls (burst), got %', ok_count; end if;
-  if not got then raise exception 'FAILED: wraith never dropped loot over 5 rolls (65%% odds each, ~0.5%% chance)'; end if;
   res := act_loot_mob('w', 'wraith', 12.5, 33, 8.5);
   if res ->> 'err' <> 'too many actions' then raise exception 'FAILED: 6th loot roll should be rate-limited, got %', res; end if;
-  raise notice 'ok: wraith loot drops sometimes, and the rate limit (burst 5) kicks in after';
+  raise notice 'ok: the loot rate limit (burst 5) kicks in after 5 rolls';
 end $$;
 reset role;
+-- the drop itself is random (~55% a roll once 024's Gwei/cosmetic tiers take their share): 40 rolls,
+-- the rate limit cleared between each, so a miss is ~1e-14 instead of the ~2% of 5 rolls (it used to flake)
+do $$
+declare got boolean := false; res jsonb;
+begin
+  for i in 1..40 loop
+    delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_mob';
+    res := act_loot_mob('w', 'wraith', 12.5, 33, 8.5);
+    if res ->> 'item' is not null then got := true; exit; end if;
+  end loop;
+  if not got then raise exception 'FAILED: wraith never dropped an item over 40 rolls'; end if;
+  raise notice 'ok: wraith loot drops an item sometimes';
+end $$;
 delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_mob';
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
@@ -440,15 +451,16 @@ do $$
 declare res jsonb; got_gwei boolean := false; got_cosmetic boolean := false; before_gwei bigint; after_gwei bigint;
 begin
   select gwei into before_gwei from players where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and world = 'w';
-  for i in 1..200 loop
+  for i in 1..600 loop -- stops as soon as both tiers showed up; 600 keeps a miss of the ~3% tier at ~1e-8
     res := act_loot_mob('w', 'wraith', 12.5, 33, 8.5);
     if res ->> 'gwei' is not null then got_gwei := true; end if;
     if res ->> 'cosmetic' is not null then got_cosmetic := true; end if;
+    exit when got_gwei and got_cosmetic;
     if i % 5 = 0 then delete from rate_limits where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and kind = 'loot_mob'; end if;
   end loop;
   select gwei into after_gwei from players where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and world = 'w';
-  if not got_gwei then raise exception 'FAILED: never rolled the rare Gwei tier over 200 kills (~12%% odds each)'; end if;
-  if not got_cosmetic then raise exception 'FAILED: never rolled the epic cosmetic tier over 200 kills (~3%% odds each)'; end if;
+  if not got_gwei then raise exception 'FAILED: never rolled the rare Gwei tier over 600 kills (~12%% odds each)'; end if;
+  if not got_cosmetic then raise exception 'FAILED: never rolled the epic cosmetic tier over 600 kills (~3%% odds each)'; end if;
   if after_gwei <= before_gwei then raise exception 'FAILED: Gwei balance did not increase from rare-tier loot'; end if;
   raise notice 'ok: loot tiers award Gwei and a combat-exclusive cosmetic over enough kills';
 end $$;
