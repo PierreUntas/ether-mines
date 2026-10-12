@@ -1,0 +1,12 @@
+# files the live site doesn't need (local deploys with `vercel` read this, not .gitignore)
+.claude
+.github
+captures
+docs
+legacy
+node_modules
+tests
+tools
+supabase/.temp
+WEB3_SETUP.md
+*.bundle

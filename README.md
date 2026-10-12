@@ -295,6 +295,12 @@ the **Plasma Core** fires bursts of three when you keep your distance, and rams 
 leave along a clear line of sight, and a bolt dies on the first solid block: sidestep it, or put a wall
 between you. Turrets drop nothing of their own (the server's loot tiers still roll on every kill).
 
+Balanced after a first playtest: the tower's floors are tight, so they hold fewer wardens (one on the
+ground floor, one or two above) and slower turrets; the **Genesis Titan**, slow on its feet, now hurls
+chunks of genesis rock when you keep your distance and charges to close the gap; the **Merge twins**
+can't leave their disc, so they're shielded from anyone who isn't standing on it (attacks from the stair
+or the sky do 15% damage), and Proof-of-Stake fires bursts of its own.
+
 ### Tower treasure
 
 Every tower (`towerAt()`, `world.js`) guards a chest on the boss's platform at the top, next to the

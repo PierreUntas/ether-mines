@@ -208,6 +208,14 @@ const twins = await page.evaluate(async () => {
   pw.twin = ps;
   ps.twin = pw;
   mines.MOBS.set('test-twins', [pw, ps]);
+  // shielded from afar: with the disc 50 blocks away, a 10-damage hit only does 1.5
+  const far = { x: P.x + 50, z: P.z, r: 10, y: P.y };
+  pw.arena = ps.arena = far;
+  const hp0 = pw.hp;
+  damageMob(pw, 10, P.x, P.z);
+  const shielded = Math.abs(hp0 - pw.hp - 1.5) < 0.01;
+  pw.hp = hp0;
+  pw.arena = ps.arena = arena;
   damageMob(pw, 999, P.x, P.z);
   const dormant = pw.hp === 0 && pw.down > 0 && !pw.dying && ps.hp > 0;
   pw.down = 0.3; // let it rise again quickly (one mob tick, without the game loop running)
@@ -218,9 +226,9 @@ const twins = await page.evaluate(async () => {
   const both = pw.dying > 0 && ps.dying > 0;
   await new Promise(r => setTimeout(r, 300));
   mines.MOBS.delete('test-twins');
-  return { dormant, rose, both, aegis: mines.S.nfts.some(n => n.id === 209) };
+  return { shielded, dormant, rose, both, aegis: mines.S.nfts.some(n => n.id === 209) };
 });
-if (!twins.dormant || !twins.rose || !twins.both || !twins.aegis) await fail('merge twins: ' + JSON.stringify(twins));
+if (!twins.shielded || !twins.dormant || !twins.rose || !twins.both || !twins.aegis) await fail('merge twins: ' + JSON.stringify(twins));
 // combat v2: the two new mob types build and take damage, armor reduces incoming damage
 const combat2 = await page.evaluate(() => {
   const P = mines.P,

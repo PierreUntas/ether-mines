@@ -24,11 +24,25 @@ const MK = {
   sentinel: { n: 'Geode Sentinel', hp: 14, dmg: 2.6, sp: 2.3, aggro: 12, atk: 1.3, cd: 0.9, kb: 4, hit: [0.6, 1.2, 0.6] },
   wraith: { n: 'Genesis Wraith', hp: 22, dmg: 3.8, sp: 2.4, aggro: 14, atk: 1.5, cd: 1.0, kb: 3, hit: [0.9, 2.1, 0.8] },
   // a single, fixed-location boss (not one-per-chunk like the others): see spawnMobChunk's BOSS_CX/BOSS_CZ check
-  titan: { n: 'Genesis Titan', hp: 90, dmg: 7.5, sp: 2.0, aggro: 17, atk: 1.9, cd: 1.1, kb: 2, hit: [1.6, 3.6, 1.4] },
+  // slow on its feet, so (playtest) easy to whittle down from afar: it now hurls chunks of genesis rock
+  // when you keep your distance, and charges (rush) to close the gap
+  titan: {
+    n: 'Genesis Titan',
+    hp: 120,
+    dmg: 7.5,
+    sp: 2.0,
+    aggro: 20,
+    atk: 1.9,
+    cd: 1.1,
+    kb: 2,
+    hit: [1.6, 3.6, 1.4],
+    rush: { speed: 6.5, time: 1.3, every: 5, min: 6 },
+    ranged: { dmg: 4, speed: 10, charge: 0.6, burst: 1, every: 2.4, min: 5, color: 0xffb347, size: 2.6 },
+  },
   // towers (towerAt(), world.js): a warden per floor on the way up, a Plasma Core at the top —
   // repeatable, unlike the Titan, so every tower has its own — already fast before this pass, so
   // only hp/dmg/cd moved
-  warden: { n: 'Tower Warden', hp: 16, dmg: 3.2, sp: 3.6, aggro: 13, atk: 1.5, cd: 0.8, kb: 3, hit: [0.8, 2.3, 0.7] },
+  warden: { n: 'Tower Warden', hp: 16, dmg: 2.6, sp: 3.0, aggro: 11, atk: 1.5, cd: 1.0, kb: 2, hit: [0.8, 2.3, 0.7] },
   // tower turrets: bolted to a floor (sp 0), they charge then fire a slow bolt you can sidestep or
   // block with a wall — the first enemy that hits from a distance (ranged, see fireMobBolt)
   turret: {
@@ -38,10 +52,10 @@ const MK = {
     sp: 0,
     aggro: 14,
     atk: 0,
-    cd: 2.0,
+    cd: 2.8,
     kb: 0,
     hit: [0.9, 1.5, 0.9],
-    ranged: { dmg: 2.5, speed: 9, charge: 0.7, burst: 1, color: 0x5fe8ff },
+    ranged: { dmg: 1.8, speed: 8, charge: 0.9, burst: 1, color: 0x5fe8ff },
   },
   // floats over its loggia: rams you up close, and from further away fires bursts of plasma bolts
   plasma_core: {
@@ -81,7 +95,18 @@ const MK = {
   // floating proof-of-stake crystal. Strike one down and it only falls dormant for TWIN_DOWN seconds:
   // unless its twin falls too in that window, it rises again. Both must go down together (damageMob).
   pow_twin: { n: 'Proof-of-Work', hp: 60, dmg: 6, sp: 2.0, aggro: 16, atk: 1.8, cd: 1.2, kb: 2, hit: [1.3, 2.7, 1.1] },
-  pos_twin: { n: 'Proof-of-Stake', hp: 40, dmg: 4, sp: 3.4, aggro: 16, atk: 1.6, cd: 0.8, kb: 3, hit: [1.0, 1.4, 1.0] },
+  pos_twin: {
+    n: 'Proof-of-Stake',
+    hp: 40,
+    dmg: 4,
+    sp: 3.4,
+    aggro: 18,
+    atk: 1.6,
+    cd: 0.8,
+    kb: 3,
+    hit: [1.0, 1.4, 1.0],
+    ranged: { dmg: 2.5, speed: 11, charge: 0.4, burst: 2, gap: 0.25, every: 2.2, color: 0xc9b8ff },
+  },
 };
 const TWIN_DOWN = 12;
 // the Genesis Titan's lair: one fixed chunk, far from spawn, like a hand-placed landmark (ruinAt(0, 0)'s
@@ -610,7 +635,9 @@ function spawnMobChunk(cx, cz) {
     const t = towerAt(Math.floor((x0 + 8) / TOWER), Math.floor((z0 + 8) / TOWER));
     if (t && cOf(t.x) === cx && cOf(t.z) === cz) {
       [1, 7, 13].forEach((fy, fi) => {
-        const n = hash(t.x + fi, t.z, 280 + fi) < 0.5 ? 3 : 2; // a bigger room, more wardens to fill it
+        // the floors are tight: one warden on the ground floor, one or two above (playtest: three at once in
+        // that space, plus a turret, left no room to fight back)
+        const n = fi === 0 ? 1 : hash(t.x + fi, t.z, 280 + fi) < 0.5 ? 2 : 1;
         for (let i = 0; i < n; i++) {
           const an = hash(t.x + fi * 3 + i, t.z, 281 + fi * 2 + i) * Math.PI * 2,
             rr = 1.5 + hash(t.x, t.z + fi * 3 + i, 282 + fi * 2 + i) * 3,
@@ -823,7 +850,17 @@ function heldDmg() {
 }
 // shared by melee (attackMob) and the plasma pistol's bolts (hitBolt): hp, knockback away from
 // whatever dealt the hit, death/dying/loot — the only difference is where the hit came from
+// the Merge twins are only vulnerable to someone standing on their disc: shooting them from the stair or
+// the sky (playtest: they can't follow you off it) barely scratches them, and says so once
+let twinShieldToast = 0;
 function damageMob(a, dmg, fromX, fromZ) {
+  if (a.arena && a.twin && Math.hypot(P.x - a.arena.x, P.z - a.arena.z) > a.arena.r + 2.5) {
+    dmg *= 0.15;
+    if (performance.now() - twinShieldToast > 15000) {
+      twinShieldToast = performance.now();
+      toastInfo('The sanctum shields the twins from afar: step onto the disc to really hurt them');
+    }
+  }
   a.hp -= dmg;
   Sound.hit('pierre');
   const K = MK[a.type],
@@ -922,7 +959,7 @@ function fireMobBolt(a, R) {
     dd = Math.hypot(tx - x, ty - y, tz - z) || 1;
   if (!mobBoltMats.has(R.color)) mobBoltMats.set(R.color, new THREE.MeshBasicMaterial({ color: R.color }));
   const m = new THREE.Mesh(boltGeo, mobBoltMats.get(R.color));
-  m.scale.setScalar(1.6);
+  m.scale.setScalar(R.size || 1.6);
   m.position.set(x, y, z);
   scene.add(m);
   MOB_BOLTS.push({
@@ -1230,7 +1267,16 @@ function updateMobs(dt) {
         tx = a.hx + Math.sin(T * 0.3) * 2;
         tz = a.hz + Math.cos(T * 0.23) * 2;
       }
-      const spd = (aggro ? K.sp : K.sp * 0.35) * dt,
+      // a rush (the Titan): a few seconds of sprint toward you when you hang back, then a cooldown
+      if (K.rush) {
+        a.rushCd = Math.max(0, (a.rushCd || 0) - dt);
+        if (a.rushT > 0) a.rushT -= dt;
+        else if (aggro && d > K.rush.min && a.rushCd <= 0) {
+          a.rushT = K.rush.time;
+          a.rushCd = K.rush.every;
+        }
+      }
+      const spd = (aggro ? (a.rushT > 0 ? K.rush.speed : K.sp) : K.sp * 0.35) * dt,
         dx = tx - p.x,
         dz = tz - p.z,
         dd = Math.hypot(dx, dz);
