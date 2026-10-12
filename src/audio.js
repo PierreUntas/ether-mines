@@ -34,6 +34,16 @@
     amb = ctx.createGain();
     amb.gain.value = 0.0;
     amb.connect(master);
+    // a convolution reverb on the ambiance only (sfx stays dry and punchy) -- the same generated
+    // impulse-response trick as L'Atrium (github.com/PierreUntas/latrium, the same author's other
+    // Ethereum-themed cozy game), a proper hall instead of a plain delay
+    const verb = ctx.createConvolver();
+    verb.buffer = impulse(3.2, 2.4);
+    const wet = ctx.createGain();
+    wet.gain.value = 0.45;
+    amb.connect(verb);
+    verb.connect(wet);
+    wet.connect(master);
     // white noise reused by all the sound effects
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 1.5, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
@@ -42,6 +52,16 @@
   }
 
   const now = () => ctx.currentTime;
+  // a short burst of exponentially-decaying stereo noise, used as the reverb's impulse response
+  function impulse(sec, decay) {
+    const len = ctx.sampleRate * sec,
+      buf = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = buf.getChannelData(c);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+    return buf;
+  }
   function env(g, t, a, peak, dec) {
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(peak, t + a);
@@ -141,12 +161,12 @@
       [0, 4, 7, 11, 14].forEach((s, i) => tone(880 * Math.pow(2, s / 12), 'sine', 0.09, 0.9, T + i * 0.06, sfx, 1, 0.01));
     },
     // the game's signature motif, played plainly and loud enough to notice: the first-ever
-    // greeting (src/game/09-animals.js) and a network milestone (06-actions.js) -- the same five
-    // notes the ambiance also wanders into on its own now and then (see signature() below), so a
-    // player who's heard it drift by in the background recognizes it here on purpose.
+    // greeting (src/game/09-animals.js) and a network milestone (06-actions.js) -- the same bells
+    // the ambiance also wanders into on its own now and then (see signature() below), so a player
+    // who's heard it drift by in the background recognizes it here on purpose.
     theme() {
       if (!ctx) return;
-      signature(now(), sfx, 0, 0.18);
+      signature(now(), sfx, 0.16);
     },
     click() {
       if (!ctx) return;
@@ -260,99 +280,95 @@
         else if (night < 0.4 && Math.random() < 0.8) bird(T);
         else if (night > 0.6) cricket(T);
       }
-      // a distant temple bell, rare enough to stay an event rather than a loop -- about once every
-      // one to three minutes, never underwater (it reads as an outdoor/open-air sound)
-      bellT -= dt;
-      if (bellT <= 0) {
-        bellT = 70 + Math.random() * 110;
-        if (!under) templeBell(T);
-      }
+      // the chord pad and music-box bells are self-scheduling (padChord()/scheduleBells() below,
+      // via setTimeout/setInterval, exactly like L'Atrium's own version) -- no dt-driven timer needed here
     },
   };
-  // ambiance: sparse koto-like plucks wandering a hirajoshi scale, through a generous echo, with
-  // long quiet rests between phrases — closer to a zen-garden soundtrack (Hirajoshi: the half-steps
-  // in it, B-C and E-F here, are what read as distinctly Japanese, versus a plain minor/pentatonic
-  // scale) than a continuously sustained pad (replaces the old 4-voice drone, then a first plain
-  // A-minor wander).
+  // ambiance: a slow D-lydian chord pad plus a sparse music-box bell layer, through a convolution
+  // reverb -- ported from L'Atrium (github.com/PierreUntas/latrium), the same author's other
+  // Ethereum-themed cozy game, in place of the previous A-minor/hirajoshi experiments.
   let padLP = null,
     birdT = 3,
-    bellT = 60 + Math.random() * 60;
-  const ROOT = 220, // A3
-    SCALE = [0, 2, 3, 7, 8], // A hirajoshi: A, B, C, E, F
-    // two fixed signatures, picked at random each time (so each plays roughly one time in two) --
-    // mirror images of each other: A rises through the flourish and lands home on the root, a
-    // settled "answer"; B descends the same shape and lands open on the fifth, a "question" left
-    // hanging. Fixed on purpose, unlike the random wander, so they're phrases a player can learn.
+    chordIdx = 0;
+  const midi = n => 440 * Math.pow(2, (n - 69) / 12),
+    // D lydian: D E F# G# A B C# -- four rotating voicings, as in L'Atrium
+    CHORDS = [
+      [50, 57, 62, 64, 69],
+      [47, 54, 57, 62, 66],
+      [43, 50, 57, 61, 66],
+      [45, 52, 57, 59, 64],
+    ],
+    BELL = [74, 76, 78, 81, 83, 85, 86, 88, 90, 93],
+    // the signature: a short, fixed pattern of BELL indices, picked at random between two mirrored
+    // shapes each time (so each plays roughly one time in two) -- one rises and lands on the
+    // lowest bell (a settled "answer"), the other falls and lands a third above it (a "question"
+    // left open). Fixed on purpose, unlike the random sparkle below, so it's a phrase a player can learn.
     MOTIFS = [
-      { notes: [0, 3, 7, 8], home: 0 }, // A, C, E, F -> lands on A
-      { notes: [8, 7, 3, 2], home: 7 }, // F, E, C, B -> lands on E
+      { idx: [0, 2, 4, 6], home: 0 },
+      { idx: [6, 4, 2, 0], home: 2 },
     ];
-  function pluck(T, deg, oct, peak, dest = padLP) {
-    const f = ROOT * Math.pow(2, oct) * Math.pow(2, deg / 12);
-    tone(f, 'triangle', peak, 1.8 + Math.random() * 0.8, T, dest, 0, 0.006, 1.045); // a quick koto-like bend into pitch
-    tone(f * 1.5, 'sine', peak * 0.18, 1.1, T, dest, 0, 0.008); // a fifth above, bell-like rather than a plain octave
+  function bell(n, t, gain = 0.09, dest = amb) {
+    const f = midi(n);
+    tone(f, 'sine', gain, 2.4, t, dest, 0, 0.005);
+    tone(f * 2.01, 'sine', gain * 0.35, 1.2, t, dest, 0, 0.005);
   }
-  // the flourish, then "ma" -- a deliberate breath of silence -- before the note that resolves it
+  // the flourish, then "ma" -- a deliberate breath of silence -- before the bell that resolves it
   // (home or left open, depending which of MOTIFS got picked), held a touch longer and louder: the
-  // landing, not just the last note of a scale run
-  function signature(T, dest, oct = 0, peak = 0.22, which = Math.random() < 0.5 ? 0 : 1) {
-    const { notes, home } = MOTIFS[which],
+  // landing, not just the last note of a run
+  function signature(T, dest, gain = 0.1, which = Math.random() < 0.5 ? 0 : 1) {
+    const { idx, home } = MOTIFS[which],
       step = 0.2;
-    notes.forEach((deg, i) => pluck(T + i * step, deg, oct, peak - i * 0.01, dest));
-    pluck(T + notes.length * step + 0.85, home, oct, peak * 1.15, dest);
+    idx.forEach((k, i) => bell(BELL[k], T + i * step, gain - i * 0.004, dest));
+    bell(BELL[home], T + idx.length * step + 0.85, gain * 1.3, dest);
+  }
+  // one slow chord swell: two detuned voices per note, through the shared lowpass (so tick()'s
+  // day/night/underwater filtering above still brightens or muffles it the same way it already did)
+  function padChord() {
+    const T = now(),
+      ch = CHORDS[chordIdx++ % CHORDS.length];
+    ch.forEach((n, i) => {
+      [-4, 4].forEach(det => {
+        const o = ctx.createOscillator(),
+          g = ctx.createGain();
+        o.type = i === 0 ? 'sine' : 'triangle';
+        o.frequency.value = midi(n);
+        o.detune.value = det;
+        g.gain.setValueAtTime(0, T);
+        g.gain.linearRampToValueAtTime(0.05, T + 3);
+        g.gain.setValueAtTime(0.05, T + 7);
+        g.gain.linearRampToValueAtTime(0, T + 11.5);
+        o.connect(g);
+        g.connect(padLP);
+        o.start(T);
+        o.stop(T + 12);
+      });
+    });
+  }
+  // the music-box sparkle: mostly random bells (occasionally an octave-down one for depth), with
+  // the fixed signature woven in now and then so it stays something a player can recognize
+  function scheduleBells() {
+    const T = now();
+    if (Math.random() < 0.08) signature(T, amb, 0.12);
+    else {
+      if (Math.random() < 0.7) bell(BELL[Math.floor(Math.random() * BELL.length)], T + Math.random() * 0.2);
+      if (Math.random() < 0.25) bell(BELL[Math.floor(Math.random() * BELL.length)] - 12, T + 0.45, 0.07);
+    }
+    setTimeout(scheduleBells, 900 + Math.random() * 1800);
   }
   function startPad() {
     padLP = ctx.createBiquadFilter();
     padLP.type = 'lowpass';
     padLP.frequency.value = 1200;
     padLP.Q.value = 0.3;
-    const pg = ctx.createGain();
-    pg.gain.value = 0.22;
-    padLP.connect(pg);
-    pg.connect(amb);
-    // a generous echo for space — does a lot of the "feels like a soundtrack" work on its own
-    const dl = ctx.createDelay(1.5);
-    dl.delayTime.value = 0.55;
-    const fb = ctx.createGain();
-    fb.gain.value = 0.42;
-    pg.connect(dl);
-    dl.connect(fb);
-    fb.connect(dl);
-    const wet = ctx.createGain();
-    wet.gain.value = 0.6;
-    dl.connect(wet);
-    wet.connect(amb);
-    function phrase() {
-      const T = now();
-      // roughly one phrase in three is the signature motif instead of a random wander -- heard
-      // often enough across a session to become familiar, never so often it stops being special
-      if (Math.random() < 0.35) {
-        signature(T, padLP, Math.random() < 0.3 ? 1 : 0);
-        setTimeout(phrase, 1700 + 14000 + Math.random() * 18000); // ~ the motif's own flourish + "ma" + landing
-        return;
-      }
-      const len = 4 + Math.floor(Math.random() * 4), // 4 to 7 notes
-        oct = Math.random() < 0.3 ? 1 : 0;
-      let t = T,
-        i = SCALE.indexOf(SCALE[Math.floor(Math.random() * SCALE.length)]);
-      for (let n = 0; n < len; n++) {
-        pluck(t, SCALE[i], oct, 0.22 - n * 0.01);
-        t += 0.9 + Math.random() * 1.1;
-        i =
-          (i + (Math.random() < 0.15 ? Math.floor(Math.random() * SCALE.length) : Math.random() < 0.5 ? 1 : -1) + SCALE.length) %
-          SCALE.length;
-      }
-      setTimeout(phrase, (t - T) * 1000 + 14000 + Math.random() * 18000); // a long rest before the next phrase
-    }
-    setTimeout(phrase, 3000 + Math.random() * 6000); // not the instant you spawn
-  }
-  // a distant struck bell/singing bowl: a low fundamental, a fifth, and a touch of inharmonic
-  // shimmer above it -- the kind of rare, open-air event a zen-garden soundtrack leans on for scale
-  function templeBell(T) {
-    const f = ROOT / 2; // A2, low and resonant
-    tone(f, 'sine', 0.14, 3.4, T, amb, 0, 0.015);
-    tone(f * 1.5, 'sine', 0.05, 2.8, T, amb, 0, 0.015);
-    tone(f * 2.37, 'sine', 0.025, 1.9, T + 0.015, amb, 0, 0.015); // slightly off-harmonic: bowl, not organ
+    padLP.connect(amb);
+    setTimeout(
+      () => {
+        padChord();
+        setInterval(padChord, 8000);
+        scheduleBells();
+      },
+      3000 + Math.random() * 6000,
+    ); // not the instant you spawn
   }
   function bird(T) {
     const n = 2 + Math.floor(Math.random() * 4),
