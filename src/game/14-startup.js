@@ -33,29 +33,59 @@ function faceTex(hair) {
   t.generateMipmaps = false;
   return t;
 }
-function nameTag(name, color) {
-  const c = document.createElement('canvas');
+// a floating name plate; a chapter title (029_chapters.sql), when there is one, sits on a second line
+function nameTag(name, color, title) {
+  const c = document.createElement('canvas'),
+    hgt = title ? 92 : 64;
   c.width = 256;
-  c.height = 64;
+  c.height = hgt;
   const x = c.getContext('2d');
   x.font = '600 30px "Pixelify Sans", monospace';
-  const w = Math.min(240, x.measureText(name).width + 44);
+  let w = x.measureText(name).width + 44;
+  if (title) {
+    x.font = '500 20px "Pixelify Sans", monospace';
+    w = Math.max(w, x.measureText(title).width + 28);
+  }
+  w = Math.min(240, w);
   x.fillStyle = 'rgba(28,22,58,.72)';
   x.beginPath();
-  x.roundRect ? x.roundRect(128 - w / 2, 10, w, 44, 12) : x.rect(128 - w / 2, 10, w, 44);
+  x.roundRect ? x.roundRect(128 - w / 2, 10, w, hgt - 20, 12) : x.rect(128 - w / 2, 10, w, hgt - 20);
   x.fill();
   x.fillStyle = color;
   x.beginPath();
   x.arc(128 - w / 2 + 18, 32, 6, 0, Math.PI * 2);
   x.fill();
+  x.font = '600 30px "Pixelify Sans", monospace';
   x.fillStyle = '#f4f1ff';
   x.textBaseline = 'middle';
   x.fillText(name, 128 - w / 2 + 32, 33);
+  if (title) {
+    x.font = '500 20px "Pixelify Sans", monospace';
+    x.fillStyle = '#ffd95e';
+    x.textAlign = 'center';
+    x.fillText(title, 128, 63);
+  }
   const t = new THREE.CanvasTexture(c);
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
-  s.scale.set(1.8, 0.45, 1);
+  s.scale.set(1.8, (0.45 * hgt) / 64, 1);
   s.renderOrder = 10;
   return s;
+}
+// swap an avatar's name plate when its title changes
+function setTagTitle(av, title) {
+  if (!av || (av.title || '') === (title || '')) return;
+  av.title = title || '';
+  const old = av.tag;
+  av.tag = nameTag(av.name, av.color, av.title);
+  av.tag.position.y = av.title ? 2.2 : 2.1;
+  av.g.remove(old);
+  old.material.map.dispose();
+  old.material.dispose();
+  av.g.add(av.tag);
+}
+// your own title, shared with the other players via presence (your own plate stays hidden)
+function updateTitle() {
+  Net.setTitle(bestTitle());
 }
 function makeAvatar(name, color, horsScene) {
   const g = new THREE.Group(),
@@ -332,6 +362,7 @@ function ensureOther(p) {
     o = makeAvatar(p.name || 'Player', p.color || '#8a7bef');
     others.set(p.id, o);
   }
+  if (o && p.title !== undefined) setTagTitle(o, p.title);
   return o;
 }
 // PvP targeting: same aimRay/aniBox/aniV pattern as pickMob/pickAnimal, against the avatar's own silhouette
@@ -1024,6 +1055,7 @@ if (location.hash === '#debug')
     },
     GEN,
     QUESTS,
+    CHAPTERS,
     questIndex,
     ruinAt,
     nearestRuin,

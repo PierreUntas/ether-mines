@@ -147,65 +147,195 @@ function togglePanel() {
 // ---------- objectives: progress ----------
 const hasNft = id => S.nfts.some(n => (n.id || 201) === id);
 const QUESTS = [
-  { t: 'Harvest wood', h: 'Mine a tree trunk, by hand.', ok: () => S.got[5] },
-  { t: 'Craft a wooden pickaxe', h: 'Crafting (E): 3 planks. A log gives 4 planks.', ok: () => S.got[102] },
-  { t: 'Mine an ether crystal', h: 'The blue ore in the rock. Stone is cut with a pickaxe.', ok: () => S.got[101] },
-  { t: 'Forge the crystal pickaxe', h: '2 planks + 3 crystals. Unique item, ×5 mining.', ok: () => hasNft(201) },
+  { id: 'wood', t: 'Harvest wood', h: 'Mine a tree trunk, by hand.', ok: () => S.got[5] },
+  { id: 'wpick', t: 'Craft a wooden pickaxe', h: 'Crafting (E): 3 planks. A log gives 4 planks.', ok: () => S.got[102] },
+  { id: 'crystal', t: 'Mine an ether crystal', h: 'The blue ore in the rock. Stone is cut with a pickaxe.', ok: () => S.got[101] },
+  { id: 'cpick', t: 'Forge the crystal pickaxe', h: '2 planks + 3 crystals. Unique item, ×5 mining.', ok: () => hasNft(201) },
   {
+    id: 'geode',
     t: 'Open a geode',
     h: `Below layer ${DEEP}, in the large caves. Only the crystal pickaxe opens them.`,
     ok: () => S.got[103],
   },
-  { t: 'Forge the pure ether pickaxe', h: '4 pure shards + 4 crystals + 2 planks.', ok: () => hasNft(202) },
+  { id: 'ppick', t: 'Forge the pure ether pickaxe', h: '4 pure shards + 4 crystals + 2 planks.', ok: () => hasNft(202) },
   {
+    id: 'genesis',
     t: 'Reach the genesis rock',
     h: 'Right at the bottom of the world, just above the bedrock. Only the pure ether pickaxe can break it.',
     ok: () => S.got[104],
   },
-  { t: 'Craft a validator heart', h: '1 genesis fragment + 2 pure shards + 4 crystals.', ok: () => S.got[105] },
+  { id: 'heart', t: 'Craft a validator heart', h: '1 genesis fragment + 2 pure shards + 4 crystals.', ok: () => S.got[105] },
   {
+    id: 'relight',
     t: 'Relight an old validator',
     h: 'Follow the compass to the ruins, then right-click (or tap) the dark validator.',
     ok: () => (S.relit || 0) >= 1,
   },
-  { t: 'Defeat a hostile mob', h: 'Shadows lurk in caves, guardians watch dark validators. Fight one off.', ok: () => !!S.killedMob },
-  { t: 'Forge a weapon', h: 'Craft a Volt Blade or a Pure Ether Blade to fight back.', ok: () => !!(S.got[106] || S.got[107]) },
-  { t: 'Sleep through the night', h: 'Place a bed, then use it after dusk to skip to dawn.', ok: () => !!S.slept },
-  { t: 'Trade with another player', h: 'Open Trade, offer something, and have them accept.', ok: () => !!S.traded },
-  { t: 'Reach the City', h: 'Follow the validators path from the Atrium to the great diamond.', ok: () => !!S.visitedCity },
-  { t: 'Pet an animal', h: 'Right-click (or tap) a friendly creature.', ok: () => !!S.petted },
-  { t: 'Earn a Genesis Titan Fang', h: 'Defeat the Genesis Titan in the depths.', ok: () => hasNft(205) },
   {
+    id: 'mob',
+    t: 'Defeat a hostile mob',
+    h: 'Shadows lurk in caves, guardians watch dark validators. Fight one off.',
+    ok: () => !!S.killedMob,
+  },
+  {
+    id: 'weapon',
+    t: 'Forge a weapon',
+    h: 'Craft a Volt Blade or a Pure Ether Blade to fight back.',
+    ok: () => !!(S.got[106] || S.got[107]),
+  },
+  { id: 'sleep', t: 'Sleep through the night', h: 'Place a bed, then use it after dusk to skip to dawn.', ok: () => !!S.slept },
+  { id: 'trade', t: 'Trade with another player', h: 'Open Trade, offer something, and have them accept.', ok: () => !!S.traded },
+  { id: 'city', t: 'Reach the City', h: 'Follow the validators path from the Atrium to the great diamond.', ok: () => !!S.visitedCity },
+  { id: 'pet', t: 'Pet an animal', h: 'Right-click (or tap) a friendly creature.', ok: () => !!S.petted },
+  { id: 'titan', t: 'Earn a Genesis Titan Fang', h: 'Defeat the Genesis Titan in the depths.', ok: () => hasNft(205) },
+  {
+    id: 'attest',
     t: 'Attest a validator',
     h: 'Objectives tab → Validators: visit one of your validators and attest it to collect its Gwei and keep it active.',
     ok: () => !!S.attested,
   },
   {
+    id: 'gateLamp',
     t: 'Light a lamp through a gate',
     h: 'Craft an AND, OR or NOT gate (Crafting, Circuits), then wire it with cable so its output powers a lamp.',
     ok: () => !!S.gateLit,
   },
   {
+    id: 'twoKey',
     t: 'Build a two-key door',
     h: 'Wire two pressure plates into an AND gate, its output into a door: it only opens when both are pressed at once.',
     ok: () => !!S.twoKeyDoor,
   },
   {
+    id: 'blinker',
     t: 'Build a self-oscillating blinker',
     h: "Loop a NOT gate's own output back into its own input with cable: no clock needed, it blinks on its own.",
     ok: () => !!S.gateBlinker,
   },
   {
+    id: 'latch',
     t: 'Build a latch that remembers',
     h: 'Wire an OR gate: one input from a plate, another looped back from its own output, into a lamp. Tap the plate once — it stays lit. A working example stands in the Circuits Complex.',
     ok: () => !!S.gateLatch,
   },
   {
+    id: 'coinFlip',
     t: 'Build a coin flip',
     h: 'Feed a self-oscillating NOT loop and a plate into an AND gate, its output into a latch. A quick tap lands on whichever phase the loop was in — too fast to call.',
     ok: () => !!S.gateCoinFlip,
   },
 ];
+// objectives of the Network chapter (v17), appended after the original list so its order never matters
+QUESTS.push(
+  {
+    id: 'relit3',
+    t: 'Relight three validators',
+    h: 'One dark validator sleeps in each ruin. The compass in the Objectives tab points to the nearest.',
+    ok: () => (S.relit || 0) >= 3,
+  },
+  {
+    id: 'defend',
+    t: 'Defend the Atrium',
+    h: 'Every hour, for its first 10 minutes, corrupted nodes converge on the Atrium. Destroy one.',
+    ok: () => !!S.defended,
+  },
+  {
+    id: 'plasma',
+    t: 'Defeat the Plasma Core',
+    h: 'Climb a tower past the wardens on each floor: the Plasma Core waits at the top, next to its treasure.',
+    ok: () => hasNft(206),
+  },
+);
+const QBY = Object.fromEntries(QUESTS.map(q => [q.id, q]));
+// ---------- story chapters (029_chapters.sql) ----------
+// The objectives grouped into chapters Thea opens and closes. Main chapters unlock one after another;
+// a side chapter unlocks once its "after" chapter is done. Within a chapter, any order. Finishing one
+// claims its reward from the server (Gwei + a title), which pays only against proofs it checks itself.
+const CHAPTERS = [
+  {
+    id: 'genesis',
+    n: 'Genesis',
+    title: 15,
+    gwei: 50,
+    q: ['wood', 'wpick', 'crystal', 'pet', 'city', 'sleep'],
+    outro: 'You found your feet, Pathfinder. But wood won’t cut what lies below. Time to visit the forge.',
+  },
+  {
+    id: 'forge',
+    n: 'The Forge',
+    title: 16,
+    gwei: 100,
+    q: ['cpick', 'geode', 'ppick', 'weapon', 'mob'],
+    intro: 'Crystal answers to crystal. Forge a pickaxe from it, and the geodes deep below will open for you.',
+    outro: 'Pure ether in your hands. Few get this far, Smith. The genesis rock waits at the bottom of the world.',
+  },
+  {
+    id: 'awakening',
+    n: 'The Awakening',
+    title: 17,
+    gwei: 200,
+    q: ['genesis', 'heart', 'relight', 'attest'],
+    intro: 'Under everything lies the genesis rock. Break it, forge a validator heart, and give a dark validator its light back.',
+    outro: 'It’s beating again. One more voice in the network. Keep it attested, Awakener, and it will keep paying you.',
+  },
+  {
+    id: 'network',
+    n: 'The Network',
+    title: 18,
+    gwei: 400,
+    q: ['relit3', 'trade', 'defend', 'plasma', 'titan'],
+    intro:
+      'One validator is a spark. A network is a fire. Relight more, defend the Atrium, and face the guardians of the towers and the depths.',
+    outro: 'The network stands, and it stands because of you. Wear it proudly, Network Guardian.',
+  },
+  {
+    id: 'circuits',
+    n: 'Circuits',
+    side: 'genesis',
+    title: 19,
+    gwei: 100,
+    q: ['gateLamp', 'twoKey', 'blinker', 'latch', 'coinFlip'],
+    intro:
+      'When you have a moment: the Circuits Complex, east of here, has a working example of every gate trick. Copy them, then make your own.',
+    outro: 'AND, OR, NOT… you think in gates now. Circuit Sage suits you.',
+  },
+];
+const MAIN_CHAPTERS = CHAPTERS.filter(c => !c.side);
+const chapterDone = c => c.q.every(id => QBY[id].ok());
+const chapterOpen = c =>
+  c.side ? chapterDone(CHAPTERS.find(o => o.id === c.side)) : MAIN_CHAPTERS.slice(0, MAIN_CHAPTERS.indexOf(c)).every(chapterDone);
+const currentChapter = () => MAIN_CHAPTERS.find(c => !chapterDone(c)) || null;
+// the title shown under your name: the furthest one you hold
+const TITLE_RANK = [18, 17, 16, 19, 15];
+const bestTitle = () => {
+  const id = TITLE_RANK.find(t => S.cosmetics.includes(t));
+  return id ? COSMETICS[id].n : '';
+};
+const CHAPTER_CLAIM = { busy: {}, failedAt: {} };
+async function claimChapter(c) {
+  if (CHAPTER_CLAIM.busy[c.id]) return;
+  CHAPTER_CLAIM.busy[c.id] = 1;
+  const r = await serverAct('claim_chapter', { chapter: c.id }, null, 'chapter reward');
+  CHAPTER_CLAIM.busy[c.id] = 0;
+  if (!r) {
+    CHAPTER_CLAIM.failedAt[c.id] = Date.now();
+    return;
+  }
+  if (!S.cosmetics.includes(+r.cosmetic)) S.cosmetics.push(+r.cosmetic);
+  if (r.total_gwei !== undefined) S.gwei = r.total_gwei;
+  toastInfo(`${c.n} complete: +${r.gwei} Gwei and the title “${COSMETICS[r.cosmetic].n}”`);
+  Sound.chime();
+  updateTitle();
+  dirty = true;
+  ui();
+  if (tab === 'quest' && !$('panel').hidden) renderPanel();
+}
+// Thea's chapter lines, one at a time: an intro and an outro can arrive in the same tick
+const THEA_LINES = [];
+function theaNext() {
+  if (!THEA_LINES.length || !$('dialogue').hidden) return;
+  sayAs(VILLAGERS[0], THEA_LINES.shift());
+}
 const RELIT_GOALS = [3, 7, 12, 20, 30, 50, 75, 100];
 // ---------- the network: the shared goal ----------
 // All the players in the world relight old validators together. At each tier, the great diamond in the sky awakens a bit more.
@@ -722,9 +852,75 @@ function updatePlace() {
   placeSeen = name;
   if (l) announce(l[0], l[1]);
 }
+// the objective shown at the top of the screen: the first one left in the current chapter
 function questIndex() {
-  for (let i = 0; i < QUESTS.length; i++) if (!QUESTS[i].ok()) return i;
-  return QUESTS.length;
+  const c = currentChapter(),
+    id = c && c.q.find(q => !QBY[q].ok());
+  return id ? QUESTS.indexOf(QBY[id]) : QUESTS.length;
+}
+function nearestTower() {
+  const tx = Math.floor(P.x / TOWER),
+    tz = Math.floor(P.z / TOWER);
+  let best = null;
+  for (let dz = -2; dz <= 2; dz++)
+    for (let dx = -2; dx <= 2; dx++) {
+      const t = towerAt(tx + dx, tz + dz);
+      if (!t) continue;
+      const d = Math.hypot(t.x + 0.5 - P.x, t.z + 0.5 - P.z);
+      if (!best || d < best.d) best = { ...t, d };
+    }
+  return best;
+}
+// objectives and chapters reached since the last tick: announced once, rewards claimed from the server
+function progressChapters() {
+  if (!S.qd) {
+    // first run of the chapter system on this save: what's already done is taken as seen, silently
+    // (Thea's own greeting, 14-startup.js, opens Genesis for a brand-new player)
+    S.qd = {};
+    S.chSeen = {};
+    for (const q of QUESTS) if (q.ok()) S.qd[q.id] = 1;
+    for (const c of CHAPTERS) {
+      if (chapterOpen(c)) S.chSeen[c.id + ':in'] = 1;
+      if (chapterDone(c)) S.chSeen[c.id] = 1;
+    }
+    dirty = true;
+  }
+  for (const c of CHAPTERS) {
+    const open = chapterOpen(c);
+    for (const id of c.q) {
+      const q = QBY[id];
+      if (S.qd[id] || !q.ok()) continue;
+      S.qd[id] = 1;
+      dirty = true;
+      if (!open) continue;
+      const left = c.q.filter(o => !QBY[o].ok()).length;
+      logEv('nft', `Objective reached: ${q.t}`, left ? `${c.n}: ${left} left` : `${c.n} complete`);
+      Sound.chime();
+      flashQuest();
+    }
+    if (open && !S.chSeen[c.id + ':in']) {
+      S.chSeen[c.id + ':in'] = 1;
+      dirty = true;
+      if (c.intro) THEA_LINES.push(c.intro);
+      logEv('nft', `New chapter: ${c.n}`, `${c.q.length} objectives · reward ${c.gwei} Gwei and a title`);
+    }
+    if (open && chapterDone(c) && !S.chSeen[c.id]) {
+      S.chSeen[c.id] = 1;
+      dirty = true;
+      if (c.outro) THEA_LINES.push(c.outro);
+      if (!SERVER()) toastInfo(`${c.n} complete! (rewards are paid in an online game)`);
+    }
+    // the reward: claimed once the server's view of your cosmetics is loaded, retried ten minutes after a refusal
+    if (
+      SERVER() &&
+      COSMETICS_LOADED &&
+      chapterDone(c) &&
+      !S.cosmetics.includes(c.title) &&
+      Date.now() - (CHAPTER_CLAIM.failedAt[c.id] || 0) > 600000
+    )
+      claimChapter(c);
+  }
+  theaNext();
 }
 function nearestRuin() {
   const rx = Math.floor(P.x / RUIN),
@@ -771,33 +967,26 @@ function updateQuest(dt) {
     VALIDATORS.t -= 0.4;
     if (VALIDATORS.t <= 0) updateValidators();
   }
-  const i = questIndex();
-  if (S.qi === undefined) S.qi = i;
-  while (S.qi < i) {
-    const q = QUESTS[S.qi];
-    S.qi++;
-    logEv(
-      'nft',
-      `Objective reached: ${q.t}`,
-      S.qi < QUESTS.length ? `next: ${QUESTS[S.qi].t}` : 'what comes next: relight more validators',
-    );
-    Sound.chime();
-    dirty = true;
-    flashQuest();
-  }
-  const el = $('quest');
+  progressChapters();
+  const el = $('quest'),
+    c = currentChapter(),
+    q = QUESTS[questIndex()];
   let html;
-  if (i < QUESTS.length) {
-    const q = QUESTS[i];
-    html = `<b>${i + 1}/${QUESTS.length}</b> ${q.t}`;
+  if (q) {
+    const done = c.q.filter(id => QBY[id].ok()).length;
+    html = `<b>${c.n} ${done}/${c.q.length}</b> ${q.t}`;
   } else {
     const goal = RELIT_GOALS.find(g => g > (S.relit || 0)) || S.relit + 10;
     html = `<b>${S.relit}/${goal}</b> Validators relit`;
   }
   html += `<span class="network" title="Old validators relit by all players">◈ ${NETWORK.n}/${TIERS.find(p => p > NETWORK.n) || NETWORK.n}</span>`;
-  if (i >= QUESTS.length - 2) {
+  if (!q || q.id === 'relight' || q.id === 'relit3') {
     const r = nearestRuin();
     if (r) html += `<span class="compass">${arrowTo(r.x + 0.5, r.z + 0.5)} ruin at ${Math.round(r.d)} m</span>`;
+  }
+  if (q && q.id === 'plasma') {
+    const t = nearestTower();
+    if (t) html += `<span class="compass">${arrowTo(t.x + 0.5, t.z + 0.5)} tower at ${Math.round(t.d)} m</span>`;
   }
   if (S.got[104]) {
     const bx = BOSS_CX * CH + 8.5,
@@ -846,20 +1035,43 @@ function renderQuests(body) {
     body.appendChild(d);
     body.insertAdjacentHTML('beforeend', '<h3 class="cat">Your journey</h3>');
   }
-  const ol = document.createElement('ol');
-  ol.className = 'quests';
-  QUESTS.forEach((q, k) => {
-    ol.insertAdjacentHTML(
-      'beforeend',
-      `<li class="${k < i ? 'done' : k === i ? 'now' : ''}"><strong>${q.t}</strong><span>${k <= i ? q.h : '…'}</span></li>`,
-    );
-  });
-  body.appendChild(ol);
-  if (i >= QUESTS.length - 2) {
+  const cur = currentChapter();
+  for (const c of CHAPTERS) {
+    const open = chapterOpen(c),
+      done = c.q.filter(id => QBY[id].ok()).length,
+      claimed = S.cosmetics.includes(c.title),
+      d = document.createElement('div');
+    d.className = 'chapter' + (open ? '' : ' locked') + (c === cur ? ' now' : '');
+    const status = !open
+      ? `Unlocks after ${CHAPTERS.find(o => o.id === (c.side || MAIN_CHAPTERS[MAIN_CHAPTERS.indexOf(c) - 1].id)).n}`
+      : claimed
+        ? `Complete · title “${COSMETICS[c.title].n}” earned`
+        : done === c.q.length
+          ? SERVER()
+            ? 'Complete · claiming the reward…'
+            : 'Complete · rewards are paid in an online game'
+          : `Reward: ${c.gwei} Gwei and the title “${COSMETICS[c.title].n}”`;
+    d.innerHTML = `<h3>${c.side ? 'Side chapter' : `Chapter ${MAIN_CHAPTERS.indexOf(c) + 1}`} · ${c.n}<b>${done}/${c.q.length}</b></h3><div class="gauge"><i style="width:${(done / c.q.length) * 100}%"></i></div><p class="note">${status}</p>`;
+    if (open && done < c.q.length) {
+      const ol = document.createElement('ol');
+      ol.className = 'quests';
+      let first = true;
+      for (const id of c.q) {
+        const q = QBY[id],
+          ok = q.ok(),
+          now = !ok && first;
+        if (now) first = false;
+        ol.insertAdjacentHTML('beforeend', `<li class="${ok ? 'done' : now ? 'now' : ''}"><strong>${q.t}</strong><span>${q.h}</span></li>`);
+      }
+      d.appendChild(ol);
+    }
+    body.appendChild(d);
+  }
+  if (!cur || ['relight', 'relit3'].includes(QUESTS[i]?.id)) {
     const r = nearestRuin();
     body.insertAdjacentHTML(
       'beforeend',
-      `<p class="qintro">${r ? `Nearest ruin: ${Math.round(r.d)} m, heading ${arrowTo(r.x + 0.5, r.z + 0.5)} (x ${r.x}, z ${r.z}).` : 'No dark ruin nearby.'} Each relit validator earns you one crystal a minute and a unique seal.</p>`,
+      `<p class="qintro">${r ? `Nearest ruin: ${Math.round(r.d)} m, heading ${arrowTo(r.x + 0.5, r.z + 0.5)} (x ${r.x}, z ${r.z}).` : 'No dark ruin nearby.'} Each relit validator earns you Gwei and a unique seal.</p>`,
     );
   }
   body.insertAdjacentHTML(
@@ -982,6 +1194,10 @@ function renderShop(body) {
   const NOT_FOR_SALE = {
     combat: ['Combat trophies', 'Never sold: dropped by tough mobs, rarely.'],
     event: ['Defenders’ trophies', 'Never sold: earned by fighting off the network attack.'],
+    title: [
+      'Titles',
+      'Never sold: each one is earned by finishing a story chapter (Objectives tab), and the furthest shows under your name.',
+    ],
   };
   const cats = [...new Set(Object.values(COSMETICS).map(c => c.category))].sort((a, b) => (a in NOT_FOR_SALE) - (b in NOT_FOR_SALE));
   for (const cat of cats) {
@@ -1004,7 +1220,7 @@ function renderShop(body) {
       }
       d.insertAdjacentHTML(
         'beforeend',
-        `<div><strong>${c.n}</strong><span>${owned ? 'Owned' : NOT_FOR_SALE[cat] ? 'Drop only' : `${c.price} Gwei`}${c.grantItem ? ` · grants ${c.grantQty} × ${nameOf(c.grantItem)}` : ''}</span></div>`,
+        `<div><strong>${c.n}</strong><span>${owned ? 'Owned' : NOT_FOR_SALE[cat] ? (cat === 'title' ? 'Chapter reward' : 'Drop only') : `${c.price} Gwei`}${c.grantItem ? ` · grants ${c.grantQty} × ${nameOf(c.grantItem)}` : ''}</span></div>`,
       );
       const btn = document.createElement('button');
       btn.className = 'b' + (owned ? '' : ' primary');

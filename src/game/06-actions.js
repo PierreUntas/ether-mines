@@ -33,6 +33,7 @@ function revert(rec) {
 const REFUSAL = {
   'tool too weak': () => `you need ${target ? TIER_NAME[reqTier(target.id)] : 'a better tool'}`,
   protected: () => 'protected area',
+  'chapter not finished': () => 'chapter reward on hold: the server doesn’t see its key milestone yet (a pickaxe, a validator, a trophy…)',
   'empty inventory': () => 'none of that item left',
   'needs support': () => 'you need something solid underneath',
   'space occupied': () => 'that spot is occupied',
@@ -137,15 +138,20 @@ async function serverAct(name, args, rec, why) {
     return null;
   }
 }
-let syncing = null;
+let syncing = null,
+  COSMETICS_LOADED = false; // the server's list of owned cosmetics arrived (chapter rewards wait for it)
 function syncInventory() {
   if (!SERVER()) return Promise.resolve();
   if (syncing) return syncing;
-  syncing = Promise.all([Net.loadInventory(), Net.loadCosmetics().catch(() => S.cosmetics)])
+  syncing = Promise.all([Net.loadInventory(), Net.loadCosmetics().catch(() => null)])
     .then(([{ inv, uniques }, cosmetics]) => {
       S.inv = {};
       for (const r of inv) if (r.n > 0) S.inv[r.item] = r.n;
-      S.cosmetics = cosmetics;
+      if (cosmetics) {
+        S.cosmetics = cosmetics;
+        COSMETICS_LOADED = true;
+      }
+      updateTitle();
       S.nfts = uniques.map(u => ({
         serial: u.serial,
         id: u.item,

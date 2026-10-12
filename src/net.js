@@ -140,7 +140,7 @@ window.Net = (() => {
         list = [];
       for (const k in st) {
         const p = st[k][0];
-        if (p) list.push({ id: k, name: p.name, color: p.color });
+        if (p) list.push({ id: k, name: p.name, color: p.color, title: p.title || '' });
       }
       emit('peers', list);
     });
@@ -151,7 +151,7 @@ window.Net = (() => {
         if (status === 'SUBSCRIBED') {
           online = true;
           clearTimeout(t);
-          await ch.track({ name: me.name, color: me.color });
+          await ch.track({ name: me.name, color: me.color, title: me.title || '' });
           resolve();
         }
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
@@ -244,6 +244,12 @@ window.Net = (() => {
     if (error) throw error;
     return data;
   }
+  // the title shown under your name to the other players (presence: re-tracked when it changes)
+  function setTitle(t) {
+    if (!me || (me.title || '') === (t || '')) return;
+    me.title = t || '';
+    if (ch && online) ch.track({ name: me.name, color: me.color, title: me.title }).catch(() => {});
+  }
   const loadClaims = () => readAll('claims', 'cx,cz,owner,owner_name,members', world, ['cx', 'cz']);
 
   // A chunk's original terrain, if it has already been frozen.
@@ -276,6 +282,7 @@ window.Net = (() => {
     loadInventory,
     loadCosmetics,
     loadValidators,
+    setTitle,
     loadClaims,
     fetchChunk,
     loadArea,

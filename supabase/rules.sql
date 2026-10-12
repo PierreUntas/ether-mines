@@ -342,5 +342,10 @@ insert into public.rule_cosmetics (id, name, price, category, grant_item, grant_
 (11,'Wraith Ember Trail',0,'combat',null,null),
 (12,'Sentinel Core Banner',0,'combat',null,null),
 (13,'Deep Golem Plating Trim',0,'combat',null,null),
-(14,'Network Defender Banner',0,'event',null,null);
+(14,'Network Defender Banner',0,'event',null,null),
+(15,'Pathfinder',0,'title',null,null),
+(16,'Smith',0,'title',null,null),
+(17,'Awakener',0,'title',null,null),
+(18,'Network Guardian',0,'title',null,null),
+(19,'Circuit Sage',0,'title',null,null);
 commit;
