@@ -175,6 +175,11 @@
       noise('bandpass', 3000, 4, 0.25, 0.03, T);
       tone(420, 'triangle', 0.08, 0.06, T + 0.03);
     },
+    // the dialogue typewriter's own tick, one per few characters -- ported from L'Atrium
+    blip() {
+      if (!ctx) return;
+      tone(880 + Math.random() * 180, 'triangle', 0.025, 0.05);
+    },
     plate() {
       if (!ctx) return;
       const T = now();

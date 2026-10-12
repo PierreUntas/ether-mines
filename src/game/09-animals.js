@@ -769,6 +769,26 @@ const heartTex = (() => {
   return t;
 })();
 const hearts = [];
+// a typewriter reveal for dialogue text, one Sound.blip() every few characters -- ported from
+// L'Atrium's own dialogue box (github.com/PierreUntas/latrium). Instant for players who've asked
+// for reduced motion.
+const REDUCE_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let typeT = 0;
+function typeLine(p, text, step = 20) {
+  clearInterval(typeT);
+  if (REDUCE_MOTION) {
+    p.textContent = text;
+    return;
+  }
+  p.textContent = '';
+  let i = 0;
+  typeT = setInterval(() => {
+    i++;
+    p.textContent = text.slice(0, i);
+    if (i % 4 === 0 && text[i - 1] !== ' ') Sound.blip();
+    if (i >= text.length) clearInterval(typeT);
+  }, step);
+}
 // talk to a villager: their lines play one at a time, in a bubble at the bottom of the screen
 let saysT = 0;
 function talk(a) {
@@ -777,10 +797,10 @@ function talk(a) {
   const t = typeof h.says[a.rep] === 'function' ? h.says[a.rep]() : h.says[a.rep],
     el = $('dialogue');
   el.innerHTML = `<b style="color:${h.outfit[0]}">${h.name}</b><i>${h.role}</i><p></p>`;
-  el.querySelector('p').textContent = t;
+  typeLine(el.querySelector('p'), t);
   el.hidden = false;
   clearTimeout(saysT);
-  saysT = setTimeout(() => (el.hidden = true), 3500 + t.length * 45);
+  saysT = setTimeout(() => (el.hidden = true), 3500 + t.length * 65); // typing time + reading time
   a.pet = 0.25;
   Sound.animal('villager', 1);
   S.met = S.met || {};
@@ -797,10 +817,10 @@ function greetPlayer() {
     t = h.says[0],
     el = $('dialogue');
   el.innerHTML = `<b style="color:${h.outfit[0]}">${h.name}</b><i>${h.role}</i><p></p>`;
-  el.querySelector('p').textContent = t;
+  typeLine(el.querySelector('p'), t);
   el.hidden = false;
   clearTimeout(saysT);
-  saysT = setTimeout(() => (el.hidden = true), 4500 + t.length * 45);
+  saysT = setTimeout(() => (el.hidden = true), 4500 + t.length * 65);
   Sound.animal('villager', 1);
   Sound.theme();
   S.met = S.met || {};
