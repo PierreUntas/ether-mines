@@ -678,3 +678,72 @@ select pg_temp.ok('circuits pay once an AND, an OR and a NOT stand', (act_claim_
 reset role;
 select pg_temp.ok('chapter Gwei counts toward the leaderboard', (select gwei_earned from players where user_id = 'c4000000-0000-0000-0000-000000000004') = 150);
 \echo Chapter scenarios pass.
+
+-- ---------- validator pools (030_validator_pools.sql): informal groups, a production-tier bonus ----------
+reset role;
+insert into auth.users values ('e1000000-0000-0000-0000-000000000001'), ('e1000000-0000-0000-0000-000000000002'),
+  ('e1000000-0000-0000-0000-000000000003'), ('e1000000-0000-0000-0000-000000000004');
+insert into players (user_id, world, name) values
+  ('e1000000-0000-0000-0000-000000000001', 'w', 'Iris'), ('e1000000-0000-0000-0000-000000000002', 'w', 'Theo'),
+  ('e1000000-0000-0000-0000-000000000003', 'w', 'Mira'), ('e1000000-0000-0000-0000-000000000004', 'w', 'Noor');
+insert into validators (world, x, y, z, owner, owner_name, state, rarity, level, gwei_per_cycle, maintenance_cost, last_cycle_at, last_attested_at) values
+  ('w', 900, 40, 900, 'e1000000-0000-0000-0000-000000000001', 'Iris', 'active', 'common', 1, 40, 5, now(), now()),
+  ('w', 901, 40, 900, 'e1000000-0000-0000-0000-000000000002', 'Theo', 'active', 'common', 1, 30, 5, now(), now());
+delete from rate_limits where kind = 'pool';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'e1000000-0000-0000-0000-000000000001', false) \g /dev/null
+select (act_create_pool('w', 'StakeFriends') ->> 'pool_id')::bigint as pool1 \gset
+select pg_temp.ok('creating a pool succeeds', :pool1 is not null);
+select pg_temp.ok('alone, production is below the first tier: no bonus yet',
+  act_pool_list('w') -> 'pools' -> 0 ->> 'bonus' = '1.0' and (act_pool_list('w') -> 'pools' -> 0 ->> 'production')::int = 35);
+select pg_temp.ok('creating a second pool while already in one is refused', act_create_pool('w', 'Another') ->> 'err' = 'already in a pool');
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'e1000000-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('a second member joins: combined production lands exactly on the first tier (35 + 25 = 60)',
+  (act_join_pool('w', :pool1) ->> 'ok')::boolean);
+select pg_temp.ok('the pool now shows 2 members and a 5% bonus',
+  (act_pool_list('w') -> 'pools' -> 0 ->> 'members')::int = 2 and act_pool_list('w') -> 'pools' -> 0 ->> 'bonus' = '1.05');
+reset role;
+select id as pvid from validators where world = 'w' and owner = 'e1000000-0000-0000-0000-000000000001' \gset
+update validators set last_cycle_at = now() - interval '15 minutes' where id = :pvid;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'e1000000-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('the pool bonus is paid at tick time (3 cycles x 35 net x 1.05 = 110.25, floored to 110)',
+  (act_maintain_validator('w', :pvid) ->> 'gwei')::int = 110);
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'e1000000-0000-0000-0000-000000000003', false) \g /dev/null
+select pg_temp.ok('joining a pool that does not exist is refused', act_join_pool('w', 999999) ->> 'err' = 'unknown pool');
+select pg_temp.ok('a pool name already taken (case-insensitive) is refused', act_create_pool('w', 'stakefriends') ->> 'err' = 'name already taken');
+reset role;
+delete from rate_limits where kind = 'pool'; -- Mira already spent her burst of 2 on the two refused calls above
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'e1000000-0000-0000-0000-000000000003', false) \g /dev/null
+select (act_create_pool('w', 'SoloMira') ->> 'pool_id')::bigint as pool2 \gset
+select pg_temp.ok('Mira''s own pool was actually created (not silently rate-limited)', :pool2 is not null);
+reset role;
+-- fill pool1 to the cap directly (bypassing the join action: only the cap check matters here), with
+-- later joined_at than Theo's so the ownership-reassignment test below still lands on Theo
+insert into auth.users
+  select ('e1000000-0000-0000-0000-0000000001' || g)::uuid from generate_series(10, 15) g;
+insert into pool_members (pool_id, world, user_id, joined_at)
+  select :pool1, 'w', ('e1000000-0000-0000-0000-0000000001' || g)::uuid, now() + interval '1 second' from generate_series(10, 15) g;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'e1000000-0000-0000-0000-000000000004', false) \g /dev/null
+select pg_temp.ok('joining a full pool (8 members) is refused', act_join_pool('w', :pool1) ->> 'err' = 'pool is full');
+reset role;
+delete from rate_limits where kind = 'pool'; -- Iris already spent her burst of 2 on the two create_pool calls above
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'e1000000-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('the owner can leave', (act_leave_pool('w') ->> 'ok')::boolean);
+reset role;
+select pg_temp.ok('ownership passes to the longest-standing remaining member (Theo)',
+  (select owner from validator_pools where id = :pool1) = 'e1000000-0000-0000-0000-000000000002');
+delete from rate_limits where kind = 'pool';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'e1000000-0000-0000-0000-000000000003', false) \g /dev/null
+select pg_temp.ok('the last member leaving deletes the (now empty) pool', (act_leave_pool('w') ->> 'ok')::boolean);
+reset role;
+select pg_temp.ok('pool2 no longer exists', not exists (select 1 from validator_pools where id = :pool2));
+\echo Validator pool scenarios pass.

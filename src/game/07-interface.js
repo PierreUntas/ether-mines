@@ -966,6 +966,8 @@ function updateQuest(dt) {
   if (tab === 'validators' && !$('panel').hidden) {
     VALIDATORS.t -= 0.4;
     if (VALIDATORS.t <= 0) updateValidators();
+    POOLS.t -= 0.4;
+    if (POOLS.t <= 0) updatePools();
   }
   progressChapters();
   const el = $('quest'),
@@ -1119,11 +1121,118 @@ async function upgradeValidator(v, btn) {
   updateValidators();
   ui();
 }
+// ---------- validator pools (mini-guilds, 030_validator_pools.sql): an informal group, one per
+// player, whose combined production unlocks a Gwei bonus for every member's own validators ----------
+const POOLS = { list: [], mine: null, maxMembers: 8, loaded: false, t: 0 };
+const POOL_TIER_LABEL = b => (b > 1 ? `+${Math.round((b - 1) * 100)}%` : '—');
+async function updatePools() {
+  POOLS.t = 20;
+  if (!SERVER()) return;
+  try {
+    const r = await Net.act('pool_list', {});
+    if (!r || !r.ok) return;
+    POOLS.list = r.pools;
+    POOLS.mine = r.mine;
+    POOLS.maxMembers = r.max_members;
+    POOLS.loaded = true;
+  } catch (e) {
+    console.error(e);
+    return;
+  }
+  if (tab === 'validators' && !$('panel').hidden) renderPanel();
+}
+async function createPool(input, btn) {
+  const name = input.value.trim();
+  if (!name) return;
+  if (btn) freezeBtn(btn, 'Creating…');
+  const r = await serverAct('create_pool', { pool_name: name }, null, 'validator pool created');
+  if (r) {
+    toastInfo(`Pool "${r.name}" created.`);
+    Sound.chime();
+  }
+  updatePools();
+  ui();
+}
+async function joinPool(p, btn) {
+  if (btn) freezeBtn(btn, 'Joining…');
+  const r = await serverAct('join_pool', { target_pool: p.id }, null, 'joined a validator pool');
+  if (r) {
+    toastInfo(`Joined "${p.name}".`);
+    Sound.chime();
+  }
+  updatePools();
+  ui();
+}
+async function leavePool(btn) {
+  if (btn) freezeBtn(btn, 'Leaving…');
+  const r = await serverAct('leave_pool', {}, null, 'left a validator pool');
+  if (r) toastInfo('Left the pool.');
+  updatePools();
+  ui();
+}
+function renderPools(body) {
+  if (!POOLS.loaded) {
+    body.insertAdjacentHTML('beforeend', '<p class="qintro">Loading pools…</p>');
+    return;
+  }
+  const mine = POOLS.mine ? POOLS.list.find(p => p.id === POOLS.mine) : null;
+  const box = document.createElement('div');
+  box.className = 'networkBox';
+  if (mine) {
+    box.insertAdjacentHTML(
+      'beforeend',
+      `<h3>${mine.name}</h3>
+       <p>${mine.members}/${POOLS.maxMembers} members${mine.owner_name ? ` · led by ${mine.owner_name}` : ''}</p>
+       <p>${ethIcon} ${mine.production} Gwei/cycle combined · pool bonus ${POOL_TIER_LABEL(mine.bonus)} on every member's own production</p>`,
+    );
+    const br = document.createElement('div');
+    br.className = 'btnrow';
+    const leave = document.createElement('button');
+    leave.className = 'b';
+    leave.textContent = 'Leave pool';
+    leave.onclick = () => leavePool(leave);
+    br.appendChild(leave);
+    box.appendChild(br);
+  } else {
+    box.insertAdjacentHTML(
+      'beforeend',
+      `<h3>Validator pools</h3>
+       <p class="qintro">Pool your validators with other players: once the group's combined production crosses a threshold, every member's own validators earn a Gwei bonus. Informal, open to join, one pool at a time.</p>`,
+    );
+    if (POOLS.list.length) {
+      for (const p of POOLS.list) {
+        const row = document.createElement('p');
+        row.innerHTML = `<b>${p.name}</b> · ${p.members}/${POOLS.maxMembers} · ${ethIcon} ${p.production} Gwei/cycle · ${POOL_TIER_LABEL(p.bonus)} `;
+        const join = document.createElement('button');
+        join.className = 'b';
+        join.textContent = 'Join';
+        join.disabled = p.members >= POOLS.maxMembers;
+        join.onclick = () => joinPool(p, join);
+        row.appendChild(join);
+        box.appendChild(row);
+      }
+    }
+    const form = document.createElement('div');
+    form.className = 'btnrow';
+    const input = document.createElement('input');
+    input.maxLength = 24;
+    input.placeholder = 'New pool name';
+    const create = document.createElement('button');
+    create.className = 'b primary';
+    create.textContent = 'Create a pool';
+    create.onclick = () => createPool(input, create);
+    form.appendChild(input);
+    form.appendChild(create);
+    box.appendChild(form);
+  }
+  body.appendChild(box);
+}
 function renderValidators(body) {
   if (!SERVER()) {
     body.innerHTML = '<p class="qintro">Validators need an online game: their production and upkeep live on the server.</p>';
     return;
   }
+  renderPools(body);
   body.insertAdjacentHTML(
     'beforeend',
     '<p class="qintro">Each validator earns Gwei every cycle (5 minutes), whether you’re watching or not — attest anytime (from anywhere — no need to stand next to it) to collect it. But it also needs a check-in at least once a day: go longer without attesting and it degrades — damaged first, then corrupted (needs a Validator Heart to repair).</p>',
@@ -1142,12 +1251,14 @@ function renderValidators(body) {
   for (const v of VALIDATORS.list) {
     const box = document.createElement('div');
     box.className = 'networkBox validatorCard';
-    const net = Math.max(v.gwei_per_cycle - v.maintenance_cost, 0);
+    const net = Math.max(v.gwei_per_cycle - v.maintenance_cost, 0),
+      mine = POOLS.mine ? POOLS.list.find(p => p.id === POOLS.mine) : null,
+      poolNote = mine && mine.bonus > 1 ? ` (${POOL_TIER_LABEL(mine.bonus)} pool bonus)` : '';
     box.insertAdjacentHTML(
       'beforeend',
       `<h3>${v.rarity[0].toUpperCase() + v.rarity.slice(1)} validator · level ${v.level}</h3>
        <p>${v.x}, ${v.y}, ${v.z} · <span class="pill">${VALIDATOR_STATE_LABEL[v.state]}</span></p>
-       <p>${ethIcon} ${net} Gwei net per cycle (${v.gwei_per_cycle} produced − ${v.maintenance_cost} upkeep)${v.missed_cycles ? ` · ${v.missed_cycles} cycle${v.missed_cycles > 1 ? 's' : ''} missed` : ''}</p>`,
+       <p>${ethIcon} ${net} Gwei net per cycle${poolNote} (${v.gwei_per_cycle} produced − ${v.maintenance_cost} upkeep)${v.missed_cycles ? ` · ${v.missed_cycles} cycle${v.missed_cycles > 1 ? 's' : ''} missed` : ''}</p>`,
     );
     const br = document.createElement('div');
     br.className = 'btnrow';
