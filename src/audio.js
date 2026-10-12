@@ -279,20 +279,27 @@
     bellT = 60 + Math.random() * 60;
   const ROOT = 220, // A3
     SCALE = [0, 2, 3, 7, 8], // A hirajoshi: A, B, C, E, F
-    MOTIF = [0, 3, 7, 8]; // the signature's quick rising flourish: A, C, E, F -- lands on the tense
-  // half-step above the fifth, then (see signature() below) a breath of silence before resolving
-  // home. Fixed on purpose, unlike the random wander, so it's the one phrase a player can learn.
+    // two fixed signatures, picked at random each time (so each plays roughly one time in two) --
+    // mirror images of each other: A rises through the flourish and lands home on the root, a
+    // settled "answer"; B descends the same shape and lands open on the fifth, a "question" left
+    // hanging. Fixed on purpose, unlike the random wander, so they're phrases a player can learn.
+    MOTIFS = [
+      { notes: [0, 3, 7, 8], home: 0 }, // A, C, E, F -> lands on A
+      { notes: [8, 7, 3, 2], home: 7 }, // F, E, C, B -> lands on E
+    ];
   function pluck(T, deg, oct, peak, dest = padLP) {
     const f = ROOT * Math.pow(2, oct) * Math.pow(2, deg / 12);
     tone(f, 'triangle', peak, 1.8 + Math.random() * 0.8, T, dest, 0, 0.006, 1.045); // a quick koto-like bend into pitch
     tone(f * 1.5, 'sine', peak * 0.18, 1.1, T, dest, 0, 0.008); // a fifth above, bell-like rather than a plain octave
   }
   // the flourish, then "ma" -- a deliberate breath of silence -- before the note that resolves it
-  // home, held a touch longer and louder: the landing, not just the last note of a scale run
-  function signature(T, dest, oct = 0, peak = 0.22) {
-    const step = 0.2;
-    MOTIF.forEach((deg, i) => pluck(T + i * step, deg, oct, peak - i * 0.01, dest));
-    pluck(T + MOTIF.length * step + 0.85, 0, oct, peak * 1.15, dest);
+  // (home or left open, depending which of MOTIFS got picked), held a touch longer and louder: the
+  // landing, not just the last note of a scale run
+  function signature(T, dest, oct = 0, peak = 0.22, which = Math.random() < 0.5 ? 0 : 1) {
+    const { notes, home } = MOTIFS[which],
+      step = 0.2;
+    notes.forEach((deg, i) => pluck(T + i * step, deg, oct, peak - i * 0.01, dest));
+    pluck(T + notes.length * step + 0.85, home, oct, peak * 1.15, dest);
   }
   function startPad() {
     padLP = ctx.createBiquadFilter();
