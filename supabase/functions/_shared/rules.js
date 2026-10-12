@@ -299,6 +299,13 @@
     // v16: the network attack event (027_network_attack.sql). Same never-sold shape as "combat":
     // granted only by defending the Atrium during the hourly window, never bought.
     14: { n: 'Network Defender Banner', category: 'event', price: 0 },
+    // v17: story chapters (029_chapters.sql). Titles are never sold: finishing a chapter grants one
+    // (act_claim_chapter), and owning it is what marks the chapter's reward as claimed.
+    15: { n: 'Pathfinder', category: 'title', price: 0 },
+    16: { n: 'Smith', category: 'title', price: 0 },
+    17: { n: 'Awakener', category: 'title', price: 0 },
+    18: { n: 'Network Guardian', category: 'title', price: 0 },
+    19: { n: 'Circuit Sage', category: 'title', price: 0 },
   };
   // what a placed item becomes: block with the same id, except stairs (4 orientations) and doors (4 orientations, 2 halves)
   function placeIds(it) {

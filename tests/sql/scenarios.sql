@@ -644,3 +644,37 @@ select pg_temp.ok('unique items traded, with their history', (select array_agg(r
   = array['6:202:7', '6:203:0', '7:201:42']);
 select pg_temp.ok('claims traded', (select owner_name from claims where world = 'w' and cx = 40 and cz = 40) = 'Gus' and (select owner_name from claims where world = 'w' and cx = 41 and cz = 40) = 'Fanny');
 select pg_temp.ok('offers closed', (select array_agg(status order by id) from offers) = array['accepted', 'declined']);
+
+-- ---------- story chapters (029_chapters.sql): a reward only against proofs the server checks ----------
+reset role;
+insert into auth.users values ('c4000000-0000-0000-0000-000000000004');
+insert into players (user_id, world, name) values ('c4000000-0000-0000-0000-000000000004', 'w', 'Hana');
+delete from rate_limits;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'c4000000-0000-0000-0000-000000000004', false) \g /dev/null
+select pg_temp.ok('claiming a chapter without its proof is refused', act_claim_chapter('w', 'genesis') ->> 'err' = 'chapter not finished');
+select pg_temp.ok('an unknown chapter is refused', act_claim_chapter('w', 'nope') ->> 'err' = 'unknown chapter');
+select pg_temp.ok('a title can''t be bought', act_buy_cosmetic('w', 15) ->> 'err' = 'not for sale');
+reset role;
+insert into inventory values ('c4000000-0000-0000-0000-000000000004', 'w', 102, 1);
+delete from rate_limits;
+set role authenticated;
+select pg_temp.ok('genesis pays 50 Gwei', (act_claim_chapter('w', 'genesis') ->> 'gwei')::int = 50);
+select pg_temp.ok('... and grants the Pathfinder title', exists (select 1 from cosmetics_owned where user_id = 'c4000000-0000-0000-0000-000000000004' and cosmetic_id = 15));
+select pg_temp.ok('a chapter pays only once', act_claim_chapter('w', 'genesis') ->> 'err' = 'already claimed');
+select pg_temp.ok('the forge needs the pure ether pickaxe', act_claim_chapter('w', 'forge') ->> 'err' = 'chapter not finished');
+select pg_temp.ok('the network chapter needs its proofs', act_claim_chapter('w', 'network') ->> 'err' = 'chapter not finished');
+reset role;
+insert into blocks (world, x, y, z, id, placed_by) values
+  ('w', 300, 40, 300, 112, 'c4000000-0000-0000-0000-000000000004'), ('w', 301, 40, 300, 117, 'c4000000-0000-0000-0000-000000000004');
+delete from rate_limits;
+set role authenticated;
+select pg_temp.ok('circuits need all three gate kinds', act_claim_chapter('w', 'circuits') ->> 'err' = 'chapter not finished');
+reset role;
+insert into blocks (world, x, y, z, id, placed_by) values ('w', 302, 40, 300, 122, 'c4000000-0000-0000-0000-000000000004');
+delete from rate_limits;
+set role authenticated;
+select pg_temp.ok('circuits pay once an AND, an OR and a NOT stand', (act_claim_chapter('w', 'circuits') ->> 'total_gwei')::int = 150);
+reset role;
+select pg_temp.ok('chapter Gwei counts toward the leaderboard', (select gwei_earned from players where user_id = 'c4000000-0000-0000-0000-000000000004') = 150);
+\echo Chapter scenarios pass.

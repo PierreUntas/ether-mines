@@ -53,6 +53,22 @@ const res = await page.evaluate((y) => ({ block: mines.get(20, y, 20), inv: mine
 if (res.block !== 0) await fail('the mined block is still there');
 if (res.inv[9] !== 4) await fail('the planks were not crafted: ' + JSON.stringify(res.inv));
 if (errors.length) await fail('errors during play');
+// story chapters: finishing Genesis has Thea close it, opens The Forge and the Circuits side chapter
+const chapters = await page.evaluate(async () => {
+  const S = mines.S, until = async (f, ms) => { const t0 = performance.now(); while (!f() && performance.now() - t0 < ms) await new Promise(r => setTimeout(r, 200)); };
+  mines.playing = true;
+  await until(() => S.qd, 10000); // the chapter system has taken stock of this save
+  Object.assign(S.got, { 5: 1, 101: 1, 102: 1 });
+  Object.assign(S, { petted: 1, visitedCity: 1, slept: 1 });
+  await until(() => /Pathfinder/.test(document.getElementById('dialogue').textContent), 25000);
+  const said = document.getElementById('dialogue').textContent;
+  openTab('quest');
+  const shown = document.querySelectorAll('#panel .chapter').length, locked = document.querySelectorAll('#panel .chapter.locked').length;
+  togglePanel();
+  return { seen: !!S.chSeen?.genesis, forge: !!S.chSeen?.['forge:in'], said, hud: document.getElementById('quest').textContent, shown, locked };
+});
+if (!chapters.seen || !chapters.forge || !/Pathfinder/.test(chapters.said) || !/^The Forge/.test(chapters.hud) || chapters.shown !== 5 || chapters.locked !== 2)
+  await fail('chapters: ' + JSON.stringify(chapters));
 // shaped blocks: a pressure plate you walk on, a staircase, a cable
 const plate = await page.evaluate(() => {
   const P = mines.P, x = Math.floor(P.x) + 6, z = Math.floor(P.z) + 6;

@@ -637,6 +637,7 @@ function damageMob(a, dmg, fromX, fromZ) {
     Sound.animal(a.type, 1);
     lootMob(a.type);
     S.killedMob = 1;
+    if (a.type === 'corrupted_node') S.defended = 1;
     dirty = true;
   }
 }
