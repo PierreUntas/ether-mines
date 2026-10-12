@@ -115,6 +115,12 @@ if (!water) await fail('unable to get out of the water on a one-block bank');
 // villagers and companions of the Atrium, dialogue bubble, view from behind then from the front, character in the chest
 const life = await page.evaluate(async () => {
   const P = mines.P; P.x = 8.5; P.z = 15.5; P.y = 33.05; P.vy = 0;
+  // physics off from here on: this position sits near the edge of the Atrium's protected radius, and
+  // the water test above left mines.playing on -- a single janky frame (a slow tab, a loaded machine)
+  // can produce a bigger-than-usual physics step that drifts the player just outside the sanctuary
+  // during the next ~30s of waiting, exposing them to a wandering hostile mob and flaking the combat
+  // assertions below, which don't need real physics anyway (they call hurtPlayer/mkMob directly)
+  mines.playing = false;
   const t0 = performance.now();
   let l = [];
   while (performance.now() - t0 < 30000) {

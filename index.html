@@ -126,6 +126,18 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- Bloom post-processing: r128's non-module "examples/js" build (classic scripts attaching to the
+     THREE global), matching the pinned three.min.js version exactly -- cdnjs only mirrors three.js's
+     core build, not its examples, so these come from jsdelivr's raw npm mirror instead. Order matters:
+     EffectComposer.js defines THREE.Pass first (RenderPass/ShaderPass/UnrealBloomPass all extend it
+     at parse time); ShaderPass/CopyShader are only used inside EffectComposer's own constructor
+     (runtime, not parse time), but loaded here anyway for one explicit, unambiguous order. -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="src/config.js"></script>
 <script src="src/net.js"></script>
