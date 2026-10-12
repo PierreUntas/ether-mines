@@ -812,6 +812,16 @@ function talk(a) {
 // a brand-new arrival's very first moment: Thea speaks before the player has to go find and click
 // anyone (14-startup.js's S.seen.intro) — her own fixed opening line, the same dialogue bubble talk()
 // uses, just without needing a live villager instance to already be loaded nearby.
+// a villager speaks without being clicked (Thea's chapter lines, 07-interface.js's THEA_LINES)
+function sayAs(h, t) {
+  const el = $('dialogue');
+  el.innerHTML = `<b style="color:${h.outfit[0]}">${h.name}</b><i>${h.role}</i><p></p>`;
+  el.querySelector('p').textContent = t;
+  el.hidden = false;
+  clearTimeout(saysT);
+  saysT = setTimeout(() => (el.hidden = true), 4500 + t.length * 45);
+  Sound.animal('villager', 1);
+}
 function greetPlayer() {
   const h = VILLAGERS[0],
     t = h.says[0],

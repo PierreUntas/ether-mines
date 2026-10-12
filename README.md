@@ -24,7 +24,7 @@ A block world in Ethereum's colors, built with friends in the browser. You mine,
 - **Construction**: pastel concrete (8 colors), stained glass (4), slabs, stairs oriented by your facing direction, doors spanning two blocks (right-click to open), fences and panes that connect to their neighbors, ladders (walk or jump into them to climb, crouch to hold still), chests to store items (right-click to open, crouch to place a block against one; inside a plot, only the owner and their invites can open them). You can step up onto slabs and stairs without jumping.
 - **Circuits made of blocks**: lever and pressure plate (sources), ether cable, lamp and powered door. The current is recomputed continuously around the player and is never saved: only the levers' state is. A plate activates under any player, including a friend.
 - **Logic gates** (Crafting, Circuits): AND (both sides powered), OR (one side or the back), NOT (active as long as the back isn't) and a clock (ticks every second). A gate is placed like a staircase: its output points in the direction you were facing, an arrow marks it on top. They chain together and with cables, enabling code locks, blinkers, or traps.
-- **Progression**: a thread of objectives (button at the top of the screen, O key or Objectives tab) and four tool tiers. Your hand can't cut stone; the wooden pickaxe cuts stone and ore; the crystal pickaxe (unique item) opens geodes; the pure ether pickaxe (unique item) cuts the genesis rock, at the bottom of the world, which gives genesis fragments. With a fragment, shards, and crystals, you forge a validator heart.
+- **Progression**: objectives grouped into story chapters (button at the top of the screen, O key or Objectives tab, see "Story chapters" below) and four tool tiers. Your hand can't cut stone; the wooden pickaxe cuts stone and ore; the crystal pickaxe (unique item) opens geodes; the pure ether pickaxe (unique item) cuts the genesis rock, at the bottom of the world, which gives genesis fragments. With a fragment, shards, and crystals, you forge a validator heart.
 - **Old validators**: a ruin with a dark validator per 80 × 80-block region (the first about forty meters from the sanctuary). Your objective's compass leads to the nearest one. Relighting it with a heart puts it under your name, rolls its rarity (common to legendary), and gives you a validator seal (unique item) as a keepsake. A validator you place yourself works the same way, always common. See "Validators and Gwei" below for the production loop.
 - **Animals**: ether sheep (plains), rabbits (dunes, plains, forests), pink foxes (forests), prism fish (oceans), sky jellyfish (around floating islands). Right-click or short tap to pet them: once a day, a sheep offers ether wool (a block), a fox a flower, a jellyfish a pure shard. They're placed and moved based on the seed and the time: every player sees them in the same spot, with no network traffic.
 - **Rendering**: Three.js r128, pixel art textures generated in code, cast shadows (disabled on mobile), an 8-minute day/night cycle, blocks that glow at night, rippling water, fireflies at night, a placement effect, avatars that breathe and sway while walking.
@@ -287,6 +287,29 @@ time, the cosmetic. The event always resolves automatically (lazily, like `_tick
 even with zero kills — no punishment for nobody's timezone, but a successful defense is worth much more.
 A running, server-wide defense score (`network_score`) never resets and recolors the great diamond in
 the sky at each tier it crosses. See `supabase/migrations/027_network_attack.sql`.
+
+### Story chapters
+
+The objectives (`QUESTS`, `07-interface.js`) are grouped into chapters (`CHAPTERS`) that Thea, the Atrium's
+guardian, opens and closes with a line each. Main chapters unlock one after another; a side chapter
+unlocks once the chapter it follows is done; inside a chapter, objectives can be done in any order.
+
+| Chapter | Objectives | Reward |
+| --- | --- | --- |
+| 1 · Genesis | wood, wooden pickaxe, crystal, pet an animal, reach the City, sleep | 50 Gwei · title *Pathfinder* |
+| 2 · The Forge | crystal pickaxe, geode, pure ether pickaxe, a weapon, a mob | 100 Gwei · title *Smith* |
+| 3 · The Awakening | genesis rock, validator heart, relight a validator, attest it | 200 Gwei · title *Awakener* |
+| 4 · The Network | 3 validators, a trade, defend the Atrium, the Plasma Core, the Genesis Titan | 400 Gwei · title *Network Guardian* |
+| Side · Circuits (after Genesis) | the five gate builds of the Circuits Complex | 100 Gwei · title *Circuit Sage* |
+
+After chapter 4, the validator milestones (3, 7, 12… 100 relit) take over. Most objectives are client
+flags, so the reward (`act_claim_chapter`, `029_chapters.sql`) is only paid against proofs the server
+checks itself: a pickaxe for Genesis, the pure ether pickaxe for the Forge, a validator for the
+Awakening, three validators + both boss trophies + a kill during a network attack for the Network, and
+an AND, an OR and a NOT gate placed by you for Circuits. Titles are never-sold cosmetics (ids 15–19);
+owning one is what marks its chapter as claimed. The furthest title shows under your name for the other
+players. Existing saves keep their progress: what was already done counts, and its rewards are claimed
+on the next online session.
 
 ### The leaderboard monument
 
