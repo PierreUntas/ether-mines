@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP: below this layer, geodes and large caves
-  const GEN = 22; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example; 12: new seed; the Circuits Complex, its own standalone landmark with 5 separate rooms, replaces the in-City workshop; 13: towers, guarded by mobs with a boss at the top; 14: towers were far too sparse (8.5% of eligible regions, nearest ~264m from spawn) — loosened the height ceiling, flatness tolerance, and dropped the dunes exclusion, purely additive; 15: towers enlarged (7x7/4-tall -> 9x9/5-tall, too cramped to fight in); 16: towers enlarged again (9x9/5-tall -> 13x13/6-tall), more wardens per floor; 17: towers re-skinned futuristic — polished granite + cyan-neon trim, holo-screen windows, neon floor grid; 18: towers' entrance gap replaced with a real closed door; 19: a treasure chest on the boss's platform; 20: the validators' path graded flat (several iterations); 21: the Atrium/City/Circuits plateaus fall off into the natural terrain over a much wider band, so the edge of their flat ground doesn't land on a steep bit of the mountain noise; 22: towers re-skinned again — marble-column corners and granite/marble banding like the City's own facades, crowned with a faceted Ether Diamond spire instead of a flat roof, so they read as Ethereum landmarks instead of generic sci-fi bunkers) : bump it on every terrain change (already-frozen chunks don't move)
+  const GEN = 23; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example; 12: new seed; the Circuits Complex, its own standalone landmark with 5 separate rooms, replaces the in-City workshop; 13: towers, guarded by mobs with a boss at the top; 14: towers were far too sparse (8.5% of eligible regions, nearest ~264m from spawn) — loosened the height ceiling, flatness tolerance, and dropped the dunes exclusion, purely additive; 15: towers enlarged (7x7/4-tall -> 9x9/5-tall, too cramped to fight in); 16: towers enlarged again (9x9/5-tall -> 13x13/6-tall), more wardens per floor; 17: towers re-skinned futuristic — polished granite + cyan-neon trim, holo-screen windows, neon floor grid; 18: towers' entrance gap replaced with a real closed door; 19: a treasure chest on the boss's platform; 20: the validators' path graded flat (several iterations); 21: the Atrium/City/Circuits plateaus fall off into the natural terrain over a much wider band, so the edge of their flat ground doesn't land on a steep bit of the mountain noise; 22: towers re-skinned again — marble-column corners and granite/marble banding like the City's own facades, crowned with a faceted Ether Diamond spire instead of a flat roof, so they read as Ethereum landmarks instead of generic sci-fi bunkers; 23: towers rebuilt as an octagonal validator beacon, the Ether diamond on each face, an open loggia around the boss, the door on the north side) : bump it on every terrain change (already-frozen chunks don't move)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -525,68 +525,121 @@
         const t = towerAt(tx, tz);
         if (!t) continue;
         const { x: tx0, z: tz0, y: ty } = t,
-          LADX = 5,
-          LADZ = -5; // the climbing ladder's fixed interior column
-        // a clean foundation and a hollow interior, regardless of the natural terrain underneath — a
-        // neon grid in the floor, like the City's own streets, instead of plain ancient-ruin marble
+          LADX = 4,
+          LADZ = -4; // the climbing ladder's fixed interior column, against the north-east chamfer
+        // The validator beacon: an octagonal lighthouse in the City's palette — a checkered-marble base,
+        // a lavender body ringed with cyan neon at each floor, stained-glass slits, an open loggia at the
+        // top where the Plasma Core waits, and the Ether diamond crowning the roof as a beacon seen from afar.
+        // Footprint: the 13x13 square with chamfered corners (an octagon), the corners left as a low plinth.
+        const inOct = (dx, dz) => Math.max(Math.abs(dx), Math.abs(dz)) <= 6 && Math.abs(dx) + Math.abs(dz) <= 9;
         for (let dx = -6; dx <= 6; dx++)
           for (let dz = -6; dz <= 6; dz++) {
-            put(tx0 + dx, ty, tz0 + dz, dx % 3 === 0 || dz % 3 === 0 ? 128 : 80);
-            for (let k = 1; k <= 24; k++) put(tx0 + dx, ty + k, tz0 + dz, 0);
-          }
-        // walls: marble-column corners (the same material the City's own colonnades stand on, not a
-        // plain neon pole), granite/marble banded by floor like the City's facades, a neon ring at
-        // each floor line, an entrance gap (with its own lit frame) on the south side, and two glowing
-        // holo-screen windows per floor on the other three sides
-        for (let dx = -6; dx <= 6; dx++)
-          for (let dz = -6; dz <= 6; dz++) {
-            if (Math.max(Math.abs(dx), Math.abs(dz)) !== 6) continue;
-            const entrance = dz === 6 && dx === 0,
-              corner = Math.abs(dx) === 6 && Math.abs(dz) === 6,
-              doorFrame = dz === 6 && (dx === -1 || dx === 1);
+            const ax = Math.abs(dx),
+              az = Math.abs(dz);
+            for (let k = 1; k <= 30; k++) put(tx0 + dx, ty + k, tz0 + dz, 0);
+            if (!inOct(dx, dz)) {
+              // the corners outside the octagon: a two-step marble plinth
+              put(tx0 + dx, ty, tz0 + dz, 15);
+              if (ax + az <= 10) put(tx0 + dx, ty + 1, tz0 + dz, 34);
+              continue;
+            }
+            put(tx0 + dx, ty, tz0 + dz, dx % 3 === 0 || dz % 3 === 0 ? 128 : 80); // neon grid floor
+            const ring = ax === 6 || az === 6 || ax + az === 9;
+            if (!ring) continue;
+            const vertex = (ax === 6 && az === 3) || (ax === 3 && az === 6),
+              faceMid = (ax === 6 && dz === 0) || (az === 6 && dx === 0),
+              face = (ax === 6 && az < 3) || (az === 6 && ax < 3), // the four flat faces, between their corner columns
+              along = ax === 6 ? dz : dx,
+              chamfer = ax + az === 9 && ax !== 6 && az !== 6,
+              front = dz === -6; // the entrance faces north, toward the way players arrive from the sanctuary
             for (let k = 1; k <= 24; k++) {
-              const window =
-                (k === 4 || k === 10 || k === 16 || k === 22) &&
-                ((dz === -6 && (dx === -2 || dx === 2)) || (dx === 6 && (dz === -2 || dz === 2)) || (dx === -6 && (dz === -2 || dz === 2)));
-              if (entrance && k <= 2) {
-                put(tx0 + dx, ty + k, tz0 + dz, k === 1 ? 48 : 49); // a closed door, not an open gap: mobs roam outside too, same convention as the shelter/Circuits Complex doors
-                continue;
-              }
-              if (window) {
-                put(tx0 + dx, ty + k, tz0 + dz, 129);
-                continue;
-              }
-              const band = k === 6 || k === 12 || k === 18 || k === 24; // a ring at the roofline too, right under the spire
-              if (band || (doorFrame && k <= 2)) {
-                put(tx0 + dx, ty + k, tz0 + dz, 128);
-                continue;
-              }
-              if (corner) {
-                put(tx0 + dx, ty + k, tz0 + dz, 127);
-                continue;
-              }
-              put(tx0 + dx, ty + k, tz0 + dz, Math.floor((k - 1) / 6) % 2 === 0 ? 80 : 81);
+              let id;
+              if (front && dx === 0 && k <= 2)
+                id = k === 1 ? 48 : 49; // the closed door, like the shelter's
+              else if (front && ax === 1 && k <= 3)
+                id = 127; // door jambs
+              else if (front && ax <= 1 && k === 3) id = 128;
+              else if (k === 24 || k === 23)
+                id = 15; // cornice and loggia lintel
+              else if (vertex)
+                id = 127; // marble columns at the octagon's corners, base to roof
+              else if (k >= 19)
+                id = k === 19 ? 15 : k === 20 ? 34 : 0; // the open loggia: a floor edge, a low marble rail, open above
+              else if (k === 6 || k === 12 || k === 18)
+                id = 128; // a neon ring at each floor line
+              else if (k <= 5)
+                id = faceMid && (k === 3 || k === 4) ? 30 : 81; // checkered-marble base
+              else if (face && Math.abs(along) / 2.5 + Math.abs(k - 12) / 5.5 <= 1)
+                id = 22; // the Ether diamond on each face, split by the neon ring like the logo
+              else if (chamfer && k % 6 === 3)
+                id = 29; // pink glass on the chamfers
+              else id = 15; // a white marble body
+              put(tx0 + dx, ty + k, tz0 + dz, id);
             }
           }
-        // floor platforms at the top of floors 1-3 (floor 4, the boss's, stays open under the spire), a
-        // gap left clear for the ladder
-        for (const k of [7, 13, 19])
+        // the entrance stair: a marble doorstep level with the floor, then marble steps down to the natural
+        // ground (or up, if the ground in front is higher), so the door can always be reached by walking
+        {
+          const step = (z, top, id) => {
+            for (let dx = -1; dx <= 1; dx++) {
+              const x = tx0 + dx;
+              for (let y = Math.min(top - 1, heightAt(x, z)); y < top; y++) put(x, y, z, 15); // fill under the step
+              put(x, top, z, id);
+              for (let k = 1; k <= 3; k++) put(x, top + k, z, 0); // head room through trees or a slope
+            }
+          };
+          step(tz0 - 7, ty, 15);
+          // a stair at level L climbs from standing height L to L + 1: going out from the door, each next stair is a
+          // block lower (ground falling away) or higher (ground rising), until the ground beyond can be walked
+          // onto; a slope too steep for six steps gets a level passage cut into it instead
+          const stand = z => heightAt(tx0, z) + 1,
+            dir = Math.sign(stand(tz0 - 8) - (ty + 1));
+          if (Math.abs(stand(tz0 - 13) - (ty + 1)) > 6 && dir > 0)
+            for (let i = 8; i <= 13; i++) step(tz0 - i, ty, 15); // a level passage into the hillside
+          else if (dir)
+            for (let j = 0; j < 6; j++) {
+              const z = tz0 - 8 - j,
+                L = dir < 0 ? ty - j : ty + 1 + j;
+              step(z, L, dir < 0 ? 42 : 40);
+              const beyond = stand(z - 1);
+              if (dir < 0 ? beyond >= L : beyond <= L + 1) break; // the ground beyond meets the stair
+            }
+        }
+        // floor platforms (floors 1-3) and the boss's platform, a gap left for the ladder; the roof above
+        for (const k of [7, 13, 19, 24])
           for (let dx = -5; dx <= 5; dx++)
             for (let dz = -5; dz <= 5; dz++) {
-              if (dx === LADX && dz === LADZ) continue;
-              put(tx0 + dx, ty + k, tz0 + dz, 80);
+              if (!inOct(dx, dz) || Math.abs(dx) + Math.abs(dz) === 9 || (dx === LADX && dz === LADZ)) continue;
+              put(tx0 + dx, ty + k, tz0 + dz, k === 24 ? 15 : dx === 0 || dz === 0 ? 128 : 80);
             }
         for (let k = 1; k <= 24; k++) put(tx0 + LADX, ty + k, tz0 + LADZ, 94);
-        // a faceted diamond spire crowns the roof instead of it just stopping open to the sky — the
-        // same Ether Diamond material hanging at the center of the City's own great hall, tapering to
-        // a golden Radiant Diamond apex, so a tower reads as unmistakably Ethereum from across the map
-        // instead of a nameless glass box
-        for (let r = 5; r >= 1; r--) {
-          const k = 25 + (5 - r);
+        // pink lanterns hanging under each ceiling, at the four diagonals
+        for (const k of [6, 12, 18])
+          for (const [dx, dz] of [
+            [-3, -3],
+            [3, 3],
+            [-3, 3],
+          ])
+            put(tx0 + dx, ty + k, tz0 + dz, 84);
+        // the crown: a stepped lavender pyramid on the roof, a golden Radiant Diamond at its tip
+        // (kept low: the world stops at 64 blocks, and a tower can stand high on a hill)
+        for (let k = 25; k <= 27; k++) {
+          const r = 28 - k; // 3, 2, 1
           for (let dx = -r; dx <= r; dx++)
-            for (let dz = -r; dz <= r; dz++) if (Math.max(Math.abs(dx), Math.abs(dz)) === r) put(tx0 + dx, ty + k, tz0 + dz, 130);
+            for (let dz = -r; dz <= r; dz++) if (Math.abs(dx) + Math.abs(dz) <= r) put(tx0 + dx, ty + k, tz0 + dz, k === 27 ? 145 : 22);
         }
-        put(tx0, ty + 30, tz0, 145);
+        // beacon lights: a pink lantern atop each of the eight corner columns
+        for (const [dx, dz] of [
+          [6, 3],
+          [6, -3],
+          [-6, 3],
+          [-6, -3],
+          [3, 6],
+          [-3, 6],
+          [3, -6],
+          [-3, -6],
+        ])
+          put(tx0 + dx, ty + 25, tz0 + dz, 84);
         // a treasure chest on the boss's platform, clear of both the ladder and the boss's own spawn
         // spot at the tower's center (src/game/16-mobs.js) — seeded with better-than-average loot the
         // first time it's opened (025_tower_treasure.sql)
