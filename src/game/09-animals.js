@@ -800,7 +800,7 @@ function talk(a) {
   typeLine(el.querySelector('p'), t);
   el.hidden = false;
   clearTimeout(saysT);
-  saysT = setTimeout(() => (el.hidden = true), 3500 + t.length * 65); // typing time + reading time
+  saysT = setTimeout(() => (el.hidden = true), 3500 + t.length * 45); // back to the original budget: Pierre found the bubble staying up longer than before once it also covered the typing time
   a.pet = 0.25;
   Sound.animal('villager', 1);
   S.met = S.met || {};
@@ -830,7 +830,7 @@ function greetPlayer() {
   typeLine(el.querySelector('p'), t);
   el.hidden = false;
   clearTimeout(saysT);
-  saysT = setTimeout(() => (el.hidden = true), 4500 + t.length * 65);
+  saysT = setTimeout(() => (el.hidden = true), 4500 + t.length * 45);
   Sound.animal('villager', 1);
   Sound.theme();
   S.met = S.met || {};
