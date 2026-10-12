@@ -800,7 +800,10 @@ function talk(a) {
   typeLine(el.querySelector('p'), t);
   el.hidden = false;
   clearTimeout(saysT);
-  saysT = setTimeout(() => (el.hidden = true), 2000 + t.length * 65); // the *65 budget (typing + reading) is the one Pierre liked the pace of; shortened the flat part instead, so it hides sooner without touching how fast it types
+  // 20ms/char of this is the typewriter's own reveal (typeLine's step) and has to stay; the rest is
+  // reading time after it finishes typing -- that's the part Pierre keeps asking to shrink, now
+  // roughly halved again (both the flat part and the per-character part)
+  saysT = setTimeout(() => (el.hidden = true), 1000 + t.length * 42);
   a.pet = 0.25;
   Sound.animal('villager', 1);
   S.met = S.met || {};
@@ -830,7 +833,7 @@ function greetPlayer() {
   typeLine(el.querySelector('p'), t);
   el.hidden = false;
   clearTimeout(saysT);
-  saysT = setTimeout(() => (el.hidden = true), 2800 + t.length * 65);
+  saysT = setTimeout(() => (el.hidden = true), 1400 + t.length * 42);
   Sound.animal('villager', 1);
   Sound.theme();
   S.met = S.met || {};
