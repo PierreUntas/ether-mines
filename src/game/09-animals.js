@@ -802,6 +802,7 @@ function greetPlayer() {
   clearTimeout(saysT);
   saysT = setTimeout(() => (el.hidden = true), 4500 + t.length * 45);
   Sound.animal('villager', 1);
+  Sound.theme();
   S.met = S.met || {};
   S.met[h.name] = 1;
 }

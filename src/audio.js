@@ -136,6 +136,14 @@
       const T = now();
       [0, 4, 7, 11, 14].forEach((s, i) => tone(880 * Math.pow(2, s / 12), 'sine', 0.09, 0.9, T + i * 0.06, sfx, 1, 0.01));
     },
+    // the game's signature motif, played plainly and loud enough to notice: the first-ever
+    // greeting (src/game/09-animals.js) and a network milestone (06-actions.js) -- the same five
+    // notes the ambiance also wanders into on its own now and then (see signature() below), so a
+    // player who's heard it drift by in the background recognizes it here on purpose.
+    theme() {
+      if (!ctx) return;
+      signature(now(), sfx, 0, 0.16, 0.42);
+    },
     click() {
       if (!ctx) return;
       const T = now();
@@ -256,11 +264,16 @@
   let padLP = null,
     birdT = 3;
   const ROOT = 220, // A3
-    SCALE = [0, 2, 3, 5, 7, 9, 10]; // A natural minor: simple and easy to wander in, a little wistful
-  function pluck(T, deg, oct, peak) {
+    SCALE = [0, 2, 3, 5, 7, 9, 10], // A natural minor: simple and easy to wander in, a little wistful
+    MOTIF = [0, 3, 7, 5, 0]; // the signature: rises through the A-minor triad, dips, resolves home --
+  // fixed on purpose, unlike the random wander below, so it's the one phrase a player can learn to recognize
+  function pluck(T, deg, oct, peak, dest = padLP) {
     const f = ROOT * Math.pow(2, oct) * Math.pow(2, deg / 12);
-    tone(f, 'triangle', peak, 1.8 + Math.random() * 0.8, T, padLP, 0, 0.012);
-    tone(f * 2, 'sine', peak * 0.22, 1.1, T, padLP, 0, 0.008); // a touch of shimmer on top
+    tone(f, 'triangle', peak, 1.8 + Math.random() * 0.8, T, dest, 0, 0.012);
+    tone(f * 2, 'sine', peak * 0.22, 1.1, T, dest, 0, 0.008); // a touch of shimmer on top
+  }
+  function signature(T, dest, oct = 0, peak = 0.22, step = 0.46) {
+    MOTIF.forEach((deg, i) => pluck(T + i * step, deg, oct, peak - i * 0.012, dest));
   }
   function startPad() {
     padLP = ctx.createBiquadFilter();
@@ -284,8 +297,15 @@
     dl.connect(wet);
     wet.connect(amb);
     function phrase() {
-      const T = now(),
-        len = 4 + Math.floor(Math.random() * 4), // 4 to 7 notes
+      const T = now();
+      // roughly one phrase in three is the signature motif instead of a random wander -- heard
+      // often enough across a session to become familiar, never so often it stops being special
+      if (Math.random() < 0.35) {
+        signature(T, padLP, Math.random() < 0.3 ? 1 : 0);
+        setTimeout(phrase, MOTIF.length * 460 + 14000 + Math.random() * 18000);
+        return;
+      }
+      const len = 4 + Math.floor(Math.random() * 4), // 4 to 7 notes
         oct = Math.random() < 0.3 ? 1 : 0;
       let t = T,
         i = SCALE.indexOf(SCALE[Math.floor(Math.random() * SCALE.length)]);

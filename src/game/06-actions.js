@@ -554,6 +554,7 @@ function relight(t) {
         addUnique(r.star);
         toastInfo(`A network milestone! ${ITEM[204].n} minted, commemorating it.`);
         Sound.chime();
+        Sound.theme();
       }
       if (r.shard) logEv('mint', '1 Diamond Shard', 'the network is fully awake');
     });
@@ -577,6 +578,7 @@ function relight(t) {
     mintNft(204, `crossed the ${S.relit}-relit threshold`);
     toastInfo(`A network milestone! ${ITEM[204].n} minted, commemorating it.`);
     Sound.chime();
+    Sound.theme();
   }
   if (S.relit >= 100 && Math.random() < 0.15) {
     give(110, 1, 'the network is fully awake');
