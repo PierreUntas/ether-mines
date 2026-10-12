@@ -175,10 +175,11 @@
       noise('bandpass', 3000, 4, 0.25, 0.03, T);
       tone(420, 'triangle', 0.08, 0.06, T + 0.03);
     },
-    // the dialogue typewriter's own tick, one per few characters -- ported from L'Atrium
+    // the dialogue typewriter's own tick, one per few characters -- ported from L'Atrium, louder
+    // than L'Atrium's own (Pierre: "barely audible") since it has to cut through everything else
     blip() {
       if (!ctx) return;
-      tone(880 + Math.random() * 180, 'triangle', 0.025, 0.05);
+      tone(880 + Math.random() * 180, 'triangle', 0.09, 0.06);
     },
     plate() {
       if (!ctx) return;
