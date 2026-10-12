@@ -42,7 +42,7 @@ await page.route(/\/three@0\.128\.0\/examples\/js\//, (r) =>
 await page.route('**/supabase.js', (r) => r.fulfill({ body: '', contentType: 'application/javascript' }));
 await page.route('**/src/config.js', (r) => r.fulfill({ body: 'window.CONFIG={}', contentType: 'application/javascript' }));
 await page.route(/^https:\/\/fonts\./, (r) => r.abort());
-const fail = async (msg) => { console.error('FAILED:', msg, errors); await browser.close(); server.close(); process.exit(1); };
+const fail = async (msg) => { console.error('FAILED:', msg, errors); if (process.env.GITHUB_ACTIONS) console.log('::error::' + String(msg + ' ' + JSON.stringify(errors)).replace(/\n/g, ' ')); await browser.close(); server.close(); process.exit(1); };
 
 await page.goto(base + 'index.html#debug');
 await page.waitForTimeout(800);
