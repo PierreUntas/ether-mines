@@ -577,10 +577,33 @@
               put(tx0 + dx, ty + k, tz0 + dz, id);
             }
           }
-        // a marble doorstep in front of the entrance, cleared up to head height, so the door is never buried
-        for (let dx = -1; dx <= 1; dx++) {
-          put(tx0 + dx, ty, tz0 - 7, 15);
-          for (let k = 1; k <= 3; k++) put(tx0 + dx, ty + k, tz0 - 7, 0);
+        // the entrance stair: a marble doorstep level with the floor, then marble steps down to the natural
+        // ground (or up, if the ground in front is higher), so the door can always be reached by walking
+        {
+          const step = (z, top, id) => {
+            for (let dx = -1; dx <= 1; dx++) {
+              const x = tx0 + dx;
+              for (let y = Math.min(top - 1, heightAt(x, z)); y < top; y++) put(x, y, z, 15); // fill under the step
+              put(x, top, z, id);
+              for (let k = 1; k <= 3; k++) put(x, top + k, z, 0); // head room through trees or a slope
+            }
+          };
+          step(tz0 - 7, ty, 15);
+          // a stair at level L climbs from standing height L to L + 1: going out from the door, each next stair is a
+          // block lower (ground falling away) or higher (ground rising), until the ground beyond can be walked
+          // onto; a slope too steep for six steps gets a level passage cut into it instead
+          const stand = z => heightAt(tx0, z) + 1,
+            dir = Math.sign(stand(tz0 - 8) - (ty + 1));
+          if (Math.abs(stand(tz0 - 13) - (ty + 1)) > 6 && dir > 0)
+            for (let i = 8; i <= 13; i++) step(tz0 - i, ty, 15); // a level passage into the hillside
+          else if (dir)
+            for (let j = 0; j < 6; j++) {
+              const z = tz0 - 8 - j,
+                L = dir < 0 ? ty - j : ty + 1 + j;
+              step(z, L, dir < 0 ? 42 : 40);
+              const beyond = stand(z - 1);
+              if (dir < 0 ? beyond >= L : beyond <= L + 1) break; // the ground beyond meets the stair
+            }
         }
         // floor platforms (floors 1-3) and the boss's platform, a gap left for the ladder; the roof above
         for (const k of [7, 13, 19, 24])
