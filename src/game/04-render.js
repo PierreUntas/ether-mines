@@ -28,38 +28,8 @@ sun.shadow.bias = -0.0006;
 sun.shadow.normalBias = 0.04;
 scene.add(sun);
 scene.add(sun.target);
-// bloom: a subtle glow on the neon/circuit/validator surfaces that already carry an emissive map
-// (opMat, glMat, plMat, the hand-held item material -- see their emissiveMap below, and emisBoost
-// in 08-sky.js which already drives emissiveIntensity brighter at night). A first attempt used a
-// plain luminance-threshold UnrealBloomPass on the whole rendered frame: looked right at night, but
-// at noon it bloomed the bright sky/clouds too -- in clamped, non-HDR output a lit lantern and a
-// sunlit cloud can hit the exact same peak brightness, so no threshold can tell them apart (caught
-// with tools/capture.mjs, not assumed). Fixed with a real selective-bloom mask instead: a second,
-// off-screen composer renders the scene with every material replaced by one that outputs *only* the
-// emissive texture (solid black except the neon/lantern/holo-screen/diamond texels already painted
-// into it in 01-textures.js) -- correct by construction, nothing to tune against daylight.
-const emisMaskMat = new THREE.MeshBasicMaterial({ map: emisTex, fog: false });
-const bloomComposer = new THREE.EffectComposer(renderer);
-bloomComposer.renderToScreen = false;
-bloomComposer.addPass(new THREE.RenderPass(scene, camera, emisMaskMat, 0x000000, 1));
-const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.8, 0.4, 0);
-bloomComposer.addPass(bloomPass);
-const composer = new THREE.EffectComposer(renderer);
-composer.addPass(new THREE.RenderPass(scene, camera));
-const bloomCompositePass = new THREE.ShaderPass(
-  {
-    uniforms: { baseTexture: { value: null }, bloomTexture: { value: bloomComposer.renderTarget2.texture } },
-    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `uniform sampler2D baseTexture; uniform sampler2D bloomTexture; varying vec2 vUv;
-      void main() { gl_FragColor = texture2D(baseTexture, vUv) + texture2D(bloomTexture, vUv); }`,
-  },
-  'baseTexture',
-);
-composer.addPass(bloomCompositePass);
 function resize() {
   renderer.setSize(innerWidth, innerHeight);
-  composer.setSize(innerWidth, innerHeight);
-  bloomComposer.setSize(innerWidth, innerHeight);
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   handCam.aspect = camera.aspect;

@@ -376,8 +376,7 @@ function frame(now) {
   updateOthers(dt);
   const restoreEyes = viewFromOutside(dt); // back or front view: the camera pulls back for the duration of the render
   renderer.clear();
-  bloomComposer.render();
-  composer.render();
+  renderer.render(scene, camera);
   if (restoreEyes) restoreEyes();
   else {
     renderer.clearDepth();
