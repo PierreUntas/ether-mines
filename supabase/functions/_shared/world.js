@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP: below this layer, geodes and large caves
-  const GEN = 22; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example; 12: new seed; the Circuits Complex, its own standalone landmark with 5 separate rooms, replaces the in-City workshop; 13: towers, guarded by mobs with a boss at the top; 14: towers were far too sparse (8.5% of eligible regions, nearest ~264m from spawn) — loosened the height ceiling, flatness tolerance, and dropped the dunes exclusion, purely additive; 15: towers enlarged (7x7/4-tall -> 9x9/5-tall, too cramped to fight in); 16: towers enlarged again (9x9/5-tall -> 13x13/6-tall), more wardens per floor; 17: towers re-skinned futuristic — polished granite + cyan-neon trim, holo-screen windows, neon floor grid; 18: towers' entrance gap replaced with a real closed door; 19: a treasure chest on the boss's platform; 20: the validators' path graded flat (several iterations); 21: the Atrium/City/Circuits plateaus fall off into the natural terrain over a much wider band, so the edge of their flat ground doesn't land on a steep bit of the mountain noise; 22: towers re-skinned again — marble-column corners and granite/marble banding like the City's own facades, crowned with a faceted Ether Diamond spire instead of a flat roof, so they read as Ethereum landmarks instead of generic sci-fi bunkers) : bump it on every terrain change (already-frozen chunks don't move)
+  const GEN = 23; // generator version (2: mushrooms...; 3: palms, amethysts; 4: atrium, temples, gardens; 5: the City; 6: the City in halls; 8: the shelter, room to eat and sleep; 9: bigger shelter with the 2-block bed; 10: fixed shelter clipped by the City radius, real door; 11: the workshop, a working OR-gate latch example; 12: new seed; the Circuits Complex, its own standalone landmark with 5 separate rooms, replaces the in-City workshop; 13: towers, guarded by mobs with a boss at the top; 14: towers were far too sparse (8.5% of eligible regions, nearest ~264m from spawn) — loosened the height ceiling, flatness tolerance, and dropped the dunes exclusion, purely additive; 15: towers enlarged (7x7/4-tall -> 9x9/5-tall, too cramped to fight in); 16: towers enlarged again (9x9/5-tall -> 13x13/6-tall), more wardens per floor; 17: towers re-skinned futuristic — polished granite + cyan-neon trim, holo-screen windows, neon floor grid; 18: towers' entrance gap replaced with a real closed door; 19: a treasure chest on the boss's platform; 20: the validators' path graded flat (several iterations); 21: the Atrium/City/Circuits plateaus fall off into the natural terrain over a much wider band, so the edge of their flat ground doesn't land on a steep bit of the mountain noise; 22: towers re-skinned again — marble-column corners and granite/marble banding like the City's own facades, crowned with a faceted Ether Diamond spire instead of a flat roof; 23: towers rebuilt as a "validator lighthouse" — a lavender/mint/peach-pastel base stepping in through a walkable gallery to a narrower crown, topped with a short diamond ring and an Old Validator for the Atrium's own automatic golden beam, so they read as important network sites from across the map instead of a flat checkered box) : bump it on every terrain change (already-frozen chunks don't move)
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -519,14 +519,17 @@
     // towers: a 96x96 region each, guarded by hostile mobs with a boss at the top; the boss always
     // drops a Plasma Pistol (supabase/migrations/016_tower_boss_loot.sql). Mob placement mirrors
     // this loop in src/game/16-mobs.js's spawnMobChunk, keyed off the same towerAt() position.
-    // 13x13 footprint, 6-tall floors (was 9x9/5-tall, then 7x7/4-tall originally — still too tight).
+    // A wild validator lighthouse: a wide granite-and-marble base (floors 1-2), a walkable gallery
+    // where it steps in, then a narrower marble-and-pastel crown (floor 3 and the boss's open
+    // parapet) — the Atrium/City's own palette (lavender, mint, peach, marble, cyan neon, diamond),
+    // not a uniform box. 13x13 footprint at the base (was 9x9/5-tall, then 7x7/4-tall — too tight).
     for (let tz = Math.floor((z0 - 7) / TOWER); tz <= Math.floor((z0 + CH + 7) / TOWER); tz++)
       for (let tx = Math.floor((x0 - 7) / TOWER); tx <= Math.floor((x0 + CH + 7) / TOWER); tx++) {
         const t = towerAt(tx, tz);
         if (!t) continue;
         const { x: tx0, z: tz0, y: ty } = t,
-          LADX = 5,
-          LADZ = -5; // the climbing ladder's fixed interior column
+          LADX = 4,
+          LADZ = 3; // the climbing ladder's fixed interior column, clear of the chest and the boss's own center spawn
         // a clean foundation and a hollow interior, regardless of the natural terrain underneath — a
         // neon grid in the floor, like the City's own streets, instead of plain ancient-ruin marble
         for (let dx = -6; dx <= 6; dx++)
@@ -534,59 +537,82 @@
             put(tx0 + dx, ty, tz0 + dz, dx % 3 === 0 || dz % 3 === 0 ? 128 : 80);
             for (let k = 1; k <= 24; k++) put(tx0 + dx, ty + k, tz0 + dz, 0);
           }
-        // walls: marble-column corners (the same material the City's own colonnades stand on, not a
-        // plain neon pole), granite/marble banded by floor like the City's facades, a neon ring at
-        // each floor line, an entrance gap (with its own lit frame) on the south side, and two glowing
-        // holo-screen windows per floor on the other three sides
+        // one drum of walls, radius R, from floor-line k1 to k2: a pastel concrete face (the
+        // Atrium/City's own lavender/mint/peach) with a marble-or-granite stripe down each face's
+        // center for contrast, marble-column corners (the same material the City's own colonnades
+        // stand on), a neon ring at the top of the drum, an entrance (its own lit frame) on the
+        // south side of the base drum only, and a glowing holo-screen window per face
+        const wall = (R, k1, k2, main, accent) => {
+          for (let dx = -R; dx <= R; dx++)
+            for (let dz = -R; dz <= R; dz++) {
+              if (Math.max(Math.abs(dx), Math.abs(dz)) !== R) continue;
+              const entrance = R === 6 && dz === 6 && dx === 0,
+                corner = Math.abs(dx) === R && Math.abs(dz) === R,
+                doorFrame = R === 6 && dz === 6 && (dx === -1 || dx === 1),
+                accentLine = !corner && ((Math.abs(dz) === R && Math.abs(dx) <= 1) || (Math.abs(dx) === R && Math.abs(dz) <= 1));
+              for (let k = k1; k <= k2; k++) {
+                const window =
+                  k === k1 + Math.floor((k2 - k1) / 2) &&
+                  ((dz === -R && (dx === -2 || dx === 2)) ||
+                    (dx === R && (dz === -2 || dz === 2)) ||
+                    (dx === -R && (dz === -2 || dz === 2)));
+                if (entrance && k <= 2) {
+                  put(tx0 + dx, ty + k, tz0 + dz, k === 1 ? 48 : 49); // a closed door, not an open gap: mobs roam outside too, same convention as the shelter/Circuits Complex doors
+                  continue;
+                }
+                if (window) {
+                  put(tx0 + dx, ty + k, tz0 + dz, 129);
+                  continue;
+                }
+                if (k === k2 || (doorFrame && k <= 2)) {
+                  put(tx0 + dx, ty + k, tz0 + dz, 128);
+                  continue;
+                }
+                if (corner) {
+                  put(tx0 + dx, ty + k, tz0 + dz, 127);
+                  continue;
+                }
+                put(tx0 + dx, ty + k, tz0 + dz, accentLine ? accent : main);
+              }
+            }
+        };
+        wall(6, 1, 6, 22, 80); // floor 1: lavender concrete, polished granite stripe
+        wall(6, 7, 12, 23, 81); // floor 2: mint concrete, checkered marble stripe
+        wall(5, 14, 18, 25, 15); // floor 3, the step-in: peach concrete, marble stripe
+        wall(5, 19, 24, 22, 15); // the boss's open parapet, back to lavender concrete, marble stripe
+        // the gallery: a walkable ring at the step-in between the wide base and the narrower crown,
+        // the kind of balcony a real lighthouse has partway up, with a see-through fence railing
         for (let dx = -6; dx <= 6; dx++)
           for (let dz = -6; dz <= 6; dz++) {
             if (Math.max(Math.abs(dx), Math.abs(dz)) !== 6) continue;
-            const entrance = dz === 6 && dx === 0,
-              corner = Math.abs(dx) === 6 && Math.abs(dz) === 6,
-              doorFrame = dz === 6 && (dx === -1 || dx === 1);
-            for (let k = 1; k <= 24; k++) {
-              const window =
-                (k === 4 || k === 10 || k === 16 || k === 22) &&
-                ((dz === -6 && (dx === -2 || dx === 2)) || (dx === 6 && (dz === -2 || dz === 2)) || (dx === -6 && (dz === -2 || dz === 2)));
-              if (entrance && k <= 2) {
-                put(tx0 + dx, ty + k, tz0 + dz, k === 1 ? 48 : 49); // a closed door, not an open gap: mobs roam outside too, same convention as the shelter/Circuits Complex doors
-                continue;
-              }
-              if (window) {
-                put(tx0 + dx, ty + k, tz0 + dz, 129);
-                continue;
-              }
-              const band = k === 6 || k === 12 || k === 18 || k === 24; // a ring at the roofline too, right under the spire
-              if (band || (doorFrame && k <= 2)) {
-                put(tx0 + dx, ty + k, tz0 + dz, 128);
-                continue;
-              }
-              if (corner) {
-                put(tx0 + dx, ty + k, tz0 + dz, 127);
-                continue;
-              }
-              put(tx0 + dx, ty + k, tz0 + dz, Math.floor((k - 1) / 6) % 2 === 0 ? 80 : 81);
-            }
+            put(tx0 + dx, ty + 13, tz0 + dz, (dx + dz) % 2 ? 15 : 81);
+            put(tx0 + dx, ty + 14, tz0 + dz, 92);
           }
-        // floor platforms at the top of floors 1-3 (floor 4, the boss's, stays open under the spire), a
-        // gap left clear for the ladder
+        // floor platforms at the top of floors 1-3 (floor 4, the boss's, stays open under the spire):
+        // a full disk, wide enough that every warden's spawn radius (src/game/16-mobs.js, up to ~4.5
+        // blocks from center) always lands on solid ground, a gap left clear for the ladder, and (on
+        // the narrower top floor only) clear of the corner columns which land on this same radius
         for (const k of [7, 13, 19])
           for (let dx = -5; dx <= 5; dx++)
             for (let dz = -5; dz <= 5; dz++) {
-              if (dx === LADX && dz === LADZ) continue;
+              if ((dx === LADX && dz === LADZ) || (k === 19 && Math.abs(dx) === 5 && Math.abs(dz) === 5)) continue;
               put(tx0 + dx, ty + k, tz0 + dz, 80);
             }
         for (let k = 1; k <= 24; k++) put(tx0 + LADX, ty + k, tz0 + LADZ, 94);
-        // a faceted diamond spire crowns the roof instead of it just stopping open to the sky — the
-        // same Ether Diamond material hanging at the center of the City's own great hall, tapering to
-        // a golden Radiant Diamond apex, so a tower reads as unmistakably Ethereum from across the map
-        // instead of a nameless glass box
-        for (let r = 5; r >= 1; r--) {
-          const k = 25 + (5 - r);
-          for (let dx = -r; dx <= r; dx++)
-            for (let dz = -r; dz <= r; dz++) if (Math.max(Math.abs(dx), Math.abs(dz)) === r) put(tx0 + dx, ty + k, tz0 + dz, 130);
-        }
-        put(tx0, ty + 30, tz0, 145);
+        // a small faceted diamond ring crowns the roof, tapering to a single Old Validator at the
+        // very tip: the exact block that already drives the Atrium's own golden beam and floating
+        // Ether Diamond gem (src/game/04-render.js's addVal, scanned onto every loaded chunk by
+        // refreshVals in 11-multiplayer.js for any id 13/74) — so a wild tower reads as a validator
+        // site from across the map automatically, with no new client code, and no separate static
+        // diamond cap is needed: the gem that floats above it is already gold and amethyst-faceted.
+        // Deliberately short (the parapet alone already reaches ty+24, and towers are allowed up to
+        // y = DY+40 — the world's own SY=64 ceiling silently drops anything placed at y>=64, so
+        // keeping this to 2 extra blocks is what keeps the beacon visible on most towers instead of
+        // just the lowest-lying few; purely decorative, never relit by a player, so it mints nothing
+        // and doesn't count toward the network's relit total (that only reads the "blocks" actions table)
+        for (let dx = -1; dx <= 1; dx++)
+          for (let dz = -1; dz <= 1; dz++) if (Math.max(Math.abs(dx), Math.abs(dz)) === 1) put(tx0 + dx, ty + 25, tz0 + dz, 130);
+        put(tx0, ty + 26, tz0, 74);
         // a treasure chest on the boss's platform, clear of both the ladder and the boss's own spawn
         // spot at the tower's center (src/game/16-mobs.js) — seeded with better-than-average loot the
         // first time it's opened (025_tower_treasure.sql)
