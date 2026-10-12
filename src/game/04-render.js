@@ -625,3 +625,40 @@ function take(it, n) {
   }
   dirty = true;
 }
+// Debug-only convenience (index.html#debug, window.mines.giveAll()): a stack of every block and
+// fungible item, one of each unique item, and the handful of quest flags that track an action
+// rather than a possession (killed a mob, slept, traded...) — so late-game building, combat, and
+// crafting can be tested without grinding every early objective for materials first. Unique items
+// go through mintNft (serial-tracked, not a stackable count), never give(). Solo/local state only:
+// nothing here ever reaches Supabase.
+function giveAll(stack = 64) {
+  const skip = new Set([11, 12, 65, 73, 74]); // water, bedrock, lit lever, dark/old validator: not meant to be held
+  for (const id in B) {
+    const b = B[id];
+    if (skip.has(+id) || b.h === Infinity) continue;
+    if (b.o > 0) continue; // only the base orientation of a rotated family (stairs, ladder, gates)
+    if (b.shape === 'door' && !(b.f === 0 && !b.open && !b.top)) continue; // only the closed, facing-0 foot half
+    give(+id, stack, 'admin');
+  }
+  for (const id in ITEM) {
+    if (ITEM[id].nft) mintNft(+id, 'admin');
+    else give(+id, stack, 'admin');
+  }
+  Object.assign(S, {
+    relit: Math.max(S.relit || 0, 1),
+    killedMob: 1,
+    slept: 1,
+    traded: 1,
+    visitedCity: 1,
+    petted: 1,
+    attested: 1,
+    gateLit: 1,
+    twoKeyDoor: 1,
+    gateBlinker: 1,
+    gateLatch: 1,
+    gateCoinFlip: 1,
+  });
+  dirty = true;
+  ui();
+  logEv('mint', 'Admin kit', 'every block, every item, every quest flag');
+}

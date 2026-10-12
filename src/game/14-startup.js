@@ -1028,6 +1028,7 @@ if (location.hash === '#debug')
     ruinAt,
     nearestRuin,
     give,
+    giveAll,
     canMine,
     relight,
     openTab,
