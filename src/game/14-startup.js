@@ -3,10 +3,9 @@
 'use strict';
 // ---------- position ----------
 function updatePosHud() {
-  const d = Math.round(Math.hypot(P.x - SPAWN.x, P.z - SPAWN.z)),
-    c = claimAt(P.x, P.z);
+  const c = claimAt(P.x, P.z);
   $('borderTxt').textContent =
-    `Position ${Math.floor(P.x)} · ${Math.floor(P.z)} · ${d < 1000 ? d + ' m' : (d / 1000).toFixed(1) + ' km'} from the sanctuary${c ? ` · ${c.owner === ME.id ? 'your' : (c.owner_name || '?') + "'s"} plot` : ''}`;
+    `Position ${Math.floor(P.x)} · ${Math.floor(P.z)}${c ? ` · ${c.owner === ME.id ? 'your' : (c.owner_name || '?') + "'s"} plot` : ''}`;
   buildClaimLines();
 }
 const others = new Map();

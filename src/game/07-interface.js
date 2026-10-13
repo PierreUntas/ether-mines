@@ -816,7 +816,11 @@ function updateAttackBanner() {
   if (!aw.active) return;
   const left = Math.max(0, Math.round((aw.endsAt - Date.now()) / 1000)),
     kills = NETWORK.attack && NETWORK.attack.window_id === aw.windowId ? NETWORK.attack.kills : 0;
-  el.textContent = `⚡ The network is under attack — defend the Atrium · ${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')} · ${kills} corrupted node${kills === 1 ? '' : 's'} defeated`;
+  const clock = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
+  // on a phone the banner sits in the left column, out of the middle of the view: a shorter line
+  el.textContent = matchMedia('(pointer:coarse)').matches
+    ? `⚡ Atrium under attack · ${clock} · ${kills} node${kills === 1 ? '' : 's'}`
+    : `⚡ The network is under attack — defend the Atrium · ${clock} · ${kills} corrupted node${kills === 1 ? '' : 's'} defeated`;
 }
 // ---------- the leaderboard monument (028_leaderboard.sql): what other players are doing, standing in
 // the City instead of buried in a tab — a canvas-texture sign, the same pattern already used for every
