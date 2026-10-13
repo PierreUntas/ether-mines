@@ -109,6 +109,9 @@ const MK = {
   },
 };
 const TWIN_DOWN = 12;
+const LADDER_CLEAR = 2.2;
+// the same test as the climbing physics (10-loop.js): a ladder at the feet or at the head
+const playerOnLadder = () => [0, 1].some(d => B[get(Math.floor(P.x), Math.floor(P.y + 0.2 + d), Math.floor(P.z))]?.shape === 'ladder');
 // the Genesis Titan's lair: one fixed chunk, far from spawn, like a hand-placed landmark (ruinAt(0, 0)'s
 // special-cased first ruin) rather than resource-distributed like every other mob
 const BOSS_CX = Math.floor((SPAWN.x + 160) / CH),
@@ -634,6 +637,9 @@ function spawnMobChunk(cx, cz) {
   {
     const t = towerAt(Math.floor((x0 + 8) / TOWER), Math.floor((z0 + 8) / TOWER));
     if (t && cOf(t.x) === cx && cOf(t.z) === cz) {
+      // the climbing ladder's column (world.js LADX/LADZ = 4, -4): tower mobs keep clear of it and wait
+      // for you to step off before striking — no more being hit from above while you can't fight back
+      const towerLadder = { x: t.x + 4.5, z: t.z - 3.5 };
       [1, 7, 13].forEach((fy, fi) => {
         // the floors are tight: one warden on the ground floor, one or two above (playtest: three at once in
         // that space, plus a turret, left no room to fight back)
@@ -643,15 +649,20 @@ function spawnMobChunk(cx, cz) {
             rr = 1.5 + hash(t.x, t.z + fi * 3 + i, 282 + fi * 2 + i) * 3,
             hx = t.x + 0.5 + Math.cos(an) * rr,
             hz = t.z + 0.5 + Math.sin(an) * rr;
-          list.push(mkMob('warden', k, 140 + fi * 3 + i, hx, t.y + fy, hz, null));
+          const wd = mkMob('warden', k, 140 + fi * 3 + i, hx, t.y + fy, hz, null);
+          wd.ladder = towerLadder;
+          list.push(wd);
         }
       });
       const core = mkMob('plasma_core', k, 150, t.x + 0.5, t.y + 21, t.z + 0.5, null);
+      core.ladder = towerLadder;
       core.arena = { x: t.x + 0.5, z: t.z + 0.5, r: 4.5, y: t.y + 20 }; // floats over the loggia (under its roof at t.y + 24), never leaves it
       list.push(core);
       // a turret on the first and second floors, in the corner across from the ladder (world.js LADX/LADZ)
-      list.push(mkMob('turret', k, 155, t.x - 3.5, t.y + 7, t.z + 4.5, null));
-      list.push(mkMob('turret', k, 156, t.x + 4.5, t.y + 13, t.z + 4.5, null));
+      const tu1 = mkMob('turret', k, 155, t.x - 3.5, t.y + 7, t.z + 4.5, null);
+      const tu2 = mkMob('turret', k, 156, t.x + 4.5, t.y + 13, t.z + 4.5, null);
+      tu1.ladder = tu2.ladder = towerLadder;
+      list.push(tu1, tu2);
     }
   }
   // the Merge Sanctum's twins (mergeAt(), world.js): proof-of-work on the forge half (west), proof-of-
@@ -1220,6 +1231,7 @@ function updateMobs(dt) {
         }
       }
   }
+  const onLadderNow = playerOnLadder();
   regenT = Math.max(0, regenT - dt);
   hurtT = Math.max(0, hurtT - dt);
   if (regenT <= 0 && S.hp < 10) {
@@ -1295,6 +1307,16 @@ function updateMobs(dt) {
         nx += a.kbx * dt;
         nz += a.kbz * dt;
       }
+      if (a.ladder) {
+        // tower mobs keep a step away from the ladder's hatch
+        const lx = nx - a.ladder.x,
+          lz = nz - a.ladder.z,
+          ld = Math.hypot(lx, lz);
+        if (ld < LADDER_CLEAR) {
+          nx = a.ladder.x + (ld ? lx / ld : 1) * LADDER_CLEAR;
+          nz = a.ladder.z + (ld ? lz / ld : 0) * LADDER_CLEAR;
+        }
+      }
       if (a.arena) {
         // the twins never leave their disc: pulled back onto it at its edge
         const ox = nx - a.arena.x,
@@ -1347,8 +1369,9 @@ function updateMobs(dt) {
       else p.y += Math.sin(a.walk) * 0.01; // the shadow floats, no legs
       if (a.parts.drill) a.parts.drill.rotation.y += dt * (aggro ? 14 : 3); // the rig's drill never stops
       a.atkT = Math.max(0, (a.atkT || 0) - dt);
-      if (K.ranged) rangedAttack(a, K, aggro, d, dt);
-      if (aggro && d < K.atk && hurtT <= 0 && a.atkT <= 0) {
+      const holdFire = a.ladder && onLadderNow; // a tower mob waits while you climb
+      if (K.ranged && !holdFire) rangedAttack(a, K, aggro, d, dt);
+      if (aggro && !holdFire && d < K.atk && hurtT <= 0 && a.atkT <= 0) {
         a.atkT = K.cd;
         hurtPlayer(K.dmg, p.x, p.z);
       }

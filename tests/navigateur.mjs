@@ -198,16 +198,39 @@ const turret = await page.evaluate(() => {
   return { fired, hpLost: hp0 - mines.S.hp };
 });
 if (turret.fired !== 1 || !(turret.hpLost > 0)) await fail('turret: ' + JSON.stringify(turret));
+// tower mobs keep clear of the ladder and hold their attacks while you're on it
+const ladder = await page.evaluate(() => {
+  const P = mines.P, x = Math.floor(P.x), y = Math.floor(P.y), z = Math.floor(P.z);
+  mines.commit(`${x},${y},${z}`, 94, null);
+  mines.commit(`${x},${y + 1},${z}`, 94, null);
+  const key = ckey(cOf(P.x), cOf(P.z)),
+    w = mines.mkMob('warden', key, 900, P.x + 0.6, P.y, P.z, null);
+  w.ladder = { x: P.x, z: P.z };
+  const keep = mines.MOBS.get(key) || [];
+  mines.MOBS.set(key, [...keep, w]);
+  hurtT = 0;
+  const hp0 = mines.S.hp;
+  for (let i = 0; i < 10; i++) updateMobs(0.1);
+  const out = { pushedOut: Math.hypot(w.g.position.x - P.x, w.g.position.z - P.z) >= 2.1, held: mines.S.hp === hp0 };
+  mines.MOBS.set(key, keep);
+  scene.remove(w.g);
+  mines.commit(`${x},${y},${z}`, 0, null);
+  mines.commit(`${x},${y + 1},${z}`, 0, null);
+  return out;
+});
+if (!ladder.pushedOut || !ladder.held) await fail('ladder: ' + JSON.stringify(ladder));
 // the Merge twins: the first one down only goes dormant; both down together ends it and mints the Aegis
 const twins = await page.evaluate(async () => {
   const P = mines.P,
     arena = { x: P.x, z: P.z, r: 10, y: P.y },
-    pw = mines.mkMob('pow_twin', 'test-twins', 0, P.x + 2, P.y, P.z, null),
-    ps = mines.mkMob('pos_twin', 'test-twins', 1, P.x - 2, P.y + 1, P.z, null);
+    pw = mines.mkMob('pow_twin', ckey(cOf(P.x), cOf(P.z)), 0, P.x + 2, P.y, P.z, null),
+    ps = mines.mkMob('pos_twin', ckey(cOf(P.x), cOf(P.z)), 1, P.x - 2, P.y + 1, P.z, null);
   pw.arena = ps.arena = arena;
   pw.twin = ps;
   ps.twin = pw;
-  mines.MOBS.set('test-twins', [pw, ps]);
+  // in the player's own chunk: a mob tick (updateMobs) despawns any list keyed outside the loaded chunks
+  const tkey = ckey(cOf(P.x), cOf(P.z)), tkeep = mines.MOBS.get(tkey) || [];
+  mines.MOBS.set(tkey, [...tkeep, pw, ps]);
   // shielded from afar: with the disc 50 blocks away, a 10-damage hit only does 1.5
   const far = { x: P.x + 50, z: P.z, r: 10, y: P.y };
   pw.arena = ps.arena = far;
@@ -225,7 +248,7 @@ const twins = await page.evaluate(async () => {
   damageMob(ps, 999, P.x, P.z);
   const both = pw.dying > 0 && ps.dying > 0;
   await new Promise(r => setTimeout(r, 300));
-  mines.MOBS.delete('test-twins');
+  mines.MOBS.set(tkey, tkeep);
   return { shielded, dormant, rose, both, aegis: mines.S.nfts.some(n => n.id === 209) };
 });
 if (!twins.shielded || !twins.dormant || !twins.rose || !twins.both || !twins.aegis) await fail('merge twins: ' + JSON.stringify(twins));

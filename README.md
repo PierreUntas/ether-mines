@@ -296,7 +296,8 @@ leave along a clear line of sight, and a bolt dies on the first solid block: sid
 between you. Turrets drop nothing of their own (the server's loot tiers still roll on every kill).
 
 Balanced after a first playtest: the tower's floors are tight, so they hold fewer wardens (one on the
-ground floor, one or two above) and slower turrets; the **Genesis Titan**, slow on its feet, now hurls
+ground floor, one or two above) and slower turrets, and every tower mob keeps a step away from the ladder's
+hatch and holds its attacks while you climb; the **Genesis Titan**, slow on its feet, now hurls
 chunks of genesis rock when you keep your distance and charges to close the gap; the **Merge twins**
 can't leave their disc, so they're shielded from anyone who isn't standing on it (attacks from the stair
 or the sky do 15% damage), and Proof-of-Stake fires bursts of its own.
