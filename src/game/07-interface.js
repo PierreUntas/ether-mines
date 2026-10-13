@@ -415,13 +415,23 @@ function cineBegin() {
   const el = document.createElement('div');
   el.id = 'cine';
   el.innerHTML = '<i class="bar top"></i><i class="bar bottom"></i><p class="sub"></p><button class="skip">Skip ›</button>';
-  el.querySelector('.skip').onclick = () => (FINALE.t = Math.max(FINALE.t, CINE_END));
+  el.querySelector('.skip').onclick = cineSkip;
   document.body.appendChild(el);
+  addEventListener('keydown', cineKey, true);
+}
+const cineSkip = () => (FINALE.t = Math.max(FINALE.t, CINE_END));
+// Escape, Space or Enter skip it too; no other key reaches the game meanwhile
+function cineKey(e) {
+  if (!FINALE.cine) return;
+  if (['Escape', 'Space', 'Enter'].includes(e.code)) cineSkip();
+  e.stopPropagation();
+  e.preventDefault();
 }
 function cineEnd() {
   FINALE.cine = false;
   document.body.classList.remove('cine');
   $('cine')?.remove();
+  removeEventListener('keydown', cineKey, true);
   // you're left facing Thea
   const h = VILLAGERS[0];
   yaw = Math.atan2(-(h.x + 0.5 - P.x), -(h.z + 0.5 - P.z));

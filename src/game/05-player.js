@@ -118,11 +118,12 @@ function tryLock() {
 }
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === cv;
-  if (!locked && playing && !noLock && $('panel').hidden && !chatOpen) pause();
+  // the finale's cinematic frees the mouse on purpose (for its Skip button): no pause menu over it
+  if (!locked && playing && !noLock && $('panel').hidden && !chatOpen && !FINALE.cine) pause();
 });
 cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('mousedown', e => {
-  if (!playing || touch) return;
+  if (!playing || touch || FINALE.cine) return;
   if (!locked && !noLock) {
     tryLock();
     return;

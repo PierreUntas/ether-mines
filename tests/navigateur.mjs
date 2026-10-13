@@ -320,6 +320,11 @@ const epi = await page.evaluate(async () => {
   P.x = SPAWN.x + 2; P.z = SPAWN.z + 1; // back at the Atrium
   updateFinale(0.1);
   const started = FINALE.on && !!FINALE.beam && FINALE.cine && !!document.getElementById('cine');
+  const nl = noLock;
+  noLock = false; // as on a desktop browser, where losing the pointer lock opens the pause menu
+  document.dispatchEvent(new Event('pointerlockchange')); // the mouse is freed for Skip: no pause menu over the cinematic
+  const noMenu = document.getElementById('title').hidden;
+  noLock = nl;
   for (let i = 0; i < 20; i++) updateFinale(0.1);
   const fireworks = FINALE.fx.length > 0;
   for (let i = 0; i < 150; i++) updateFinale(0.1); // into shot 3: Thea's first subtitle
@@ -346,7 +351,7 @@ const epi = await page.evaluate(async () => {
   const typed = $('dialogue').querySelector('p').textContent,
     line = typed.length > 0 && VILLAGERS[0].after.startsWith(typed);
   $('dialogue').hidden = true;
-  return { flagged, called, waits, started, fireworks, subtitle, screen, closed, cleaned, replay, line };
+  return { flagged, called, waits, started, noMenu, fireworks, subtitle, screen, closed, cleaned, replay, line };
 });
 if (Object.values(epi).some(v => !v)) await fail('epilogue: ' + JSON.stringify(epi));
 // combat v2: the two new mob types build and take damage, armor reduces incoming damage
