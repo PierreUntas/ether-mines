@@ -115,7 +115,7 @@ legacy/                 the retired real-blockchain layer (contracts, Edge Funct
 
 ## Deploying
 
-The legal notice and privacy policy live in `legal.html` (linked from the title screen). Update it whenever the game starts storing something new, or changes how long it keeps it.
+The terms of use, the illegal-content reporting procedure, the legal notice and the privacy policy live in `legal.html` (linked from the title screen, under the Enter button). Update it whenever the game starts storing something new, or changes how long it keeps it. The fonts are served from `fonts/` (SIL Open Font License), never from Google Fonts: a third-party font server would receive every visitor's IP address.
 
 1. **Supabase**: create a free project on supabase.com.
 2. **Guest accounts**: in *Authentication → Sign In / Providers*, enable *Allow anonymous sign-ins*. Every player gets an account automatically, no email or password.
