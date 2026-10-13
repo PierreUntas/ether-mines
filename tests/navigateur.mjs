@@ -297,6 +297,32 @@ const rest = await page.evaluate(() => {
   return { nearStays, rests, back };
 });
 if (!rest.nearStays || !rest.rests || !rest.back) await fail('daytime rest: ' + JSON.stringify(rest));
+// the epilogue: finishing the last main chapter makes Thea close the story, opens the Objectives tab on
+// the epilogue card, and gives every villager a new first line
+const epi = await page.evaluate(async () => {
+  const saved = QUESTS.map(q => q.ok);
+  for (const q of QUESTS) q.ok = () => true;
+  delete mines.S.seen.epilogue;
+  progressChapters();
+  const flagged = !!mines.S.seen.epilogue, queued = THEA_LINES.length >= 2;
+  THEA_LINES.length = 0;
+  $('dialogue').hidden = true;
+  const wasPlaying = mines.playing;
+  mines.playing = true;
+  progressChapters();
+  const card = !$('panel').hidden && !!document.querySelector('#pbody .epilogue');
+  QUESTS.forEach((q, i) => (q.ok = saved[i]));
+  if (!$('panel').hidden) togglePanel();
+  mines.playing = wasPlaying;
+  const thea = { h: VILLAGERS[0] };
+  talk(thea);
+  await new Promise(r => setTimeout(r, 600)); // the typewriter has started
+  const typed = $('dialogue').querySelector('p').textContent,
+    line = typed.length > 0 && VILLAGERS[0].after.startsWith(typed);
+  $('dialogue').hidden = true;
+  return { flagged, queued, card, line };
+});
+if (!epi.flagged || !epi.queued || !epi.card || !epi.line) await fail('epilogue: ' + JSON.stringify(epi));
 // combat v2: the two new mob types build and take damage, armor reduces incoming damage
 const combat2 = await page.evaluate(() => {
   const P = mines.P,

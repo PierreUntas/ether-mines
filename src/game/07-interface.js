@@ -329,6 +329,17 @@ const CHAPTERS = [
     outro: 'AND, OR, NOT… you think in gates now. Circuit Sage suits you.',
   },
 ];
+// the epilogue: once the last main chapter (The Merge) is done, Thea closes the story, the Objectives tab
+// opens on an epilogue card (kept at the top of that tab for good), and the villagers get a new line each.
+// S.seen.epilogue is set the first time, so a player who finished before this existed still sees it once.
+const EPILOGUE = {
+  thea: [
+    'Listen… the whole network hums in one rhythm now. Work and stake, together, because someone dared to climb up there.',
+    'When you arrived, the Atrium’s validator was the only light in this world. Look around now. Whatever you build next, the ledger will remember it was you.',
+  ],
+  text: 'The twins fell together, and the sanctum is quiet at last. Far below, the validators you relit blink in the dark like a new constellation. A network is never finished, and neither are the Ether Mines. But today, it holds — and it holds because of you.',
+};
+let epiPending = false;
 const MAIN_CHAPTERS = CHAPTERS.filter(c => !c.side);
 const chapterDone = c => c.q.every(id => QBY[id].ok());
 const chapterOpen = c =>
@@ -969,7 +980,43 @@ function progressChapters() {
     )
       claimChapter(c);
   }
+  const last = MAIN_CHAPTERS[MAIN_CHAPTERS.length - 1];
+  if (chapterOpen(last) && chapterDone(last) && !S.seen.epilogue) {
+    S.seen.epilogue = 1;
+    dirty = true;
+    THEA_LINES.push(...EPILOGUE.thea);
+    epiPending = true;
+  }
   theaNext();
+  // the epilogue card opens once Thea has finished speaking
+  if (epiPending && !THEA_LINES.length && $('dialogue').hidden && playing && $('panel').hidden) {
+    epiPending = false;
+    openTab('quest');
+    Sound.theme();
+  }
+}
+function epilogueCard() {
+  const d = document.createElement('div'),
+    mains = MAIN_CHAPTERS.filter(chapterDone).length,
+    circuits = CHAPTERS.find(c => c.id === 'circuits'),
+    g = TIERS.find(p => p > NETWORK.n),
+    next = [];
+  if (!chapterDone(circuits))
+    next.push('Finish the Circuits side chapter: the Circuits Complex, east of the Atrium, shows every gate trick.');
+  if (g) next.push(`Help the whole world relight ${g} old validators, so the great diamond in the sky wakes a little more.`);
+  if (SERVER()) next.push('Defend the Atrium when corrupted nodes attack, every hour on the hour.');
+  next.push('The towers, the Genesis Titan and the Merge twins wait for a rematch.');
+  next.push('Build something that lasts: /claim a plot, and every block you place carries your name.');
+  d.className = 'chapter epilogue';
+  d.innerHTML = `<h3>Epilogue · The network holds</h3><p class="etext"></p><div class="stats"><div><b>${mains}/${MAIN_CHAPTERS.length}</b><span>chapters</span></div><div><b>${S.relit || 0}</b><span>validators relit</span></div><div><b>${[205, 206, 209].filter(hasNft).length}/3</b><span>guardians defeated</span></div><div><b>${(S.dayN || 0) + 1}</b><span>days in this world</span></div></div><h4>What now?</h4><ul class="next"></ul>`;
+  d.querySelector('.etext').textContent = EPILOGUE.text;
+  const ul = d.querySelector('.next');
+  for (const t of next) {
+    const li = document.createElement('li');
+    li.textContent = t;
+    ul.appendChild(li);
+  }
+  return d;
 }
 function nearestRuin() {
   const rx = Math.floor(P.x / RUIN),
@@ -1057,6 +1104,7 @@ function flashQuest() {
 }
 function renderQuests(body) {
   const i = questIndex();
+  if (S.seen.epilogue) body.appendChild(epilogueCard());
   body.insertAdjacentHTML(
     'beforeend',
     `<p class="qintro">The old validators of this world have gone dark. Grow strong enough to reach the genesis rock, forge a validator heart, and relight them, one by one.</p>`,

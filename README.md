@@ -341,6 +341,12 @@ unlocks once the chapter it follows is done; inside a chapter, objectives can be
 | 5 · The Merge | climb to the Merge Sanctum, bring down both twins together, wear the Merge Aegis | 600 Gwei · title *Merge Keeper* |
 | Side · Circuits (after Genesis) | the five gate builds of the Circuits Complex | 100 Gwei · title *Circuit Sage* |
 
+**Epilogue.** Once the last main chapter (The Merge) is done, Thea closes the story with two lines, then
+the Objectives tab opens on an epilogue card that stays at its top: a closing text, the player's journey
+(chapters, validators relit, guardians defeated, days in the world) and what to do next. Every villager
+also gets a new line (`after` in `VILLAGERS`, `09-animals.js`), said the first time you talk to them after
+the epilogue. `S.seen.epilogue` marks it as seen, so players who finished before it existed see it once.
+
 After chapter 5, the validator milestones (3, 7, 12… 100 relit) take over. Most objectives are client
 flags, so the reward (`act_claim_chapter`, `029_chapters.sql`) is only paid against proofs the server
 checks itself: a pickaxe for Genesis, the pure ether pickaxe for the Forge, a validator for the

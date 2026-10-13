@@ -38,6 +38,7 @@ const VILLAGERS = [
     x: SPAWN.x,
     z: SPAWN.z + 5,
     name: 'Thea',
+    after: 'The Atrium never felt this bright. Thank you, Merge Keeper.',
     role: 'guardian of the Atrium',
     outfit: ['#8a7bef', '#ffd95e', '#3a3480', '#f6d3b8'],
     headwear: 'tiara',
@@ -51,6 +52,7 @@ const VILLAGERS = [
     x: SPAWN.x - 3,
     z: SPAWN.z + 4,
     name: 'Milo',
+    after: 'Heard you brought down the twins! Come build something worthy of it — I’ll lend you a hand.',
     role: 'builder',
     outfit: ['#ffb37a', '#6a58e0', '#7a4a2a', '#e8b890'],
     headwear: 'hat',
@@ -64,6 +66,7 @@ const VILLAGERS = [
     x: SPAWN.x,
     z: SPAWN.z - 11,
     name: 'Sage',
+    after: 'I’m redrawing every map: half the dark ruins I marked are shining now. Your doing.',
     role: 'cartographer',
     outfit: ['#9fe3c4', '#ff9ab8', '#2a2550', '#c98a64'],
     says: [
@@ -81,6 +84,7 @@ const VILLAGERS = [
     x: CITY.x + 1,
     z: CITY.z + 24,
     name: 'Robin',
+    after: 'The ships above the halls changed course last night. As if they knew the Merge was done.',
     role: 'traveler',
     outfit: ['#7fe8ff', '#ffb37a', '#c96a3a', '#f6d3b8'],
     headwear: 'hood',
@@ -94,6 +98,7 @@ const VILLAGERS = [
     x: CITY.x - 12,
     z: CITY.z + 13,
     name: 'Luna',
+    after: 'People ask me for “a piece of the Aegis” all day. I tell them: earn it, like the Merge Keeper did.',
     role: 'merchant',
     outfit: ['#ff9ab8', '#ffd95e', '#5a3a80', '#e8b890'],
     headwear: 'hat',
@@ -107,6 +112,7 @@ const VILLAGERS = [
     x: CITY.x - 11,
     z: CITY.z - 11,
     name: 'Nadia',
+    after: 'I’ve started a new chapter in the library’s ledger. The first line is your name.',
     role: 'librarian',
     outfit: ['#b6a4ff', '#7fe8ff', '#8a5a3a', '#f6d3b8'],
     says: [
@@ -119,6 +125,7 @@ const VILLAGERS = [
     x: CITY.x + 12,
     z: CITY.z - 10,
     name: 'Felix',
+    after: 'Since the Merge, the ether mushrooms glow a little brighter. Don’t ask me how I know.',
     role: 'gardener',
     outfit: ['#9fe3c4', '#ffb37a', '#4a4a4a', '#c98a64'],
     headwear: 'hat',
@@ -132,6 +139,8 @@ const VILLAGERS = [
     x: CITY.x + 2,
     z: CITY.z + 1,
     name: 'Celeste',
+    after:
+      'The diamond whispers of what comes after the Merge: a Surge, a Verge, a Purge… The roadmap never ends, and neither does this world.',
     role: 'oracle of the diamond',
     outfit: ['#f4f1ff', '#8a7bef', '#ffd95e', '#f6d3b8'],
     headwear: 'tiara',
@@ -145,6 +154,7 @@ const VILLAGERS = [
     x: CITY.x + 2,
     z: CITY.z - 11,
     name: 'Victor',
+    after: '“The twins fell together.” I wrote it in my finest ink. Some lines deserve it.',
     role: 'ledger scribe',
     outfit: ['#6a58e0', '#ffd95e', '#d8d8e8', '#e8b890'],
     says: [
@@ -792,9 +802,16 @@ function typeLine(p, text, step = 20) {
 // talk to a villager: their lines play one at a time, in a bubble at the bottom of the screen
 let saysT = 0;
 function talk(a) {
-  const h = a.h;
-  a.rep = ((a.rep ?? -1) + 1) % h.says.length;
-  const t = typeof h.says[a.rep] === 'function' ? h.says[a.rep]() : h.says[a.rep],
+  const h = a.h,
+    // after the epilogue (07-interface.js), each villager has one more line: said first, then in the rotation
+    says = S.seen.epilogue && h.after ? [h.after, ...h.says] : h.says;
+  S.metAfter = S.metAfter || {};
+  if (says !== h.says && !S.metAfter[h.name]) {
+    S.metAfter[h.name] = 1;
+    a.rep = -1;
+  }
+  a.rep = ((a.rep ?? -1) + 1) % says.length;
+  const t = typeof says[a.rep] === 'function' ? says[a.rep]() : says[a.rep],
     el = $('dialogue');
   el.innerHTML = `<b style="color:${h.outfit[0]}">${h.name}</b><i>${h.role}</i><p></p>`;
   typeLine(el.querySelector('p'), t);
