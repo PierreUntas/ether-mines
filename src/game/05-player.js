@@ -104,20 +104,32 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => keys.delete(e.code));
 const cv = renderer.domElement;
+// a refused pointer lock is usually transient (Chrome refuses a new lock for about a second after one was
+// released, e.g. right after the finale's cinematic): only fall back for good to drag-to-look after
+// several refusals in a row, or when the browser has no pointer lock at all
+let lockFails = 0;
 function tryLock() {
   if (touch) return;
+  if (!cv.requestPointerLock) {
+    noLock = true;
+    return;
+  }
   try {
     const r = cv.requestPointerLock();
-    if (r && r.catch)
-      r.catch(() => {
-        noLock = true;
-      });
+    if (r && r.then)
+      r.then(
+        () => (lockFails = 0),
+        () => {
+          if (++lockFails >= 3) noLock = true;
+        },
+      );
   } catch (e) {
-    noLock = true;
+    if (++lockFails >= 3) noLock = true;
   }
 }
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === cv;
+  if (locked) lockFails = 0;
   // the finale's cinematic frees the mouse on purpose (for its Skip button): no pause menu over it
   if (!locked && playing && !noLock && $('panel').hidden && !chatOpen && !FINALE.cine) pause();
 });

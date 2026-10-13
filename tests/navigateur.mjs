@@ -297,6 +297,26 @@ const rest = await page.evaluate(() => {
   return { nearStays, rests, back };
 });
 if (!rest.nearStays || !rest.rests || !rest.back) await fail('daytime rest: ' + JSON.stringify(rest));
+// a refused pointer lock (Chrome refuses one for about a second after a release) doesn't switch the mouse
+// to drag-to-look for good: only several refusals in a row do
+const lock = await page.evaluate(async () => {
+  const req = cv.requestPointerLock, nl = noLock;
+  cv.requestPointerLock = () => Promise.reject(new Error('cooldown'));
+  noLock = false;
+  lockFails = 0;
+  tryLock();
+  await new Promise(r => setTimeout(r, 50));
+  const once = noLock;
+  tryLock();
+  tryLock();
+  await new Promise(r => setTimeout(r, 50));
+  const thrice = noLock;
+  cv.requestPointerLock = req;
+  noLock = nl;
+  lockFails = 0;
+  return { once, thrice };
+});
+if (lock.once || !lock.thrice) await fail('pointer lock fallback: ' + JSON.stringify(lock));
 // the epilogue: finishing the last main chapter marks the story done and Thea calls you back; at the
 // Atrium the finale plays (beam, fireworks), then the full-screen epilogue; villagers get a new line
 const epi = await page.evaluate(async () => {
