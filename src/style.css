@@ -320,3 +320,4 @@ body.cine .hud{opacity:0;transition:opacity .6s}
 #compass .strip b.goal{color:var(--cyan,#7fe8ff)}
 #compass .mid{position:absolute;left:50%;top:0;width:0;height:0;margin-left:-3px;border:3px solid transparent;border-top:4px solid var(--gold,#ffd95e)}
 @media (pointer:coarse){#compass{width:130px}}
+#borderTxt{text-align:center}
