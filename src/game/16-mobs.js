@@ -752,8 +752,8 @@ function spawnMobChunk(cx, cz) {
 // loop over MOBS (updates, aiming, bolts) skips it without knowing about the rule.
 const REST_FAR = 24; // never vanishes under your eyes: only once you are this far away, and unhurt
 function restsByDay(a) {
-  if (a.type === 'crawler') return true; // the ruin's second guard: a night threat
-  if (a.type === 'guardian' || a.type === 'garden_guardian') return a.i % 2 === 1; // by day: 2 of the 3 ruin guardians, 1 of the 2 garden guardians stay on watch
+  // the ruins keep their full guard day and night (playtest): guardians and crawlers never rest
+  if (a.type === 'garden_guardian') return a.i % 2 === 1; // one of the pair stays on watch
   if (a.type === 'sky_raider' || a.type === 'water_lurker') return hash(Math.floor(a.hx), Math.floor(a.hz), 320) < 0.65;
   return false;
 }
@@ -773,8 +773,6 @@ function syncDayRest(k, far) {
     }
   } else if (night > 0.55 && list.resting?.length) {
     for (const a of list.resting.splice(0)) {
-      // a guardian whose validator was relit while it slept doesn't come back
-      if (a.type === 'guardian' && get(a.rx, a.ry + 1, a.rz) !== 73) continue;
       a.g.position.set(a.hx, a.hy, a.hz);
       scene.add(a.g);
       list.push(a);

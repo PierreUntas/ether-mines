@@ -270,12 +270,14 @@ const twins = await page.evaluate(async () => {
   return { shielded, dormant, rose, both, aegis: mines.S.nfts.some(n => n.id === 209) };
 });
 if (!twins.shielded || !twins.dormant || !twins.rose || !twins.both || !twins.aegis) await fail('merge twins: ' + JSON.stringify(twins));
-// daytime rest: by day a ruin crawler slips out of sight once you're far, a tower warden never does,
-// and the crawler is back at night
+// daytime rest: by day a sky raider slips out of sight once you're far, a ruin guardian never does
+// (validators keep their full guard), and the raider is back at night
 const rest = await page.evaluate(() => {
   const P = mines.P, key = ckey(cOf(P.x), cOf(P.z)), keep = mines.MOBS.get(key) || [];
-  const cr = mines.mkMob('crawler', key, 112, P.x + 2, P.y, P.z, null),
-    wd = mines.mkMob('warden', key, 140, P.x - 2, P.y, P.z, null),
+  let dz = 0;
+  while (!restsByDay({ type: 'sky_raider', hx: P.x + 2, hz: P.z + dz })) dz++; // one of the raiders that rest by day
+  const cr = mines.mkMob('sky_raider', key, 170, P.x + 2, P.y, P.z + dz, null),
+    wd = mines.mkMob('guardian', key, 111, P.x - 2, P.y, P.z, null),
     list = [cr, wd];
   mines.MOBS.set(key, list);
   const n0 = skyU.night.value;
@@ -283,6 +285,7 @@ const rest = await page.evaluate(() => {
   syncDayRest(key, false);
   const nearStays = list.includes(cr);
   cr.g.position.x = P.x + 40;
+  wd.g.position.x = P.x - 40;
   syncDayRest(key, false);
   const rests = !list.includes(cr) && list.includes(wd);
   skyU.night.value = 1;
