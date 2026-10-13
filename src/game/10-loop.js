@@ -391,6 +391,7 @@ function frame(now) {
     updateMobs(dt);
     updateFinale(dt);
     cineTick(dt);
+    if (playing) updateCompass(dt);
     if (playing) updateQuest(dt);
   }
   updateOthers(dt);

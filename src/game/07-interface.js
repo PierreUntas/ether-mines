@@ -2182,3 +2182,90 @@ function applySetting(k) {
   }
   if (k === 'fps') $('fps').hidden = !REG.fps;
 }
+
+// ---------- compass: a strip at the top that scrolls as you turn ----------
+// N, E, S, W (and the diagonals) where they are relative to your view, plus the Atrium and your current
+// objective's target. North is -z (the great diamond and the City), east is +x (the sea).
+const COMPASS = { el: null, marks: [], fov: Math.PI * 0.9, yaw: null, t: 0 };
+const COMPASS_DIRS = [
+  ['N', 0, 'cardinal'],
+  ['NE', Math.PI / 4, ''],
+  ['E', Math.PI / 2, 'cardinal'],
+  ['SE', (3 * Math.PI) / 4, ''],
+  ['S', Math.PI, 'cardinal'],
+  ['SW', (-3 * Math.PI) / 4, ''],
+  ['W', -Math.PI / 2, 'cardinal'],
+  ['NW', -Math.PI / 4, ''],
+];
+// the objective's place, the same targets the objectives bar points to
+function compassTarget() {
+  if (S.seen.epilogue && !S.seen.finale) return { x: SPAWN.x + 0.5, z: SPAWN.z + 0.5, label: 'Finale' };
+  const q = QUESTS[questIndex()];
+  if (!q || q.id === 'relight' || q.id === 'relit3') {
+    const r = nearestRuin();
+    return r && { x: r.x + 0.5, z: r.z + 0.5, label: 'Ruin' };
+  }
+  if (q.id === 'plasma') {
+    const t = nearestTower();
+    return t && { x: t.x + 0.5, z: t.z + 0.5, label: 'Tower' };
+  }
+  if (q.id === 'mergeVisit' || q.id === 'mergeTwins') {
+    const m = nearestMerge();
+    return m && { x: m.sx + 0.5, z: m.sz + 0.5, label: 'Sanctum' };
+  }
+  return null;
+}
+function updateCompass(dt) {
+  if (!COMPASS.el) {
+    COMPASS.el = $('compass');
+    const strip = COMPASS.el.querySelector('.strip');
+    for (const [t, b, c] of COMPASS_DIRS) {
+      const m = document.createElement('b');
+      m.textContent = t;
+      m.className = c;
+      strip.appendChild(m);
+      COMPASS.marks.push({ el: m, b: () => b });
+    }
+    const home = document.createElement('b');
+    home.className = 'poi home';
+    home.textContent = '⌂';
+    home.title = 'Atrium';
+    strip.appendChild(home);
+    COMPASS.marks.push({
+      el: home,
+      b: () => (Math.hypot(SPAWN.x - P.x, SPAWN.z - P.z) < 6 ? null : Math.atan2(SPAWN.x + 0.5 - P.x, -(SPAWN.z + 0.5 - P.z))),
+    });
+    const goal = document.createElement('b');
+    goal.className = 'poi goal';
+    strip.appendChild(goal);
+    COMPASS.goal = goal;
+    COMPASS.marks.push({ el: goal, b: () => (COMPASS.target ? Math.atan2(COMPASS.target.x - P.x, -(COMPASS.target.z - P.z)) : null) });
+  }
+  COMPASS.t -= dt;
+  if (COMPASS.t <= 0) {
+    // the objective's target changes slowly: looked up a few times a second, not every frame
+    COMPASS.t = 0.5;
+    COMPASS.target = compassTarget();
+    COMPASS.goal.textContent = COMPASS.target
+      ? `◆ ${COMPASS.target.label} ${Math.round(Math.hypot(COMPASS.target.x - P.x, COMPASS.target.z - P.z))} m`
+      : '';
+  }
+  const w = COMPASS.el.clientWidth,
+    k = w / COMPASS.fov,
+    heading = -yaw; // bearing you face, clockwise from north
+  for (const m of COMPASS.marks) {
+    const b = m.b();
+    if (b === null || (m.el === COMPASS.goal && !COMPASS.target)) {
+      m.el.style.display = 'none';
+      continue;
+    }
+    const rel = Math.atan2(Math.sin(b - heading), Math.cos(b - heading));
+    if (Math.abs(rel) > COMPASS.fov / 2) {
+      m.el.style.display = 'none';
+      continue;
+    }
+    m.el.style.display = '';
+    m.el.style.transform = `translateX(${(w / 2 + rel * k).toFixed(1)}px) translateX(-50%)`;
+    m.el.style.opacity = (1 - (Math.abs(rel) / (COMPASS.fov / 2)) ** 3).toFixed(2);
+  }
+}

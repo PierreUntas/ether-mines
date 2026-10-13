@@ -329,6 +329,27 @@ const iphone = await page.evaluate(() => {
   return out;
 });
 if (!iphone) await fail('full screen help on iPhone');
+// the compass: facing north puts N in the middle, facing east puts E there
+const compass = await page.evaluate(async () => {
+  const mid = () => {
+    const box = document.getElementById('compass').getBoundingClientRect(), c = box.left + box.width / 2;
+    let best = null, bd = 1e9;
+    for (const b of document.querySelectorAll('#compass .strip b.cardinal')) {
+      if (b.style.display === 'none') continue;
+      const r = b.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - c);
+      if (d < bd) { bd = d; best = b.textContent; }
+    }
+    return best;
+  };
+  const y0 = mines.yaw;
+  mines.yaw = 0; updateCompass(0.1);
+  const n = mid();
+  mines.yaw = -Math.PI / 2; updateCompass(0.1);
+  const e = mid();
+  mines.yaw = y0;
+  return { n, e };
+});
+if (compass.n !== 'N' || compass.e !== 'E') await fail('compass: ' + JSON.stringify(compass));
 // a refused pointer lock (Chrome refuses one for about a second after a release) doesn't switch the mouse
 // to drag-to-look for good: only several refusals in a row do
 const lock = await page.evaluate(async () => {
