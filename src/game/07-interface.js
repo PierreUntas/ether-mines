@@ -169,7 +169,7 @@ const QUESTS = [
     id: 'relight',
     t: 'Relight an old validator',
     h: 'Follow the compass to the ruins, then right-click (or tap) the dark validator.',
-    ok: () => (S.relit || 0) >= 1,
+    ok: () => ownedValidators() >= 1,
   },
   {
     id: 'mob',
@@ -224,6 +224,12 @@ const QUESTS = [
     h: 'Feed a self-oscillating NOT loop and a plate into an AND gate, its output into a latch. A quick tap lands on whichever phase the loop was in — too fast to call.',
     ok: () => !!S.gateCoinFlip,
   },
+  {
+    id: 'gatesStand',
+    t: 'Leave your mark: three gates',
+    h: 'Keep an AND, an OR and a NOT gate of your own standing somewhere in the world (on your plot: the Circuits Complex is public, nothing can be built there).',
+    ok: () => !SERVER() || MY_GATES.n >= 3,
+  },
 ];
 // objectives of the Network chapter (v17), appended after the original list so its order never matters
 QUESTS.push(
@@ -231,7 +237,7 @@ QUESTS.push(
     id: 'relit3',
     t: 'Relight three validators',
     h: 'One dark validator sleeps in each ruin. The compass in the Objectives tab points to the nearest.',
-    ok: () => (S.relit || 0) >= 3,
+    ok: () => ownedValidators() >= 3,
   },
   {
     id: 'defend',
@@ -323,7 +329,7 @@ const CHAPTERS = [
     side: 'genesis',
     title: 19,
     gwei: 100,
-    q: ['gateLamp', 'twoKey', 'blinker', 'latch', 'coinFlip'],
+    q: ['gateLamp', 'twoKey', 'blinker', 'latch', 'coinFlip', 'gatesStand'],
     intro:
       'When you have a moment: the Circuits Complex, east of here, has a working example of every gate trick. Copy them, then make your own.',
     outro: 'AND, OR, NOT… you think in gates now. Circuit Sage suits you.',
@@ -341,6 +347,38 @@ const EPILOGUE = {
 };
 let epiPending = false;
 const MAIN_CHAPTERS = CHAPTERS.filter(c => !c.side);
+// what the server sees, so an objective never shows done while the server would refuse its reward
+// (029_chapters.sql's proofs): the validators you own, and your AND/OR/NOT gates still standing
+const ownedValidators = () => (SERVER() && VALIDATORS.loaded ? VALIDATORS.list.length : S.relit || 0);
+const MY_GATES = { n: 0, t: 0 };
+async function updateMyGates() {
+  MY_GATES.t = 30;
+  if (!SERVER()) return;
+  try {
+    MY_GATES.n = new Set((await Net.loadMyGates()).map(b => Math.floor((b.id - 112) / 4))).size;
+  } catch (e) {
+    console.error(e);
+  }
+}
+// a refused chapter reward says exactly what the server is still missing
+function chapterMissing(id) {
+  const c = CHAPTERS.find(o => o.id === id),
+    miss = [];
+  if (!c) return 'chapter reward on hold: the server doesn’t see its key milestone yet';
+  if (id === 'genesis') miss.push('a pickaxe in your chest');
+  if (id === 'forge') miss.push('your pure ether pickaxe');
+  if (id === 'awakening') miss.push('a validator under your name');
+  if (id === 'network') {
+    const n = ownedValidators();
+    if (n < 3) miss.push(`3 validators under your name (it sees ${n})`);
+    if (!hasNft(205)) miss.push('the Genesis Titan Fang');
+    if (!hasNft(206)) miss.push('the Plasma Core trophy');
+    if (!miss.length) miss.push('a corrupted node destroyed by you during an attack on the Atrium');
+  }
+  if (id === 'merge') miss.push('the Merge Aegis');
+  if (id === 'circuits') miss.push(`an AND, an OR and a NOT gate of yours standing in the world (it sees ${MY_GATES.n} of the 3)`);
+  return `${c.n} reward on hold: the server still needs ${miss.join(', ')}`;
+}
 const chapterDone = c => c.q.every(id => QBY[id].ok());
 const chapterOpen = c =>
   c.side ? chapterDone(CHAPTERS.find(o => o.id === c.side)) : MAIN_CHAPTERS.slice(0, MAIN_CHAPTERS.indexOf(c)).every(chapterDone);
@@ -355,6 +393,7 @@ const CHAPTER_CLAIM = { busy: {}, failedAt: {} };
 async function claimChapter(c) {
   if (CHAPTER_CLAIM.busy[c.id]) return;
   CHAPTER_CLAIM.busy[c.id] = 1;
+  CHAPTER_CLAIM.asking = c.id;
   const r = await serverAct('claim_chapter', { chapter: c.id }, null, 'chapter reward');
   CHAPTER_CLAIM.busy[c.id] = 0;
   if (!r) {
@@ -1059,9 +1098,12 @@ function updateQuest(dt) {
   updateAttackBanner();
   LEADERBOARD.t -= 0.4;
   if (LEADERBOARD.t <= 0) updateLeaderboard();
-  if (tab === 'validators' && !$('panel').hidden) {
-    VALIDATORS.t -= 0.4;
-    if (VALIDATORS.t <= 0) updateValidators();
+  // the validator list: every 20 s on its own tab, every minute otherwise (the objectives count it)
+  VALIDATORS.t -= tab === 'validators' && !$('panel').hidden ? 0.4 : 0.4 / 3;
+  if (VALIDATORS.t <= 0) updateValidators();
+  if (!S.cosmetics.includes(19)) {
+    MY_GATES.t -= 0.4;
+    if (MY_GATES.t <= 0) updateMyGates();
   }
   progressChapters();
   const el = $('quest'),

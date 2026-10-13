@@ -339,7 +339,9 @@ unlocks once the chapter it follows is done; inside a chapter, objectives can be
 | 3 · The Awakening | genesis rock, validator heart, relight a validator, attest it | 200 Gwei · title *Awakener* |
 | 4 · The Network | 3 validators, a trade, defend the Atrium, the Plasma Core, the Genesis Titan | 400 Gwei · title *Network Guardian* |
 | 5 · The Merge | climb to the Merge Sanctum, bring down both twins together, wear the Merge Aegis | 600 Gwei · title *Merge Keeper* |
-| Side · Circuits (after Genesis) | the five gate builds of the Circuits Complex | 100 Gwei · title *Circuit Sage* |
+| Side · Circuits (after Genesis) | the five gate builds of the Circuits Complex, and an AND, an OR and a NOT gate of yours left standing | 100 Gwei · title *Circuit Sage* |
+
+The objectives the server checks before paying a chapter follow what the server sees, not the browser: "Relight a validator" and "Relight three validators" count the validators you own on the server (`ownedValidators()`), and the Circuits chapter needs your three gate types still standing (`MY_GATES`, polled every 30 s until the title is earned). When the server still refuses, the message names what it is missing (`chapterMissing()`).
 
 **Epilogue.** Once the last main chapter (The Merge) is done, Thea closes the story with two lines, then
 the Objectives tab opens on an epilogue card that stays at its top: a closing text, the player's journey

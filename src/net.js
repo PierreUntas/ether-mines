@@ -239,6 +239,12 @@ window.Net = (() => {
   }
   // A player's owned validators, with their current state — fetched on demand (the Validators tab),
   // not streamed in real time like blocks/claims.
+  // the AND/OR/NOT gates placed by you that still stand: the Circuits chapter's proof (029_chapters.sql)
+  async function loadMyGates() {
+    const { data, error } = await sb.from('blocks').select('id').eq('world', world).eq('placed_by', userId).gte('id', 112).lte('id', 123);
+    if (error) throw error;
+    return data;
+  }
   async function loadValidators() {
     const { data, error } = await sb.from('validators').select('*').eq('world', world).eq('owner', userId);
     if (error) throw error;
@@ -282,6 +288,7 @@ window.Net = (() => {
     loadInventory,
     loadCosmetics,
     loadValidators,
+    loadMyGates,
     setTitle,
     loadClaims,
     fetchChunk,

@@ -33,7 +33,7 @@ function revert(rec) {
 const REFUSAL = {
   'tool too weak': () => `you need ${target ? TIER_NAME[reqTier(target.id)] : 'a better tool'}`,
   protected: () => 'protected area',
-  'chapter not finished': () => 'chapter reward on hold: the server doesn’t see its key milestone yet (a pickaxe, a validator, a trophy…)',
+  'chapter not finished': () => chapterMissing(CHAPTER_CLAIM.asking),
   'empty inventory': () => 'none of that item left',
   'needs support': () => 'you need something solid underneath',
   'space occupied': () => 'that spot is occupied',
@@ -556,6 +556,7 @@ function relight(t) {
       Sound.chime();
       popAt(t.x, t.y, t.z, 1);
       updateNetwork();
+      updateValidators(); // the objectives count the validators the server sees
       if (r.star) {
         addUnique(r.star);
         toastInfo(`A network milestone! ${ITEM[204].n} minted, commemorating it.`);
