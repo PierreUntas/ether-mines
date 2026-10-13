@@ -350,7 +350,7 @@ const EPILOGUE = {
 // to the Atrium; there, a beam of light rises from it, fireworks burst overhead, the great diamond
 // spins, Thea speaks, then a full-screen epilogue (S.seen.finale) — impossible to miss, unlike a
 // line in the dialogue bubble while you're busy elsewhere
-const FINALE = { called: false, on: false, t: 0, shown: false, done: false, nextBurst: 0, fx: [], beam: null, yaw0: 0 },
+const FINALE = { called: false, on: false, t: 0, shown: false, done: false, nextBurst: 0, fx: [], beam: null, yaw0: 0, inGame: 0, day0: 0 },
   FINALE_R = 14; // how close to the Atrium's center the finale starts
 const finaleDist = () => Math.hypot(P.x - (SPAWN.x + 0.5), P.z - (SPAWN.z + 0.5));
 function startFinale() {
@@ -361,6 +361,7 @@ function startFinale() {
   THEA_LINES.push(...EPILOGUE.thea);
   $('dialogue').hidden = true;
   FINALE.yaw0 = yaw;
+  FINALE.day0 = S.day;
   const beam = new THREE.Mesh(
     new THREE.CylinderGeometry(0.35, 0.8, 70, 12, 1, true),
     new THREE.MeshBasicMaterial({
@@ -428,7 +429,10 @@ function showFinaleScreen() {
   Sound.chime();
 }
 function updateFinale(dt) {
+  // a few seconds in the world first: logging in right inside the Atrium doesn't start it under the loading fade
+  FINALE.inGame = playing ? FINALE.inGame + dt : 0;
   if (!FINALE.on) {
+    if (FINALE.inGame < 4) return;
     // not in the middle of a network attack: corrupted nodes swarm the Atrium for those 10 minutes
     if (!S.seen.epilogue || S.seen.finale || !playing || !$('panel').hidden || finaleDist() > FINALE_R || attackWindow().active) return;
     startFinale();
@@ -442,6 +446,11 @@ function updateFinale(dt) {
     let d = want - FINALE.yaw0;
     d = Math.atan2(Math.sin(d), Math.cos(d));
     yaw = FINALE.yaw0 + d * Math.min(1, t / 1.2) ** 0.5;
+  }
+  // night falls over the Atrium for the fireworks (your own sky only, like the rest of the day cycle)
+  if (t < 3 && FINALE.day0 > 0.2 && FINALE.day0 < 0.8) {
+    S.day = FINALE.day0 + (0.93 - FINALE.day0) * Math.min(1, t / 3) ** 2;
+    if (t + dt >= 3) S.day = 0.93;
   }
   // fireworks until you close the epilogue screen
   if (!FINALE.done && t >= FINALE.nextBurst) {
@@ -1188,6 +1197,20 @@ function epilogueCard() {
     const li = document.createElement('li');
     li.textContent = t;
     ul.appendChild(li);
+  }
+  // once played, the finale can be watched again
+  if (S.seen.finale && !FINALE.on) {
+    const b = document.createElement('button');
+    b.className = 'b';
+    b.textContent = 'Replay the finale at the Atrium';
+    b.onclick = () => {
+      delete S.seen.finale;
+      Object.assign(FINALE, { called: true, shown: false, done: false });
+      dirty = true;
+      if (!$('panel').hidden) togglePanel();
+      toastInfo(finaleDist() > FINALE_R ? 'Head back to the Atrium: the finale plays there.' : 'The finale is about to begin…');
+    };
+    d.appendChild(b);
   }
   return d;
 }

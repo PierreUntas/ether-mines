@@ -314,6 +314,7 @@ const epi = await page.evaluate(async () => {
   $('dialogue').hidden = true;
   const wasPlaying = mines.playing;
   mines.playing = true;
+  FINALE.inGame = 5; // past the few seconds it waits after entering the world
   updateFinale(0.1);
   const waits = !FINALE.on;
   P.x = SPAWN.x + 2; P.z = SPAWN.z + 1; // back at the Atrium
@@ -329,6 +330,11 @@ const epi = await page.evaluate(async () => {
   const closed = !document.querySelector('#finale');
   for (let i = 0; i < 60; i++) updateFinale(0.1);
   const cleaned = !FINALE.on && !FINALE.beam && !FINALE.fx.length;
+  // the epilogue card offers to replay it
+  const card = epilogueCard(), rb = [...card.querySelectorAll('button')].find(b => b.textContent.includes('Replay'));
+  rb && rb.click();
+  const replay = !!rb && !mines.S.seen.finale;
+  mines.S.seen.finale = 1;
   QUESTS.forEach((q, i) => (q.ok = saved[i]));
   mines.playing = wasPlaying;
   attackWindow = aw;
@@ -339,7 +345,7 @@ const epi = await page.evaluate(async () => {
   const typed = $('dialogue').querySelector('p').textContent,
     line = typed.length > 0 && VILLAGERS[0].after.startsWith(typed);
   $('dialogue').hidden = true;
-  return { flagged, called, waits, started, fireworks, screen, closed, cleaned, line };
+  return { flagged, called, waits, started, fireworks, screen, closed, cleaned, replay, line };
 });
 if (Object.values(epi).some(v => !v)) await fail('epilogue: ' + JSON.stringify(epi));
 // combat v2: the two new mob types build and take damage, armor reduces incoming damage
