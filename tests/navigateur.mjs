@@ -45,6 +45,18 @@ await page.waitForTimeout(800);
 if (errors.length) await fail('error while loading the page');
 await page.evaluate(() => document.getElementById('play').click());
 await page.waitForFunction(() => document.getElementById('title').hidden, null, { timeout: 240000 });
+// a new player's intro cinematic starts, and Skip ends it (Thea's greeting follows)
+const intro = await page.evaluate(async () => {
+  const t0 = performance.now();
+  while (!CINE.on && performance.now() - t0 < 5000) await new Promise(r => setTimeout(r, 100));
+  const on = CINE.on && !!document.getElementById('cine') && document.body.classList.contains('cine');
+  for (let i = 0; i < 30; i++) cineTick(0.1); // the first subtitle
+  const sub = (document.querySelector('#cine .sub')?.textContent || '').includes('network went dark');
+  document.querySelector('#cine .skip').click();
+  cineTick(0.1);
+  return { on, sub, off: !CINE.on && !document.getElementById('cine') && !document.body.classList.contains('cine') };
+});
+if (!intro.on || !intro.sub || !intro.off) await fail('intro: ' + JSON.stringify(intro));
 const y = await page.evaluate(() => { for (let y = 63; y > 0; y--) { const v = mines.get(20, y, 20); if (v && ![5, 6, 7, 17, 18, 19, 20].includes(v)) return y; } });
 await page.evaluate((y) => mines.breakBlock({ x: 20, y, z: 20, id: mines.get(20, y, 20) }), y);
 await page.evaluate(() => { mines.give(5, 1, 'test'); mines.craft({ out: 9, n: 4, need: { 5: 1 } }); });
@@ -335,26 +347,26 @@ const epi = await page.evaluate(async () => {
   const wasPlaying = mines.playing;
   mines.playing = true;
   FINALE.inGame = 5; // past the few seconds it waits after entering the world
-  updateFinale(0.1);
+  (updateFinale(0.1), cineTick(0.1));
   const waits = !FINALE.on;
   P.x = SPAWN.x + 2; P.z = SPAWN.z + 1; // back at the Atrium
-  updateFinale(0.1);
-  const started = FINALE.on && !!FINALE.beam && FINALE.cine && !!document.getElementById('cine');
+  (updateFinale(0.1), cineTick(0.1));
+  const started = FINALE.on && !!FINALE.beam && CINE.on && !!document.getElementById('cine');
   const nl = noLock;
   noLock = false; // as on a desktop browser, where losing the pointer lock opens the pause menu
   document.dispatchEvent(new Event('pointerlockchange')); // the mouse is freed for Skip: no pause menu over the cinematic
   const noMenu = document.getElementById('title').hidden;
   noLock = nl;
-  for (let i = 0; i < 20; i++) updateFinale(0.1);
+  for (let i = 0; i < 20; i++) (updateFinale(0.1), cineTick(0.1));
   const fireworks = FINALE.fx.length > 0;
-  for (let i = 0; i < 150; i++) updateFinale(0.1); // into shot 3: Thea's first subtitle
+  for (let i = 0; i < 150; i++) (updateFinale(0.1), cineTick(0.1)); // into shot 3: Thea's first subtitle
   const subtitle = (document.querySelector('#cine .sub')?.textContent || '').includes(EPILOGUE.thea[0].slice(0, 20));
   document.querySelector('#cine .skip').click(); // Skip
-  for (let i = 0; i < 3; i++) updateFinale(0.1);
-  const screen = !!document.querySelector('#finale .epilogue') && !!mines.S.seen.finale && !FINALE.cine && !document.getElementById('cine');
+  for (let i = 0; i < 3; i++) (updateFinale(0.1), cineTick(0.1));
+  const screen = !!document.querySelector('#finale .epilogue') && !!mines.S.seen.finale && !CINE.on && !document.getElementById('cine');
   document.querySelector('#finale button').click();
   const closed = !document.querySelector('#finale');
-  for (let i = 0; i < 60; i++) updateFinale(0.1);
+  for (let i = 0; i < 60; i++) (updateFinale(0.1), cineTick(0.1));
   const cleaned = !FINALE.on && !FINALE.beam && !FINALE.fx.length;
   // the epilogue card offers to replay it
   const card = epilogueCard(), rb = [...card.querySelectorAll('button')].find(b => b.textContent.includes('Replay'));

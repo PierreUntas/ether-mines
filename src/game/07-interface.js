@@ -362,9 +362,8 @@ const FINALE = {
     yaw0: 0,
     inGame: 0,
     day0: 0,
-    cine: false,
-    said: -1,
     pose0: null,
+    cineDone: false,
   },
   FINALE_R = 14; // how close to the Atrium's center the finale starts
 const finaleDist = () => Math.hypot(P.x - (SPAWN.x + 0.5), P.z - (SPAWN.z + 0.5));
@@ -376,12 +375,18 @@ function startFinale() {
   $('dialogue').hidden = true;
   FINALE.yaw0 = yaw;
   FINALE.day0 = S.day;
-  FINALE.said = -1;
-  FINALE.pose0 = {
-    pos: camera.position.clone(),
-    look: camera.position.clone().add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).multiplyScalar(10)),
-  };
-  cineBegin();
+  const [pos, look] = eyesPose();
+  FINALE.pose0 = { pos, look };
+  FINALE.cineDone = false;
+  cinePlay({
+    end: CINE_END,
+    lines: [
+      [16.5, 23, 'Thea', EPILOGUE.thea[0]],
+      [23, 29.5, 'Thea', EPILOGUE.thea[1]],
+    ],
+    pose: cinePose,
+    onEnd: () => (FINALE.cineDone = true),
+  });
   const beam = new THREE.Mesh(
     new THREE.CylinderGeometry(0.35, 0.8, 70, 12, 1, true),
     new THREE.MeshBasicMaterial({
@@ -398,18 +403,24 @@ function startFinale() {
   FINALE.beam = beam;
   Sound.theme();
 }
-// ---------- the finale's cinematic: the game takes the camera for about 30 s ----------
-// Three shots around the Atrium (an orbit while night falls and the beam rises, a crane up to the great
-// diamond through the fireworks, then down to Thea, who speaks face to face), letterboxed, with
-// subtitles and a Skip button. Played in the engine, in the player's own world: no video file.
-const CINE_END = 30,
-  CINE_LINES = [
-    [16.5, 23],
-    [23, 29.5],
-  ];
+// ---------- cinematics: the game takes the camera ----------
+// A scene is { end, lines: [[from, to, speaker, text]], pose(t) -> [position, point looked at], onEnd }.
+// Letterboxed, HUD hidden, the player frozen, subtitles, a Skip button (Escape, Space, Enter too).
+// Played in the engine, in the player's own world: no video file. Used by the intro (a new player's
+// first seconds, 14-startup.js) and the finale.
+const CINE = { on: false, t: 0, said: -1, scene: null };
 const smooth = u => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
-function cineBegin() {
-  FINALE.cine = true;
+// where the player's eyes are and what they look at, to start a shot from (or land it on)
+function eyesPose() {
+  return [
+    camera.position.clone(),
+    camera.position.clone().add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).multiplyScalar(10)),
+  ];
+}
+function cinePlay(scene) {
+  Object.assign(CINE, { on: true, t: 0, said: -1, scene });
+  THEA_LINES.length = 0;
+  $('dialogue').hidden = true;
   document.body.classList.add('cine');
   if (document.pointerLockElement) document.exitPointerLock();
   const el = document.createElement('div');
@@ -419,24 +430,123 @@ function cineBegin() {
   document.body.appendChild(el);
   addEventListener('keydown', cineKey, true);
 }
-const cineSkip = () => (FINALE.t = Math.max(FINALE.t, CINE_END));
-// Escape, Space or Enter skip it too; no other key reaches the game meanwhile
+const cineSkip = () => CINE.on && (CINE.t = Math.max(CINE.t, CINE.scene.end));
 function cineKey(e) {
-  if (!FINALE.cine) return;
+  if (!CINE.on) return;
   if (['Escape', 'Space', 'Enter'].includes(e.code)) cineSkip();
   e.stopPropagation();
   e.preventDefault();
 }
-function cineEnd() {
-  FINALE.cine = false;
-  document.body.classList.remove('cine');
-  $('cine')?.remove();
-  removeEventListener('keydown', cineKey, true);
-  // you're left facing Thea
-  const h = VILLAGERS[0];
-  yaw = Math.atan2(-(h.x + 0.5 - P.x), -(h.z + 0.5 - P.z));
-  pitch = 0;
+function cineTick(dt) {
+  if (!CINE.on) return;
+  CINE.t += dt;
+  const t = CINE.t,
+    sc = CINE.scene;
+  // the player stands still while the camera is away
+  keys.clear();
+  move.x = move.y = 0;
+  mining = false;
+  const i = sc.lines.findIndex(([a, b]) => t >= a && t < b),
+    sub = $('cine')?.querySelector('.sub');
+  if (sub && i !== CINE.said) {
+    CINE.said = i;
+    sub.innerHTML = i < 0 ? '' : `${sc.lines[i][2] ? `<b>${sc.lines[i][2]}</b>` : ''}<span></span>`;
+    if (i >= 0) {
+      sub.querySelector('span').textContent = sc.lines[i][3];
+      if (sc.lines[i][2]) Sound.animal('villager', 1);
+    }
+  }
+  if (t >= sc.end) {
+    CINE.on = false;
+    document.body.classList.remove('cine');
+    $('cine')?.remove();
+    removeEventListener('keydown', cineKey, true);
+    // you're left facing Thea
+    const h = VILLAGERS[0];
+    yaw = Math.atan2(-(h.x + 0.5 - P.x), -(h.z + 0.5 - P.z));
+    pitch = 0;
+    sc.onEnd?.();
+  }
 }
+function cineCamera() {
+  const [pos, look] = CINE.scene.pose(Math.min(CINE.t, CINE.scene.end));
+  camera.position.copy(pos);
+  camera.lookAt(look);
+  camera.updateMatrixWorld();
+  sky.position.copy(camera.position);
+  stars.position.copy(camera.position);
+  return () => {}; // no hand drawn over a cinematic
+}
+// Thea's head, where the last shots land
+function theaHead() {
+  const h = VILLAGERS[0];
+  return new THREE.Vector3(h.x + 0.5, (groundAt(h.x + 0.5, h.z + 0.5, SPAWN.y + 2, false, 4)?.y ?? SPAWN.y) + 1.5, h.z + 0.5);
+}
+// ---------- the intro: a new player's first 14 seconds ----------
+// The great diamond, dim; a dark validator in the first ruin; then the Atrium, the one light left,
+// landing in the player's own eyes in front of Thea, who then greets them (greetPlayer, 09-animals.js).
+const INTRO_LINES = [
+  'Long ago, the network went dark. Its old validators sleep in the ruins.',
+  'Only the Atrium still shines. It has been waiting for you.',
+];
+function playIntro(onEnd) {
+  const [eye] = eyesPose(),
+    T = theaHead(),
+    C = new THREE.Vector3(SPAWN.x + 0.5, SPAWN.y, SPAWN.z + 0.5),
+    diamond = bigEth.position.clone(),
+    toD = new THREE.Vector3(diamond.x - C.x, 0, diamond.z - C.z).normalize(),
+    high0 = C.clone()
+      .add(toD.clone().multiplyScalar(-14))
+      .add(new THREE.Vector3(10, 34, 0)),
+    high1 = C.clone()
+      .add(toD.clone().multiplyScalar(-4))
+      .add(new THREE.Vector3(2, 30, 0)),
+    // the first ruin, if its dark validator is already loaded: otherwise straight down to the Atrium
+    r = ruinAt(0, 0),
+    ruin = r && get(r.x, r.y + 1, r.z) === 73 ? new THREE.Vector3(r.x + 0.5, r.y + 1.5, r.z + 0.5) : null,
+    ruinCam =
+      ruin &&
+      ruin
+        .clone()
+        .add(new THREE.Vector3(C.x - ruin.x, 0, C.z - ruin.z).normalize().multiplyScalar(10))
+        .add(new THREE.Vector3(0, 7, 0)),
+    over = C.clone()
+      .add(new THREE.Vector3(0, 14, 0))
+      .add(new THREE.Vector3(eye.x - C.x, 0, eye.z - C.z).normalize().multiplyScalar(16)),
+    atrium = C.clone().add(new THREE.Vector3(0, 3, 0));
+  cinePlay({
+    end: 14,
+    lines: [
+      [0.8, 7, 'Thea', INTRO_LINES[0]],
+      [8.5, 14, 'Thea', INTRO_LINES[1]],
+    ],
+    pose(t) {
+      // shot 1: high above, the great diamond, dim
+      if (t < 4.5) return [high0.clone().lerp(high1, smooth(t / 4.5)), diamond.clone()];
+      // shot 2: down to the first ruin's dark validator
+      if (ruin && t < 9) {
+        const u = smooth((t - 4.5) / 4.5);
+        return [high1.clone().lerp(ruinCam, u), diamond.clone().lerp(ruin, u)];
+      }
+      // shot 3: over to the Atrium, then down into the player's own eyes, facing Thea
+      const from = ruin ? ruinCam : high1,
+        fromLook = ruin ? ruin : diamond,
+        t0 = ruin ? 9 : 4.5,
+        u = (t - t0) / (14 - t0);
+      if (u < 0.5) {
+        const v = smooth(u * 2);
+        return [from.clone().lerp(over, v), fromLook.clone().lerp(atrium, v)];
+      }
+      const v = smooth((u - 0.5) * 2);
+      return [over.clone().lerp(eye, v), atrium.clone().lerp(T, v)];
+    },
+    onEnd,
+  });
+}
+// ---------- the finale's cinematic: about 30 s ----------
+// Three shots around the Atrium (an orbit while night falls and the beam rises, a crane up to the great
+// diamond through the fireworks, then down to Thea, who speaks face to face).
+const CINE_END = 30;
 // the camera's pose at time t: [position, point looked at]
 function cinePose(t) {
   const C = new THREE.Vector3(SPAWN.x + 0.5, SPAWN.y, SPAWN.z + 0.5),
@@ -492,15 +602,6 @@ function cinePose(t) {
     look = T.clone();
   }
   return [pos, look];
-}
-function cineCamera() {
-  const [pos, look] = cinePose(FINALE.t);
-  camera.position.copy(pos);
-  camera.lookAt(look);
-  camera.updateMatrixWorld();
-  sky.position.copy(camera.position);
-  stars.position.copy(camera.position);
-  return () => {}; // no hand drawn over a cinematic
 }
 const FW_COLORS = [0xffd95e, 0x7fe8ff, 0xff9ab8, 0x9fe3c4, 0xc2b8ff];
 function fireworkBurst() {
@@ -563,23 +664,6 @@ function updateFinale(dt) {
   }
   FINALE.t += dt;
   const t = FINALE.t;
-  if (FINALE.cine) {
-    // the player stands still while the camera is away
-    keys.clear();
-    move.x = move.y = 0;
-    mining = false;
-    const i = CINE_LINES.findIndex(([a, b]) => t >= a && t < b),
-      sub = $('cine')?.querySelector('.sub');
-    if (sub && i !== FINALE.said) {
-      FINALE.said = i;
-      sub.innerHTML = i < 0 ? '' : '<b>Thea</b><span></span>';
-      if (i >= 0) {
-        sub.querySelector('span').textContent = EPILOGUE.thea[i];
-        Sound.animal('villager', 1);
-      }
-    }
-    if (t >= CINE_END) cineEnd();
-  }
   // night falls over the Atrium for the fireworks (your own sky only, like the rest of the day cycle)
   if (t < 3 && FINALE.day0 > 0.2 && FINALE.day0 < 0.8) {
     S.day = FINALE.day0 + (0.93 - FINALE.day0) * Math.min(1, t / 3) ** 2;
@@ -588,7 +672,7 @@ function updateFinale(dt) {
   // fireworks until you close the epilogue screen
   if (!FINALE.done && t >= FINALE.nextBurst) {
     fireworkBurst();
-    FINALE.nextBurst = t + (FINALE.cine ? 0.25 : 0.45) + Math.random() * 0.4;
+    FINALE.nextBurst = t + (CINE.on ? 0.25 : 0.45) + Math.random() * 0.4;
   }
   for (let i = FINALE.fx.length - 1; i >= 0; i--) {
     const f = FINALE.fx[i];
@@ -622,7 +706,7 @@ function updateFinale(dt) {
   }
   if (!FINALE.done) bigEth.rotation.y += dt * 1.4;
   // the epilogue screen once Thea has spoken
-  if (!FINALE.shown && !FINALE.cine && t >= CINE_END) showFinaleScreen();
+  if (!FINALE.shown && FINALE.cineDone) showFinaleScreen();
   if (FINALE.done && !FINALE.fx.length && !FINALE.beam) FINALE.on = false;
 }
 const MAIN_CHAPTERS = CHAPTERS.filter(c => !c.side);
@@ -691,6 +775,7 @@ async function claimChapter(c) {
 // Thea's chapter lines, one at a time: an intro and an outro can arrive in the same tick
 const THEA_LINES = [];
 function theaNext() {
+  if (CINE.on) return; // not under a cinematic: the HUD (and its dialogue bubble) is hidden
   if (!THEA_LINES.length || !$('dialogue').hidden) return;
   sayAs(VILLAGERS[0], THEA_LINES.shift());
 }

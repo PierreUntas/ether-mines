@@ -877,8 +877,15 @@ $('play').onclick = async () => {
     // a stronger first moment than a feed toast: Thea, the Atrium's own guardian, greets a brand-new
     // arrival before they have to go find and click anyone — a short delay so the world has rendered
     // first, instead of popping up over a still-loading view
-    setTimeout(() => greetPlayer(), 600);
-    setTimeout(() => logEv('mint', 'Mine a block', 'it becomes a token in your chest'), 10500);
+    // first a short cinematic of the world (playIntro, 07-interface.js), skippable, once ever
+    setTimeout(
+      () =>
+        playIntro(() => {
+          greetPlayer();
+          setTimeout(() => logEv('mint', 'Mine a block', 'it becomes a token in your chest'), 10000);
+        }),
+      600,
+    );
   }
 };
 $('copyUrl').onclick = async () => {

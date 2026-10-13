@@ -343,6 +343,12 @@ unlocks once the chapter it follows is done; inside a chapter, objectives can be
 
 The objectives the server checks before paying a chapter follow what the server sees, not the browser: "Relight a validator" and "Relight three validators" count the validators you own on the server (`ownedValidators()`), and the Circuits chapter needs your three gate types still standing (`MY_GATES`, polled every 30 s until the title is earned). When the server still refuses, the message names what it is missing (`chapterMissing()`).
 
+**Intro.** A brand-new player's first seconds are a 14-second cinematic (`playIntro()`, `07-interface.js`,
+once ever, before Thea's greeting): high above, the great diamond, dim; down to the first ruin's dark
+validator; then over to the Atrium and into the player's own eyes, facing Thea. Two lines of Thea's as
+subtitles. Cinematics share one player (`cinePlay()`, `cineTick()`, `cineCamera()`): letterbox, HUD
+hidden, player frozen, Skip button or Escape/Space/Enter.
+
 **Epilogue and finale.** Once the last main chapter (The Merge) is done, the story is marked finished
 (`S.seen.epilogue`) and Thea calls you back to the Atrium; the objectives bar points there ("Finale ·
 Return to the Atrium"). Within 14 blocks of its center the finale plays once (`updateFinale()`, `07-interface.js`): a
