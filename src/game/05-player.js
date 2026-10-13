@@ -90,6 +90,7 @@ addEventListener('keydown', e => {
   keys.add(e.code);
   if (/^Digit[1-9]$/.test(e.code)) select(+e.code.slice(5) - 1);
   if (e.code === 'KeyM') toggleSnd();
+  if (e.code === 'KeyF') toggleFullscreen();
   if (e.code === 'KeyO') openTab('quest');
   if (e.code === 'KeyV' || e.code === 'F5') {
     e.preventDefault();
@@ -127,11 +128,34 @@ function tryLock() {
     if (++lockFails >= 3) noLock = true;
   }
 }
+// full screen (F key, or the button next to the sound one): hides the browser's bars. Entering or leaving
+// it can drop the pointer lock for a moment: that must not open the pause menu, and the lock is taken
+// back right away (still within the key press or click that asked for it)
+let fsSwitch = 0;
+const fsOk = () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+function toggleFullscreen() {
+  if (!fsOk()) return;
+  const el = document.documentElement,
+    on = document.fullscreenElement || document.webkitFullscreenElement,
+    wasLocked = locked;
+  fsSwitch = performance.now() + 1500;
+  try {
+    const r = on
+      ? (document.exitFullscreen || document.webkitExitFullscreen).call(document)
+      : (el.requestFullscreen || el.webkitRequestFullscreen).call(el, { navigationUI: 'hide' });
+    Promise.resolve(r)
+      .then(() => {
+        if (wasLocked && !locked && playing && $('panel').hidden) tryLock();
+      })
+      .catch(() => {});
+  } catch (e) {}
+}
+document.addEventListener('fullscreenchange', () => $('fsBtn').classList.toggle('on', !!document.fullscreenElement));
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === cv;
   if (locked) lockFails = 0;
   // the finale's cinematic frees the mouse on purpose (for its Skip button): no pause menu over it
-  if (!locked && playing && !noLock && $('panel').hidden && !chatOpen && !CINE.on) pause();
+  if (!locked && playing && !noLock && $('panel').hidden && !chatOpen && !CINE.on && performance.now() > fsSwitch) pause();
 });
 cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('mousedown', e => {

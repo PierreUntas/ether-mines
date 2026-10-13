@@ -309,6 +309,15 @@ const rest = await page.evaluate(() => {
   return { nearStays, rests, back };
 });
 if (!rest.nearStays || !rest.rests || !rest.back) await fail('daytime rest: ' + JSON.stringify(rest));
+// the full screen button: shown where the browser supports it, toggles full screen, lit while on
+const fsShown = await page.evaluate(() => !document.getElementById('fsBtn').hidden);
+await page.click('#fsBtn');
+await page.waitForTimeout(400);
+const fsOn = await page.evaluate(() => !!document.fullscreenElement && document.getElementById('fsBtn').classList.contains('on'));
+await page.click('#fsBtn');
+await page.waitForTimeout(400);
+const fsOff = await page.evaluate(() => !document.fullscreenElement && !document.getElementById('fsBtn').classList.contains('on') && document.getElementById('title').hidden);
+if (!fsShown || !fsOn || !fsOff) await fail('full screen: ' + JSON.stringify({ fsShown, fsOn, fsOff }));
 // a refused pointer lock (Chrome refuses one for about a second after a release) doesn't switch the mouse
 // to drag-to-look for good: only several refusals in a row do
 const lock = await page.evaluate(async () => {

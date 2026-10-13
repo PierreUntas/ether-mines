@@ -782,6 +782,11 @@ function toggleSnd() {
   $('sndBtn').title = on ? 'Sound (M)' : 'Sound muted (M)';
 }
 $('sndBtn').classList.toggle('off', !Sound.on);
+$('fsBtn').hidden = !fsOk(); // an iPhone's Safari has no full screen for pages
+$('fsBtn').onclick = e => {
+  e.stopPropagation();
+  toggleFullscreen();
+};
 $('sndBtn').onclick = e => {
   e.stopPropagation();
   toggleSnd();
