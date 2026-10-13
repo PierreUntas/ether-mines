@@ -297,3 +297,13 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 #finale .b{justify-self:center;font-size:20px;padding:12px 26px;border-radius:12px;border:0;background:var(--violet);box-shadow:0 5px 0 #4f40bf}
 @keyframes finaleIn{from{opacity:0}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){#finale{animation:none}}
+/* the finale's cinematic: letterbox, subtitles, Skip; the HUD steps aside */
+body.cine .hud{opacity:0;transition:opacity .6s}
+#cine{position:fixed;inset:0;z-index:15;pointer-events:none}
+#cine .bar{position:absolute;left:0;right:0;height:11vh;background:#000;animation:cineBar 1s ease-out}
+#cine .bar.top{top:0}
+#cine .bar.bottom{bottom:0}
+@keyframes cineBar{from{height:0}}
+#cine .sub{position:absolute;left:50%;bottom:calc(11vh + 18px);transform:translateX(-50%);width:min(760px,calc(100% - 32px));margin:0;text-align:center;font-size:clamp(17px,2.4vw,24px);line-height:1.4;color:#fff;text-shadow:0 2px 6px #000,0 0 2px #000}
+#cine .sub b{display:block;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold,#ffd95e);margin-bottom:4px}
+#cine .skip{pointer-events:auto;position:absolute;right:16px;bottom:calc(11vh - 44px);font-family:var(--mono);font-size:13px;color:#ddd;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 12px}

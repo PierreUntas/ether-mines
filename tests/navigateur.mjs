@@ -319,13 +319,14 @@ const epi = await page.evaluate(async () => {
   const waits = !FINALE.on;
   P.x = SPAWN.x + 2; P.z = SPAWN.z + 1; // back at the Atrium
   updateFinale(0.1);
-  const started = FINALE.on && !!FINALE.beam && THEA_LINES.length === 2;
+  const started = FINALE.on && !!FINALE.beam && FINALE.cine && !!document.getElementById('cine');
   for (let i = 0; i < 20; i++) updateFinale(0.1);
   const fireworks = FINALE.fx.length > 0;
-  THEA_LINES.length = 0; // Thea has spoken
-  $('dialogue').hidden = true;
-  for (let i = 0; i < 20; i++) updateFinale(0.1);
-  const screen = !!document.querySelector('#finale .epilogue') && !!mines.S.seen.finale;
+  for (let i = 0; i < 150; i++) updateFinale(0.1); // into shot 3: Thea's first subtitle
+  const subtitle = (document.querySelector('#cine .sub')?.textContent || '').includes(EPILOGUE.thea[0].slice(0, 20));
+  document.querySelector('#cine .skip').click(); // Skip
+  for (let i = 0; i < 3; i++) updateFinale(0.1);
+  const screen = !!document.querySelector('#finale .epilogue') && !!mines.S.seen.finale && !FINALE.cine && !document.getElementById('cine');
   document.querySelector('#finale button').click();
   const closed = !document.querySelector('#finale');
   for (let i = 0; i < 60; i++) updateFinale(0.1);
@@ -345,7 +346,7 @@ const epi = await page.evaluate(async () => {
   const typed = $('dialogue').querySelector('p').textContent,
     line = typed.length > 0 && VILLAGERS[0].after.startsWith(typed);
   $('dialogue').hidden = true;
-  return { flagged, called, waits, started, fireworks, screen, closed, cleaned, replay, line };
+  return { flagged, called, waits, started, fireworks, subtitle, screen, closed, cleaned, replay, line };
 });
 if (Object.values(epi).some(v => !v)) await fail('epilogue: ' + JSON.stringify(epi));
 // combat v2: the two new mob types build and take damage, armor reduces incoming damage

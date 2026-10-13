@@ -393,7 +393,7 @@ function frame(now) {
     if (playing) updateQuest(dt);
   }
   updateOthers(dt);
-  const restoreEyes = viewFromOutside(dt); // back or front view: the camera pulls back for the duration of the render
+  const restoreEyes = FINALE.cine ? cineCamera() : viewFromOutside(dt); // back or front view: the camera pulls back for the duration of the render
   renderer.clear();
   renderer.render(scene, camera);
   if (restoreEyes) restoreEyes();

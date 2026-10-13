@@ -345,10 +345,12 @@ The objectives the server checks before paying a chapter follow what the server 
 
 **Epilogue and finale.** Once the last main chapter (The Merge) is done, the story is marked finished
 (`S.seen.epilogue`) and Thea calls you back to the Atrium; the objectives bar points there ("Finale ·
-Return to the Atrium"). Within 14 blocks of its center the finale plays once (`updateFinale()`,
-`07-interface.js`): the camera turns to Thea, a beam of light rises from the Atrium, fireworks burst
-overhead and the great diamond spins, Thea says two lines, then a full-screen epilogue (closing text, the
-journey in numbers, what to do next) closes it (`S.seen.finale`). The epilogue card then stays at the top
+Return to the Atrium"). Within 14 blocks of its center the finale plays once (`updateFinale()`, `07-interface.js`): a
+30-second cinematic played in the engine (`cinePose()`: the game takes the camera, letterboxed, HUD hidden,
+the player frozen, Skip button). Shot 1 circles the Atrium while night falls and a beam of light rises from
+it; shot 2 cranes up and back through the fireworks with the great diamond beyond; shot 3 comes down to
+Thea, whose two lines play as subtitles. A full-screen epilogue (closing text, the journey in numbers,
+what to do next) then closes it (`S.seen.finale`). The epilogue card then stays at the top
 of the Objectives tab, and every villager has a new line (`after` in `VILLAGERS`, `09-animals.js`), said
 the first time you talk to them afterwards. Players who finished before the finale existed get it too. It waits 4 s after entering the world (so logging in inside the Atrium doesn't start it under the loading fade), and night falls over the Atrium for the fireworks. The epilogue card has a "Replay the finale" button.
 
