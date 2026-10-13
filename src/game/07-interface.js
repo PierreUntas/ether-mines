@@ -1208,7 +1208,13 @@ function epilogueCard() {
       Object.assign(FINALE, { called: true, shown: false, done: false });
       dirty = true;
       if (!$('panel').hidden) togglePanel();
-      toastInfo(finaleDist() > FINALE_R ? 'Head back to the Atrium: the finale plays there.' : 'The finale is about to begin…');
+      toastInfo(
+        attackWindow().active
+          ? 'The finale will play at the Atrium once the attack is over (10 minutes past the hour).'
+          : finaleDist() > FINALE_R
+            ? 'Head back to the Atrium: the finale plays there.'
+            : 'The finale is about to begin…',
+      );
     };
     d.appendChild(b);
   }
@@ -1271,7 +1277,10 @@ function updateQuest(dt) {
     const done = c.q.filter(id => QBY[id].ok()).length;
     html = `<b>${c.n} ${done}/${c.q.length}</b> ${q.t}`;
   } else if (S.seen.epilogue && !S.seen.finale) {
-    html = `<b>Finale</b> Return to the Atrium <span class="compass">${arrowTo(SPAWN.x + 0.5, SPAWN.z + 0.5)} ${Math.round(finaleDist())} m</span>`;
+    const aw = attackWindow();
+    html = aw.active
+      ? `<b>Finale</b> once the attack is over · ${Math.ceil((aw.endsAt - Date.now()) / 60000)} min`
+      : `<b>Finale</b> Return to the Atrium <span class="compass">${arrowTo(SPAWN.x + 0.5, SPAWN.z + 0.5)} ${Math.round(finaleDist())} m</span>`;
   } else {
     const goal = RELIT_GOALS.find(g => g > (S.relit || 0)) || S.relit + 10;
     html = `<b>${S.relit}/${goal}</b> Validators relit`;
