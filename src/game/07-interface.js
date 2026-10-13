@@ -2051,6 +2051,8 @@ function heldTier() {
 const canMine = id => heldTier() >= reqTier(id);
 
 // ---------- settings ----------
+// the main world keeps its hostile mobs on for everyone (see SETTINGS_CHOICES' mobs entry)
+const mobsForced = () => Net.enabled && (Net.world || 'principal') === 'principal';
 const SETTINGS_CHOICES = [
   {
     k: 'view',
@@ -2101,9 +2103,11 @@ const SETTINGS_CHOICES = [
   {
     k: 'mobs',
     t: 'Hostile mobs',
-    // in an online world everyone faces the same mobs: turning them off would make the ruins, geodes and
-    // genesis rock free to take, and relighting validators pays Gwei and counts on the leaderboard
-    solo: 'Solo only: in an online world, everyone faces the same mobs.',
+    // in the main world everyone faces the same mobs: turning them off would make the ruins, geodes and
+    // genesis rock free to take, and relighting validators pays Gwei and counts on the leaderboard. A
+    // private world (?monde=…) has its own Gwei, leaderboard and validators: there, it's the player's call
+    // (a peaceful world for a child, say)
+    solo: 'Not in the main world: everyone there faces the same mobs. In a private world of your own, it’s your choice.',
     o: [
       [false, 'No'],
       [true, 'Yes'],
@@ -2135,7 +2139,7 @@ function renderSettings(body) {
   for (const c of SETTINGS_CHOICES) {
     const row = document.createElement('div');
     row.className = 'setting';
-    const locked = c.solo && Net.enabled;
+    const locked = c.solo && mobsForced();
     row.innerHTML = `<div><strong>${c.t}</strong>${locked ? `<span>${c.solo}</span>` : c.d ? `<span>${c.d}</span>` : ''}</div><div class="opts"></div>`;
     for (const [v, lab] of c.o) {
       const b = document.createElement('button');

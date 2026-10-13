@@ -1236,8 +1236,8 @@ function die() {
 }
 let mobT = 0;
 function updateMobs(dt) {
-  if (!REG.mobs && !Net.enabled) {
-    // off only in solo: an online world's mobs are the same for everyone (07-interface.js, SETTINGS_CHOICES)
+  if (!REG.mobs && !mobsForced()) {
+    // never off in the main world, where everyone faces the same mobs (07-interface.js, SETTINGS_CHOICES)
     if (MOBS.size) for (const k of [...MOBS.keys()]) despawnMobChunk(k);
     return;
   }

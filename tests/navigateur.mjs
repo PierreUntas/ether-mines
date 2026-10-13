@@ -350,18 +350,22 @@ const compass = await page.evaluate(async () => {
   return { n, e };
 });
 if (compass.n !== 'N' || compass.e !== 'E') await fail('compass: ' + JSON.stringify(compass));
-// hostile mobs can be turned off in solo only: in an online world the setting is locked on
+// hostile mobs can be turned off in solo or a private world, never in the main world
 const mobsSetting = await page.evaluate(() => {
   const en = Object.getOwnPropertyDescriptor(Net, 'enabled'), reg = REG.mobs;
   const rowLocked = () => {
     openTab('settings');
     const row = [...document.querySelectorAll('#pbody .setting')].find(r => r.textContent.includes('Hostile mobs')),
-      out = !!row && [...row.querySelectorAll('button')].every(b => b.disabled) && /Solo only/.test(row.textContent);
+      out = !!row && [...row.querySelectorAll('button')].every(b => b.disabled) && /Not in the main world/.test(row.textContent);
     togglePanel();
     return out;
   };
   const solo = !rowLocked();
+  const wd = Object.getOwnPropertyDescriptor(Net, 'world');
   Object.defineProperty(Net, 'enabled', { configurable: true, get: () => true });
+  Object.defineProperty(Net, 'world', { configurable: true, get: () => 'famille-test' });
+  const privateWorld = !rowLocked(); // a private online world: the choice is the player's
+  Object.defineProperty(Net, 'world', { configurable: true, get: () => 'principal' });
   REG.mobs = false;
   const online = rowLocked();
   const key = ckey(cOf(mines.P.x), cOf(mines.P.z)), keep = mines.MOBS.get(key) || [], w = mines.mkMob('shadow', key, 990, mines.P.x + 3, mines.P.y, mines.P.z, null);
@@ -370,12 +374,13 @@ const mobsSetting = await page.evaluate(() => {
   const stays = (mines.MOBS.get(key) || []).includes(w);
   scene.remove(w.g);
   mines.MOBS.set(key, keep);
+  Object.defineProperty(Net, 'world', wd);
   if (en) Object.defineProperty(Net, 'enabled', en);
   else delete Net.enabled;
   REG.mobs = reg;
-  return { solo, online, stays };
+  return { solo, privateWorld, online, stays };
 });
-if (!mobsSetting.solo || !mobsSetting.online || !mobsSetting.stays) await fail('mobs setting: ' + JSON.stringify(mobsSetting));
+if (!mobsSetting.solo || !mobsSetting.privateWorld || !mobsSetting.online || !mobsSetting.stays) await fail('mobs setting: ' + JSON.stringify(mobsSetting));
 // a refused pointer lock (Chrome refuses one for about a second after a release) doesn't switch the mouse
 // to drag-to-look for good: only several refusals in a row do
 const lock = await page.evaluate(async () => {
