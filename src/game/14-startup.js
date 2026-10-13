@@ -782,10 +782,13 @@ function toggleSnd() {
   $('sndBtn').title = on ? 'Sound (M)' : 'Sound muted (M)';
 }
 $('sndBtn').classList.toggle('off', !Sound.on);
-$('fsBtn').hidden = !fsOk(); // an iPhone's Safari has no full screen for pages
+// shown where full screen works, and on an iPhone (where it explains the home screen route), never
+// when already launched from the home screen
+$('fsBtn').hidden = fromHomeScreen() || !(fsOk() || isIPhone());
 $('fsBtn').onclick = e => {
   e.stopPropagation();
-  toggleFullscreen();
+  if (fsOk()) toggleFullscreen();
+  else fsHelp();
 };
 $('sndBtn').onclick = e => {
   e.stopPropagation();

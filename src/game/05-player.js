@@ -132,7 +132,25 @@ function tryLock() {
 // it can drop the pointer lock for a moment: that must not open the pause menu, and the lock is taken
 // back right away (still within the key press or click that asked for it)
 let fsSwitch = 0;
-const fsOk = () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+function fsOk() {
+  return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+}
+// an iPhone (Safari, and every iPhone browser, which all run on Safari's engine) has no full screen for a
+// page: there, the game goes full screen once added to the home screen (manifest.webmanifest)
+function isIPhone() {
+  return /iPhone|iPod/.test(navigator.userAgent);
+}
+function fromHomeScreen() {
+  return !!navigator.standalone || matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches;
+}
+function fsHelp() {
+  const el = $('dialogue');
+  el.innerHTML =
+    '<b style="color:var(--gold,#ffd95e)">Full screen</b><i>on iPhone</i><p>Tap Share <span aria-hidden="true">⬆︎</span>, then “Add to Home Screen”. Open Ether Mines from its icon: it plays full screen, without the browser’s bars.</p>';
+  el.hidden = false;
+  clearTimeout(saysT);
+  saysT = setTimeout(() => (el.hidden = true), 11000);
+}
 function toggleFullscreen() {
   if (!fsOk()) return;
   const el = document.documentElement,

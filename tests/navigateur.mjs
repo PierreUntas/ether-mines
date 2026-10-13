@@ -318,6 +318,17 @@ await page.click('#fsBtn');
 await page.waitForTimeout(400);
 const fsOff = await page.evaluate(() => !document.fullscreenElement && !document.getElementById('fsBtn').classList.contains('on') && document.getElementById('title').hidden);
 if (!fsShown || !fsOn || !fsOff) await fail('full screen: ' + JSON.stringify({ fsShown, fsOn, fsOff }));
+// on an iPhone (no full screen for pages), the button explains the home screen route instead
+const iphone = await page.evaluate(() => {
+  const ok = fsOk;
+  fsOk = () => false;
+  document.getElementById('fsBtn').click();
+  fsOk = ok;
+  const d = document.getElementById('dialogue'), out = !d.hidden && /Add to Home Screen/.test(d.textContent) && !document.fullscreenElement;
+  d.hidden = true;
+  return out;
+});
+if (!iphone) await fail('full screen help on iPhone');
 // a refused pointer lock (Chrome refuses one for about a second after a release) doesn't switch the mouse
 // to drag-to-look for good: only several refusals in a row do
 const lock = await page.evaluate(async () => {
