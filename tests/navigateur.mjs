@@ -297,32 +297,51 @@ const rest = await page.evaluate(() => {
   return { nearStays, rests, back };
 });
 if (!rest.nearStays || !rest.rests || !rest.back) await fail('daytime rest: ' + JSON.stringify(rest));
-// the epilogue: finishing the last main chapter makes Thea close the story, opens the Objectives tab on
-// the epilogue card, and gives every villager a new first line
+// the epilogue: finishing the last main chapter marks the story done and Thea calls you back; at the
+// Atrium the finale plays (beam, fireworks), then the full-screen epilogue; villagers get a new line
 const epi = await page.evaluate(async () => {
-  const saved = QUESTS.map(q => q.ok);
+  const saved = QUESTS.map(q => q.ok), P = mines.P, pos = [P.x, P.y, P.z];
+  const aw = attackWindow;
+  attackWindow = () => ({ active: false }); // the finale waits out a network attack: not this test's concern
   for (const q of QUESTS) q.ok = () => true;
   delete mines.S.seen.epilogue;
+  delete mines.S.seen.finale;
+  FINALE.called = false;
+  P.x = SPAWN.x + 40; // far from the Atrium: Thea calls you back
   progressChapters();
-  const flagged = !!mines.S.seen.epilogue, queued = THEA_LINES.length >= 2;
+  const flagged = !!mines.S.seen.epilogue, called = THEA_LINES.includes(EPILOGUE.call);
   THEA_LINES.length = 0;
   $('dialogue').hidden = true;
   const wasPlaying = mines.playing;
   mines.playing = true;
-  progressChapters();
-  const card = !$('panel').hidden && !!document.querySelector('#pbody .epilogue');
+  updateFinale(0.1);
+  const waits = !FINALE.on;
+  P.x = SPAWN.x + 2; P.z = SPAWN.z + 1; // back at the Atrium
+  updateFinale(0.1);
+  const started = FINALE.on && !!FINALE.beam && THEA_LINES.length === 2;
+  for (let i = 0; i < 20; i++) updateFinale(0.1);
+  const fireworks = FINALE.fx.length > 0;
+  THEA_LINES.length = 0; // Thea has spoken
+  $('dialogue').hidden = true;
+  for (let i = 0; i < 20; i++) updateFinale(0.1);
+  const screen = !!document.querySelector('#finale .epilogue') && !!mines.S.seen.finale;
+  document.querySelector('#finale button').click();
+  const closed = !document.querySelector('#finale');
+  for (let i = 0; i < 60; i++) updateFinale(0.1);
+  const cleaned = !FINALE.on && !FINALE.beam && !FINALE.fx.length;
   QUESTS.forEach((q, i) => (q.ok = saved[i]));
-  if (!$('panel').hidden) togglePanel();
   mines.playing = wasPlaying;
+  attackWindow = aw;
+  [P.x, P.y, P.z] = pos;
   const thea = { h: VILLAGERS[0] };
   talk(thea);
   await new Promise(r => setTimeout(r, 600)); // the typewriter has started
   const typed = $('dialogue').querySelector('p').textContent,
     line = typed.length > 0 && VILLAGERS[0].after.startsWith(typed);
   $('dialogue').hidden = true;
-  return { flagged, queued, card, line };
+  return { flagged, called, waits, started, fireworks, screen, closed, cleaned, line };
 });
-if (!epi.flagged || !epi.queued || !epi.card || !epi.line) await fail('epilogue: ' + JSON.stringify(epi));
+if (Object.values(epi).some(v => !v)) await fail('epilogue: ' + JSON.stringify(epi));
 // combat v2: the two new mob types build and take damage, armor reduces incoming damage
 const combat2 = await page.evaluate(() => {
   const P = mines.P,

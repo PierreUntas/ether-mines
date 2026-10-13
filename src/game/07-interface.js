@@ -343,9 +343,146 @@ const EPILOGUE = {
     'Listen… the whole network hums in one rhythm now. Work and stake, together, because someone dared to climb up there.',
     'When you arrived, the Atrium’s validator was the only light in this world. Look around now. Whatever you build next, the ledger will remember it was you.',
   ],
+  call: 'Merge Keeper… come back to the Atrium. There is something you should see.',
   text: 'The twins fell together, and the sanctum is quiet at last. Far below, the validators you relit blink in the dark like a new constellation. A network is never finished, and neither are the Ether Mines. But today, it holds — and it holds because of you.',
 };
-let epiPending = false;
+// the finale, played once in the world: once the story is done (S.seen.epilogue), Thea calls you back
+// to the Atrium; there, a beam of light rises from it, fireworks burst overhead, the great diamond
+// spins, Thea speaks, then a full-screen epilogue (S.seen.finale) — impossible to miss, unlike a
+// line in the dialogue bubble while you're busy elsewhere
+const FINALE = { called: false, on: false, t: 0, shown: false, done: false, nextBurst: 0, fx: [], beam: null, yaw0: 0 },
+  FINALE_R = 14; // how close to the Atrium's center the finale starts
+const finaleDist = () => Math.hypot(P.x - (SPAWN.x + 0.5), P.z - (SPAWN.z + 0.5));
+function startFinale() {
+  FINALE.on = true;
+  FINALE.t = 0;
+  FINALE.nextBurst = 0.4;
+  THEA_LINES.length = 0;
+  THEA_LINES.push(...EPILOGUE.thea);
+  $('dialogue').hidden = true;
+  FINALE.yaw0 = yaw;
+  const beam = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.35, 0.8, 70, 12, 1, true),
+    new THREE.MeshBasicMaterial({
+      color: 0xffd95e,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    }),
+  );
+  beam.position.set(SPAWN.x + 0.5, SPAWN.y + 35, SPAWN.z + 0.5);
+  scene.add(beam);
+  FINALE.beam = beam;
+  Sound.theme();
+}
+const FW_COLORS = [0xffd95e, 0x7fe8ff, 0xff9ab8, 0x9fe3c4, 0xc2b8ff];
+function fireworkBurst() {
+  const a = Math.random() * Math.PI * 2,
+    r = 6 + Math.random() * 12,
+    x = SPAWN.x + 0.5 + Math.cos(a) * r,
+    z = SPAWN.z + 0.5 + Math.sin(a) * r,
+    y = SPAWN.y + 16 + Math.random() * 10,
+    mat = new THREE.MeshBasicMaterial({
+      color: FW_COLORS[Math.floor(Math.random() * FW_COLORS.length)],
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
+    sp = [];
+  for (let i = 0; i < 48; i++) {
+    const m = new THREE.Mesh(sparkGeo, mat),
+      u = Math.random() * 2 - 1,
+      th = Math.random() * Math.PI * 2,
+      s = Math.sqrt(1 - u * u),
+      v = 6 + Math.random() * 3;
+    m.position.set(x, y, z);
+    m.scale.setScalar(4);
+    scene.add(m);
+    sp.push({ m, v: [s * Math.cos(th) * v, u * v, s * Math.sin(th) * v] });
+  }
+  FINALE.fx.push({ sp, mat, t: 0 });
+  Sound.blip();
+}
+function showFinaleScreen() {
+  FINALE.shown = true;
+  S.seen.finale = 1;
+  dirty = true;
+  if (document.pointerLockElement) document.exitPointerLock();
+  const el = document.createElement('div');
+  el.id = 'finale';
+  el.innerHTML = '<div class="fbox"><p class="fkicker">The end · of the beginning</p></div>';
+  const card = epilogueCard();
+  el.firstChild.appendChild(card);
+  const b = document.createElement('button');
+  b.className = 'b';
+  b.textContent = 'Back to the world';
+  b.onclick = () => {
+    el.remove();
+    FINALE.done = true;
+    if (playing) tryLock();
+  };
+  el.firstChild.appendChild(b);
+  document.body.appendChild(el);
+  Sound.chime();
+}
+function updateFinale(dt) {
+  if (!FINALE.on) {
+    // not in the middle of a network attack: corrupted nodes swarm the Atrium for those 10 minutes
+    if (!S.seen.epilogue || S.seen.finale || !playing || !$('panel').hidden || finaleDist() > FINALE_R || attackWindow().active) return;
+    startFinale();
+  }
+  FINALE.t += dt;
+  const t = FINALE.t;
+  // the first second: turn to face Thea
+  if (t < 1.2) {
+    const h = VILLAGERS[0],
+      want = Math.atan2(-(h.x + 0.5 - P.x), -(h.z + 0.5 - P.z));
+    let d = want - FINALE.yaw0;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    yaw = FINALE.yaw0 + d * Math.min(1, t / 1.2) ** 0.5;
+  }
+  // fireworks until you close the epilogue screen
+  if (!FINALE.done && t >= FINALE.nextBurst) {
+    fireworkBurst();
+    FINALE.nextBurst = t + 0.45 + Math.random() * 0.5;
+  }
+  for (let i = FINALE.fx.length - 1; i >= 0; i--) {
+    const f = FINALE.fx[i];
+    f.t += dt;
+    for (const s of f.sp) {
+      s.v[1] -= 4 * dt;
+      s.v[0] *= 1 - dt * 0.8;
+      s.v[2] *= 1 - dt * 0.8;
+      s.m.position.x += s.v[0] * dt;
+      s.m.position.y += s.v[1] * dt;
+      s.m.position.z += s.v[2] * dt;
+    }
+    f.mat.opacity = Math.max(0, 1 - f.t / 1.8);
+    if (f.t > 1.8) {
+      for (const s of f.sp) scene.remove(s.m);
+      f.mat.dispose();
+      FINALE.fx.splice(i, 1);
+    }
+  }
+  // the beam of light, and the great diamond spinning faster
+  if (FINALE.beam) {
+    const m = FINALE.beam.material;
+    m.opacity = FINALE.done ? Math.max(0, m.opacity - dt * 0.4) : Math.min(0.28, t * 0.2) * (0.8 + 0.2 * Math.sin(t * 3));
+    FINALE.beam.rotation.y += dt * 0.6;
+    if (FINALE.done && m.opacity <= 0) {
+      scene.remove(FINALE.beam);
+      FINALE.beam.geometry.dispose();
+      m.dispose();
+      FINALE.beam = null;
+    }
+  }
+  if (!FINALE.done) bigEth.rotation.y += dt * 1.4;
+  // the epilogue screen once Thea has spoken
+  if (!FINALE.shown && t > 3 && !THEA_LINES.length && $('dialogue').hidden) showFinaleScreen();
+  if (FINALE.done && !FINALE.fx.length && !FINALE.beam) FINALE.on = false;
+}
 const MAIN_CHAPTERS = CHAPTERS.filter(c => !c.side);
 // what the server sees, so an objective never shows done while the server would refuse its reward
 // (029_chapters.sql's proofs): the validators you own, and your AND/OR/NOT gates still standing
@@ -1023,16 +1160,13 @@ function progressChapters() {
   if (chapterOpen(last) && chapterDone(last) && !S.seen.epilogue) {
     S.seen.epilogue = 1;
     dirty = true;
-    THEA_LINES.push(...EPILOGUE.thea);
-    epiPending = true;
+  }
+  // the story is done but the finale hasn't played: Thea calls you back to the Atrium (once a session)
+  if (S.seen.epilogue && !S.seen.finale && !FINALE.called && !FINALE.on) {
+    FINALE.called = true;
+    if (finaleDist() > FINALE_R) THEA_LINES.push(EPILOGUE.call);
   }
   theaNext();
-  // the epilogue card opens once Thea has finished speaking
-  if (epiPending && !THEA_LINES.length && $('dialogue').hidden && playing && $('panel').hidden) {
-    epiPending = false;
-    openTab('quest');
-    Sound.theme();
-  }
 }
 function epilogueCard() {
   const d = document.createElement('div'),
@@ -1047,7 +1181,7 @@ function epilogueCard() {
   next.push('The towers, the Genesis Titan and the Merge twins wait for a rematch.');
   next.push('Build something that lasts: /claim a plot, and every block you place carries your name.');
   d.className = 'chapter epilogue';
-  d.innerHTML = `<h3>Epilogue · The network holds</h3><p class="etext"></p><div class="stats"><div><b>${mains}/${MAIN_CHAPTERS.length}</b><span>chapters</span></div><div><b>${S.relit || 0}</b><span>validators relit</span></div><div><b>${[205, 206, 209].filter(hasNft).length}/3</b><span>guardians defeated</span></div><div><b>${(S.dayN || 0) + 1}</b><span>days in this world</span></div></div><h4>What now?</h4><ul class="next"></ul>`;
+  d.innerHTML = `<h3>Epilogue · The network holds</h3><p class="etext"></p><div class="stats"><div><b>${mains}/${MAIN_CHAPTERS.length}</b><span>chapters</span></div><div><b>${ownedValidators()}</b><span>validators relit</span></div><div><b>${[205, 206, 209].filter(hasNft).length}/3</b><span>guardians defeated</span></div><div><b>${(S.dayN || 0) + 1}</b><span>days in this world</span></div></div><h4>What now?</h4><ul class="next"></ul>`;
   d.querySelector('.etext').textContent = EPILOGUE.text;
   const ul = d.querySelector('.next');
   for (const t of next) {
@@ -1113,6 +1247,8 @@ function updateQuest(dt) {
   if (q) {
     const done = c.q.filter(id => QBY[id].ok()).length;
     html = `<b>${c.n} ${done}/${c.q.length}</b> ${q.t}`;
+  } else if (S.seen.epilogue && !S.seen.finale) {
+    html = `<b>Finale</b> Return to the Atrium <span class="compass">${arrowTo(SPAWN.x + 0.5, SPAWN.z + 0.5)} ${Math.round(finaleDist())} m</span>`;
   } else {
     const goal = RELIT_GOALS.find(g => g > (S.relit || 0)) || S.relit + 10;
     html = `<b>${S.relit}/${goal}</b> Validators relit`;

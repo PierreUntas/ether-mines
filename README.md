@@ -343,11 +343,14 @@ unlocks once the chapter it follows is done; inside a chapter, objectives can be
 
 The objectives the server checks before paying a chapter follow what the server sees, not the browser: "Relight a validator" and "Relight three validators" count the validators you own on the server (`ownedValidators()`), and the Circuits chapter needs your three gate types still standing (`MY_GATES`, polled every 30 s until the title is earned). When the server still refuses, the message names what it is missing (`chapterMissing()`).
 
-**Epilogue.** Once the last main chapter (The Merge) is done, Thea closes the story with two lines, then
-the Objectives tab opens on an epilogue card that stays at its top: a closing text, the player's journey
-(chapters, validators relit, guardians defeated, days in the world) and what to do next. Every villager
-also gets a new line (`after` in `VILLAGERS`, `09-animals.js`), said the first time you talk to them after
-the epilogue. `S.seen.epilogue` marks it as seen, so players who finished before it existed see it once.
+**Epilogue and finale.** Once the last main chapter (The Merge) is done, the story is marked finished
+(`S.seen.epilogue`) and Thea calls you back to the Atrium; the objectives bar points there ("Finale ·
+Return to the Atrium"). Within 14 blocks of its center the finale plays once (`updateFinale()`,
+`07-interface.js`): the camera turns to Thea, a beam of light rises from the Atrium, fireworks burst
+overhead and the great diamond spins, Thea says two lines, then a full-screen epilogue (closing text, the
+journey in numbers, what to do next) closes it (`S.seen.finale`). The epilogue card then stays at the top
+of the Objectives tab, and every villager has a new line (`after` in `VILLAGERS`, `09-animals.js`), said
+the first time you talk to them afterwards. Players who finished before the finale existed get it too.
 
 After chapter 5, the validator milestones (3, 7, 12… 100 relit) take over. Most objectives are client
 flags, so the reward (`act_claim_chapter`, `029_chapters.sql`) is only paid against proofs the server

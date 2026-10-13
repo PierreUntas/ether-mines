@@ -389,6 +389,7 @@ function frame(now) {
     lights(dt);
     updateAnimals(dt);
     updateMobs(dt);
+    updateFinale(dt);
     if (playing) updateQuest(dt);
   }
   updateOthers(dt);
