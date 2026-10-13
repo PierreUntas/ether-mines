@@ -743,6 +743,41 @@ function spawnMobChunk(cx, cz) {
     }
   }
 }
+// daytime rest: by day, most of the open-surface mobs are out of sight (playtest: too many hostiles
+// in broad daylight), and they come back at dusk. Caves, towers, the Merge Sanctum and the bosses never
+// see the sun, so they are untouched. A resting mob leaves its chunk's list for list.resting: every
+// loop over MOBS (updates, aiming, bolts) skips it without knowing about the rule.
+const REST_FAR = 24; // never vanishes under your eyes: only once you are this far away, and unhurt
+function restsByDay(a) {
+  if (a.type === 'crawler') return true; // the ruin's second guard: a night threat
+  if (a.type === 'guardian' || a.type === 'garden_guardian') return a.i % 2 === 1; // one of each pair stays on watch
+  if (a.type === 'sky_raider' || a.type === 'water_lurker') return hash(Math.floor(a.hx), Math.floor(a.hz), 320) < 0.65;
+  return false;
+}
+function syncDayRest(k, far) {
+  const list = MOBS.get(k);
+  if (!list) return;
+  const night = skyU.night.value;
+  if (night < 0.35) {
+    for (let i = list.length - 1; i >= 0; i--) {
+      const a = list[i],
+        p = a.g.position;
+      if (!restsByDay(a) || a.hp !== MK[a.type].hp) continue;
+      if (!far && Math.hypot(p.x - P.x, p.y - P.y, p.z - P.z) < REST_FAR) continue;
+      scene.remove(a.g);
+      list.splice(i, 1);
+      (list.resting ||= []).push(a);
+    }
+  } else if (night > 0.55 && list.resting?.length) {
+    for (const a of list.resting.splice(0)) {
+      // a guardian whose validator was relit while it slept doesn't come back
+      if (a.type === 'guardian' && get(a.rx, a.ry + 1, a.rz) !== 73) continue;
+      a.g.position.set(a.hx, a.hy, a.hz);
+      scene.add(a.g);
+      list.push(a);
+    }
+  }
+}
 // night prowlers don't fit the once-per-chunk model above: they must appear and disappear as the
 // day/night cycle turns, so this runs every tick (updateMobs) instead of once when a chunk loads
 function syncNightProwler(cx, cz) {
@@ -1215,7 +1250,9 @@ function updateMobs(dt) {
         const k = ckey(pcx + dx, pcz + dz);
         if (CHK.has(k) && MESH.has(k)) {
           want.add(k);
+          const fresh = !MOBS.has(k);
           spawnMobChunk(pcx + dx, pcz + dz);
+          syncDayRest(k, fresh); // a chunk loaded by day starts with its sleepers already out of sight
           syncNightProwler(pcx + dx, pcz + dz);
           syncNetworkAttack(pcx + dx, pcz + dz);
         }

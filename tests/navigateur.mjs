@@ -270,6 +270,30 @@ const twins = await page.evaluate(async () => {
   return { shielded, dormant, rose, both, aegis: mines.S.nfts.some(n => n.id === 209) };
 });
 if (!twins.shielded || !twins.dormant || !twins.rose || !twins.both || !twins.aegis) await fail('merge twins: ' + JSON.stringify(twins));
+// daytime rest: by day a ruin crawler slips out of sight once you're far, a tower warden never does,
+// and the crawler is back at night
+const rest = await page.evaluate(() => {
+  const P = mines.P, key = ckey(cOf(P.x), cOf(P.z)), keep = mines.MOBS.get(key) || [];
+  const cr = mines.mkMob('crawler', key, 112, P.x + 2, P.y, P.z, null),
+    wd = mines.mkMob('warden', key, 140, P.x - 2, P.y, P.z, null),
+    list = [cr, wd];
+  mines.MOBS.set(key, list);
+  const n0 = skyU.night.value;
+  skyU.night.value = 0;
+  syncDayRest(key, false);
+  const nearStays = list.includes(cr);
+  cr.g.position.x = P.x + 40;
+  syncDayRest(key, false);
+  const rests = !list.includes(cr) && list.includes(wd);
+  skyU.night.value = 1;
+  syncDayRest(key, false);
+  const back = list.includes(cr) && cr.g.parent === scene;
+  skyU.night.value = n0;
+  for (const a of list) scene.remove(a.g);
+  mines.MOBS.set(key, keep);
+  return { nearStays, rests, back };
+});
+if (!rest.nearStays || !rest.rests || !rest.back) await fail('daytime rest: ' + JSON.stringify(rest));
 // combat v2: the two new mob types build and take damage, armor reduces incoming damage
 const combat2 = await page.evaluate(() => {
   const P = mines.P,
