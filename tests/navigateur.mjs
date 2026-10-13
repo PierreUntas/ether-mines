@@ -219,6 +219,24 @@ const ladder = await page.evaluate(() => {
   return out;
 });
 if (!ladder.pushedOut || !ladder.held) await fail('ladder: ' + JSON.stringify(ladder));
+// a free-standing ladder (nothing behind its panel, like a tower's open loggia): pushing forward into
+// it climbs, it doesn't walk you off the back
+const climb = await page.evaluate(async () => {
+  const P = mines.P, x = Math.floor(P.x) + 3, z = Math.floor(P.z), y = Math.floor(P.y);
+  for (let k = 0; k < 6; k++) mines.commit(`${x},${y + k},${z}`, 94, null);
+  for (let k = 0; k < 6; k++) mines.commit(`${x},${y + k},${z - 1}`, 0, null);
+  P.x = x + 0.5; P.z = z + 0.5; P.y = y + 0.05; P.vy = 0;
+  mines.yaw = 0; mines.pitch = 0; mines.playing = true;
+  mines.keys.add('KeyW'); mines.keys.add('Space');
+  const t0 = performance.now();
+  while (P.y < y + 2 && Math.floor(P.z) === z && performance.now() - t0 < 30000) await new Promise(r => setTimeout(r, 200));
+  mines.keys.clear();
+  mines.playing = false;
+  const out = { rose: +(P.y - y).toFixed(1), stayed: Math.floor(P.z) === z && Math.floor(P.x) === x };
+  for (let k = 0; k < 6; k++) mines.commit(`${x},${y + k},${z}`, 0, null);
+  return out;
+});
+if (!(climb.rose >= 2) || !climb.stayed) await fail('free-standing ladder: ' + JSON.stringify(climb));
 // the Merge twins: the first one down only goes dormant; both down together ends it and mints the Aegis
 const twins = await page.evaluate(async () => {
   const P = mines.P,

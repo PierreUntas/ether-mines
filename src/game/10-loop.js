@@ -58,6 +58,12 @@ function frame(now) {
     const was = P.on;
     bumped = false;
     const guard = sneak && was && !inW;
+    // on a ladder, its panel side holds you like a wall even where there's no wall behind it (a tower's
+    // open loggia, a ladder standing free): pushing forward climbs instead of walking off into the air
+    const ladderCell = [0, 1]
+      .map(d => [Math.floor(P.x), Math.floor(P.y + 0.2 + d), Math.floor(P.z)])
+      .find(([x, y, z]) => B[get(x, y, z)]?.shape === 'ladder');
+    const ladderO = ladderCell ? B[get(...ladderCell)].o : -1;
     {
       const ox = P.x,
         oy = P.y;
@@ -74,6 +80,18 @@ function frame(now) {
       if (guard && !collides(P.x, P.y - 0.1, P.z)) {
         P.z = oz;
         P.y = oy;
+      }
+    }
+    if (ladderCell) {
+      // the ladder's panel (mesh.js LADDER): o0 on the cell's -z face, o1 -x, o2 +z, o3 +x, 1/8 block thick
+      const [cx, , cz] = ladderCell,
+        m = 0.125 + PW;
+      const lim =
+        ladderO === 0 ? ['z', cz + m, 1] : ladderO === 1 ? ['x', cx + m, 1] : ladderO === 2 ? ['z', cz + 1 - m, -1] : ['x', cx + 1 - m, -1];
+      const [ax, edge, sgn] = lim;
+      if ((P[ax] - edge) * sgn < 0) {
+        P[ax] = edge;
+        bumped = true;
       }
     }
     const jump = keys.has('Space') || jumpHeld;
