@@ -534,14 +534,17 @@ function spawnMobChunk(cx, cz) {
   // guardians: around this region's ruin, as long as its validator isn't relit
   const rg = ruinAt(Math.floor((x0 + 8) / RUIN), Math.floor((z0 + 8) / RUIN));
   if (rg && cOf(rg.x) === cx && cOf(rg.z) === cz && get(rg.x, rg.y + 1, rg.z) === 73) {
-    for (let i = 0; i < 2; i++) {
-      const an = hash(rg.x + i, rg.z, 221) * Math.PI * 2,
+    // three of them (ids 110, 111, 114: 112-113 are the crawlers'), spread a third of a turn apart
+    // so they surround the validator instead of bunching up
+    const a0 = hash(rg.x, rg.z, 221) * Math.PI * 2;
+    for (let i = 0; i < 3; i++) {
+      const an = a0 + (i * Math.PI * 2) / 3 + (hash(rg.x + i, rg.z, 226) - 0.5) * 0.8,
         rr = 3 + hash(rg.x, rg.z + i, 222) * 2,
         hx = rg.x + 0.5 + Math.cos(an) * rr,
         hz = rg.z + 0.5 + Math.sin(an) * rr,
         gr = groundAt(hx, hz, rg.y, true, 3);
       if (!gr || gr.water) continue;
-      list.push(mkMob('guardian', k, 110 + i, hx, gr.y, hz, rg));
+      list.push(mkMob('guardian', k, i < 2 ? 110 + i : 114, hx, gr.y, hz, rg));
     }
   }
   // rust crawlers: a second ruin guard, not tied to the validator's relit state (no condition on
@@ -750,7 +753,7 @@ function spawnMobChunk(cx, cz) {
 const REST_FAR = 24; // never vanishes under your eyes: only once you are this far away, and unhurt
 function restsByDay(a) {
   if (a.type === 'crawler') return true; // the ruin's second guard: a night threat
-  if (a.type === 'guardian' || a.type === 'garden_guardian') return a.i % 2 === 1; // one of each pair stays on watch
+  if (a.type === 'guardian' || a.type === 'garden_guardian') return a.i % 2 === 1; // by day: 2 of the 3 ruin guardians, 1 of the 2 garden guardians stay on watch
   if (a.type === 'sky_raider' || a.type === 'water_lurker') return hash(Math.floor(a.hx), Math.floor(a.hz), 320) < 0.65;
   return false;
 }
