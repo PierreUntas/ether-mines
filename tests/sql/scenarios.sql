@@ -226,7 +226,11 @@ select pg_temp.ok('level 2, balance debited', (select level from validators wher
 -- cosmetics (022): bought with gwei, no gameplay effect, never twice
 select pg_temp.ok('buy a block-pack cosmetic: grants the blocks', (act_buy_cosmetic('w', 5) -> 'inv' ->> '128')::int = 8);
 select pg_temp.ok('gwei debited by its price', (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 750);
-select pg_temp.ok('buying the same cosmetic twice is refused', act_buy_cosmetic('w', 5) ->> 'err' = 'already owned');
+-- 032: a block pack can be bought again (it just grants more blocks); a wearable only once
+select pg_temp.ok('a block pack can be bought again', (act_buy_cosmetic('w', 5) -> 'inv' ->> '128')::int = 16);
+select pg_temp.ok('... and is paid again', (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 550);
+select pg_temp.ok('a wearable is bought once', act_buy_cosmetic('w', 42) ->> 'ok' = 'true');
+select pg_temp.ok('... and never twice', act_buy_cosmetic('w', 42) ->> 'err' = 'already owned');
 reset role;
 update players set gwei = 50 where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
 set role authenticated;
@@ -711,3 +715,21 @@ set role authenticated;
 select pg_temp.ok('chapter 5 pays 600 Gwei', (act_claim_chapter('w', 'merge') ->> 'gwei')::int = 600);
 reset role;
 \echo Chapter scenarios pass.
+
+-- the shop's week (032_shop.sql): same picks as rules.js, 25% off, limited pieces only in their week
+reset role;
+select pg_temp.ok('the weekly picks match rules.js, week after week',
+  not exists (select 1 from shop_weeks where _shop_featured(w) <> f));
+delete from rate_limits;
+update players set gwei = 100000 where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+select (select x::int from jsonb_array_elements_text(_shop_featured(_shop_week()) -> 'sale') x where x::int <> 42 limit 1) as sale_id,
+  (_shop_featured(_shop_week()) ->> 'limited')::int as lim_id \gset
+select price as sale_price from rule_cosmetics where id = :sale_id \gset
+select min(id) as other_lim from rule_cosmetics where limited and id <> :lim_id \gset
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('this week''s sale is 25% off', (act_buy_cosmetic('w', :sale_id) ->> 'paid')::int = (:sale_price * 3) / 4);
+select pg_temp.ok('a limited piece out of its week is refused', act_buy_cosmetic('w', :other_lim) ->> 'err' = 'not in the shop this week');
+select pg_temp.ok('this week''s limited piece can be bought', act_buy_cosmetic('w', :lim_id) ->> 'ok' = 'true');
+reset role;
+\echo Shop scenarios pass.

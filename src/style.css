@@ -321,3 +321,12 @@ body.cine .hud{opacity:0;transition:opacity .6s}
 #compass .mid{position:absolute;left:50%;top:0;width:0;height:0;margin-left:-3px;border:3px solid transparent;border-top:4px solid var(--gold,#ffd95e)}
 @media (pointer:coarse){#compass{width:130px}}
 #borderTxt{text-align:center}
+/* shop (032_shop.sql): the character stays in view while you scroll the catalog */
+.shopside{position:sticky;top:0;align-self:start}
+.shoprow .btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.shoprow.worn{border-color:rgba(127,232,255,.55);background:rgba(127,232,255,.07)}
+.shoprow s{opacity:.6}
+.shoprow b.sale{color:var(--gold);font-weight:600}
+.weekly{padding:12px;border:1px solid rgba(255,209,102,.35);border-radius:14px;background:rgba(255,209,102,.05);margin-bottom:6px}
+.weekly .cat{margin-top:0;color:var(--gold)}
+@media (pointer:coarse){.shopside{position:static}.shop .side{order:-1}}

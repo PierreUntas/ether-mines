@@ -151,6 +151,7 @@ function syncInventory() {
       if (cosmetics) {
         S.cosmetics = cosmetics;
         COSMETICS_LOADED = true;
+        lookChanged(); // what you wear, now that it's known what you own (17-looks.js)
       }
       updateTitle();
       S.nfts = uniques.map(u => ({

@@ -108,6 +108,7 @@ function ui() {
   const gweiEl = $('gwei');
   gweiEl.hidden = !SERVER();
   if (!gweiEl.hidden) gweiEl.innerHTML = `${ethIcon} ${S.gwei || 0} Gwei`;
+  applyLook(SELF, myLook());
   updateArmorVisual(SELF);
   updateCapeVisual(SELF);
   updateAvatarHand(SELF);
@@ -1700,87 +1701,217 @@ function renderValidators(body) {
     body.appendChild(box);
   }
 }
-// ---------- shop: cosmetics bought with Gwei (022_cosmetics.sql). Purely decorative. ----------
+// ---------- shop: cosmetics bought with Gwei (022_cosmetics.sql, 032_shop.sql). Purely decorative. ----------
 async function buyCosmetic(c, btn) {
   if (btn) freezeBtn(btn, 'Buying…');
   const r = await serverAct('buy_cosmetic', { cosmetic_id: +c.id }, null, 'cosmetic bought');
   if (r) {
-    S.cosmetics.push(+c.id);
+    if (!S.cosmetics.includes(+c.id)) S.cosmetics.push(+c.id);
     if (r.gwei !== undefined) S.gwei = r.gwei;
-    toastInfo(`${c.n} bought.`);
+    toastInfo(c.grantItem ? `${c.n} bought: ${c.grantQty} × ${nameOf(c.grantItem)} in your chest.` : `${c.n} bought.`);
     Sound.chime();
+    // a wearable goes on right away (you just paid for it), and stops being a mere try-on
+    if (c.slot && !c.grantItem) {
+      if (PREVIEW) PREVIEW.tryLook = PREVIEW.tryColor = null;
+      setLookSlot(c.slot, +c.id);
+    }
   }
   // re-render even on refusal (e.g. not enough Gwei): otherwise the button stays frozen on "Buying…"
   ui();
+}
+// what a shop row shows when there's no item icon: the piece's own color, or one per slot
+const SLOT_TINT = { head: '#ffd166', back: '#7fe8ff', companion: '#ff9ab8', trail: '#b6a4ff', tool: '#c9a6ff', plating: '#b48cff' };
+// a small painted hint of each piece, by its style (17-looks.js draws the real thing)
+const SWATCH = {
+  prospector: 'linear-gradient(#7a4f2a 62%, #3b2a1a 62%, #3b2a1a 72%, #6b4423 72%)',
+  straw: 'linear-gradient(#f0d27a 60%, #c0392b 60%, #c0392b 70%, #e8c66a 70%)',
+  miner: 'radial-gradient(circle at 50% 62%, #fff6c0 14%, #ffcc33 15%)',
+  beanie: 'radial-gradient(circle at 50% 18%, #fff 12%, transparent 13%), linear-gradient(#ff6b6b 72%, #d94f4f 72%)',
+  visor: 'linear-gradient(#1b2a4a 42%, #00eaff 42%, #00eaff 60%, #1b2a4a 60%)',
+  panda:
+    'radial-gradient(circle at 25% 22%, #1a1a22 14%, transparent 15%), radial-gradient(circle at 75% 22%, #1a1a22 14%, transparent 15%), #f4f1ff',
+  halo: 'radial-gradient(circle, #0b2b30 30%, #3fd2c7 31%, #3fd2c7 46%, #0b2b30 47%)',
+  crown: 'radial-gradient(circle at 50% 70%, #8a7bef 12%, transparent 13%), linear-gradient(#0000 30%, #ffd166 30%)',
+  pack: 'linear-gradient(#3f6e4a 20%, #5a3a20 20%, #5a3a20 34%, #7a5230 34%)',
+  cape2: 'linear-gradient(90deg, #ff8a3d 50%, #8a7bef 50%)',
+  validator: 'linear-gradient(#2a1838 40%, #00eaff 40%, #00eaff 54%, #2a1838 54%)',
+  blob: 'radial-gradient(circle at 35% 30%, #bff4ff, #3fd2c7 60%)',
+  diamond: 'conic-gradient(from 45deg, #8a7bef, #b6a4ff, #6a58e0, #c9a6ff, #8a7bef)',
+  spectrum: 'linear-gradient(90deg, #ff6b6b, #ffd95e, #9fe3c4, #7fe8ff, #b6a4ff)',
+  ember: 'linear-gradient(#ffb347, #ff6b3d)',
+  gwei: 'radial-gradient(circle at 30% 30%, #fff3c0 18%, #ffd95e 19%, #ffd95e 40%, #b08a2e 41%)',
+  bubbles: 'radial-gradient(circle at 30% 30%, #bff4ff 15%, #3fd2c7 16%, #3fd2c7 30%, #1d5c63 31%)',
+  prism: 'linear-gradient(135deg, #ff9ab8, #c9a6ff, #7fe8ff)',
+  gold: 'linear-gradient(135deg, #fff3c0, #ffd166, #b08a2e)',
+};
+const swatchOf = c =>
+  SWATCH[c.style] ||
+  (c.style === 'wings' || c.style === 'banner'
+    ? `linear-gradient(${c.accent} 18%, ${c.color} 18%)`
+    : c.pants
+      ? `linear-gradient(${c.color} 58%, ${c.pants} 58%)`
+      : c.color);
+// "Try": puts the piece on the character in the shop, without buying it
+function tryOn(id) {
+  const c = COSMETICS[id],
+    p = PREVIEW;
+  if (!p || !c.slot) return;
+  const same = p.tryLook && p.tryLook[c.slot] === +id;
+  p.tryLook = same ? null : { ...myLook(), ...(p.tryLook || {}), [c.slot]: +id };
+  p.tryColor = !same && c.slot === 'outfit' ? c.color : same ? null : p.tryColor;
+  renderPanel();
+}
+function shopCountdown() {
+  const left = (shopWeek() + 1) * 604800 + 345600 - Date.now() / 1000,
+    d = Math.floor(left / 86400),
+    h = Math.floor((left % 86400) / 3600);
+  return d ? `${d} d ${h} h` : `${h} h ${Math.floor((left % 3600) / 60)} min`;
+}
+function shopRow(id, ctx) {
+  const c = COSMETICS[id],
+    owned = S.cosmetics.includes(+id),
+    worn = c.slot && myLook()[c.slot] === +id,
+    sellable = forSale(c),
+    week = shopWeek(),
+    f = ctx.featured,
+    onSale = f.sale.includes(+id),
+    price = shopPrice(id, week),
+    limitedAway = c.limited && f.limited !== +id,
+    trying = PREVIEW && PREVIEW.tryLook && c.slot && PREVIEW.tryLook[c.slot] === +id;
+  const d = document.createElement('div');
+  d.className = 'rec shoprow' + (worn ? ' worn' : '');
+  if (c.grantItem) d.appendChild(cloneIcon(c.grantItem));
+  else {
+    const sw = document.createElement('span');
+    sw.className = 'swatch';
+    sw.style.background = swatchOf(c) || SLOT_TINT[c.slot] || (sellable ? 'var(--violet)' : 'var(--gold)');
+    d.appendChild(sw);
+  }
+  let sub;
+  if (c.grantItem) sub = `grants ${c.grantQty} × ${nameOf(c.grantItem)} · buy as often as you like`;
+  else if (owned) sub = `${SLOT_LABEL[c.slot] || 'Owned'} · ${worn ? 'worn' : 'owned'}`;
+  else if (!sellable) sub = c.category === 'title' ? 'Chapter reward' : c.category === 'event' ? 'Network attack reward' : 'Drop only';
+  else if (limitedAway) {
+    const lim = Object.keys(COSMETICS)
+        .map(Number)
+        .filter(k => COSMETICS[k].limited)
+        .sort((a, b) => a - b),
+      n = lim.length,
+      wait = (((lim.indexOf(+id) - (week % n)) % n) + n) % n;
+    sub = `${SLOT_LABEL[c.slot]} · limited · back in the shop in ${wait} week${wait > 1 ? 's' : ''}`;
+  } else sub = `${SLOT_LABEL[c.slot] || c.category}`;
+  const priceTxt =
+    !sellable || (owned && !c.grantItem) ? '' : onSale ? `<s>${c.price}</s> <b class="sale">${price} Gwei</b>` : `${price} Gwei`;
+  d.insertAdjacentHTML('beforeend', `<div><strong>${c.n}</strong><span>${sub}${priceTxt ? ' · ' + priceTxt : ''}</span></div>`);
+  const btns = document.createElement('div');
+  btns.className = 'btns';
+  const add = (txt, cls, fn, disabled) => {
+    const b = document.createElement('button');
+    b.className = 'b' + (cls ? ' ' + cls : '');
+    b.textContent = txt;
+    b.disabled = !!disabled;
+    if (fn) b.onclick = () => fn(b);
+    btns.appendChild(b);
+    return b;
+  };
+  if (c.slot && owned) {
+    add(worn ? 'Remove' : 'Wear', worn ? '' : 'primary', () => {
+      if (PREVIEW) PREVIEW.tryLook = PREVIEW.tryColor = null;
+      setLookSlot(c.slot, worn ? null : +id);
+      ui();
+    });
+  } else if (!sellable) add('Not for sale', '', null, true);
+  else {
+    if (c.slot && !c.grantItem) add(trying ? 'Stop trying' : 'Try', '', () => tryOn(id));
+    if (limitedAway) add('Not this week', '', null, true);
+    else if ((S.gwei || 0) < price) add(`${price} Gwei`, '', null, true).title = 'Not enough Gwei yet';
+    else add(c.grantItem ? 'Buy' : 'Buy', 'primary', b => buyCosmetic({ id, ...c }, b));
+  }
+  d.appendChild(btns);
+  return d;
 }
 function renderShop(body) {
   if (!SERVER()) {
     body.innerHTML = '<p class="qintro">The shop needs an online game: cosmetics are bought with your server-side Gwei balance.</p>';
     return;
   }
-  body.insertAdjacentHTML(
+  const featured = shopFeatured(),
+    ctx = { featured },
+    wrap = document.createElement('div'),
+    list = document.createElement('div'),
+    side = document.createElement('div');
+  wrap.className = 'inv shop';
+  side.className = 'side shopside';
+  side.appendChild(previewBox());
+  const p = PREVIEW;
+  if (p && p.tryLook) {
+    const tried = Object.entries(p.tryLook)
+      .filter(([s, id]) => myLook()[s] !== id)
+      .map(([, id]) => COSMETICS[id].n);
+    side.insertAdjacentHTML('beforeend', `<p class="note">Trying on: ${tried.join(', ') || 'nothing new'}</p>`);
+    const stop = document.createElement('button');
+    stop.className = 'b';
+    stop.textContent = 'Back to my look';
+    stop.onclick = () => {
+      p.tryLook = p.tryColor = null;
+      renderPanel();
+    };
+    side.appendChild(stop);
+  } else side.insertAdjacentHTML('beforeend', '<p class="note">Press Try on any piece to see it on your character first.</p>');
+  list.insertAdjacentHTML(
     'beforeend',
-    '<p class="qintro">Cosmetics only: no combat, speed, harvesting, or access advantage. Outfit colors apply right away; block packs go straight into your chest.</p>',
+    `<p class="qintro">Cosmetics only: no combat, speed, harvesting or access advantage. You have <b>${S.gwei || 0} Gwei</b>, earned by your validators, mobs and chapters.</p>`,
   );
-  // "combat" and "event" cosmetics are never for sale (024_loot_tiers.sql's epic tier, 027's attack
-  // window) — shown last, as a trophy case, not among the buyable categories.
-  const NOT_FOR_SALE = {
-    combat: ['Combat trophies', 'Never sold: dropped by tough mobs, rarely.'],
-    event: ['Defenders’ trophies', 'Never sold: earned by fighting off the network attack.'],
-    title: [
-      'Titles',
-      'Never sold: each one is earned by finishing a story chapter (Objectives tab), and the furthest shows under your name.',
-    ],
+  const section = (title, note) => {
+    list.insertAdjacentHTML('beforeend', `<h3 class="cat">${title}</h3>`);
+    if (note) list.insertAdjacentHTML('beforeend', `<p class="note">${note}</p>`);
   };
-  const cats = [...new Set(Object.values(COSMETICS).map(c => c.category))].sort((a, b) => (a in NOT_FOR_SALE) - (b in NOT_FOR_SALE));
-  for (const cat of cats) {
-    body.insertAdjacentHTML(
-      'beforeend',
-      `<h3 class="cat">${NOT_FOR_SALE[cat] ? NOT_FOR_SALE[cat][0] : cat[0].toUpperCase() + cat.slice(1)}</h3>`,
-    );
-    if (NOT_FOR_SALE[cat]) body.insertAdjacentHTML('beforeend', `<p class="note">${NOT_FOR_SALE[cat][1]}</p>`);
-    for (const [id, c] of Object.entries(COSMETICS)) {
-      if (c.category !== cat) continue;
-      const owned = S.cosmetics.includes(+id);
-      const d = document.createElement('div');
-      d.className = 'rec';
-      if (c.grantItem) d.appendChild(cloneIcon(c.grantItem));
-      else {
-        const sw = document.createElement('span');
-        sw.className = 'swatch';
-        sw.style.background = c.color || (NOT_FOR_SALE[cat] ? 'var(--gold)' : 'var(--violet)');
-        d.appendChild(sw);
-      }
-      d.insertAdjacentHTML(
-        'beforeend',
-        `<div><strong>${c.n}</strong><span>${owned ? 'Owned' : NOT_FOR_SALE[cat] ? (cat === 'title' ? 'Chapter reward' : 'Drop only') : `${c.price} Gwei`}${c.grantItem ? ` · grants ${c.grantQty} × ${nameOf(c.grantItem)}` : ''}</span></div>`,
-      );
-      const btn = document.createElement('button');
-      btn.className = 'b' + (owned ? '' : ' primary');
-      if (owned && c.category === 'character') {
-        btn.textContent = ME.color === c.color ? 'Equipped' : 'Wear';
-        btn.disabled = ME.color === c.color;
-        btn.onclick = () => {
-          profile.color = ME.color = c.color;
-          try {
-            localStorage.setItem(PKEY, JSON.stringify(profile));
-          } catch (e) {}
-          dirty = cloudDirty = true;
-          renderPanel();
-        };
-      } else if (NOT_FOR_SALE[cat]) {
-        btn.textContent = owned ? 'Owned' : 'Not for sale';
-        btn.disabled = true;
-        btn.className = 'b';
-      } else {
-        btn.textContent = owned ? 'Owned' : 'Buy';
-        btn.disabled = owned;
-        btn.onclick = () => buyCosmetic({ id, ...c }, btn);
-      }
-      d.appendChild(btn);
-      body.appendChild(d);
-    }
+  // this week: three pieces 25% off and one limited piece, until Monday
+  const box = document.createElement('div');
+  box.className = 'weekly';
+  box.insertAdjacentHTML(
+    'beforeend',
+    `<h3 class="cat">This week</h3><p class="note">New offers in ${shopCountdown()}: three pieces 25% off, and one limited piece you can only buy this week.</p>`,
+  );
+  for (const id of featured.limited ? [...featured.sale, featured.limited] : featured.sale) box.appendChild(shopRow(id, ctx));
+  list.appendChild(box);
+  // the collections, then everything else by slot, then the trophies nobody can buy
+  const ids = Object.keys(COSMETICS)
+    .map(Number)
+    .sort((a, b) => a - b);
+  for (const [set, [name, line]] of Object.entries(SETS)) {
+    const mine = ids.filter(id => COSMETICS[id].set === set),
+      have = mine.filter(id => S.cosmetics.includes(id)).length;
+    section(`${name} collection · ${have}/${mine.length}`, line);
+    for (const id of mine) list.appendChild(shopRow(id, ctx));
   }
+  const loose = ids.filter(id => !COSMETICS[id].set && forSale(COSMETICS[id]));
+  for (const slot of [...LOOK_SLOTS, null]) {
+    const mine = loose.filter(id => (COSMETICS[id].slot || null) === slot && !COSMETICS[id].grantItem);
+    if (!mine.length) continue;
+    section(SLOT_LABEL[slot] || 'Other');
+    for (const id of mine) list.appendChild(shopRow(id, ctx));
+  }
+  const packs = loose.filter(id => COSMETICS[id].grantItem);
+  if (packs.length) {
+    section('Block packs', 'Decorative blocks straight into your chest. Buy them as often as you like.');
+    for (const id of packs) list.appendChild(shopRow(id, ctx));
+  }
+  const trophies = ids.filter(id => !forSale(COSMETICS[id]) && COSMETICS[id].category !== 'title');
+  section(
+    `Trophies · ${trophies.filter(id => S.cosmetics.includes(id)).length}/${trophies.length}`,
+    'Never sold: dropped by tough mobs, rarely, or earned by fighting off the network attack. Worn like the rest once you have them.',
+  );
+  for (const id of trophies) list.appendChild(shopRow(id, ctx));
+  const titles = ids.filter(id => COSMETICS[id].category === 'title');
+  section(
+    `Titles · ${titles.filter(id => S.cosmetics.includes(id)).length}/${titles.length}`,
+    'Never sold: each one is earned by finishing a story chapter (Objectives tab), and the furthest shows under your name.',
+  );
+  for (const id of titles) list.appendChild(shopRow(id, ctx));
+  wrap.appendChild(list);
+  wrap.appendChild(side);
+  body.appendChild(wrap);
 }
 // ---------- open chest ----------
 let chestQty = 1; // 1, 10 or 0 (= all)
@@ -1833,7 +1964,17 @@ function renderChest(body) {
   zone('In the chest', m.items, -1);
   zone('In your bag', S.inv, 1);
 }
+// re-rendering the same tab keeps where you had scrolled to (a purchase, a craft, a "Try" in the shop)
+let lastPanelTab = null;
 function renderPanel() {
+  const pb = $('pbody'),
+    keep = lastPanelTab === tab ? pb.scrollTop : 0;
+  lastPanelTab = tab;
+  if (tab !== 'shop' && PREVIEW) PREVIEW.tryLook = PREVIEW.tryColor = null; // try-ons stay in the shop
+  renderPanelBody();
+  pb.scrollTop = keep;
+}
+function renderPanelBody() {
   const body = $('pbody');
   body.innerHTML = '';
   if (tab === 'inv') {

@@ -15,7 +15,7 @@ node tests/fixtures.mjs > /tmp/mines_fixtures.sql
 run /tmp/mines_fixtures.sql
 psql -v ON_ERROR_STOP=1 -d $DB -f tests/sql/scenarios.sql 2>&1 | sed -e 's/^psql:[^ ]* NOTICE:  /  /' -e 's/^NOTICE:  /  /' | grep -v '^$'
 # the reset must wipe everything, then the schema must reinstall
-psql -q -d $DB -c "drop table fixtures, samples"
+psql -q -d $DB -c "drop table fixtures, samples, shop_weeks"
 run supabase/reset.sql
 test "$(psql -Atq -d $DB -c "select count(*) from pg_tables where schemaname = 'public'")" = "0" || { echo "FAILED: reset.sql leaves tables behind"; exit 1; }
 run supabase/installation.sql   # the single file must be enough after a reset

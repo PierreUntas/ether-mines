@@ -47,5 +47,5 @@ const {
 } = World;
 const encodeChunk = (cx, cz) => World.encodeChunk(CHK.get(ckey(cx, cz))),
   decodeChunk = World.decodeChunk;
-const { PASTELS, STAINED, B, ITEM, RECIPES, reqTier, COSMETICS } = Rules;
+const { PASTELS, STAINED, B, ITEM, RECIPES, reqTier, COSMETICS, SETS, shopWeek, shopFeatured, shopPrice, forSale } = Rules;
 const touch = matchMedia('(pointer:coarse)').matches;

@@ -59,7 +59,7 @@ Players can't write anything directly: no blocks, no terrain, no chest. Every ac
 | `act_relight` | a real dark validator, validator heart in the chest; reanimates it into the `validators` table (random rarity) |
 | `act_maintain_validator` | ownership; settles missed cycles, repairs from "corrupted" (needs a validator heart), pays out net Gwei — no reach check, attests remotely like a real validator |
 | `act_upgrade_validator` | ownership, not corrupted, level below 10, enough Gwei (50 × current level) |
-| `act_buy_cosmetic` | not already owned, enough Gwei; grants existing decorative blocks for "block"-category cosmetics |
+| `act_buy_cosmetic` | not already owned (block packs excepted), enough Gwei at this week's price, limited pieces only in their week; grants existing decorative blocks for "block"-category cosmetics |
 | `act_gift` | once a day per animal, 15 gifts a day at most |
 | `act_rewards` | ticks every validator the player owns (lazy, like `players.rewards_at` used to for Ether Crystal), 24 h caught up at most |
 | `act_claim`, `act_unclaim`, `act_member` | plots: cost, limit, owner |
@@ -247,6 +247,16 @@ active ──(3 missed checks)──> damaged ──(8 missed checks)──> cor
   from blocks and items, so it can grow (rarity, limited editions, collections) without touching the
   append-only block/item numbering. The `combat` category is the one exception to "bought": never for
   sale, only ever granted by the loot tiers below — shown in the Shop as a trophy case, not a catalog.
+- **Wearables and the weekly offer** (`032_shop.sql`, `src/game/17-looks.js`): each wearable has a slot
+  (outfit, head, back, companion, trail, tool trim, plating trim) and many belong to a collection that
+  follows Ethereum's history (Frontier, Homestead, Staker, The Merge, Dencun, Ether), priced from 250
+  to 25,000 Gwei so the biggest pieces take days of validator income. Each week (Monday 00:00 UTC),
+  three regular wearables are 25% off and one *limited* piece (the Dencun set) is the only week it can
+  be bought; `shopFeatured()` in `rules.js` and `_shop_featured()` in SQL compute the same picks (a
+  test checks two years of weeks). Block packs can be bought again and again. What you wear is
+  `S.look` (saved with the game); outfit, head, back, companion and trail travel in presence so the
+  other players see them, the trims stay on your own held item and armor. The shop's *Try* puts a piece
+  on your character before you buy it.
 
 See `supabase/migrations/019_gwei_currency.sql` through `024_loot_tiers.sql` for the schema, and
 `legacy/README.md` for what used to exist here (a real, optional Sepolia mirror — retired, not deleted).

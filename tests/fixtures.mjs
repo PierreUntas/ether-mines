@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 globalThis.btoa ??= (s) => Buffer.from(s, 'binary').toString('base64');
 globalThis.atob ??= (s) => Buffer.from(s, 'base64').toString('binary');
 new Function(readFileSync(new URL('../supabase/functions/_shared/world.js', import.meta.url), 'utf8'))();
-const W = globalThis.World;
+new Function(readFileSync(new URL('../supabase/functions/_shared/rules.js', import.meta.url), 'utf8'))();
+const W = globalThis.World, R = globalThis.Rules;
 const out = [];
 // a synthetic tower-chest cell inside chunk (1,0): no real tower lands in this tiny frozen test area,
 // but act_chest/act_chest_move must treat "98 with no blocks row" as a tower chest however it got
@@ -29,4 +30,8 @@ const c = col(20, 3); let gy = 0; for (let y = W.SY - 1; y > 0; y--) { const v =
 const stones = []; for (let y = gy - 1; y > 0 && stones.length < 6; y--) if (c(y) === 3) stones.push(y);
 const r = W.ruinAt(0, 0);
 out.push(`create table fixtures (k text primary key, v int); insert into fixtures values ('gy', ${gy}), ('gid', ${c(gy)}), ('s1', ${stones[0]}), ('s2', ${stones[1]}), ('s3', ${stones[2]}), ('rx', ${r.x}), ('ry', ${r.y + 1}), ('rz', ${r.z}), ('tcx', ${TCX}), ('tcy', ${TCY}), ('tcz', ${TCZ});`);
+// the shop's weekly picks as rules.js computes them, for ~two years around now: 032_shop.sql must agree
+const wk = R.shopWeek(), weeks = [];
+for (let w = wk - 52; w <= wk + 52; w++) weeks.push(`(${w},'${JSON.stringify(R.shopFeatured(w))}')`);
+out.push(`create table shop_weeks (w int primary key, f jsonb); insert into shop_weeks values ${weeks.join(',')};`);
 console.log(out.join('\n'));

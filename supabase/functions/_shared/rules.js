@@ -283,25 +283,39 @@
   // "grantItem"/"grantQty" entries hand over existing decorative-only blocks instead of a bare ownership
   // flag; "character"/"tool"/"validator"/"effect" entries with neither are shown as owned/equippable,
   // ready for a richer visual payoff later (rarity, limited editions, collections).
+  // Cosmetics (022_cosmetics.sql, 032_shop.sql for slots, sets and the weekly offer): purely decorative, never
+  // a combat, speed, harvest or access effect. "slot" says where a wearable goes (17-looks.js draws it):
+  // outfit (body color + pants), head, back, companion (follows you), trail (behind you while moving),
+  // tool (glow on the held item), plating (glow on the armor). "set" groups a collection in the shop.
+  // "limited" pieces are only sold during their week in the shop's rotation (shopFeatured below).
+  // Block packs (grantItem) can be bought again and again; everything else once.
   const COSMETICS = {
-    1: { n: 'Ember Outfit', category: 'character', price: 150, color: '#ff6b6b' },
-    2: { n: 'Void Outfit', category: 'character', price: 150, color: '#2a1838' },
-    3: { n: 'Aurum Outfit', category: 'character', price: 400, color: '#ffe9a8' },
+    1: { n: 'Ember Outfit', category: 'character', price: 300, slot: 'outfit', color: '#ff6b6b', pants: '#7a2f3a' },
+    2: { n: 'Void Outfit', category: 'character', price: 300, slot: 'outfit', color: '#2a1838', pants: '#120a1c' },
+    3: { n: 'Aurum Outfit', category: 'character', price: 1200, slot: 'outfit', color: '#ffe9a8', pants: '#b08a2e' },
     4: { n: 'Prism Blockpack', category: 'block', price: 300, grantItem: 130, grantQty: 4 }, // Diamond Block
     5: { n: 'Neon Strip Pack', category: 'block', price: 200, grantItem: 128, grantQty: 8 }, // Cyan Neon
     6: { n: 'Holo Screen Pack', category: 'block', price: 250, grantItem: 129, grantQty: 4 }, // Holo Screen
     7: { n: 'Marble Column Pack', category: 'block', price: 180, grantItem: 127, grantQty: 4 }, // Marble Column
-    8: { n: 'Prism Pickaxe Trim', category: 'tool', price: 180 },
-    9: { n: 'Cobalt Validator Banner', category: 'validator', price: 120 },
-    10: { n: 'Spectrum Trail', category: 'effect', price: 500 },
+    8: { n: 'Prism Pickaxe Trim', category: 'tool', price: 800, slot: 'tool', style: 'prism' },
+    9: {
+      n: 'Cobalt Validator Banner',
+      category: 'validator',
+      price: 600,
+      slot: 'back',
+      style: 'banner',
+      color: '#2f5bff',
+      accent: '#9fd0ff',
+    },
+    10: { n: 'Spectrum Trail', category: 'effect', price: 2500, slot: 'trail', style: 'spectrum' },
     // v15: loot tiers (024_loot_tiers.sql). "combat" cosmetics are never sold (price 0, act_buy_cosmetic
     // refuses them): the epic tier of act_loot_mob grants one directly, so the only way in is a kill.
-    11: { n: 'Wraith Ember Trail', category: 'combat', price: 0 },
-    12: { n: 'Sentinel Core Banner', category: 'combat', price: 0 },
-    13: { n: 'Deep Golem Plating Trim', category: 'combat', price: 0 },
+    11: { n: 'Wraith Ember Trail', category: 'combat', price: 0, slot: 'trail', style: 'ember' },
+    12: { n: 'Sentinel Core Banner', category: 'combat', price: 0, slot: 'back', style: 'banner', color: '#1f6b5a', accent: '#9fe3c4' },
+    13: { n: 'Deep Golem Plating Trim', category: 'combat', price: 0, slot: 'plating', color: '#b48cff' },
     // v16: the network attack event (027_network_attack.sql). Same never-sold shape as "combat":
     // granted only by defending the Atrium during the hourly window, never bought.
-    14: { n: 'Network Defender Banner', category: 'event', price: 0 },
+    14: { n: 'Network Defender Banner', category: 'event', price: 0, slot: 'back', style: 'banner', color: '#3a2d52', accent: '#ffd166' },
     // v17: story chapters (029_chapters.sql). Titles are never sold: finishing a chapter grants one
     // (act_claim_chapter), and owning it is what marks the chapter's reward as claimed.
     15: { n: 'Pathfinder', category: 'title', price: 0 },
@@ -310,6 +324,98 @@
     18: { n: 'Network Guardian', category: 'title', price: 0 },
     19: { n: 'Circuit Sage', category: 'title', price: 0 },
     20: { n: 'Merge Keeper', category: 'title', price: 0 }, // v18: chapter 5, the Merge (030_merge_twins.sql)
+    // v19: wearables (032_shop.sql). Collections follow Ethereum's own history, one per era.
+    21: { n: 'Frontier Duster', category: 'character', price: 600, slot: 'outfit', set: 'frontier', color: '#8b5a2b', pants: '#3b2a1a' },
+    22: { n: 'Prospector Hat', category: 'head', price: 800, slot: 'head', set: 'frontier', style: 'prospector' },
+    23: { n: 'Pioneer Pack', category: 'back', price: 1000, slot: 'back', set: 'frontier', style: 'pack' },
+    24: {
+      n: 'Homestead Overalls',
+      category: 'character',
+      price: 600,
+      slot: 'outfit',
+      set: 'homestead',
+      color: '#4a6fa5',
+      pants: '#2c3e66',
+    },
+    25: { n: 'Straw Hat', category: 'head', price: 700, slot: 'head', set: 'homestead', style: 'straw' },
+    26: { n: 'Miner Helmet', category: 'head', price: 900, slot: 'head', set: 'homestead', style: 'miner' },
+    27: { n: 'Staker Jacket', category: 'character', price: 1500, slot: 'outfit', set: 'staker', color: '#1b2a4a', pants: '#0e1626' },
+    28: { n: 'Validator Visor', category: 'head', price: 2000, slot: 'head', set: 'staker', style: 'visor' },
+    29: {
+      n: 'Beacon Wings',
+      category: 'back',
+      price: 12000,
+      slot: 'back',
+      set: 'staker',
+      style: 'wings',
+      color: '#bff4ff',
+      accent: '#00eaff',
+    },
+    30: { n: 'Mini Validator', category: 'companion', price: 6000, slot: 'companion', set: 'staker', style: 'validator' },
+    31: { n: 'Merge Suit', category: 'character', price: 2500, slot: 'outfit', set: 'merge', color: '#f4f1ff', pants: '#1a1a22' },
+    32: { n: 'Panda Hood', category: 'head', price: 3000, slot: 'head', set: 'merge', style: 'panda' },
+    33: { n: 'Proof Cape', category: 'back', price: 4000, slot: 'back', set: 'merge', style: 'cape2' },
+    34: { n: 'Merge Panda', category: 'companion', price: 9000, slot: 'companion', set: 'merge', style: 'panda' },
+    35: {
+      n: 'Blobspace Suit',
+      category: 'character',
+      price: 3000,
+      slot: 'outfit',
+      set: 'dencun',
+      limited: 1,
+      color: '#3fd2c7',
+      pants: '#1d5c63',
+    },
+    36: { n: 'Blob Halo', category: 'head', price: 5000, slot: 'head', set: 'dencun', limited: 1, style: 'halo' },
+    37: { n: 'Blob Buddy', category: 'companion', price: 8000, slot: 'companion', set: 'dencun', limited: 1, style: 'blob' },
+    38: { n: 'Blob Bubbles', category: 'effect', price: 4000, slot: 'trail', set: 'dencun', limited: 1, style: 'bubbles' },
+    39: { n: 'Ether Crown', category: 'head', price: 25000, slot: 'head', set: 'ether', style: 'crown' },
+    40: { n: 'Ether Diamond Familiar', category: 'companion', price: 15000, slot: 'companion', set: 'ether', style: 'diamond' },
+    41: {
+      n: 'Aurora Wings',
+      category: 'back',
+      price: 20000,
+      slot: 'back',
+      set: 'ether',
+      style: 'wings',
+      color: '#ff9ab8',
+      accent: '#7fe8ff',
+    },
+    42: { n: 'Builder Beanie', category: 'head', price: 250, slot: 'head', style: 'beanie' },
+    43: { n: 'Gwei Sparks', category: 'effect', price: 1500, slot: 'trail', style: 'gwei' },
+    44: { n: 'Golden Pickaxe Trim', category: 'tool', price: 3000, slot: 'tool', style: 'gold' },
+    45: { n: 'Lavender Outfit', category: 'character', price: 300, slot: 'outfit', color: '#b6a4ff', pants: '#4a3a8a' },
+  };
+  // the collections, in shop order: name and a line of history
+  const SETS = {
+    frontier: ['Frontier', 'July 2015: the first release, a network for the brave'],
+    homestead: ['Homestead', '2016: the first stable release, home on the chain'],
+    staker: ['Staker', 'The Beacon Chain: validators keep the network honest'],
+    merge: ['The Merge', 'September 2022: proof of work hands over to proof of stake'],
+    dencun: ['Dencun', 'March 2024: blobs arrive. Limited: one piece a week in the shop'],
+    ether: ['Ether', 'The rarest pieces, for the most patient'],
+  };
+  // The shop's week: Monday 00:00 UTC to the next. Each week, 3 regular wearables are 25% off and one
+  // limited piece is for sale. 032_shop.sql computes exactly the same picks: change both together.
+  const SHOP_EPOCH = 345600; // 1970-01-05, a Monday
+  const shopWeek = (t = Date.now() / 1000) => Math.floor((t - SHOP_EPOCH) / 604800);
+  const forSale = c => !['combat', 'event', 'title'].includes(c.category) && c.price > 0;
+  function shopFeatured(week = shopWeek()) {
+    const ids = Object.keys(COSMETICS)
+        .map(Number)
+        .sort((a, b) => a - b),
+      reg = ids.filter(id => forSale(COSMETICS[id]) && !COSMETICS[id].limited && !COSMETICS[id].grantItem),
+      lim = ids.filter(id => COSMETICS[id].limited),
+      n = reg.length;
+    return {
+      sale: n ? [0, 1, 2].map(k => reg[(week * 3 + k) % n]) : [],
+      limited: lim.length ? lim[week % lim.length] : null,
+    };
+  }
+  // what a cosmetic costs this week (25% off when on sale; integer division, like the SQL)
+  const shopPrice = (id, week = shopWeek()) => {
+    const c = COSMETICS[id];
+    return shopFeatured(week).sale.includes(+id) ? Math.floor((c.price * 3) / 4) : c.price;
   };
   // what a placed item becomes: block with the same id, except stairs (4 orientations) and doors (4 orientations, 2 halves)
   function placeIds(it) {
@@ -324,5 +430,5 @@
     if (b.shape === 'bed0f') return [137, 138, 139, 140]; // only the foot is directly placeable; the head follows server-side
     return [it];
   }
-  root.Rules = { PASTELS, STAINED, B, ITEM, RECIPES, reqTier, placeIds, COSMETICS };
+  root.Rules = { PASTELS, STAINED, B, ITEM, RECIPES, reqTier, placeIds, COSMETICS, SETS, shopWeek, shopFeatured, shopPrice, forSale };
 })(globalThis);

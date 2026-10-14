@@ -180,7 +180,7 @@ function updateArmorVisual(av) {
   const it = ITEM[S.armor];
   av.plate.visible = !!it;
   if (it) {
-    const c = +S.armor === 108 ? 0x00eaff : +S.armor === 209 ? 0xffd166 : 0xc9a6ff;
+    const c = platingTrimColor() ?? (+S.armor === 108 ? 0x00eaff : +S.armor === 209 ? 0xffd166 : 0xc9a6ff); // a plating trim (17-looks.js) wins
     for (const child of av.plate.children) {
       child.material.color.setHex(c);
       child.material.emissive.setHex(c);
@@ -192,7 +192,7 @@ const hasCape = () => S.nfts.some(n => n.id === 205);
 // shows/hides the avatar's cape to match Fang ownership (self only, same scope as armor)
 function updateCapeVisual(av) {
   if (!av) return;
-  av.cape.visible = hasCape();
+  av.cape.visible = hasCape() && !av.backWorn; // a worn back piece (17-looks.js) takes its place
 }
 // ---------- seeing yourself: back view, front view (V key), and the character in the chest ----------
 let VIEW = 0, // 0: through your eyes; 1: from behind; 2: from the front
@@ -210,6 +210,7 @@ function changeView() {
     SELF = makeAvatar(ME.name, ME.color);
     SELF.tag.visible = false;
     viewPos.set(P.x, P.y, P.z);
+    applyLook(SELF, myLook());
     updateArmorVisual(SELF);
     updateCapeVisual(SELF);
     updateAvatarHand(SELF);
@@ -297,12 +298,15 @@ function previewBox() {
     c.addEventListener('pointercancel', () => (PREVIEW.dragging = false));
   }
   const p = PREVIEW;
-  if (!p.av || p.av.color !== ME.color || p.av.name !== ME.name) {
+  const wantColor = p.tryColor || ME.color; // trying on an outfit in the shop
+  if (!p.av || p.av.color !== wantColor || p.av.name !== ME.name) {
     if (p.av) p.sc.remove(p.av.g);
-    p.av = makeAvatar(ME.name, ME.color, true);
+    p.av = makeAvatar(ME.name, wantColor, true);
     p.av.tag.visible = false;
     p.sc.add(p.av.g);
   }
+  // the shop's "Try" puts a piece on this character without buying it (PREVIEW.tryLook)
+  applyLook(p.av, p.tryLook || myLook(), true);
   updateArmorVisual(p.av);
   updateCapeVisual(p.av);
   updateAvatarHand(p.av);
@@ -316,9 +320,11 @@ function previewBox() {
     if (col === ME.color) b.className = 'sel';
     b.onclick = () => {
       profile.color = ME.color = col;
+      if (S.look) delete S.look.outfit; // a plain color: no outfit from the shop anymore
       try {
         localStorage.setItem(PKEY, JSON.stringify(profile));
       } catch (e) {}
+      lookChanged();
       if (SELF) {
         scene.remove(SELF.g);
         SELF = null;
@@ -342,6 +348,7 @@ function previewBox() {
       p.av.arms[0].rotation.x = Math.sin(t * 1.6) * 0.12;
       p.av.arms[1].rotation.x = -Math.sin(t * 1.6) * 0.12;
       p.av.head.rotation.y = Math.sin(t * 0.8) * 0.25;
+      tickLookAnims(p.av, t);
       p.r.render(p.sc, p.cam);
       requestAnimationFrame(spin);
     };
@@ -354,14 +361,26 @@ function removeOther(id) {
   if (!o) return;
   scene.remove(o.g);
   others.delete(id);
+  dropFollower(id);
 }
 function ensureOther(p) {
   let o = others.get(p.id);
+  // a new outfit color: rebuild the avatar, keeping where it stands
+  if (o && p.color && p.color !== o.color) {
+    const keep = { t: o.t, tAt: o.tAt, r: o.r, pos: o.g.position.clone(), rot: o.g.rotation.y };
+    scene.remove(o.g);
+    o = makeAvatar(p.name || o.name, p.color);
+    Object.assign(o, { t: keep.t, tAt: keep.tAt, r: keep.r, seen: !!keep.t });
+    o.g.position.copy(keep.pos);
+    o.g.rotation.y = keep.rot;
+    others.set(p.id, o);
+  }
   if (!o && p.id !== ME.id) {
     o = makeAvatar(p.name || 'Player', p.color || '#8a7bef');
     others.set(p.id, o);
   }
   if (o && p.title !== undefined) setTagTitle(o, p.title);
+  if (o && p.look !== undefined) applyLook(o, parseLook(p.look));
   return o;
 }
 // PvP targeting: same aimRay/aniBox/aniV pattern as pickMob/pickAnimal, against the avatar's own silhouette

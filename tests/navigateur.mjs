@@ -433,6 +433,42 @@ const compass = await page.evaluate(async () => {
   return { n, e };
 });
 if (compass.n !== 'N' || compass.e !== 'E') await fail('compass: ' + JSON.stringify(compass));
+// wearables (17-looks.js): only what you own is worn, the shared code round-trips, the pieces are built
+// and taken off again; the shop lists the catalog with this week's offer (rendered with a faked online
+// session, synchronously, so no server call can go out in between)
+const looks = await page.evaluate(() => {
+  const keep = { c: S.cosmetics, l: S.look, g: S.gwei };
+  S.cosmetics = [22, 29, 34];
+  S.look = { head: 22, back: 29, companion: 34, trail: 10 }; // the trail isn't owned
+  const mine = myLook(),
+    code = lookCode(mine),
+    back = parseLook(code),
+    av = makeAvatar('T', '#8a7bef', true);
+  applyLook(av, back, true);
+  const parts = av.lookParts.length;
+  applyLook(av, {}, true);
+  const after = av.lookParts.length;
+  const on = Object.getOwnPropertyDescriptor(Net, 'online'),
+    uid = Object.getOwnPropertyDescriptor(Net, 'userId');
+  Object.defineProperty(Net, 'online', { get: () => true, configurable: true });
+  Object.defineProperty(Net, 'userId', { get: () => 'test', configurable: true });
+  S.gwei = 5000;
+  tab = 'shop';
+  renderPanelBody();
+  const rows = document.querySelectorAll('#pbody .shoprow').length,
+    weekly = document.querySelectorAll('#pbody .weekly .shoprow').length,
+    sale = document.querySelectorAll('#pbody .weekly b.sale').length,
+    worn = document.querySelectorAll('#pbody .shoprow.worn').length;
+  Object.defineProperty(Net, 'online', on);
+  Object.defineProperty(Net, 'userId', uid);
+  tab = 'inv';
+  document.getElementById('pbody').innerHTML = '';
+  Object.assign(S, { cosmetics: keep.c, look: keep.l, gwei: keep.g });
+  return { trailDropped: !mine.trail, code, parts, after, rows, weekly, sale, worn, total: Object.keys(COSMETICS).length };
+});
+if (!looks.trailDropped || looks.code !== '0.22.29.34.0' || looks.parts !== 3 || looks.after !== 0)
+  await fail('wearables: ' + JSON.stringify(looks));
+if (looks.weekly !== 4 || looks.sale < 1 || looks.worn !== 3 || looks.rows < looks.total) await fail('shop: ' + JSON.stringify(looks));
 // hostile mobs can be turned off in solo or a private world, never in the main world
 const mobsSetting = await page.evaluate(() => {
   const en = Object.getOwnPropertyDescriptor(Net, 'enabled'), reg = REG.mobs;

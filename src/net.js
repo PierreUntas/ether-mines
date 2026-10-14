@@ -156,7 +156,7 @@ window.Net = (() => {
         list = [];
       for (const k in st) {
         const p = st[k][0];
-        if (p) list.push({ id: k, name: p.name, color: p.color, title: p.title || '', r: p.r || null, w: p.w || null });
+        if (p) list.push({ id: k, name: p.name, color: p.color, title: p.title || '', look: p.look || '', r: p.r || null, w: p.w || null });
       }
       emit('peers', list);
     });
@@ -199,7 +199,14 @@ window.Net = (() => {
 
   // r: your square; w: a far square you're watching (/join), so the player there starts sending
   const track = () =>
-    ch.track({ name: me.name, color: me.color, title: me.title || '', r: myRegion, w: extraRegion ? extraRegion.k : null });
+    ch.track({
+      name: me.name,
+      color: me.color,
+      title: me.title || '',
+      look: me.look || '',
+      r: myRegion,
+      w: extraRegion ? extraRegion.k : null,
+    });
   function syncRegions() {
     if (!sb || !online) return;
     const want = new Set();
@@ -320,6 +327,16 @@ window.Net = (() => {
     me.title = t || '';
     if (ch && online) track().catch(() => {});
   }
+  // what you wear (17-looks.js lookCode), and your outfit color: re-tracked when either changes
+  // (me is the game's own ME object, so its color is already the current one)
+  let lastLook = '';
+  function setLook(code) {
+    if (!me) return;
+    me.look = code;
+    if (lastLook === code + '|' + me.color) return;
+    lastLook = code + '|' + me.color;
+    if (ch && online) track().catch(() => {});
+  }
   const loadClaims = () => readAll('claims', 'cx,cz,owner,owner_name,members', world, ['cx', 'cz']);
 
   // A chunk's original terrain, if it has already been frozen.
@@ -346,6 +363,7 @@ window.Net = (() => {
     sendPos,
     sendHit,
     setRegion,
+    setLook,
     watchRegion,
     anyoneNear,
     chat,
