@@ -426,10 +426,31 @@ Net.on('peers', list => {
     if (o) o.r = p.r;
   }
   if (!wasNear && Net.anyoneNear(list)) lastPos = null; // someone just came close: show yourself right away
-  const names = list.map(p => (p.id === ME.id ? 'you' : p.name));
+  PEER_NAMES = list.map(p => (p.id === ME.id ? 'you' : p.name));
   $('online').hidden = !Net.online;
-  $('onlineTxt').textContent = `${list.length} online · ${names.slice(0, 5).join(', ')}${names.length > 5 ? '…' : ''}`;
+  onlineBadge();
+  refreshMiners();
 });
+// the badge: who is connected right now, and how many nicknames the world has in all
+let PEER_NAMES = [],
+  MINERS = null,
+  minersAt = 0;
+function onlineBadge() {
+  const n = PEER_NAMES,
+    all = MINERS ? ` · ${MINERS} ${MINERS > 1 ? 'miners' : 'miner'}` : '';
+  $('onlineTxt').textContent = `${n.length} online${all} · ${n.slice(0, 5).join(', ')}${n.length > 5 ? '…' : ''}`;
+}
+// asked again when someone joins or leaves, at most once a minute
+async function refreshMiners() {
+  if (!Net.online || performance.now() - minersAt < 60000) return;
+  minersAt = performance.now();
+  try {
+    MINERS = await Net.playerCount();
+    onlineBadge();
+  } catch {
+    minersAt = 0;
+  }
+}
 Net.on('pos', p => {
   const o = ensureOther(p);
   if (!o) return;

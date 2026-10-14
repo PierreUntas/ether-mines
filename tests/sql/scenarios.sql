@@ -790,3 +790,14 @@ select pg_temp.ok('an empty text clears it', act_sign('w', 6, 50, 5, '   ') ->> 
 select pg_temp.ok('... and the row is gone', not exists (select 1 from signs where world = 'w' and x = 6));
 reset role;
 \echo Sign scenarios pass.
+
+-- player count (035): every nickname of the world, as a bare number, readable by any player
+reset role;
+select count(*) as named from players where world = 'w' and coalesce(btrim(name), '') <> '' \gset
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('a player can''t read the others'' rows', (select count(*) from players where world = 'w') = 1);
+select pg_temp.ok('... but gets the count of every nickname', world_player_count('w') = :named and :named > 1);
+select pg_temp.ok('an empty world counts zero', world_player_count('nowhere') = 0);
+reset role;
+\echo Player count scenarios pass.
