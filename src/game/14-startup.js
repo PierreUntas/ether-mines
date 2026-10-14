@@ -396,7 +396,7 @@ Net.on('peers', list => {
   const ids = new Set(list.map(p => p.id));
   for (const id of [...others.keys()]) if (!ids.has(id)) removeOther(id);
   for (const p of list) ensureOther(p);
-  const names = list.map(p => (p.id === ME.id ? 'toi' : p.name));
+  const names = list.map(p => (p.id === ME.id ? 'you' : p.name));
   $('online').hidden = !Net.online;
   $('onlineTxt').textContent = `${list.length} online · ${names.slice(0, 5).join(', ')}${names.length > 5 ? '…' : ''}`;
 });
