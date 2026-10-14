@@ -13,8 +13,52 @@ let last = performance.now(),
   buffT = 0; // meal eaten at the table: increased speed for this long (seconds)
 let fpsN = 0,
   fpsT = 0;
+// Frames: at most 60 a second (a 120 Hz screen would otherwise draw twice as many for nothing), and
+// about 12 while nothing moves under your eyes (title screen, pause, the chest or shop open), with the
+// world still running at its own pace. Keeps laptops cool and batteries alive.
+let lastDraw = 0;
+const idleNow = () => !CINE.on && (!playing || !$('panel').hidden);
+// automatic quality: under 40 frames a second for 5 s of play, one step down (sharpness, then shadows,
+// then view distance), saved, and said once; never during the browser tests (headless, slow by nature)
+const AUTOQ = { t: 0, n: 0, cool: 0 };
+function autoQuality(dt) {
+  if (!REG.autoQuality || navigator.webdriver || !playing || idleNow() || dt > 0.25) {
+    AUTOQ.t = AUTOQ.n = 0;
+    return;
+  }
+  AUTOQ.cool = Math.max(0, AUTOQ.cool - dt);
+  AUTOQ.t += dt;
+  AUTOQ.n++;
+  if (AUTOQ.t < 5) return;
+  const fps = AUTOQ.n / AUTOQ.t;
+  AUTOQ.t = AUTOQ.n = 0;
+  if (fps >= 40 || AUTOQ.cool > 0) return;
+  let what = null;
+  if (REG.sharpness > 1) {
+    REG.sharpness = REG.sharpness > 1.5 ? 1.5 : 1;
+    what = ['sharpness', 'sharpness'];
+  } else if (REG.shadows) {
+    REG.shadows = false;
+    what = ['shadows', 'shadows'];
+  } else if (REG.view > 3) {
+    REG.view--;
+    what = ['view', 'view distance'];
+  }
+  if (!what) return;
+  AUTOQ.cool = 10;
+  saveSettings();
+  applySetting(what[0]);
+  logEv('burn', `Lower ${what[1]}, to keep the game smooth`, 'chest → Settings to change it back');
+}
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000);
+  const gap = idleNow() ? 1000 / 12 : 1000 / 60;
+  if (now - lastDraw < gap - 4) {
+    requestAnimationFrame(frame);
+    return;
+  }
+  lastDraw = now;
+  const dt = Math.min(idleNow() ? 0.1 : 0.05, (now - last) / 1000);
+  autoQuality(dt);
   fpsN++;
   fpsT += (now - last) / 1000;
   if (fpsT >= 0.5) {

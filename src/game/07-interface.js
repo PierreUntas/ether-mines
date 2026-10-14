@@ -2267,6 +2267,15 @@ const SETTINGS_CHOICES = [
     ],
   },
   {
+    k: 'autoQuality',
+    t: 'Adjust quality automatically',
+    d: 'If the game slows down, lowers sharpness, then shadows, then view distance, to stay smooth and cool.',
+    o: [
+      [false, 'No'],
+      [true, 'Yes'],
+    ],
+  },
+  {
     k: 'fps',
     t: 'Frames per second',
     d: 'Shows smoothness next to the clock (60 = perfect, under 30 = choppy).',

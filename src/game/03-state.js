@@ -17,12 +17,13 @@ const OLD_REG_KEYS = {
 const REG_DEFAULT = {
   view: touch ? 4 : 5,
   shadows: !touch,
-  sharpness: touch ? 1.5 : 2,
+  sharpness: 1.5, // a Retina screen at full resolution (2) costs twice the pixels: kept as a choice, not the default
   fireflies: true,
   animals: true,
   mobs: true,
   fps: false,
   sensitivity: 1,
+  autoQuality: true, // lower the graphics on its own when the game can't keep up (10-loop.js)
 };
 let REG = { ...REG_DEFAULT };
 try {

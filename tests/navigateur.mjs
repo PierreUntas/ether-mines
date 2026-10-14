@@ -608,6 +608,36 @@ const shared = await page.evaluate(() => {
   return { told, remote, caughtUp, deaths, lootMine, chasesThem: theirs && !theirs.me, chasesMe: mine && mine.me };
 });
 if (Object.values(shared).some(v => !v)) await fail('shared combat: ' + JSON.stringify(shared));
+// automatic quality (10-loop.js): 5 s under 40 frames a second while playing lowers one setting, the
+// sharpness first, then the shadows; a pause or an open chest doesn't count; off in the browser tests
+const autoq = await page.evaluate(() => {
+  const keep = { ...REG },
+    wd = Object.getOwnPropertyDescriptor(Navigator.prototype, 'webdriver'),
+    wasPlaying = playing;
+  const off = (autoQuality(0.2), REG.sharpness === keep.sharpness); // webdriver: never touches anything
+  Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
+  Object.assign(REG, { autoQuality: true, sharpness: 2, shadows: true, view: 5 });
+  playing = true;
+  AUTOQ.t = AUTOQ.n = AUTOQ.cool = 0;
+  for (let i = 0; i < 30; i++) autoQuality(0.2); // 6 s at 5 frames a second
+  const first = REG.sharpness === 1.5 && REG.shadows === true;
+  AUTOQ.cool = 0;
+  REG.sharpness = 1;
+  for (let i = 0; i < 30; i++) autoQuality(0.2);
+  const second = REG.shadows === false;
+  const view0 = REG.view;
+  AUTOQ.cool = 0;
+  for (let i = 0; i < 30; i++) autoQuality(1 / 60); // smooth: nothing changes
+  const smooth = REG.view === view0;
+  delete navigator.webdriver;
+  if (wd) Object.defineProperty(Navigator.prototype, 'webdriver', wd);
+  playing = wasPlaying;
+  Object.assign(REG, keep);
+  saveSettings();
+  for (const k of ['sharpness', 'shadows', 'view']) applySetting(k);
+  return { off, first, second, smooth };
+});
+if (Object.values(autoq).some(v => !v)) await fail('auto quality: ' + JSON.stringify(autoq));
 // hostile mobs can be turned off in solo or a private world, never in the main world
 const mobsSetting = await page.evaluate(() => {
   const en = Object.getOwnPropertyDescriptor(Net, 'enabled'), reg = REG.mobs;
