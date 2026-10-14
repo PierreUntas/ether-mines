@@ -421,7 +421,9 @@ function place() {
   // (a door, a chest, a bed...): those keep their own action (18-potions.js)
   const potion = heldConsumable();
   const tsh = target && B[target.id]?.shape,
-    reacts = target && ([73, 98, 135].includes(target.id) || ['door', 'lever', 'table'].includes(tsh) || (tsh || '').startsWith('bed'));
+    reacts =
+      target &&
+      ([73, 98, 135].includes(target.id) || ['door', 'lever', 'table'].includes(tsh) || (tsh || '').startsWith('bed') || isSign(target.id));
   if (potion && !reacts) return useConsumable(potion);
   if (!target) return;
   const tb = B[target.id],
@@ -440,6 +442,8 @@ function place() {
     openChest(target);
     return;
   }
+  // a sign: write on yours, read the others' (19-signs.js); crouch to place against it instead
+  if (tb && tb.sign && !accroupi && inWorld(target.x, target.z)) return useSign(target);
   const isBed = tb && (tb.shape || '').startsWith('bed');
   if ((target.id === 135 || isBed) && !accroupi && inWorld(target.x, target.z)) {
     if (target.id === 135) eat();
@@ -473,7 +477,7 @@ function place() {
   };
   let id = +it;
   const face = ((Math.round(yaw / (Math.PI / 2)) % 4) + 4) % 4;
-  if (B[id].shape === 'stairs' || B[id].shape === 'ladder' || B[id].shape === 'bed0f' || B[id].gate) id = id + face;
+  if (B[id].shape === 'stairs' || B[id].shape === 'ladder' || B[id].shape === 'bed0f' || B[id].gate || B[id].faces) id = id + face;
   // validators are relit in the ruins, never built (031_no_built_validators.sql)
   if (id === 13) return refuse('validators are relit in the ruins, not built');
   const [x, y, z] = target.prev;
@@ -527,8 +531,12 @@ function place() {
     const name = B[id].n;
     serverAct('place', { px: x, py: y, pz: z, it: +it, bid: id }, rec).then(r => {
       if (r) logEv('burn', `1 ${name}`, `→ block placed #${r.serial}`);
+      if (r && B[id].sign) openSignEditor({ x, y, z }); // a new sign: write on it right away
     });
-  } else logEv('burn', `1 ${B[id].n}`, `→ block placed #${S.serial}`);
+  } else {
+    logEv('burn', `1 ${B[id].n}`, `→ block placed #${S.serial}`);
+    if (B[id].sign) setTimeout(() => openSignEditor({ x, y, z }), 0);
+  }
   if (id === 13) {
     addVal(x, y, z);
     if (!S.seen.val) {

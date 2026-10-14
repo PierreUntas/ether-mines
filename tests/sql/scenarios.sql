@@ -763,3 +763,30 @@ select pg_temp.ok('with the fang, the blade is forged', (act_craft('w', 301) -> 
 reset role;
 select pg_temp.ok('... and the fang is kept', exists (select 1 from uniques where user_id = 'aaaaaaaa-0000-0000-0000-000000000001' and item = 205));
 \echo Consumable scenarios pass.
+
+-- signs (034): only the sign's own placer writes, the chat filter applies, an empty text clears it
+reset role;
+delete from rate_limits;
+insert into blocks (world, x, y, z, id, placed_by) values ('w', 6, 50, 5, 160, 'aaaaaaaa-0000-0000-0000-000000000001')
+  on conflict (world, x, y, z) do update set id = 160, placed_by = excluded.placed_by;
+insert into blocks (world, x, y, z, id, placed_by) values ('w', 7, 50, 5, 3, 'aaaaaaaa-0000-0000-0000-000000000001')
+  on conflict (world, x, y, z) do update set id = 3, placed_by = excluded.placed_by;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('write on your sign', act_sign('w', 6, 50, 5, '  Welcome   to my house ') ->> 'text' = 'Welcome to my house');
+select pg_temp.ok('everyone can read it', (select text from signs where world = 'w' and x = 6 and y = 50 and z = 5) = 'Welcome to my house');
+select pg_temp.ok('a granite block is not a sign', act_sign('w', 7, 50, 5, 'hi') ->> 'err' = 'not a sign');
+select pg_temp.ok('60 characters at most', length(act_sign('w', 6, 50, 5, repeat('a', 200)) ->> 'text') = 60);
+select set_config('request.jwt.claim.sub', 'c4000000-0000-0000-0000-000000000004', false) \g /dev/null
+select pg_temp.ok('someone else can''t write on it', act_sign('w', 6, 50, 5, 'mine now') ->> 'err' = 'not your sign');
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('a muted player can''t write at all', act_sign('w', 6, 50, 5, 'hi') ->> 'err' = 'muted');
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('the chat filter applies', act_sign('w', 6, 50, 5, 'what the shit') ->> 'text' = 'what the ****');
+reset role;
+delete from rate_limits;
+set role authenticated;
+select pg_temp.ok('an empty text clears it', act_sign('w', 6, 50, 5, '   ') ->> 'ok' = 'true');
+select pg_temp.ok('... and the row is gone', not exists (select 1 from signs where world = 'w' and x = 6));
+reset role;
+\echo Sign scenarios pass.

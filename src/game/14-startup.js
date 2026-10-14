@@ -930,6 +930,7 @@ $('play').onclick = async () => {
       return;
     }
     booted = true;
+    loadSoloSigns(); // solo: the signs' text kept in the save (19-signs.js)
     cloudSave(true);
     $('play').disabled = false;
     $('shareRow').hidden = !Net.online;

@@ -546,7 +546,7 @@ function icon(it) {
   if (B[it] && !isCross(+it) && !B[it].water && !B[it].icon) {
     const b = B[it],
       k = 1 / 16,
-      half = b.shape === 'slab' || b.shape === 'stairs';
+      half = b.shape === 'slab' || b.shape === 'stairs' || b.shape === 'furn'; // furn without its own icon: a carpet
     const face = (ti, m, shade) => {
       const [sx, sy] = tileImg(ti);
       x.setTransform(...m);

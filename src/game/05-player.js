@@ -173,7 +173,8 @@ document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === cv;
   if (locked) lockFails = 0;
   // the finale's cinematic frees the mouse on purpose (for its Skip button): no pause menu over it
-  if (!locked && playing && !noLock && $('panel').hidden && !chatOpen && !CINE.on && performance.now() > fsSwitch) pause();
+  if (!locked && playing && !noLock && $('panel').hidden && !chatOpen && !SIGN_EDIT.open && !CINE.on && performance.now() > fsSwitch)
+    pause();
 });
 cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('mousedown', e => {

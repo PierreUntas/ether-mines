@@ -266,6 +266,13 @@ active ──(3 missed checks)──> damaged ──(8 missed checks)──> cor
   impossible move). Item ids start at 301: below 200 every number is a block's or reserved for future
   blocks. The Genesis Blade and Genesis Plating need a boss trophy you own (`rule_recipes.req_unique`,
   kept, never consumed): the Titan's fang for the blade, the Plasma Core's pistol for the plating.
+- **Furniture and signs** (`034_signs.sql`, `src/game/19-signs.js`): chairs and a sofa that turn to face
+  you as you place them, four carpets you walk over, potted plants and flowers, all in the Furniture
+  crafting category. They are ordinary blocks drawn as their own little boxes (shape `furn` in
+  `src/mesh.js`, block ids 146 to 163; block ids stop at 200). A sign carries one line of text (60
+  characters) that every player reads: only whoever placed it writes on it (`act_sign`), through the
+  chat's word filter, muted players can't; the text lives in the `signs` table (streamed like blocks)
+  online and in the save solo, and is drawn on both faces of the board while the sign stands.
 
 See `supabase/migrations/019_gwei_currency.sql` through `024_loot_tiers.sql` for the schema, and
 `legacy/README.md` for what used to exist here (a real, optional Sepolia mirror — retired, not deleted).

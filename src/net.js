@@ -3,7 +3,7 @@
 window.Net = (() => {
   const cfg = window.CONFIG || {};
   const enabled = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
-  const handlers = { block: [], pos: [], hit: [], chat: [], peers: [], status: [], claim: [], frozen: [], offer: [] };
+  const handlers = { block: [], pos: [], hit: [], chat: [], peers: [], status: [], claim: [], frozen: [], offer: [], sign: [] };
   let sb = null,
     ch = null,
     world = 'principal',
@@ -140,6 +140,11 @@ window.Net = (() => {
       if (r && r.x !== undefined)
         emit('block', { x: r.x, y: r.y, z: r.z, id: r.id, by: r.placed_by, name: r.placed_name, serial: r.serial });
     });
+    // signs' text (034_signs.sql): written or cleared by their owner, read by everyone
+    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'signs', filter: 'world=eq.' + w }, p => {
+      const r = p.eventType === 'DELETE' ? p.old : p.new;
+      if (r && r.x !== undefined) emit('sign', { x: r.x, y: r.y, z: r.z, text: p.eventType === 'DELETE' ? '' : r.text });
+    });
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'claims', filter: 'world=eq.' + w }, p =>
       emit('claim', p.eventType, p.new, p.old),
     );
@@ -184,7 +189,7 @@ window.Net = (() => {
 
   // Frozen terrain and modified blocks for a rectangular area of chunks (bounds included).
   async function loadArea(cx0, cz0, cx1, cz1, size = 16) {
-    const [chunks, edits] = await Promise.all([
+    const [chunks, edits, signs] = await Promise.all([
       readAll('chunks', 'cx,cz,gen,sy,data', world, ['cx', 'cz'], q => q.gte('cx', cx0).lte('cx', cx1).gte('cz', cz0).lte('cz', cz1)),
       readAll('blocks', 'x,y,z,id,placed_by,placed_name,serial', world, ['x', 'y', 'z'], q =>
         q
@@ -193,8 +198,16 @@ window.Net = (() => {
           .gte('z', cz0 * size)
           .lt('z', (cz1 + 1) * size),
       ),
+      // signs in the area; an older database without the table just has none
+      readAll('signs', 'x,y,z,text', world, ['x', 'y', 'z'], q =>
+        q
+          .gte('x', cx0 * size)
+          .lt('x', (cx1 + 1) * size)
+          .gte('z', cz0 * size)
+          .lt('z', (cz1 + 1) * size),
+      ).catch(() => []),
     ]);
-    return { chunks, edits };
+    return { chunks, edits, signs };
   }
 
   // r: your square; w: a far square you're watching (/join), so the player there starts sending

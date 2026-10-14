@@ -116,6 +116,8 @@
       }
       case 'cable':
         return [[0, 0, 0, 1, 0.03, 1]];
+      case 'furn': // furniture and signs (rules.js): the block's own boxes
+        return b.boxes;
       case 'lever':
         return [[0.3, 0, 0.3, 0.7, 0.12, 0.7], b.on ? [0.54, 0.1, 0.46, 0.62, 0.58, 0.54] : [0.38, 0.1, 0.46, 0.46, 0.58, 0.54]];
       default:
@@ -336,7 +338,7 @@
                           ? [10, 10, 10]
                           : b.shape && b.shape.startsWith('bed') && bi === 2
                             ? [125, 125, 125]
-                            : b.t,
+                            : (b.bt && b.bt[bi]) || b.t,
                 b.shape === 'door' ? (b.top ? 40 : 39) : null,
               ),
             );

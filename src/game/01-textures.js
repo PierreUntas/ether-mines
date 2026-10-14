@@ -1221,6 +1221,67 @@ tile(146, (P, E) => {
   }
   for (let x = 6; x <= 9; x++) P(x, 1, dark);
 });
+// v21 (034_signs.sql): furniture icons and the terracotta of the pots
+const clearTile = P => {
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
+};
+tile(147, P => {
+  // Chair: seen from the side, a seat on two legs and a tall back
+  clearTile(P);
+  const w = '#b07a45',
+    d = '#7a5230';
+  for (let y = 2; y <= 13; y++) (P(3, y, d), P(4, y, w));
+  for (let x = 3; x <= 12; x++) (P(x, 8, w), P(x, 9, d));
+  for (let y = 10; y <= 13; y++) (P(12, y, d), P(11, y, w));
+});
+tile(148, P => {
+  // Lavender Sofa: a long seat, a back and two arms
+  clearTile(P);
+  const f = '#b6a4ff',
+    s = '#8a7bef',
+    w = '#7a5230';
+  for (let x = 1; x <= 14; x++) for (let y = 4; y <= 7; y++) P(x, y, y === 4 ? f : s);
+  for (let x = 1; x <= 14; x++) for (let y = 8; y <= 11; y++) P(x, y, y === 8 ? f : s);
+  for (const x of [1, 2, 13, 14]) for (let y = 6; y <= 11; y++) P(x, y, f);
+  for (const x of [2, 13]) (P(x, 12, w), P(x, 13, w));
+});
+const potIcon = (P, top) => {
+  clearTile(P);
+  for (let y = 10; y <= 14; y++)
+    for (let x = 4 + (y > 12 ? 1 : 0); x <= 11 - (y > 12 ? 1 : 0); x++) P(x, y, y === 10 ? '#e08a5c' : '#c0623a');
+  top();
+};
+tile(150, P =>
+  potIcon(P, () => {
+    for (let y = 2; y <= 9; y++)
+      for (let x = 3; x <= 12; x++) if (Math.hypot(x - 7.5, y - 6) < 4.6) P(x, y, (x + y) % 3 ? '#4f9a5c' : '#76c47e');
+  }),
+); // Potted Plant
+tile(151, P =>
+  potIcon(P, () => {
+    for (let y = 5; y <= 9; y++) (P(7, y, '#4f9a5c'), P(8, y, '#4f9a5c'));
+    P(9, 7, '#76c47e');
+    P(6, 8, '#76c47e');
+    for (let y = 1; y <= 5; y++)
+      for (let x = 5; x <= 10; x++) if (Math.hypot(x - 7.5, y - 3) < 2.8) P(x, y, (x + y) % 2 ? '#ff9ab8' : '#ffc6d9');
+    P(7, 3, '#ffd95e');
+    P(8, 3, '#ffd95e');
+  }),
+); // Potted Flower
+tile(152, P => {
+  // Sign: a board on a post, lines of writing
+  clearTile(P);
+  for (let y = 9; y <= 15; y++) (P(7, y, '#7a5230'), P(8, y, '#7a5230'));
+  for (let y = 2; y <= 9; y++) for (let x = 1; x <= 14; x++) P(x, y, x === 1 || x === 14 || y === 2 || y === 9 ? '#7a5230' : '#c99a62');
+  for (const y of [4, 6, 8]) for (let x = 3; x <= (y === 8 ? 8 : 12); x++) if ((x + y) % 4) P(x, y, '#3b2a1a');
+});
+tile(153, (P, E, i) =>
+  noise(P, i, '#c0623a', [
+    ['#a8532f', 0.2],
+    ['#d0744a', 0.15],
+    ['#b85a35', 0.2],
+  ]),
+); // Terracotta (the pots)
 tile(136, (P, E) => {
   // Difficulty Bomb Fragment: a cracked round shell, a short lit fuse on top
   for (let y = 0; y < 16; y++)

@@ -331,3 +331,9 @@ body.cine .hud{opacity:0;transition:opacity .6s}
 .weekly{padding:12px;border:1px solid rgba(255,209,102,.35);border-radius:14px;background:rgba(255,209,102,.05);margin-bottom:6px}
 .weekly .cat{margin-top:0;color:var(--gold)}
 @media (pointer:coarse){.shopside{position:static}.shop .side{order:-1}}
+/* sign editor (19-signs.js) */
+.signedit{position:fixed;inset:0;display:grid;place-items:center;background:rgba(20,16,44,.55);z-index:20}
+.signedit .box{width:min(420px,calc(100% - 32px));padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--glass-2)}
+.signedit h3{margin:0 0 10px;font-size:16px}
+.signedit input{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--text);font:inherit;font-size:16px}
+.signedit .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}

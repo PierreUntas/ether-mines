@@ -108,6 +108,93 @@
   ITEM[204] = { n: 'Validator Star', icon: 129, nft: 1 };
   ITEM[110] = { n: 'Diamond Shard', icon: 128 };
   B[145] = { n: 'Radiant Diamond', t: [130, 130, 130], h: 1, glass: 1 };
+  // v21: furniture and signs (034_signs.sql). Shape "furn": the block is drawn and collides as its own
+  // little boxes (src/mesh.js), "bt" gives each box its own texture. Facing pieces ("faces") come in four
+  // consecutive ids like stairs, picked from where you look, so a chair's seat or a sign's face turns to
+  // you. Block ids stop at 200: items use 201 and up.
+  // a box turned a quarter to the left, as many times as o (o: 0 = you looked north, toward -z)
+  const turn = (bb, o) => {
+    let [x0, y0, z0, x1, y1, z1] = bb;
+    for (let k = 0; k < o; k++) [x0, z0, x1, z1] = [z0, 1 - x1, z1, 1 - x0];
+    return [x0, y0, z0, x1, y1, z1];
+  };
+  const PLANK = [10, 10, 10];
+  const CHAIR = [
+    [0.16, 0, 0.16, 0.26, 0.45, 0.26],
+    [0.74, 0, 0.16, 0.84, 0.45, 0.26],
+    [0.16, 0, 0.74, 0.26, 0.45, 0.84],
+    [0.74, 0, 0.74, 0.84, 0.45, 0.84],
+    [0.12, 0.45, 0.12, 0.88, 0.55, 0.88],
+    [0.12, 0.55, 0.12, 0.88, 1, 0.22],
+  ];
+  const SOFA = [
+    [0, 0, 0.08, 1, 0.42, 0.92],
+    [0, 0.42, 0.08, 1, 0.95, 0.3],
+    [0, 0.42, 0.3, 0.14, 0.68, 0.92],
+    [0.86, 0.42, 0.3, 1, 0.68, 0.92],
+  ];
+  const SIGN = [
+    [0.45, 0, 0.45, 0.55, 0.5, 0.55],
+    [0.04, 0.46, 0.44, 0.96, 1, 0.56],
+  ];
+  for (let o = 0; o < 4; o++) {
+    B[146 + o] = { n: 'Chair', t: PLANK, h: 0.6, shape: 'furn', faces: 1, o, drop: 146, icon: 147, boxes: CHAIR.map(b => turn(b, o)) };
+    B[150 + o] = {
+      n: 'Lavender Sofa',
+      t: [28, 28, 28],
+      h: 0.6,
+      shape: 'furn',
+      faces: 1,
+      o,
+      drop: 150,
+      icon: 148,
+      boxes: SOFA.map(b => turn(b, o)),
+      bt: [[28, 28, 28], [28, 28, 28], PLANK, PLANK],
+    };
+    B[160 + o] = {
+      n: 'Sign',
+      t: PLANK,
+      h: 0.5,
+      shape: 'furn',
+      faces: 1,
+      sign: 1,
+      o,
+      drop: 160,
+      icon: 152,
+      boxes: SIGN.map(b => turn(b, o)),
+    };
+  }
+  // carpets: a thin layer you walk over, in four of the concrete colors (27 pink, 28 lavender, 29 mint, 30 sky)
+  ['Pink', 'Lavender', 'Mint', 'Sky'].forEach((c, i) => {
+    B[154 + i] = { n: c + ' Carpet', t: [27 + i, 27 + i, 27 + i], h: 0.1, shape: 'furn', pass: 1, boxes: [[0, 0, 0, 1, 0.06, 1]] };
+  });
+  // potted plants: a terracotta pot (tile 153) with a leafy bush, or a flower on a stem
+  const POT = [0.28, 0, 0.28, 0.72, 0.36, 0.72];
+  B[158] = {
+    n: 'Potted Plant',
+    t: [153, 153, 153],
+    h: 0.3,
+    shape: 'furn',
+    icon: 150,
+    boxes: [POT, [0.22, 0.36, 0.22, 0.78, 0.92, 0.78]],
+    bt: [
+      [153, 153, 153],
+      [7, 7, 7],
+    ],
+  };
+  B[159] = {
+    n: 'Potted Flower',
+    t: [153, 153, 153],
+    h: 0.3,
+    shape: 'furn',
+    icon: 151,
+    boxes: [POT, [0.46, 0.36, 0.46, 0.54, 0.72, 0.54], [0.34, 0.68, 0.34, 0.66, 0.9, 0.66]],
+    bt: [
+      [153, 153, 153],
+      [7, 7, 7],
+      [27, 27, 27],
+    ],
+  };
   // v12: the Genesis Titan's trophy (never crafted, only minted by act_loot_mob on a guaranteed boss kill)
   ITEM[205] = { n: 'Genesis Titan Fang', icon: 131, nft: 1 };
   // v13: towers — a repeatable mid-tier boss (the Plasma Core) guards each one, dropping this on every
@@ -316,6 +403,18 @@
       cat: 'Combat',
     },
   );
+  // v21: furniture and signs (see the blocks above)
+  RECIPES.push(
+    { out: 146, n: 2, need: { 9: 3 }, d: 'Turns to face you as you place it', cat: 'Furniture' },
+    { out: 150, n: 1, need: { 9: 2, 71: 3 }, d: 'Soft and lavender, faces you as you place it', cat: 'Furniture' },
+    { out: 154, n: 4, need: { 71: 2, 17: 1 }, d: 'A thin rug you walk over', cat: 'Furniture' },
+    { out: 155, n: 4, need: { 71: 2, 7: 1 }, d: 'A thin rug you walk over', cat: 'Furniture' },
+    { out: 156, n: 4, need: { 71: 2, 6: 1 }, d: 'A thin rug you walk over', cat: 'Furniture' },
+    { out: 157, n: 4, need: { 71: 2, 19: 1 }, d: 'A thin rug you walk over', cat: 'Furniture' },
+    { out: 158, n: 1, need: { 4: 1, 3: 1, 6: 2 }, d: 'A bush in a terracotta pot', cat: 'Furniture' },
+    { out: 159, n: 1, need: { 4: 1, 3: 1, 17: 1 }, d: 'A flower in a terracotta pot', cat: 'Furniture' },
+    { out: 160, n: 2, need: { 9: 3 }, d: 'Right-click it to write a line that everyone can read', cat: 'Furniture' },
+  );
   const TOOLS = { 102: 1, 201: 1, 202: 1 };
   // v14: off-chain pivot. Purely decorative, bought with Gwei (act_buy_cosmetic): never a combat, speed,
   // harvest, or access effect. A separate id space from B/ITEM, so no collision with the append-only
@@ -462,7 +561,7 @@
     it = +it;
     if (!B[it]) return [];
     const b = B[it];
-    if (b.shape === 'stairs' || b.shape === 'ladder' || b.gate) {
+    if (b.shape === 'stairs' || b.shape === 'ladder' || b.gate || b.faces) {
       const base = b.drop ?? it; // the 4 orientations start from the first one
       return [base, base + 1, base + 2, base + 3];
     }

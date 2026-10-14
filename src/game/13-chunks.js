@@ -31,7 +31,9 @@ async function loadChunks(list) {
     if (Net.online) {
       const xs = list.map(c => c[0]),
         zs = list.map(c => c[1]);
-      ({ chunks: rows, edits } = await Net.loadArea(Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs)));
+      let signs;
+      ({ chunks: rows, edits, signs } = await Net.loadArea(Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs)));
+      for (const s of signs || []) SIGNS.set(coordKey(s.x, s.y, s.z), s.text); // 19-signs.js
     } else {
       const want = new Set(list.map(([cx, cz]) => ckey(cx, cz)));
       for (const k of want)

@@ -533,6 +533,34 @@ const pvp = (() => page.evaluate(() => {
 }))();
 const pvpR = await pvp;
 if (pvpR.held !== 1 || pvpR.again !== 1 || pvpR.blade !== 2 || pvpR.genesis !== 3 || pvpR.hand !== 1) await fail('pvp: ' + JSON.stringify(pvpR));
+// furniture and signs (19-signs.js), in solo: a chair turns to face you, a carpet is walked over, a
+// sign you place opens its editor, the text is kept and drawn on the board
+const furn = await page.evaluate(async () => {
+  const keep = { inv: { ...S.inv }, bar: [...S.bar], sel: S.sel, yaw, pitch, signs: S.signs },
+    x = Math.floor(P.x) + 2,
+    z = Math.floor(P.z),
+    y = Math.floor(P.y);
+  const facing = [0, 1, 2, 3].every(f => Rules.placeIds(146)[f] === 146 + f && B[146 + f].o === f);
+  const carpetPass = !isSolid(154) && isSolid(146);
+  mines.commit(`${x},${y},${z}`, 160, { by: ME.id, name: ME.name, serial: 1 });
+  openSignEditor({ x, y, z });
+  const ed = document.getElementById('signEdit'),
+    opened = !ed.hidden;
+  ed.querySelector('input').value = '  Hello   neighbours ';
+  ed.querySelector('[data-k=ok]').click();
+  await new Promise(r => setTimeout(r, 50));
+  const k = `${x},${y},${z}`,
+    saved = SIGNS.get(k) === 'Hello neighbours' && S.signs[k] === 'Hello neighbours' && ed.hidden;
+  updateSigns(1);
+  const drawn = SIGN_MESH.has(k) && SIGN_MESH.get(k).g.children.length === 2;
+  mines.commit(k, 0, null);
+  updateSigns(1);
+  const gone = !SIGN_MESH.has(k);
+  SIGNS.delete(k);
+  Object.assign(S, { inv: keep.inv, bar: keep.bar, sel: keep.sel, signs: keep.signs });
+  return { facing, carpetPass, opened, saved, drawn, gone };
+});
+if (Object.values(furn).some(v => !v)) await fail('furniture and signs: ' + JSON.stringify(furn));
 // hostile mobs can be turned off in solo or a private world, never in the main world
 const mobsSetting = await page.evaluate(() => {
   const en = Object.getOwnPropertyDescriptor(Net, 'enabled'), reg = REG.mobs;
