@@ -392,7 +392,7 @@ butterflies' sprites. See `supabase/migrations/028_leaderboard.sql`.
 - Animals and gifts aren't checked one by one (the server caps gifts at 15 a day).
 - Chat moderation is automatic and simple: no human moderator, and the filter only sees whole words (leetspeak slips through). Nicknames are unique per world, but not filtered: an offensive one has to be renamed by hand in the SQL Editor.
 - Validator ticking is lazy (settled on attest, or on the periodic "collect all"), not a background job: a validator's displayed state can lag a few minutes behind its true state until someone looks.
-- Supabase free tier: the project pauses after a week of inactivity, 2 million realtime messages a month (positions are capped at 5 sends per second per player, only while moving).
+- Supabase free tier: the project pauses after a week of inactivity, 2 million realtime messages a month and 100 a second, where every receiver counts as one more message. Positions are capped at 5 sends per second per player, only while moving, and only reach nearby players: the world is cut into 96-block squares, each with its own channel (`src/net.js`), you send on yours and listen to the 3x3 around you, and a player with nobody within one square sends nothing at all. Presence, chat and block changes stay on the world channel.
 
 ## Monitoring the game
 

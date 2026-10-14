@@ -371,6 +371,7 @@ function pickPlayer(at, blk) {
     bestId = null,
     bd = 5.2;
   for (const [id, o] of others) {
+    if (!o.t) continue; // out of range: not shown, not hittable
     const p = o.g.position,
       m = 0.3;
     aniBox.min.set(p.x - m, p.y, p.z - m);
@@ -392,10 +393,18 @@ function pickPlayer(at, blk) {
   }
   return { id: bestId, o: best };
 }
+// everyone connected to this world (presence), with the region square each one is in (net.js)
+let PEERS = [];
 Net.on('peers', list => {
-  const ids = new Set(list.map(p => p.id));
+  const ids = new Set(list.map(p => p.id)),
+    wasNear = Net.anyoneNear(PEERS);
+  PEERS = list;
   for (const id of [...others.keys()]) if (!ids.has(id)) removeOther(id);
-  for (const p of list) ensureOther(p);
+  for (const p of list) {
+    const o = ensureOther(p);
+    if (o) o.r = p.r;
+  }
+  if (!wasNear && Net.anyoneNear(list)) lastPos = null; // someone just came close: show yourself right away
   const names = list.map(p => (p.id === ME.id ? 'you' : p.name));
   $('online').hidden = !Net.online;
   $('onlineTxt').textContent = `${list.length} online · ${names.slice(0, 5).join(', ')}${names.length > 5 ? '…' : ''}`;
@@ -404,6 +413,7 @@ Net.on('pos', p => {
   const o = ensureOther(p);
   if (!o) return;
   o.t = p;
+  o.tAt = performance.now();
   if (!o.seen) {
     o.seen = true;
     o.g.position.set(p.x, p.y, p.z);
@@ -445,7 +455,14 @@ Net.on('status', s => {
   if (s === 'CLOSED' || s === 'CHANNEL_ERROR') $('onlineTxt').textContent = 'Connection lost · reconnecting…';
 });
 function updateOthers(dt) {
+  const now = performance.now();
   for (const o of others.values()) {
+    // no news for a while (a heartbeat comes every 4 s): out of range, hide them until they're back
+    if (o.t && now - o.tAt > 10000) {
+      o.t = null;
+      o.seen = false;
+    }
+    o.g.visible = !!o.t;
     if (!o.t) continue;
     const g = o.g,
       k = Math.min(1, dt * 7);
@@ -494,6 +511,7 @@ let lastPos = null,
   lastPosT = 0;
 setInterval(() => {
   if (!Net.online || !playing) return;
+  if (Net.setRegion(P.x, P.z)) lastPos = null; // a new square: the players there see you at once
   const now = performance.now(),
     p = {
       id: ME.id,
@@ -516,7 +534,8 @@ setInterval(() => {
   if (!moved && now - lastPosT < 4000) return;
   lastPos = p;
   lastPosT = now;
-  Net.sendPos(p);
+  // nobody within one square of you: nothing to send (Supabase counts every message)
+  if (Net.anyoneNear(PEERS)) Net.sendPos(p);
   // server position: a ping every 15 s while moving (used by /join and by move validation)
   if (SERVER() && booted && (!lastSrvPos || (now - lastSrvPos.t > 15000 && Math.hypot(p.x - lastSrvPos.x, p.z - lastSrvPos.z) > 2))) {
     lastSrvPos = { t: now, x: p.x, z: p.z };
@@ -569,15 +588,31 @@ function command(v) {
   }
   if (c === 'join') {
     const o = [...others.values()].find(o => o.name.toLowerCase() === arg || o.name.toLowerCase().startsWith(arg));
-    if (!o || !o.t) {
+    if (!o || (!o.t && !o.r)) {
       addChat('World', '#7fe8ff', arg ? `No one here is called "${arg}".` : 'Type /join followed by a nickname.');
       return;
     }
-    P.x = o.t.x + 1;
-    P.y = o.t.y + 0.5;
-    P.z = o.t.z + 1;
-    P.vy = 0;
-    addChat('World', '#7fe8ff', `You join ${o.name}.`);
+    const go = () => {
+      P.x = o.t.x + 1;
+      P.y = o.t.y + 0.5;
+      P.z = o.t.z + 1;
+      P.vy = 0;
+      addChat('World', '#7fe8ff', `You join ${o.name}.`);
+    };
+    if (o.t) return go();
+    // far away: listen to their square until their next position comes in (every 4 s at most)
+    Net.watchRegion(o.r);
+    addChat('World', '#7fe8ff', `Looking for ${o.name}…`);
+    const t0 = performance.now(),
+      wait = setInterval(() => {
+        if (o.t) {
+          clearInterval(wait);
+          go();
+        } else if (performance.now() - t0 > 7000) {
+          clearInterval(wait);
+          addChat('World', '#7fe8ff', `${o.name} can't be reached right now.`);
+        }
+      }, 250);
     return;
   }
   if (c === 'ignore' || c === 'listen') {

@@ -10,6 +10,22 @@ window.Net = (() => {
     me = null,
     online = false,
     userId = null;
+  // Positions and PvP hits don't go through the world channel, where every message reaches every
+  // player (and Supabase counts one message per receiver): the world is cut into REGION-wide squares,
+  // each with its own channel. You send on your square's channel and listen to the 3x3 squares around
+  // you, so only players within one square of you receive your moves. Presence carries your square,
+  // so a player alone in their part of the world sends nothing at all (14-startup.js).
+  const REGION = 96;
+  const regions = new Map(); // 'rx,rz' -> channel
+  let myRegion = null,
+    extraRegion = null; // a far square watched for a few seconds (/join)
+  const regionKey = (x, z) => Math.floor(x / REGION) + ',' + Math.floor(z / REGION);
+  const near = (a, b) => {
+    if (!a || !b) return true; // unknown (an older client): assume near
+    const [ax, az] = a.split(',').map(Number),
+      [bx, bz] = b.split(',').map(Number);
+    return Math.abs(ax - bx) <= 1 && Math.abs(az - bz) <= 1;
+  };
   const client = () =>
     sb ||
     (sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
@@ -115,7 +131,7 @@ window.Net = (() => {
     me = profile;
     client();
     ch = sb.channel('world:' + w, { config: { broadcast: { self: false }, presence: { key: me.id } } });
-    ch.on('broadcast', { event: 'pos' }, ({ payload }) => emit('pos', payload));
+    ch.on('broadcast', { event: 'pos' }, ({ payload }) => emit('pos', payload)); // older clients still send here
     // PvP: client-resolved, like mob/animal combat — no loot, no penalty, so nothing to arbitrate server-side
     ch.on('broadcast', { event: 'hit' }, ({ payload }) => emit('hit', payload));
     // blocks and claims: the database is authoritative, every server-validated change arrives here
@@ -140,7 +156,7 @@ window.Net = (() => {
         list = [];
       for (const k in st) {
         const p = st[k][0];
-        if (p) list.push({ id: k, name: p.name, color: p.color, title: p.title || '' });
+        if (p) list.push({ id: k, name: p.name, color: p.color, title: p.title || '', r: p.r || null, w: p.w || null });
       }
       emit('peers', list);
     });
@@ -151,7 +167,8 @@ window.Net = (() => {
         if (status === 'SUBSCRIBED') {
           online = true;
           clearTimeout(t);
-          await ch.track({ name: me.name, color: me.color, title: me.title || '' });
+          await track();
+          syncRegions();
           resolve();
         }
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
@@ -180,12 +197,59 @@ window.Net = (() => {
     return { chunks, edits };
   }
 
-  const sendPos = p => {
-    if (ch && online) ch.send({ type: 'broadcast', event: 'pos', payload: p });
+  // r: your square; w: a far square you're watching (/join), so the player there starts sending
+  const track = () =>
+    ch.track({ name: me.name, color: me.color, title: me.title || '', r: myRegion, w: extraRegion ? extraRegion.k : null });
+  function syncRegions() {
+    if (!sb || !online) return;
+    const want = new Set();
+    if (myRegion) {
+      const [rx, rz] = myRegion.split(',').map(Number);
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) want.add(rx + dx + ',' + (rz + dz));
+    }
+    if (extraRegion && extraRegion.until > Date.now()) want.add(extraRegion.k);
+    for (const [k, c] of regions)
+      if (!want.has(k)) {
+        sb.removeChannel(c);
+        regions.delete(k);
+      }
+    for (const k of want)
+      if (!regions.has(k)) {
+        const c = sb.channel('world:' + world + ':r:' + k, { config: { broadcast: { self: false } } });
+        c.on('broadcast', { event: 'pos' }, ({ payload }) => emit('pos', payload));
+        c.on('broadcast', { event: 'hit' }, ({ payload }) => emit('hit', payload));
+        c.subscribe();
+        regions.set(k, c);
+      }
+  }
+  // called with your position: returns true when you just entered another square
+  function setRegion(x, z) {
+    const k = regionKey(x, z);
+    if (extraRegion && extraRegion.until <= Date.now()) {
+      extraRegion = null;
+      syncRegions();
+      if (ch && online) track().catch(() => {});
+    }
+    if (k === myRegion) return false;
+    myRegion = k;
+    syncRegions();
+    if (ch && online) track().catch(() => {});
+    return true;
+  }
+  // listen to a far square for a while (to find a player's exact position before joining them)
+  function watchRegion(k, ms = 8000) {
+    extraRegion = { k, until: Date.now() + ms };
+    syncRegions();
+    if (ch && online) track().catch(() => {});
+  }
+  const sendRegion = (event, payload) => {
+    const c = myRegion && regions.get(myRegion);
+    if (c && online) c.send({ type: 'broadcast', event, payload });
   };
-  const sendHit = p => {
-    if (ch && online) ch.send({ type: 'broadcast', event: 'hit', payload: p });
-  };
+  const sendPos = p => sendRegion('pos', p);
+  const sendHit = p => sendRegion('hit', p);
+  // is anyone else close enough to receive your moves?
+  const anyoneNear = peers => peers.some(p => p.id !== me?.id && (near(p.r, myRegion) || (p.w && near(p.w, myRegion))));
   // Chat: through the server if act_chat exists; otherwise (003 not run yet) direct broadcast like before.
   let serverChat = true;
   async function chat(text) {
@@ -254,7 +318,7 @@ window.Net = (() => {
   function setTitle(t) {
     if (!me || (me.title || '') === (t || '')) return;
     me.title = t || '';
-    if (ch && online) ch.track({ name: me.name, color: me.color, title: me.title }).catch(() => {});
+    if (ch && online) track().catch(() => {});
   }
   const loadClaims = () => readAll('claims', 'cx,cz,owner,owner_name,members', world, ['cx', 'cz']);
 
@@ -281,6 +345,9 @@ window.Net = (() => {
     on,
     sendPos,
     sendHit,
+    setRegion,
+    watchRegion,
+    anyoneNear,
     chat,
     logError,
     act,
