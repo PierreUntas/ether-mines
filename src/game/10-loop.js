@@ -396,6 +396,7 @@ function frame(now) {
   }
   updateOthers(dt);
   updateLooks(dt);
+  updatePotions(dt);
   const restoreEyes = CINE.on ? cineCamera() : viewFromOutside(dt); // back or front view: the camera pulls back for the duration of the render
   renderer.clear();
   renderer.render(scene, camera);

@@ -276,6 +276,46 @@
     d: 'A piece of the great diamond, once the network is fully awake',
     cat: 'Decoration',
   });
+  // v20: consumables and the Genesis tier (033_consumables.sql). Item ids 301+: below 200 every number is
+  // taken or reserved for blocks (they're appended there), and 201+ are the unique items. A consumable
+  // ("use") is spent by right-clicking it in hand (act_use_item); its effect is played client-side.
+  // The Genesis gear needs a boss trophy you own ("req", kept, never consumed) on top of its ingredients.
+  ITEM[301] = { n: 'Genesis Blade', icon: 140, dmg: 7.5, tier: 2 };
+  ITEM[302] = { n: 'Genesis Plating', icon: 141, armor: 0.55, tier: 3 };
+  ITEM[303] = { n: 'Ether Tonic', icon: 142, use: 'heal' };
+  ITEM[304] = { n: 'Swift Elixir', icon: 143, use: 'speed' };
+  ITEM[305] = { n: 'Owl Draught', icon: 144, use: 'vision' };
+  ITEM[306] = { n: 'Ward Incense', icon: 145, use: 'ward' };
+  ITEM[307] = { n: 'Home Beacon', icon: 146, use: 'home' };
+  RECIPES.push(
+    { out: 303, n: 2, need: { 75: 2, 101: 1 }, d: 'Drink it: restores 5 hearts', cat: 'Potions' },
+    { out: 304, n: 2, need: { 18: 2, 101: 1 }, d: 'Drink it: you run faster for 2 minutes', cat: 'Potions' },
+    { out: 305, n: 2, need: { 19: 2, 75: 1 }, d: 'Drink it: you see in the dark for 3 minutes', cat: 'Potions' },
+    {
+      out: 306,
+      n: 1,
+      need: { 76: 3, 103: 1 },
+      d: 'Burn it: ordinary mobs ignore you for 2 minutes, unless you strike them. Guardians and bosses aren’t fooled',
+      cat: 'Potions',
+    },
+    { out: 307, n: 1, need: { 14: 1, 101: 2 }, d: 'Light it: back to the last bed you slept in', cat: 'Potions' },
+    {
+      out: 301,
+      n: 1,
+      need: { 104: 3, 110: 4, 103: 2, 9: 2 },
+      req: 205,
+      d: 'Forged with the Titan’s own fang: the strongest blade',
+      cat: 'Combat',
+    },
+    {
+      out: 302,
+      n: 1,
+      need: { 104: 4, 110: 4, 103: 4 },
+      req: 206,
+      d: 'Shaped around the Plasma Core’s pistol: strong genesis-rock plating',
+      cat: 'Combat',
+    },
+  );
   const TOOLS = { 102: 1, 201: 1, 202: 1 };
   // v14: off-chain pivot. Purely decorative, bought with Gwei (act_buy_cosmetic): never a combat, speed,
   // harvest, or access effect. A separate id space from B/ITEM, so no collision with the append-only

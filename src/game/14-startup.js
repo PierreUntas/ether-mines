@@ -180,7 +180,9 @@ function updateArmorVisual(av) {
   const it = ITEM[S.armor];
   av.plate.visible = !!it;
   if (it) {
-    const c = platingTrimColor() ?? (+S.armor === 108 ? 0x00eaff : +S.armor === 209 ? 0xffd166 : 0xc9a6ff); // a plating trim (17-looks.js) wins
+    const c =
+      platingTrimColor() ?? // a plating trim (17-looks.js) wins
+      ({ 108: 0x00eaff, 209: 0xffd166, 302: 0xffb347 }[+S.armor] || 0xc9a6ff);
     for (const child of av.plate.children) {
       child.material.color.setHex(c);
       child.material.emissive.setHex(c);

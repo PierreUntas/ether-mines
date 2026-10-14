@@ -903,6 +903,7 @@ function heldDmg() {
 // the sky (playtest: they can't follow you off it) barely scratches them, and says so once
 let twinShieldToast = 0;
 function damageMob(a, dmg, fromX, fromZ) {
+  a.provoked = 15; // struck: the Ward Incense no longer fools it for a while
   if (a.arena && a.twin && Math.hypot(P.x - a.arena.x, P.z - a.arena.z) > a.arena.r + 2.5) {
     dmg *= 0.15;
     if (performance.now() - twinShieldToast > 15000) {
@@ -1307,10 +1308,11 @@ function updateMobs(dt) {
         }
         continue;
       }
+      if (a.provoked > 0) a.provoked -= dt;
       const K = MK[a.type],
         p = a.g.position,
         d = Math.hypot(p.x - P.x, p.y - P.y, p.z - P.z), // in 3D: a buried mob doesn't bite through rock
-        aggro = d < K.aggro && !mobSafe(p.x, p.z);
+        aggro = d < K.aggro && !mobSafe(p.x, p.z) && !wardFools(a); // Ward Incense (18-potions.js)
       let tx, tz;
       if (aggro) {
         tx = P.x;

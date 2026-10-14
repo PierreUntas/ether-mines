@@ -416,7 +416,14 @@ function place() {
       return;
     }
   }
-  if (!playing || !target) return;
+  if (!playing) return;
+  // a consumable in hand: spent on right-click, unless you're aiming at something that reacts to it
+  // (a door, a chest, a bed...): those keep their own action (18-potions.js)
+  const potion = heldConsumable();
+  const tsh = target && B[target.id]?.shape,
+    reacts = target && ([73, 98, 135].includes(target.id) || ['door', 'lever', 'table'].includes(tsh) || (tsh || '').startsWith('bed'));
+  if (potion && !reacts) return useConsumable(potion);
+  if (!target) return;
   const tb = B[target.id],
     tk = coordKey(target.x, target.y, target.z);
   if (target.id === 73) {
@@ -436,7 +443,7 @@ function place() {
   const isBed = tb && (tb.shape || '').startsWith('bed');
   if ((target.id === 135 || isBed) && !accroupi && inWorld(target.x, target.z)) {
     if (target.id === 135) eat();
-    else sleep();
+    else sleep(target);
     return;
   }
   // crouching: place against a door or lever instead of activating it
@@ -614,7 +621,13 @@ function eat() {
   Sound.chime();
   toastInfo('A good meal: you move faster for 90 seconds.');
 }
-function sleep() {
+function sleep(bed) {
+  // this bed becomes home, for the Home Beacon (18-potions.js), even by day
+  if (bed && (!S.home || S.home.x !== bed.x || S.home.y !== bed.y || S.home.z !== bed.z)) {
+    S.home = { x: bed.x, y: bed.y, z: bed.z };
+    dirty = true;
+    logEv('nft', 'Home set', 'a Home Beacon brings you back to this bed');
+  }
   const h = S.day % 1;
   if (h > 0.25 && h < 0.78) {
     logEv('burn', 'Too bright to sleep', 'wait for nightfall');

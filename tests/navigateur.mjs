@@ -469,6 +469,52 @@ const looks = await page.evaluate(() => {
 if (!looks.trailDropped || looks.code !== '0.22.29.34.0' || looks.parts !== 3 || looks.after !== 0)
   await fail('wearables: ' + JSON.stringify(looks));
 if (looks.weekly !== 4 || looks.sale < 1 || looks.worn !== 3 || looks.rows < looks.total) await fail('shop: ' + JSON.stringify(looks));
+// consumables (18-potions.js), in solo: each is spent once and does its thing; the ward fools an ordinary
+// mob but not a guardian, and not a mob you've struck; the beacon needs a bed you slept in
+const potions = await page.evaluate(async () => {
+  const keep = { inv: { ...S.inv }, bar: [...S.bar], sel: S.sel, hp: S.hp, home: S.home };
+  const hold = it => {
+    S.inv[it] = (S.inv[it] || 0) + 1;
+    S.bar[S.sel] = String(it);
+  };
+  S.hp = 4;
+  hold(303);
+  await useConsumable(303);
+  const healed = S.hp === 9 && !S.inv[303];
+  hold(304);
+  await useConsumable(304);
+  const fast = buffT >= 119;
+  hold(305);
+  await useConsumable(305);
+  const vision = POTION.vision > 179;
+  hold(306);
+  await useConsumable(306);
+  const shadow = { type: 'shadow' },
+    guard = { type: 'guardian' };
+  const ward = wardFools(shadow) && !wardFools(guard);
+  shadow.provoked = 5;
+  const provoked = !wardFools(shadow);
+  // the beacon: refused (and kept) without a bed, then home to the bed you slept in
+  delete S.home;
+  hold(307);
+  await useConsumable(307);
+  const keptWithoutBed = S.inv[307] === 1;
+  const bx = Math.floor(P.x) + 6,
+    by = Math.floor(P.y),
+    bz = Math.floor(P.z);
+  mines.commit(`${bx},${by},${bz}`, 137, null);
+  sleep({ x: bx, y: by, z: bz });
+  P.x += 20;
+  await useConsumable(307);
+  const home = Math.abs(P.x - (bx + 0.5)) < 0.01 && Math.abs(P.z - (bz + 0.5)) < 0.01 && !S.inv[307];
+  mines.commit(`${bx},${by},${bz}`, 0, null);
+  POTION.vision = POTION.ward = 0;
+  buffT = 0;
+  Object.assign(S, keep);
+  S.inv = keep.inv;
+  return { healed, fast, vision, ward, provoked, keptWithoutBed, home };
+});
+if (Object.values(potions).some(v => !v)) await fail('consumables: ' + JSON.stringify(potions));
 // hostile mobs can be turned off in solo or a private world, never in the main world
 const mobsSetting = await page.evaluate(() => {
   const en = Object.getOwnPropertyDescriptor(Net, 'enabled'), reg = REG.mobs;

@@ -1169,12 +1169,12 @@ function renderTrade(body) {
     for (const [k, n] of Object.entries(side.items)) zone.appendChild(chip(`${n} × ${nameOf(+k)}  ✕`, true, () => delete side.items[k]));
     // resources: what I have (I give) or everything that exists (I ask for)
     const ids = giving
-      ? Object.keys(S.inv).filter(k => S.inv[k] > 0 && +k < 200)
+      ? Object.keys(S.inv).filter(k => S.inv[k] > 0 && !ITEM[k]?.nft)
       : [
           ...Object.keys(B).filter(
             k => +k > 0 && +k !== 11 && +k !== 12 && (B[k].drop === undefined || B[k].drop === +k) && B[k].h !== Infinity,
           ),
-          ...Object.keys(ITEM).filter(k => +k < 200),
+          ...Object.keys(ITEM).filter(k => !ITEM[k].nft),
         ];
     const sel = el('select');
     ids
@@ -2106,7 +2106,8 @@ function renderPanelBody() {
         cat = r.cat;
         body.insertAdjacentHTML('beforeend', `<h3 class="cat">${cat}</h3>`);
       }
-      const ok = Object.entries(r.need).every(([k, n]) => (S.inv[k] || 0) >= n);
+      const hasReq = !r.req || S.nfts.some(n => n.id === r.req),
+        ok = hasReq && Object.entries(r.need).every(([k, n]) => (S.inv[k] || 0) >= n);
       const d = document.createElement('div');
       d.className = 'rec';
       d.appendChild(cloneIcon(r.out));
@@ -2114,7 +2115,9 @@ function renderPanelBody() {
         'beforeend',
         `<div><strong>${r.n > 1 ? r.n + ' × ' : ''}${nameOf(r.out)}</strong><span>${r.d}</span><div class="need">${Object.entries(r.need)
           .map(([k, n]) => `<em class="${(S.inv[k] || 0) >= n ? '' : 'ko'}">${n} ${nameOf(+k)} (${S.inv[k] || 0})</em>`)
-          .join('')}</div></div><button class="b ${ok ? 'primary' : ''}" ${ok ? '' : 'disabled'}>Craft</button>`,
+          .join(
+            '',
+          )}${r.req ? `<em class="${hasReq ? '' : 'ko'}">owning the ${nameOf(r.req)} (kept)</em>` : ''}</div></div><button class="b ${ok ? 'primary' : ''}" ${ok ? '' : 'disabled'}>Craft</button>`,
       );
       d.querySelector('button').onclick = () => craft(r);
       body.appendChild(d);

@@ -257,6 +257,15 @@ active ──(3 missed checks)──> damaged ──(8 missed checks)──> cor
   `S.look` (saved with the game); outfit, head, back, companion and trail travel in presence so the
   other players see them, the trims stay on your own held item and armor. The shop's *Try* puts a piece
   on your character before you buy it.
+- **Consumables and the Genesis tier** (`033_consumables.sql`, `src/game/18-potions.js`): crafted in the
+  Potions category and spent by right-clicking them in hand (`act_use_item` takes one from the
+  inventory). Ether Tonic (+5 hearts), Swift Elixir (2 min of speed), Owl Draught (3 min of night
+  vision), Ward Incense (2 min during which ordinary mobs ignore you unless you strike them; guardians,
+  wardens, turrets, bosses and attack nodes aren't fooled), Home Beacon (back to the last bed you slept
+  in: the server checks the bed and records the position, so the teleport isn't refused as an
+  impossible move). Item ids start at 301: below 200 every number is a block's or reserved for future
+  blocks. The Genesis Blade and Genesis Plating need a boss trophy you own (`rule_recipes.req_unique`,
+  kept, never consumed): the Titan's fang for the blade, the Plasma Core's pistol for the plating.
 
 See `supabase/migrations/019_gwei_currency.sql` through `024_loot_tiers.sql` for the schema, and
 `legacy/README.md` for what used to exist here (a real, optional Sepolia mirror — retired, not deleted).

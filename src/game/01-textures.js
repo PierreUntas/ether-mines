@@ -1144,6 +1144,83 @@ tile(135, (P, E) => {
       if (x > 8 - half && x < 7 + half && y > 2 && y < 13 && (x + y) % 3 === 0) P(x, y, x < 8 ? '#ffcfae' : '#c9b8ff');
     }
 });
+// v20 (033_consumables.sql): the Genesis tier, in the Titan's basalt and ember colors
+tile(140, (P, E) => blade(P, E, '#3a2d52', '#ffb347')); // Genesis Blade
+tile(141, (P, E) => armorIcon(P, E, '#ffb347')); // Genesis Plating
+// potions: a round flask with a cork, filled with a glowing liquid
+function flask(P, E, liquid, glint) {
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
+  const glass = '#d8e6ff',
+    rim = '#1c1029';
+  for (let x = 6; x <= 9; x++) {
+    P(x, 1, '#8b5a2b');
+    P(x, 2, '#6b4423');
+  }
+  for (let y = 3; y <= 5; y++) {
+    P(6, y, rim);
+    P(9, y, rim);
+    P(7, y, glass);
+    P(8, y, glass);
+  }
+  for (let y = 6; y <= 14; y++)
+    for (let x = 1; x <= 14; x++) {
+      const d = Math.hypot(x - 7.5, y - 10);
+      if (d > 5.2) continue;
+      const edge = d > 4.4;
+      if (edge) P(x, y, rim);
+      else if (y >= 8) {
+        P(x, y, liquid);
+        E(x, y, liquid);
+      } else P(x, y, glass);
+    }
+  P(5, 9, glint);
+  P(5, 10, glint);
+  P(6, 8, glint);
+}
+tile(142, (P, E) => flask(P, E, '#ff6b8a', '#ffd1dc')); // Ether Tonic
+tile(143, (P, E) => flask(P, E, '#ffd95e', '#fff3c0')); // Swift Elixir
+tile(144, (P, E) => flask(P, E, '#7fa8ff', '#e0ebff')); // Owl Draught
+tile(145, (P, E) => {
+  // Ward Incense: a stick in a small bowl, a curl of violet smoke
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
+  for (let x = 3; x <= 12; x++) P(x, 13, '#6b4423');
+  for (let x = 4; x <= 11; x++) P(x, 12, '#8b5a2b');
+  for (let y = 5; y <= 11; y++) P(8, y, '#3b2a1a');
+  P(8, 4, '#ff8a3d');
+  E(8, 4, '#ff8a3d');
+  for (const [x, y] of [
+    [7, 3],
+    [6, 2],
+    [7, 1],
+    [9, 2],
+    [10, 1],
+  ]) {
+    P(x, y, '#b6a4ff');
+    E(x, y, '#6a58e0');
+  }
+});
+tile(146, (P, E) => {
+  // Home Beacon: a little stone lantern with a warm flame, the way home
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
+  const stone = '#8a8296',
+    dark = '#4a4458';
+  for (let x = 4; x <= 11; x++) {
+    P(x, 2, dark);
+    P(x, 13, dark);
+    P(x, 14, stone);
+  }
+  for (let x = 5; x <= 10; x++) P(x, 3, stone);
+  for (let y = 4; y <= 12; y++) {
+    P(4, y, stone);
+    P(11, y, stone);
+    for (let x = 5; x <= 10; x++) {
+      const c = Math.hypot(x - 7.5, y - 8.5) < 2.2 ? '#ffd95e' : '#ff8a3d';
+      P(x, y, c);
+      E(x, y, c);
+    }
+  }
+  for (let x = 6; x <= 9; x++) P(x, 1, dark);
+});
 tile(136, (P, E) => {
   // Difficulty Bomb Fragment: a cracked round shell, a short lit fuse on top
   for (let y = 0; y < 16; y++)

@@ -58,6 +58,7 @@ function applyDay() {
   clouds.material.color.copy(skyU.hor.value).lerp(new THREE.Color(0xffffff), 0.6 - 0.4 * night);
   clouds.material.opacity = 0.85 - 0.35 * night;
   emisBoost = 0.6 + night * 0.8;
+  if (typeof visionLight === 'function') visionLight(); // Owl Draught (18-potions.js, loaded later)
   opMat.emissiveIntensity = emisBoost;
   glMat.emissiveIntensity = emisBoost;
   plMat.emissiveIntensity = emisBoost;

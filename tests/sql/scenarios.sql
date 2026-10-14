@@ -733,3 +733,33 @@ select pg_temp.ok('a limited piece out of its week is refused', act_buy_cosmetic
 select pg_temp.ok('this week''s limited piece can be bought', act_buy_cosmetic('w', :lim_id) ->> 'ok' = 'true');
 reset role;
 \echo Shop scenarios pass.
+
+-- consumables and the Genesis tier (033): spent one at a time, the beacon needs a real bed, the Genesis
+-- gear needs its boss trophy (owned, kept)
+reset role;
+delete from rate_limits;
+insert into inventory values ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 303, 2), ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 307, 1),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 104, 3), ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 110, 4),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 103, 2), ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 9, 2)
+  on conflict (user_id, world, item) do update set n = excluded.n;
+insert into blocks (world, x, y, z, id) values ('w', 5, 50, 5, 137) on conflict (world, x, y, z) do update set id = 137;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('a tonic is drunk: one less', (act_use_item('w', 303) -> 'inv' ->> '303')::int = 1);
+select pg_temp.ok('a block is not a consumable', act_use_item('w', 3) ->> 'err' = 'not usable');
+select pg_temp.ok('the beacon needs a bed where you go', act_use_item('w', 307, 6, 50, 5) ->> 'err' = 'that bed is gone');
+select pg_temp.ok('the beacon takes you to your bed', act_use_item('w', 307, 5, 50, 5) ->> 'ok' = 'true');
+select pg_temp.ok('... and the server now knows you''re there', (select round(pos_x::numeric, 1) from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 5.5);
+reset role;
+delete from rate_limits;
+set role authenticated;
+select pg_temp.ok('none left once used', act_use_item('w', 307, 5, 50, 5) ->> 'err' = 'none left');
+select pg_temp.ok('the Genesis Blade needs the Titan''s fang', act_craft('w', 301) ->> 'err' = 'needs a trophy');
+reset role;
+insert into uniques (user_id, world, serial, item) values ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 9001, 205);
+delete from rate_limits;
+set role authenticated;
+select pg_temp.ok('with the fang, the blade is forged', (act_craft('w', 301) -> 'inv' ->> '301')::int = 1);
+reset role;
+select pg_temp.ok('... and the fang is kept', exists (select 1 from uniques where user_id = 'aaaaaaaa-0000-0000-0000-000000000001' and item = 205));
+\echo Consumable scenarios pass.
