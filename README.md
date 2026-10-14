@@ -25,7 +25,7 @@ A block world in Ethereum's colors, built with friends in the browser. You mine,
 - **Circuits made of blocks**: lever and pressure plate (sources), ether cable, lamp and powered door. The current is recomputed continuously around the player and is never saved: only the levers' state is. A plate activates under any player, including a friend.
 - **Logic gates** (Crafting, Circuits): AND (both sides powered), OR (one side or the back), NOT (active as long as the back isn't) and a clock (ticks every second). A gate is placed like a staircase: its output points in the direction you were facing, an arrow marks it on top. They chain together and with cables, enabling code locks, blinkers, or traps.
 - **Progression**: objectives grouped into story chapters (button at the top of the screen, O key or Objectives tab, see "Story chapters" below) and four tool tiers. Your hand can't cut stone; the wooden pickaxe cuts stone and ore; the crystal pickaxe (unique item) opens geodes; the pure ether pickaxe (unique item) cuts the genesis rock, at the bottom of the world, which gives genesis fragments. With a fragment, shards, and crystals, you forge a validator heart.
-- **Old validators**: a ruin with a dark validator per 80 × 80-block region (the first about forty meters from the sanctuary). Your objective's compass leads to the nearest one. Relighting it with a heart puts it under your name, rolls its rarity (common to legendary), and gives you a validator seal (unique item) as a keepsake. A validator you place yourself works the same way, always common. See "Validators and Gwei" below for the production loop.
+- **Old validators**: a ruin with a dark validator per 80 × 80-block region (the first about forty meters from the sanctuary). Your objective's compass leads to the nearest one. Relighting it with a heart puts it under your name, rolls its rarity (common to legendary), and gives you a validator seal (unique item) as a keepsake. Validators are only ever relit, never built (`031_no_built_validators.sql`): the old Validator recipe is gone and placing that block is refused; validators placed before that keep working. See "Validators and Gwei" below for the production loop.
 - **Animals**: ether sheep (plains), rabbits (dunes, plains, forests), pink foxes (forests), prism fish (oceans), sky jellyfish (around floating islands). Right-click or short tap to pet them: once a day, a sheep offers ether wool (a block), a fox a flower, a jellyfish a pure shard. They're placed and moved based on the seed and the time: every player sees them in the same spot, with no network traffic.
 - **Rendering**: Three.js r128, pixel art textures generated in code, cast shadows (disabled on mobile), an 8-minute day/night cycle, blocks that glow at night, rippling water, fireflies at night, a placement effect, avatars that breathe and sway while walking.
 - **Settings** (chest's Settings tab, specific to each device): view distance, sharpness, shadows, fireflies, animals, hostile mobs (locked on in the main world `principal`, so ruins, geodes and genesis rock stay guarded for everyone and relighting stays fair; free in solo and in a private world such as `?monde=family-xyz`, which has its own Gwei, leaderboard and validators: a peaceful world for a child, say), camera sensitivity, frames-per-second counter.
@@ -217,8 +217,8 @@ Gwei` is a display convention only (the client divides `S.gwei` by 1000 above a 
 stored in that unit.
 
 ```
-Player finds a dormant validator (a "Dark Validator" in the ruins, or crafts one)
-   │ act_relight / act_place — a validators row is created, rarity rolled, a seal (item 203) minted
+Player finds a dormant validator (a "Dark Validator" in the ruins)
+   │ act_relight — a validators row is created, rarity rolled, a seal (item 203) minted
    ▼
 Validator, active: earns Gwei every cycle (5 minutes) net of its own upkeep, always — attest anytime
 to collect it, whether you've checked in once a minute or once a week (24h catch-up cap)
@@ -230,7 +230,7 @@ active ──(3 missed checks)──> damaged ──(8 missed checks)──> cor
    ↑ free to repair from damaged                   ↑ needs a Validator Heart (item 105) to repair
 ```
 
-- **Rarity** (rolled on reanimation, never on a crafted validator): common 60%, rare 25%, epic 12%,
+- **Rarity** (rolled on reanimation): common 60%, rare 25%, epic 12%,
   legendary 3%. Higher rarity means more Gwei per cycle, and a higher upkeep to match.
 - **Level** (`act_upgrade_validator`, 50 × current level in Gwei, 10 at most): +15% to both production
   and upkeep per level.

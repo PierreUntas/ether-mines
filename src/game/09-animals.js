@@ -162,7 +162,7 @@ const VILLAGERS = [
         NETWORK.top[0]
           ? `${NETWORK.top[0].name} watches over ${NETWORK.top[0].n} validator${NETWORK.top[0].n > 1 ? 's' : ''}: no one has relit more.`
           : 'No one has relit an old validator yet. The first name carved here could be yours.',
-      'A placed validator mints a crystal every five minutes. An old validator relit, one a minute.',
+      'An old validator relit mints a crystal every minute for whoever gave it its heart back.',
       'Unique items keep their history: who forged them, where, and what they have accomplished.',
     ],
   },

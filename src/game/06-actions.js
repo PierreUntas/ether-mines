@@ -33,6 +33,7 @@ function revert(rec) {
 const REFUSAL = {
   'tool too weak': () => `you need ${target ? TIER_NAME[reqTier(target.id)] : 'a better tool'}`,
   protected: () => 'protected area',
+  'validators are relit, not built': () => 'validators are relit in the ruins, not built',
   'chapter not finished': () => chapterMissing(CHAPTER_CLAIM.asking),
   'empty inventory': () => 'none of that item left',
   'needs support': () => 'you need something solid underneath',
@@ -465,6 +466,8 @@ function place() {
   let id = +it;
   const face = ((Math.round(yaw / (Math.PI / 2)) % 4) + 4) % 4;
   if (B[id].shape === 'stairs' || B[id].shape === 'ladder' || B[id].shape === 'bed0f' || B[id].gate) id = id + face;
+  // validators are relit in the ruins, never built (031_no_built_validators.sql)
+  if (id === 13) return refuse('validators are relit in the ruins, not built');
   const [x, y, z] = target.prev;
   if (y < 0 || y >= SY || !loaded(x, z)) return;
   if (!inWorld(x, z)) return;

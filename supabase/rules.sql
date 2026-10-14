@@ -269,7 +269,6 @@ insert into public.rule_recipes (out_item, n, need, uniq) values
 (10,1,'{"4":2}'::jsonb,false),
 (14,1,'{"10":1,"101":1}'::jsonb,false),
 (201,1,'{"9":2,"101":3}'::jsonb,true),
-(13,1,'{"15":4,"101":8}'::jsonb,false),
 (70,1,'{"103":4}'::jsonb,false),
 (202,1,'{"9":2,"101":4,"103":4}'::jsonb,true),
 (105,1,'{"101":4,"103":2,"104":1}'::jsonb,false),

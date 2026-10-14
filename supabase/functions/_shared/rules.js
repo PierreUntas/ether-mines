@@ -131,7 +131,6 @@
     { out: 10, n: 1, need: { 4: 2 }, d: 'Melt sand' },
     { out: 14, n: 1, need: { 10: 1, 101: 1 }, d: 'Light for the tunnels' },
     { out: 201, n: 1, need: { 9: 2, 101: 3 }, d: 'Unique item, never traded · mining x5 · opens geodes', nft: 1 },
-    { out: 13, n: 1, need: { 101: 8, 15: 4 }, d: 'A validator, active and producing Gwei as soon as it is placed' },
     { out: 70, n: 1, need: { 103: 4 }, d: 'Pure ether from the depths, glowing' },
     { out: 202, n: 1, need: { 103: 4, 101: 4, 9: 2 }, d: 'Unique item, never traded · mining x8 · cuts genesis rock', nft: 1 },
     { out: 105, n: 1, need: { 104: 1, 103: 2, 101: 4 }, d: 'Relights an old validator (right-click it)' },

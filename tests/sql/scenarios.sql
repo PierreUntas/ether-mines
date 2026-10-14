@@ -100,6 +100,14 @@ set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 select pg_temp.ok('place an item missing from the inventory', act_place('w', 21, :gy + 1, 3, 70, 70, 20.5, :gy + 1, 6.5) ->> 'err' = 'empty inventory');
 select pg_temp.ok('turn an item into something else', act_place('w', 21, :gy + 1, 3, 48, 13, 20.5, :gy + 1, 6.5) ->> 'err' = 'item not placeable');
+-- 031: a validator is relit, never built: a Validator block left in a chest can't be placed
+reset role;
+insert into inventory values ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 13, 1) on conflict (user_id, world, item) do update set n = 1;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('a validator is never built', act_place('w', 21, :gy + 1, 3, 13, 13, 20.5, :gy + 1, 6.5) ->> 'err' = 'validators are relit, not built');
+select pg_temp.ok('no validators row from a refused placement', not exists (select 1 from validators where world = 'w' and x = 21 and z = 3));
+select pg_temp.ok('no validator recipe left', not exists (select 1 from rule_recipes where out_item = 13));
 select pg_temp.ok('block out of reach', act_mine('w', 30, :gy, 3, null, 20.5, :gy + 1, 6.5) ->> 'err' = 'too far');
 select pg_temp.ok('teleport refused', act_mine('w', 300, 30, 300, null, 300.5, 31, 302.5) ->> 'err' = 'impossible move');
 select pg_temp.ok('return to the sanctuary allowed', act_mine('w', 8, 32, 8, null, 8.5, 33, 10.5) ->> 'err' = 'protected');
