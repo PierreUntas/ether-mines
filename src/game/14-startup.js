@@ -398,7 +398,7 @@ Net.on('peers', list => {
   for (const p of list) ensureOther(p);
   const names = list.map(p => (p.id === ME.id ? 'toi' : p.name));
   $('online').hidden = !Net.online;
-  $('onlineTxt').textContent = `${list.length} en ligne · ${names.slice(0, 5).join(', ')}${names.length > 5 ? '…' : ''}`;
+  $('onlineTxt').textContent = `${list.length} online · ${names.slice(0, 5).join(', ')}${names.length > 5 ? '…' : ''}`;
 });
 Net.on('pos', p => {
   const o = ensureOther(p);
