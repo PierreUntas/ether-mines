@@ -12,6 +12,8 @@
 // by each client: no loot, no penalty on death — nothing to arbitrate server-side, like the quest
 // objectives. Each mob guards something: a guardian disappears for good once the validator it guards
 // is relit; sentinels and wraiths simply mark their deposit as dangerous to mine.
+// the mobs that fly or swim: they don't walk on the ground, so walls don't stop them
+const FLYERS = new Set(['sky_raider', 'water_lurker', 'bat', 'pos_twin', 'plasma_core']);
 const MOBS = new Map(),
   MOB_R = 2; // radius, in chunks, around the player
 // difficulty pass: every mob's hp/dmg raised and speed brought up near (or, for the toughest, past)
@@ -1366,13 +1368,40 @@ function updateMobs(dt) {
           nz = a.arena.z + (oz / od) * a.arena.r;
         }
       }
+      // walkers step up one block at most, like the player: a taller wall stops them (they slide along it)
+      // instead of being climbed like a spider's. Fliers and swimmers move freely, as before.
+      const walker = !FLYERS.has(a.type);
+      if (walker && (nx !== p.x || nz !== p.z)) {
+        const fy = Math.floor(p.y + 0.01),
+          blocked = (x, z) => {
+            const xi = Math.floor(x),
+              zi = Math.floor(z);
+            if (xi === Math.floor(p.x) && zi === Math.floor(p.z)) return false;
+            return isSolid(get(xi, fy + 1, zi)) || (isSolid(get(xi, fy, zi)) && isSolid(get(xi, fy + 2, zi)));
+          },
+          // look a little ahead of the center, so a mob doesn't sink halfway into a wall before stopping
+          ahead = (x, z) => {
+            const mx = x - p.x,
+              mz = z - p.z,
+              m = Math.hypot(mx, mz) || 1;
+            return blocked(x + (mx / m) * 0.35, z + (mz / m) * 0.35);
+          };
+        if (ahead(nx, nz)) {
+          if (!ahead(nx, p.z)) nz = p.z;
+          else if (!ahead(p.x, nz)) nx = p.x;
+          else {
+            nx = p.x;
+            nz = p.z;
+          }
+        }
+      }
       p.x = nx;
       p.z = nz;
       // flying (sky_raider, bat) and swimming (water_lurker) mobs skip the ground snap entirely and
       // just lerp toward a free vertical target instead: the player's height when giving chase
       // (clamped to the water column for a lurker, which can't leave its water), or a gentle bob
       // near home otherwise — a bat's cave air pocket is tight, so its bob is much smaller
-      if (a.type === 'sky_raider' || a.type === 'water_lurker' || a.type === 'bat' || a.type === 'pos_twin' || a.type === 'plasma_core') {
+      if (FLYERS.has(a.type)) {
         const T = Date.now() / 1000;
         const ty =
           a.type === 'plasma_core'
@@ -1392,7 +1421,7 @@ function updateMobs(dt) {
                     : a.hy + Math.sin(T * 0.6 + a.ph) * 1.1;
         p.y += (ty - p.y) * Math.min(1, dt * 3);
       } else {
-        const gr = groundAt(nx, nz, p.y + 0.3, false, 2);
+        const gr = groundAt(nx, nz, p.y + 0.3, false, 1);
         if (gr && !gr.water) p.y += (gr.y - p.y) * Math.min(1, dt * 10);
       }
       a.walk = (a.walk || 0) + dt * (dd > 0.1 ? 8 : 1.5);
@@ -1410,7 +1439,8 @@ function updateMobs(dt) {
       a.atkT = Math.max(0, (a.atkT || 0) - dt);
       const holdFire = a.ladder && onLadderNow; // a tower mob waits while you climb
       if (K.ranged && !holdFire) rangedAttack(a, K, aggro, d, dt);
-      if (aggro && !holdFire && d < K.atk && hurtT <= 0 && a.atkT <= 0) {
+      // no bite through a wall: the mob must actually reach you
+      if (aggro && !holdFire && d < K.atk && hurtT <= 0 && a.atkT <= 0 && lineClear(...mobEye(a), P.x, P.y + 1, P.z)) {
         a.atkT = K.cd;
         hurtPlayer(K.dmg, p.x, p.z);
       }

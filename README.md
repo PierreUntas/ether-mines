@@ -286,6 +286,11 @@ its health. Both must fall together. They never leave their disc. The win (repor
 
 ### Creatures that stand out
 
+Walking mobs step up one block at most, like you (`updateMobs()`, `src/game/16-mobs.js`): a wall two
+blocks high stops them and they slide along it, and they only bite when nothing solid stands between
+you, so a closed hut, a wall or a moat really shelters you. Fliers and swimmers (sky raiders, bats,
+lurkers, the Proof-of-Stake twin, the Plasma Core) move freely, as before.
+
 The bosses each have their own silhouette (`buildMob()`, `src/game/16-mobs.js`): the **Genesis Titan** is
 a hunched colossus of genesis rock with a crown of spikes and a burning gold core; the **Plasma Core** is a
 machine heart of magenta plasma in a dark cage, three rings of plates spinning around it, floating over its

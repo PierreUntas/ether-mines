@@ -231,6 +231,89 @@ const ladder = await page.evaluate(() => {
   return out;
 });
 if (!ladder.pushedOut || !ladder.held) await fail('ladder: ' + JSON.stringify(ladder));
+// walking mobs step up one block, like you: a closed hut keeps them out (no climbing the walls,
+// no biting through them), a gap lets them in, and a single step is still climbed. Built on a stone
+// slab in the air, away from the Atrium (where mobs never attack), so the terrain doesn't interfere.
+const hut = await page.evaluate(() => {
+  const P = mines.P,
+    P0 = [P.x, P.y, P.z],
+    cy = 52,
+    cells = [],
+    slab = [];
+  let cx = null,
+    cz = null;
+  for (let r = 8; r < 40 && cx === null; r += 2)
+    for (const [ox, oz] of [[r, 0], [-r, 0], [0, r], [0, -r]]) {
+      const x = Math.floor(P.x) + ox,
+        z = Math.floor(P.z) + oz;
+      let ok = true;
+      for (let dx = -4; dx <= 8 && ok; dx++)
+        for (let dz = -4; dz <= 4 && ok; dz++) ok = CHK.has(ckey(cOf(x + dx), cOf(z + dz))) && !mobSafe(x + dx + 0.5, z + dz + 0.5);
+      if (ok) {
+        cx = x;
+        cz = z;
+        break;
+      }
+    }
+  if (cx === null) return { noSpot: true };
+  for (let dx = -4; dx <= 8; dx++) for (let dz = -4; dz <= 4; dz++) slab.push([cx + dx, cy - 1, cz + dz]);
+  for (let dx = -2; dx <= 2; dx++)
+    for (let dz = -2; dz <= 2; dz++)
+      for (let k = 0; k <= 3; k++) {
+        const edge = Math.abs(dx) === 2 || Math.abs(dz) === 2;
+        if ((edge && k < 3) || k === 3) cells.push([cx + dx, cy + k, cz + dz]);
+      }
+  for (const [x, y, z] of [...slab, ...cells]) mines.commit(`${x},${y},${z}`, 1, null);
+  P.x = cx + 0.5;
+  P.y = cy;
+  P.z = cz + 0.5;
+  const key = ckey(cOf(P.x), cOf(P.z)),
+    keep = mines.MOBS.get(key) || [],
+    m = mines.mkMob('shadow', key, 901, cx + 6.5, cy, cz + 0.5, null);
+  m.g.position.y = cy;
+  mines.MOBS.set(key, [...keep, m]);
+  hurtT = 0;
+  const hp0 = mines.S.hp,
+    run = () => {
+      for (let i = 0; i < 80; i++) {
+        P.x = cx + 0.5;
+        P.y = cy;
+        P.z = cz + 0.5;
+        updateMobs(0.05);
+        hurtT = 0;
+      }
+    },
+    dist = () => Math.hypot(m.g.position.x - P.x, m.g.position.z - P.z);
+  run();
+  const out = { outside: dist() > 2, low: m.g.position.y < cy + 1.5, unhurt: mines.S.hp === hp0 };
+  // open a door-sized gap on its side: now it comes in
+  mines.commit(`${cx + 2},${cy},${cz}`, 0, null);
+  mines.commit(`${cx + 2},${cy + 1},${cz}`, 0, null);
+  run();
+  out.cameIn = dist() < 2;
+  for (const [x, y, z] of cells) mines.commit(`${x},${y},${z}`, 0, null);
+  // a one-block step on its way: climbed
+  m.g.position.set(cx + 6.5, cy, cz + 0.5);
+  for (let dz = -3; dz <= 3; dz++) mines.commit(`${cx + 3},${cy},${cz + dz}`, 1, null);
+  let top = cy;
+  for (let i = 0; i < 80; i++) {
+    P.x = cx + 0.5;
+    P.y = cy;
+    P.z = cz + 0.5;
+    updateMobs(0.05);
+    hurtT = 0;
+    if (Math.floor(m.g.position.x) === cx + 3) top = Math.max(top, m.g.position.y);
+  }
+  out.stepped = top > cy + 0.7;
+  for (let dz = -3; dz <= 3; dz++) mines.commit(`${cx + 3},${cy},${cz + dz}`, 0, null);
+  for (const [x, y, z] of slab) mines.commit(`${x},${y},${z}`, 0, null);
+  mines.MOBS.set(key, keep);
+  scene.remove(m.g);
+  [P.x, P.y, P.z] = P0;
+  mines.S.hp = hp0;
+  return out;
+});
+if (!hut.outside || !hut.low || !hut.unhurt || !hut.cameIn || !hut.stepped) await fail('mobs and walls: ' + JSON.stringify(hut));
 // a free-standing ladder (nothing behind its panel, like a tower's open loggia): pushing forward into
 // it climbs, it doesn't walk you off the back
 const climb = await page.evaluate(async () => {
