@@ -531,8 +531,8 @@ function setHand() {
     // a pistol is held barrel forward, seen a little from its side, its muzzle toward the crosshair
     if (ITEM[it]?.ranged) {
       handMesh.scale.setScalar(0.36);
-      handMesh.position.set(0.28, -0.27, -0.72);
-      handMesh.rotation.set(0, 2.6, 0.12);
+      handMesh.position.set(0.26, -0.23, -0.72);
+      handMesh.rotation.set(0.04, 2.15, 0.1);
     }
   }
   handMesh.userData.rest = { p: handMesh.position.clone(), r: handMesh.rotation.clone() };
