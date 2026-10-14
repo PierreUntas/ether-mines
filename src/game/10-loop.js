@@ -396,9 +396,12 @@ function frame(now) {
     if (playing) updateQuest(dt);
   }
   updateOthers(dt);
-  updateLooks(dt);
-  updatePotions(dt);
-  updateSigns(dt);
+  // 17-looks.js, 18-potions.js, 19-signs.js load after this file: a first frame can come before them
+  if (typeof updateSigns === 'function') {
+    updateLooks(dt);
+    updatePotions(dt);
+    updateSigns(dt);
+  }
   const restoreEyes = CINE.on ? cineCamera() : viewFromOutside(dt); // back or front view: the camera pulls back for the duration of the render
   renderer.clear();
   renderer.render(scene, camera);

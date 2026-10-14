@@ -561,6 +561,53 @@ const furn = await page.evaluate(async () => {
   return { facing, carpetPass, opened, saved, drawn, gone };
 });
 if (Object.values(furn).some(v => !v)) await fail('furniture and signs: ' + JSON.stringify(furn));
+// shared combat (16-mobs.js): a blow is told to the players nearby, a remote blow costs the same hp
+// here, a mob dies for everyone but pays only whoever took part, and a mob goes after whoever is closest
+const shared = await page.evaluate(() => {
+  const P = mines.P,
+    key = ckey(cOf(P.x), cOf(P.z)),
+    keep = mines.MOBS.get(key) || [],
+    sent = [],
+    looted = [],
+    send = Net.sendMob,
+    loot = window.lootMob;
+  Net.sendMob = m => sent.push(m);
+  lootMob = t => looted.push(t);
+  const a = mines.mkMob('shadow', key, 777, P.x + 3, P.y, P.z, null),
+    b = mines.mkMob('shadow', key, 778, P.x - 3, P.y, P.z, null);
+  mines.MOBS.set(key, [...keep, a, b]);
+  // my blow: told to the others with the mob's id and hp left
+  damageMob(a, 4, P.x, P.z);
+  const told = sent.length === 1 && sent[0].id === mobId(a) && sent[0].hp === a.hp && a.hp === MK.shadow.hp - 4;
+  // their blow: same damage here; a late screen (full health) catches up on their hp
+  remoteMobHit({ id: mobId(a), dmg: 3, hp: a.hp - 3, x: a.g.position.x, y: a.g.position.y, z: a.g.position.z, fx: P.x, fz: P.z });
+  const remote = a.hp === MK.shadow.hp - 7;
+  remoteMobHit({ id: mobId(b), dmg: 2, hp: 1, x: b.g.position.x, y: b.g.position.y, z: b.g.position.z, fx: P.x, fz: P.z });
+  const caughtUp = b.hp === 1;
+  // b dies by their hand only: no loot for me; a dies after my blow: my own loot
+  remoteMobHit({ id: mobId(b), dmg: 5, hp: 0, x: b.g.position.x, y: b.g.position.y, z: b.g.position.z, fx: P.x, fz: P.z });
+  remoteMobHit({ id: mobId(a), dmg: 99, hp: 0, x: a.g.position.x, y: a.g.position.y, z: a.g.position.z, fx: P.x, fz: P.z });
+  const deaths = a.dying > 0 && b.dying > 0,
+    lootMine = looted.length === 1;
+  // targeting: another player closer to the mob than you gets chased, and you're not bitten
+  const c = mines.mkMob('shadow', key, 779, P.x + 6, P.y, P.z, null);
+  mines.MOBS.set(key, [...keep, c]);
+  const o = ensureOther({ id: 'buddy', name: 'Buddy', color: '#ff9ab8' });
+  o.t = { x: P.x + 7, y: P.y, z: P.z, yaw: 0, pitch: 0 };
+  o.tAt = performance.now();
+  o.g.position.set(P.x + 7, P.y, P.z);
+  o.g.visible = true;
+  const theirs = mobTarget(c, c.g.position);
+  o.g.position.set(P.x + 20, P.y, P.z);
+  const mine = mobTarget(c, c.g.position);
+  removeOther('buddy');
+  mines.MOBS.set(key, keep);
+  for (const m of [a, b, c]) scene.remove(m.g);
+  Net.sendMob = send;
+  lootMob = loot;
+  return { told, remote, caughtUp, deaths, lootMine, chasesThem: theirs && !theirs.me, chasesMe: mine && mine.me };
+});
+if (Object.values(shared).some(v => !v)) await fail('shared combat: ' + JSON.stringify(shared));
 // hostile mobs can be turned off in solo or a private world, never in the main world
 const mobsSetting = await page.evaluate(() => {
   const en = Object.getOwnPropertyDescriptor(Net, 'enabled'), reg = REG.mobs;

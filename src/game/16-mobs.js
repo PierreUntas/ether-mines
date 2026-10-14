@@ -902,6 +902,20 @@ function heldDmg() {
 // the Merge twins are only vulnerable to someone standing on their disc: shooting them from the stair or
 // the sky (playtest: they can't follow you off it) barely scratches them, and says so once
 let twinShieldToast = 0;
+// ---------- shared combat: a mob is the same mob on every nearby screen ----------
+// Each screen still moves its own copy of a mob, but every blow is told to the players nearby (net.js,
+// on the region channels): its damage, the mob's hp left, where it stands. So a mob loses the same hp
+// everywhere and dies for everyone, and whoever struck it in the last 30 seconds gets their own loot
+// (the server still decides what drops, as before). A mob's id is the same everywhere: its chunk, its
+// slot there and its kind, all derived from the world itself (spawnMobChunk and friends).
+const mobId = a => `${a.k}|${a.i}|${a.type}`;
+const SHARE_LOOT_MS = 30000;
+Net.on('mob', m => remoteMobHit(m));
+function findMob(id) {
+  const [k, i, type] = id.split('|');
+  return (MOBS.get(k) || []).find(a => String(a.i) === i && a.type === type) || null;
+}
+// you hit it: the twins' shield, then the blow itself, then the word to everyone nearby
 function damageMob(a, dmg, fromX, fromZ) {
   a.provoked = 15; // struck: the Ward Incense no longer fools it for a while
   if (a.arena && a.twin && Math.hypot(P.x - a.arena.x, P.z - a.arena.z) > a.arena.r + 2.5) {
@@ -911,7 +925,40 @@ function damageMob(a, dmg, fromX, fromZ) {
       toastInfo('The sanctum shields the twins from afar: step onto the disc to really hurt them');
     }
   }
-  a.hp -= dmg;
+  if (a.hp <= 0) return;
+  a.hitAt = performance.now(); // you took part: you'll get your own loot if it falls soon
+  const hpLeft = a.hp - dmg;
+  applyMobDamage(a, dmg, hpLeft, fromX, fromZ);
+  if (typeof Net !== 'undefined' && Net.sendMob)
+    Net.sendMob({
+      id: mobId(a),
+      dmg: +dmg.toFixed(2),
+      hp: +Math.max(0, hpLeft).toFixed(2),
+      x: +a.g.position.x.toFixed(2),
+      y: +a.g.position.y.toFixed(2),
+      z: +a.g.position.z.toFixed(2),
+      fx: +fromX.toFixed(2),
+      fz: +fromZ.toFixed(2),
+    });
+}
+// a blow from another player nearby: same damage here, and the mob is put back where they see it
+function remoteMobHit(m) {
+  const a = findMob(m.id);
+  if (!a || a.hp <= 0) return;
+  const p = a.g.position;
+  if (Math.hypot(p.x - m.x, p.z - m.z) > 1.5) p.set(m.x, m.y, m.z);
+  else {
+    p.x += (m.x - p.x) * 0.5;
+    p.z += (m.z - p.z) * 0.5;
+  }
+  // hp: their blow on top of ours, but never above what they see (a screen that arrived late, with
+  // the mob still at full health, catches up at once)
+  applyMobDamage(a, m.dmg, Math.min(a.hp - m.dmg, m.hp), m.fx, m.fz);
+}
+// a mob loses hp, wherever the blow came from; at 0 it dies here too, and pays whoever took part
+function applyMobDamage(a, dmg, hpLeft, fromX, fromZ) {
+  a.provoked = 15;
+  a.hp = hpLeft;
   Sound.hit('pierre');
   const K = MK[a.type],
     dx = a.g.position.x - fromX,
@@ -920,20 +967,24 @@ function damageMob(a, dmg, fromX, fromZ) {
   a.kbx = (dx / dd) * K.kb;
   a.kbz = (dz / dd) * K.kb;
   a.kbT = 0.25;
+  const tookPart = x => x && x.hitAt && performance.now() - x.hitAt < SHARE_LOOT_MS;
   if (a.hp <= 0 && a.twin) {
     // the Merge twins: the first to fall only goes dormant; if its twin is already dormant, both are
     // done for good — together, which is the only way they stay down
     a.hp = 0;
     Sound.animal(a.type, 1);
-    S.killedMob = 1;
-    dirty = true;
     if (a.twin.hp > 0) {
       a.down = TWIN_DOWN;
-      toastInfo(`${MK[a.type].n} falls dormant… strike ${MK[a.twin.type].n} down within ${TWIN_DOWN} s, or it rises again`);
+      if (tookPart(a))
+        toastInfo(`${MK[a.type].n} falls dormant… strike ${MK[a.twin.type].n} down within ${TWIN_DOWN} s, or it rises again`);
     } else {
       a.down = a.twin.down = 0;
       a.dying = a.twin.dying = 0.4;
-      lootMob('merge_twins');
+      if (tookPart(a) || tookPart(a.twin)) {
+        lootMob('merge_twins');
+        S.killedMob = 1;
+        dirty = true;
+      }
     }
     return;
   }
@@ -941,10 +992,12 @@ function damageMob(a, dmg, fromX, fromZ) {
     a.hp = 0;
     a.dying = 0.4;
     Sound.animal(a.type, 1);
-    lootMob(a.type);
-    S.killedMob = 1;
-    if (a.type === 'corrupted_node') S.defended = 1;
-    dirty = true;
+    if (tookPart(a)) {
+      lootMob(a.type);
+      S.killedMob = 1;
+      if (a.type === 'corrupted_node') S.defended = 1;
+      dirty = true;
+    }
   }
 }
 function attackMob(a, dt) {
@@ -1241,6 +1294,30 @@ function die() {
   updateHpUI();
 }
 let mobT = 0;
+// who a mob goes after: the closest player within its reach, you or one of the others nearby (their
+// avatars, 14-startup.js). Every screen runs the same choice, so a mob chases the same person
+// everywhere. A little stickiness (1.5 blocks) keeps it from flipping between two players side by side.
+// The Ward Incense hides only you, and only from the mobs it fools.
+function mobTarget(a, p) {
+  const cands = [];
+  if (!wardFools(a)) cands.push({ id: 'me', x: P.x, y: P.y, z: P.z, me: true });
+  for (const [id, o] of others)
+    if (o.t && o.g.visible) cands.push({ id, x: o.g.position.x, y: o.g.position.y, z: o.g.position.z, me: false });
+  let best = null,
+    bd = Infinity,
+    cur = null;
+  for (const c of cands) {
+    c.d = Math.hypot(p.x - c.x, p.y - c.y, p.z - c.z);
+    if (c.d < bd) {
+      bd = c.d;
+      best = c;
+    }
+    if (c.id === a.tgt) cur = c;
+  }
+  if (cur && cur.d < bd + 1.5) best = cur;
+  a.tgt = best ? best.id : null;
+  return best;
+}
 function updateMobs(dt) {
   if (!REG.mobs && !mobsForced()) {
     // never off in the main world, where everyone faces the same mobs (07-interface.js, SETTINGS_CHOICES)
@@ -1314,12 +1391,14 @@ function updateMobs(dt) {
       if (a.provoked > 0) a.provoked -= dt;
       const K = MK[a.type],
         p = a.g.position,
-        d = Math.hypot(p.x - P.x, p.y - P.y, p.z - P.z), // in 3D: a buried mob doesn't bite through rock
-        aggro = d < K.aggro && !mobSafe(p.x, p.z) && !wardFools(a); // Ward Incense (18-potions.js)
+        tg = mobTarget(a, p), // you, or another player nearby: whoever is closest, the same on every screen
+        d = tg ? Math.hypot(p.x - tg.x, p.y - tg.y, p.z - tg.z) : Infinity, // in 3D: a buried mob doesn't bite through rock
+        aggro = d < K.aggro && !mobSafe(p.x, p.z),
+        ty0 = tg ? tg.y : P.y;
       let tx, tz;
       if (aggro) {
-        tx = P.x;
-        tz = P.z;
+        tx = tg.x;
+        tz = tg.z;
       } else {
         const T = Date.now() / 1000 + a.ph;
         tx = a.hx + Math.sin(T * 0.3) * 2;
@@ -1410,19 +1489,19 @@ function updateMobs(dt) {
         const T = Date.now() / 1000;
         const ty =
           a.type === 'plasma_core'
-            ? clamp(aggro ? P.y + 0.2 : a.arena.y + 0.5 + Math.sin(T * 0.8 + a.ph) * 0.3, a.arena.y + 0.2, a.arena.y + 1)
+            ? clamp(aggro ? ty0 + 0.2 : a.arena.y + 0.5 + Math.sin(T * 0.8 + a.ph) * 0.3, a.arena.y + 0.2, a.arena.y + 1)
             : a.type === 'pos_twin'
-              ? Math.max(a.arena.y + 0.3, aggro ? P.y + 0.4 : a.hy + Math.sin(T * 0.9 + a.ph) * 0.6)
+              ? Math.max(a.arena.y + 0.3, aggro ? ty0 + 0.4 : a.hy + Math.sin(T * 0.9 + a.ph) * 0.6)
               : a.type === 'water_lurker'
                 ? aggro
-                  ? clamp(P.y, a.wlo + 0.4, a.hy - 0.2)
+                  ? clamp(ty0, a.wlo + 0.4, a.hy - 0.2)
                   : a.hy - 0.5 + Math.sin(T * 0.5 + a.ph) * 0.3
                 : a.type === 'bat'
                   ? aggro
-                    ? P.y + 0.3
+                    ? ty0 + 0.3
                     : a.hy + Math.sin(T * 1.4 + a.ph) * 0.4
                   : aggro
-                    ? P.y + 0.5
+                    ? ty0 + 0.5
                     : a.hy + Math.sin(T * 0.6 + a.ph) * 1.1;
         p.y += (ty - p.y) * Math.min(1, dt * 3);
       } else {
@@ -1443,9 +1522,10 @@ function updateMobs(dt) {
       if (a.parts.drill) a.parts.drill.rotation.y += dt * (aggro ? 14 : 3); // the rig's drill never stops
       a.atkT = Math.max(0, (a.atkT || 0) - dt);
       const holdFire = a.ladder && onLadderNow; // a tower mob waits while you climb
-      if (K.ranged && !holdFire) rangedAttack(a, K, aggro, d, dt);
+      // it only strikes on the screen of whoever it's after: another player's screen takes the hit for them
+      if (K.ranged && !holdFire) rangedAttack(a, K, aggro && tg.me, d, dt);
       // no bite through a wall: the mob must actually reach you
-      if (aggro && !holdFire && d < K.atk && hurtT <= 0 && a.atkT <= 0 && lineClear(...mobEye(a), P.x, P.y + 1, P.z)) {
+      if (aggro && tg.me && !holdFire && d < K.atk && hurtT <= 0 && a.atkT <= 0 && lineClear(...mobEye(a), P.x, P.y + 1, P.z)) {
         a.atkT = K.cd;
         hurtPlayer(K.dmg, p.x, p.z);
       }

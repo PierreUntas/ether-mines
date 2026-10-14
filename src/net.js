@@ -3,7 +3,7 @@
 window.Net = (() => {
   const cfg = window.CONFIG || {};
   const enabled = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
-  const handlers = { block: [], pos: [], hit: [], chat: [], peers: [], status: [], claim: [], frozen: [], offer: [], sign: [] };
+  const handlers = { block: [], pos: [], hit: [], chat: [], peers: [], status: [], claim: [], frozen: [], offer: [], sign: [], mob: [] };
   let sb = null,
     ch = null,
     world = 'principal',
@@ -163,6 +163,7 @@ window.Net = (() => {
         const p = st[k][0];
         if (p) list.push({ id: k, name: p.name, color: p.color, title: p.title || '', look: p.look || '', r: p.r || null, w: p.w || null });
       }
+      peersNow = list;
       emit('peers', list);
     });
     await new Promise((resolve, reject) => {
@@ -238,6 +239,7 @@ window.Net = (() => {
         const c = sb.channel('world:' + world + ':r:' + k, { config: { broadcast: { self: false } } });
         c.on('broadcast', { event: 'pos' }, ({ payload }) => emit('pos', payload));
         c.on('broadcast', { event: 'hit' }, ({ payload }) => emit('hit', payload));
+        c.on('broadcast', { event: 'mob' }, ({ payload }) => emit('mob', payload)); // a blow on a shared mob (16-mobs.js)
         c.subscribe();
         regions.set(k, c);
       }
@@ -268,6 +270,11 @@ window.Net = (() => {
   };
   const sendPos = p => sendRegion('pos', p);
   const sendHit = p => sendRegion('hit', p);
+  // a blow on a mob, for the players nearby; nothing goes out when nobody is (anyoneNear needs peers)
+  let peersNow = [];
+  const sendMob = p => {
+    if (anyoneNear(peersNow)) sendRegion('mob', p);
+  };
   // is anyone else close enough to receive your moves?
   const anyoneNear = peers => peers.some(p => p.id !== me?.id && (near(p.r, myRegion) || (p.w && near(p.w, myRegion))));
   // Chat: through the server if act_chat exists; otherwise (003 not run yet) direct broadcast like before.
@@ -375,6 +382,7 @@ window.Net = (() => {
     on,
     sendPos,
     sendHit,
+    sendMob,
     setRegion,
     setLook,
     watchRegion,

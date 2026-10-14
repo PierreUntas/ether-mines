@@ -273,6 +273,14 @@ active ──(3 missed checks)──> damaged ──(8 missed checks)──> cor
   characters) that every player reads: only whoever placed it writes on it (`act_sign`), through the
   chat's word filter, muted players can't; the text lives in the `signs` table (streamed like blocks)
   online and in the save solo, and is drawn on both faces of the board while the sign stands.
+- **Shared combat** (`src/game/16-mobs.js`, `src/net.js`): every screen still moves its own copy of a
+  mob, but a mob has the same id everywhere (its chunk, its slot there and its kind), and every blow is
+  sent to the players nearby on the region channels: the damage, the hp left and where the mob stands.
+  So a mob loses the same hp on every screen (a screen that arrived late catches up on the first blow)
+  and dies for everyone, bosses included. Whoever struck it in the last 30 seconds gets their own loot
+  (`act_loot_mob`, unchanged: the server still decides what drops). A mob goes after the closest player,
+  you or another one nearby, the same choice on every screen, and only strikes on its target's screen,
+  so nobody takes a hit twice. Alone, nothing is sent.
 
 See `supabase/migrations/019_gwei_currency.sql` through `024_loot_tiers.sql` for the schema, and
 `legacy/README.md` for what used to exist here (a real, optional Sepolia mirror — retired, not deleted).

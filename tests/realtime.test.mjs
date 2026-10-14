@@ -122,3 +122,22 @@ test('/join: watching a far square makes the player there start sending', async 
   B.Net.sendPos({ id: 'b', x: 5000, y: 30, z: -3000 });
   assert.equal(A.got.at(-1)?.x, 5000);
 });
+
+test('a blow on a mob reaches the players nearby, and nobody when you fight alone', async () => {
+  const b = broker(),
+    A = player(b, 'a'),
+    B = player(b, 'b');
+  const blows = [];
+  B.Net.on('mob', m => blows.push(m));
+  await A.Net.join('w', { id: 'a', name: 'A', color: '#fff' });
+  await B.Net.join('w', { id: 'b', name: 'B', color: '#fff' });
+  A.Net.setRegion(0, 0);
+  B.Net.setRegion(3000, 3000);
+  const before = b.billed;
+  A.Net.sendMob({ id: '0,0|100|shadow', dmg: 4, hp: 6 });
+  assert.equal(b.billed - before, 0, 'alone in your part of the world: nothing sent');
+  B.Net.setRegion(40, 10);
+  A.Net.sendMob({ id: '0,0|100|shadow', dmg: 4, hp: 2 });
+  assert.equal(blows.length, 1);
+  assert.equal(blows[0].hp, 2);
+});
