@@ -24,3 +24,4 @@ Bump `GEN` on every terrain change. Already-frozen chunks never move: only chunk
 - **22**: towers re-skinned again — marble-column corners and granite/marble banding like the City's own facades, crowned with a faceted Ether Diamond spire instead of a flat roof, so they read as Ethereum landmarks instead of generic sci-fi bunkers
 - **23**: towers rebuilt as an octagonal validator beacon, the Ether diamond on each face, an open loggia around the boss, the door on the north side
 - **24**: the Merge Sanctum — a floating arena split between a proof-of-work forge and a proof-of-stake crystal half, a two-tone diamond above its center, reached by the Beacon Stair (one per 192x192 region, `mergeAt()`)
+- **25**: the Circuits Complex's coin-flip room: its circuit moved two rows back, so its lamp no longer blocks the cell just inside the door

@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP: below this layer, geodes and large caves
-  const GEN = 24; // generator version: bump it on every terrain change (already-frozen chunks don't move); history in docs/generator-history.md
+  const GEN = 25; // generator version: bump it on every terrain change (already-frozen chunks don't move); history in docs/generator-history.md
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -148,22 +148,23 @@
       H: 5,
       door: 'n',
       build: (dx, dz, set) => {
-        // coin flip: an oscillator tapped by an AND gate alongside a plate, feeding a latch
-        if (dx === -4 && dz === -1) set(1, 120); // NOT gate, o=0: the oscillator
-        if (dx === -4 && dz === -2) set(1, 67); // front: the oscillator's own output
-        if (dx === -3 && dz === -2) set(1, 67);
-        if (dx === -3 && dz === -1) set(1, 67);
+        // coin flip: an oscillator tapped by an AND gate alongside a plate, feeding a latch. Kept two rows
+        // back from the door (dz -5), so the cell just inside it stays free to walk in
+        if (dx === -4 && dz === 1) set(1, 120); // NOT gate, o=0: the oscillator
+        if (dx === -4 && dz === 0) set(1, 67); // front: the oscillator's own output
         if (dx === -3 && dz === 0) set(1, 67);
-        if (dx === -4 && dz === 0) set(1, 67); // closes the oscillator's own loop
-        if (dx === -2 && dz === -1) set(1, 67); // tap: feeds the AND gate's left input
-        if (dx === -1 && dz === -1) set(1, 112); // AND gate, o=0: left = the tap, right = the plate
-        if (dx === 0 && dz === -1) set(1, 66); // plate: the AND gate's right input
-        if (dx === -1 && dz === -2) set(1, 67); // AND's output == the OR latch's back input
-        if (dx === -1 && dz === -3) set(1, 116); // OR gate, o=0: the latch
-        if (dx === -1 && dz === -4) set(1, 67); // front: the latch's own output
-        if (dx === -2 && dz === -3) set(1, 67); // left input: closes the latch's feedback loop
-        if (dx === -2 && dz === -4) set(1, 67); // junction toward the lamp
-        if (dx === 0 && dz === -4) set(1, 68); // lamp: the coin lands
+        if (dx === -3 && dz === 1) set(1, 67);
+        if (dx === -3 && dz === 2) set(1, 67);
+        if (dx === -4 && dz === 2) set(1, 67); // closes the oscillator's own loop
+        if (dx === -2 && dz === 1) set(1, 67); // tap: feeds the AND gate's left input
+        if (dx === -1 && dz === 1) set(1, 112); // AND gate, o=0: left = the tap, right = the plate
+        if (dx === 0 && dz === 1) set(1, 66); // plate: the AND gate's right input
+        if (dx === -1 && dz === 0) set(1, 67); // AND's output == the OR latch's back input
+        if (dx === -1 && dz === -1) set(1, 116); // OR gate, o=0: the latch
+        if (dx === -1 && dz === -2) set(1, 67); // front: the latch's own output
+        if (dx === -2 && dz === -1) set(1, 67); // left input: closes the latch's feedback loop
+        if (dx === -2 && dz === -2) set(1, 67); // junction toward the lamp
+        if (dx === 0 && dz === -2) set(1, 68); // lamp: the coin lands
       },
     },
   ];

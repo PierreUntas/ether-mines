@@ -107,6 +107,8 @@ if (args.offline) await page.route(/^https:\/\/fonts\./, r => r.abort());
 
 await page.goto(`http://127.0.0.1:${server.address().port}/index.html#debug`);
 await page.waitForTimeout(800);
+// the first-entry intro cinematic (playIntro) would cover every shot: don't play it
+await page.evaluate(() => (window.playIntro = () => {}));
 await page.evaluate(() => document.getElementById('play').click());
 await page.waitForFunction(() => document.getElementById('title').hidden, null, { timeout: 240000 });
 if (args['no-mobs'])
