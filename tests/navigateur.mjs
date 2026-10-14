@@ -515,6 +515,24 @@ const potions = await page.evaluate(async () => {
   return { healed, fast, vision, ward, provoked, keptWithoutBed, home };
 });
 if (Object.values(potions).some(v => !v)) await fail('consumables: ' + JSON.stringify(potions));
+// PvP: holding the button on a player strikes once per click, and a hit does 40% of the weapon's
+// mob damage (at least one heart), so a fight takes several blows
+const pvp = (() => page.evaluate(() => {
+  const sent = [],
+    send = Net.sendHit;
+  Net.sendHit = p => sent.push(p);
+  pvpStruck = false;
+  playerAtkT = 0;
+  for (let i = 0; i < 60; i++) attackPlayer({ id: 'other' }, 0.05); // 3 s with the button held
+  const held = sent.length;
+  pvpStruck = false; // released, then a new click
+  playerAtkT = 0;
+  attackPlayer({ id: 'other' }, 0.05);
+  Net.sendHit = send;
+  return { held, again: sent.length - held, blade: pvpDamage(107), genesis: pvpDamage(301), hand: pvpDamage(null) };
+}))();
+const pvpR = await pvp;
+if (pvpR.held !== 1 || pvpR.again !== 1 || pvpR.blade !== 2 || pvpR.genesis !== 3 || pvpR.hand !== 1) await fail('pvp: ' + JSON.stringify(pvpR));
 // hostile mobs can be turned off in solo or a private world, never in the main world
 const mobsSetting = await page.evaluate(() => {
   const en = Object.getOwnPropertyDescriptor(Net, 'enabled'), reg = REG.mobs;

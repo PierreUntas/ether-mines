@@ -152,6 +152,7 @@ function frame(now) {
     // the mining click attacks instead of mining — a ranged weapon (the Plasma Pistol) fires along the
     // aim direction instead, whatever's in its path, not gated by the short melee pick range
     const heldRanged = ITEM[itemId(S.bar[S.sel])]?.ranged;
+    if (!mining) pvpStruck = false; // the button was released: the next click can strike a player again
     const mobTarget = !heldRanged && mining ? pickMob(aim, target) : null;
     const pvpTarget = !heldRanged && !mobTarget && mining && !sanctuary(P.x, P.z) ? pickPlayer(aim, target) : null;
     const aniTarget = !heldRanged && !mobTarget && !pvpTarget && mining ? pickAnimal(aim, target) : null;

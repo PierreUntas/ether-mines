@@ -456,12 +456,15 @@ Net.on('hit', p => {
   if (performance.now() < pvpGraceUntil) return; // just respawned
   if (sanctuary(P.x, P.z)) return; // my own true position — can't be spoofed by the attacker
   const last = lastHitFrom.get(p.from) || 0;
-  if (performance.now() - last < 400) return; // floor independent of the attacker's own cooldown
+  if (performance.now() - last < 700) return; // floor independent of the attacker's own cooldown
   // plausibility, not a trust boundary: melee range, or the Plasma Pistol's bolt range plus slack
   if (Math.hypot(P.x - p.x, P.y - p.y, P.z - p.z) > (ITEM[p.item]?.ranged ? 30 : 6.5)) return;
   lastHitFrom.set(p.from, performance.now());
-  hurtPlayer(ITEM[p.item]?.dmg || 1, p.x, p.z);
+  hurtPlayer(pvpDamage(p.item), p.x, p.z);
 });
+// weapons are tuned against mobs (10 to 60 hp): against a player's 10 hearts they'd kill in two blows.
+// Between players a hit does 40% of it, at least one heart: a fight takes several clean hits.
+const pvpDamage = item => Math.max(1, Math.round((ITEM[item]?.dmg || 1) * 0.4));
 let usernameFlagged = false;
 Net.on('status', s => {
   if (s === 'SAVE_ERROR') logEv('burn', 'Save refused by the server', 'check the Supabase schema');

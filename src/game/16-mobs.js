@@ -1198,10 +1198,13 @@ function lootMob(type) {
 }
 // PvP: like attackMob, but the target's hp lives only in the target's own client (same as another
 // player's position) — this just reports the swing; the receiving end decides whether to apply it
+// one click, one blow: unlike mobs, holding the button down doesn't keep striking a player
+let pvpStruck = false;
 function attackPlayer(target, dt) {
   playerAtkT = Math.max(0, playerAtkT - dt);
   swing = Math.max(swing, 0.6);
-  if (playerAtkT > 0) return;
+  if (playerAtkT > 0 || pvpStruck) return;
+  pvpStruck = true;
   playerAtkT = 0.45;
   Sound.hit('pierre');
   Net.sendHit({ from: ME.id, to: target.id, x: +P.x.toFixed(2), y: +P.y.toFixed(2), z: +P.z.toFixed(2), item: itemId(S.bar[S.sel]) });
