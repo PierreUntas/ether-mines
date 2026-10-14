@@ -424,9 +424,21 @@ function frame(now) {
   }
   swing = Math.max(0, swing - dt * 3);
   if (handMesh) {
-    const s = Math.sin((1 - swing) * Math.PI) * swing;
-    hand.rotation.set(-s * 0.9, 0, 0);
-    hand.position.set(Math.sin(bob * 0.5) * 0.015, Math.abs(Math.cos(bob * 0.5)) * 0.012 - s * 0.08, 0);
+    // a blow goes toward the crosshair: the item reaches forward and in, its tip leaning into the target,
+    // then comes back. A pistol kicks back and up instead, as it fires.
+    const s = Math.sin((1 - swing) * Math.PI) * swing,
+      bx = Math.sin(bob * 0.5) * 0.015,
+      by = Math.abs(Math.cos(bob * 0.5)) * 0.012,
+      rest = handMesh.userData.rest;
+    if (ITEM[itemId(S.bar[S.sel])]?.ranged) {
+      hand.rotation.set(s * 0.12, 0, 0);
+      hand.position.set(bx, by + s * 0.015, s * 0.04);
+      if (rest) handMesh.rotation.copy(rest.r);
+    } else {
+      hand.rotation.set(0, 0, 0);
+      hand.position.set(bx - s * 0.17, by + s * 0.13, -s * 0.3);
+      if (rest) handMesh.rotation.set(rest.r.x - s * 0.75, rest.r.y + s * 0.25, rest.r.z + s * 0.35);
+    }
   }
   if (booted) {
     stream(dt);

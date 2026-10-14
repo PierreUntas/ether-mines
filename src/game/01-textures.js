@@ -1082,26 +1082,32 @@ function blade(P, E, core, edge) {
 }
 tile(121, (P, E) => blade(P, E, '#0a3d4a', '#00eaff')); // Volt Blade
 tile(122, (P, E) => blade(P, E, '#241048', '#c9a6ff')); // Pure Ether Blade
-// plasma pistol: a stubby version of blade()'s silhouette — same bottom-left grip, same diagonal
-// (just shorter), so it's held at the same angle and reads as pointing forward the same way every
-// other tool/weapon icon does, instead of needing its own one-off hand rotation
+// plasma pistol, seen from its side: a chunky body with the barrel to the right, a grip under the back,
+// a trigger guard, a glowing energy cell along the body and a glowing muzzle. Held barrel-first in the
+// hand (setHand, 04-render.js), so it points where you aim.
 function pistol(P, E, core, edge) {
   for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
-  const dark = '#1c1029';
-  for (let k = 0; k < 4; k++) {
-    P(1 + k, 13 - k, dark);
-    P(2 + k, 13 - k, dark);
-    P(3 + k, 13 - k, dark);
+  const dark = '#2a1838',
+    body = '#4a3a6a',
+    hi = '#8a7bef';
+  for (let x = 2; x <= 12; x++) for (let y = 4; y <= 8; y++) P(x, y, y === 4 ? hi : x === 2 || y === 8 ? dark : body); // the body
+  for (let x = 12; x <= 14; x++) for (let y = 5; y <= 7; y++) P(x, y, y === 6 ? edge : dark); // the barrel
+  for (const y of [5, 6, 7]) {
+    P(15, y, edge); // the muzzle glows
+    E(15, y, edge);
   }
-  for (let k = 0; k < 5; k++) {
-    const x = 6 + k,
-      y = 9 - k;
-    P(x - 1, y, dark);
-    P(x, y, core);
-    P(x + 1, y, edge);
-    E(x, y, core);
-    E(x + 1, y, edge);
+  E(14, 6, edge);
+  for (let x = 5; x <= 10; x++) {
+    P(x, 6, core); // the energy cell along the body
+    E(x, 6, core);
   }
+  P(4, 3, dark); // rear sight
+  P(11, 3, dark); // front sight
+  for (let y = 9; y <= 14; y++)
+    for (let x = 3 - Math.floor((y - 9) / 3); x <= 5 - Math.floor((y - 9) / 3); x++) P(x, y, y === 14 ? dark : body); // grip, raked back
+  for (let x = 6; x <= 9; x++) P(x, 10, dark); // trigger guard
+  P(9, 9, dark);
+  P(7, 9, edge); // the trigger
 }
 tile(132, (P, E) => pistol(P, E, '#8a1fb3', '#ff6bff')); // Plasma Pistol
 // armor plating: chestplate silhouette, dark material with a glowing center seam and shoulder accents
