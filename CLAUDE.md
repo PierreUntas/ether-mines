@@ -8,7 +8,7 @@ Minecraft-style block game set in the Ethereum universe. Static site (ethermines
 
 ## Architecture
 - **Client**: no build. Three.js r128, classic scripts `src/game/NN-*.js` loaded in order by `index.html` and sharing the global scope (a test checks the order). Modules shared between client and server: `supabase/functions/_shared/world.js` (generator), `rules.js` (blocks, items, recipes), `src/mesh.js`.
-- **Server**: Supabase. Anonymous auth, RLS, `act_*` functions (security definer) that arbitrate everything; `_*` functions are internal. `freeze` Edge Function (terrain), deployed by GitHub Actions.
+- **Server**: Supabase. Anonymous auth, RLS, `act_*` functions (security definer) that arbitrate everything; `_*` functions are internal. `freeze` Edge Function (terrain), deployed by GitLab CI (`.gitlab-ci.yml`).
 - **Identity**: one unique nickname per world, linked to an anonymous Supabase account (recovery code to switch devices). No wallet, no real blockchain (the old Sepolia layer lives in `legacy/`).
 
 ## Rules to never break
@@ -33,10 +33,10 @@ Minecraft-style block game set in the Ethereum universe. Static site (ethermines
 
 ## Tests (all must pass before pushing)
 - `node --test tests/*.test.mjs`
-- `tests/sql/run.sh` (local Postgres 16; PGHOST, PGPORT, PGUSER variables). If there's no local Postgres, push to a branch and let GitHub run them.
+- `tests/sql/run.sh` (local Postgres 16; PGHOST, PGPORT, PGUSER variables). If there's no local Postgres, push to a branch and let GitLab CI run them.
 - `node tests/navigateur.mjs` (Playwright + Chromium, solo mode). Setup once: `npm i --no-save playwright@1.56.0 three@0.128.0 && npx playwright install chromium`
 - `npx prettier@3 --check "src/game/*.js" "src/*.js" "supabase/functions/_shared/*.js"`
-- **After every push, check the GitHub Actions run** (Tests, and Supabase Functions when the generator changed). If it's red, fix it right away: `main` must always be green.
+- **After every push, check the GitLab pipeline** (Build → Pipelines: the test jobs, and `freeze` when the generator changed). If it's red, fix it right away: `main` must always be green.
 
 ## Seeing the game (visual changes)
 - For any change you can see (terrain, buildings, decor, textures, lighting, interface), don't work blind: take screenshots with `node tools/capture.mjs` (setup and options at the top of the file), look at them, and iterate until it matches what Pierre asked. Compare with his reference image when he gives one.
@@ -49,6 +49,6 @@ Minecraft-style block game set in the Ethereum universe. Static site (ethermines
 - `tools/seeds.mjs`: look for a world seed with a pleasant starting area.
 
 ## Deployment
-- Pushing to `main` deploys the site (Vercel) and the `freeze` function (GitHub Actions).
+- The repo lives on GitLab (gitlab.com/pierre.untas/ethermines, remote `origin`; the suspended GitHub repo is the `github` remote, its `.github/workflows` kept as is). Pushing to `main` deploys the site (Vercel) and the `freeze` function (GitLab CI, after the tests pass).
 - The database isn't deployed automatically: Pierre runs `supabase/installation.sql` in Supabase's SQL Editor.
 - Never put a private key, a `service_role` key, or a secret in the repo. `src/config.js` only contains the URL and the public `anon` key.

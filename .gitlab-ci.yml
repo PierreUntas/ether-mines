@@ -1,0 +1,59 @@
+# GitLab CI: the same checks as .github/workflows (kept in case the GitHub repo comes back).
+# Tests on every push and merge request; the "freeze" Supabase function is deployed from main when it
+# changes, and only once the tests have passed.
+# CI/CD variables to create once (Settings → CI/CD → Variables, "Masked" and "Protected" checked):
+#   SUPABASE_ACCESS_TOKEN: personal token (supabase.com → Account → Access Tokens)
+#   SUPABASE_PROJECT_REF:  project id (euytymfcncakzqzdynbq)
+stages: [test, deploy]
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+js:
+  stage: test
+  image: node:22
+  script:
+    - for f in src/*.js src/game/*.js supabase/functions/_shared/*.js tools/*.mjs tests/*.mjs; do node --check "$f"; done
+    - node --test tests/*.test.mjs
+    - npx --yes prettier@3 --check "src/game/*.js" "src/*.js" "supabase/functions/_shared/*.js"
+
+sql:
+  stage: test
+  image: node:22
+  services:
+    - name: postgres:16
+      alias: postgres
+  variables:
+    POSTGRES_PASSWORD: postgres
+    PGHOST: postgres
+    PGUSER: postgres
+    PGPASSWORD: postgres
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq postgresql-client > /dev/null
+    - until pg_isready -q; do sleep 1; done
+  script:
+    - tests/sql/run.sh
+
+browser:
+  stage: test
+  # Chromium and its system libraries already installed, for the same Playwright version as the tests
+  image: mcr.microsoft.com/playwright:v1.56.0-noble
+  script:
+    - npm i --no-save playwright@1.56.0 three@0.128.0
+    - node tests/navigateur.mjs
+
+freeze:
+  stage: deploy
+  image: node:22
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - supabase/functions/**/*
+        - .gitlab-ci.yml
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "web"
+  script:
+    - npx --yes supabase@2 functions deploy freeze --project-ref "$SUPABASE_PROJECT_REF" --use-api
