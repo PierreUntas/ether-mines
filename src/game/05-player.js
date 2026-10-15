@@ -186,6 +186,7 @@ cv.addEventListener('mousedown', e => {
   if (e.button === 0) {
     mining = true;
     dragging = true;
+    queueStrike(null);
   }
   if (e.button === 2) place();
 });
@@ -320,6 +321,12 @@ cv.addEventListener('pointermove', e => {
     lookL = [e.clientX, e.clientY];
   }
 });
+// a tap with the pistol in hand, or on a hostile mob or a player you can fight, is a blow, not a placement
+function tapFights(at) {
+  if (!playing) return false;
+  if (ITEM[itemId(S.bar[S.sel])]?.ranged) return true;
+  return !!(pickMob(at, target) || (!sanctuary(P.x, P.z) && pickPlayer(at, target)));
+}
 function endP(e) {
   if (e.pointerId === joyId) {
     joyId = null;
@@ -336,7 +343,8 @@ function endP(e) {
       if (pr.mine) mining = false;
       else if (!pr.drag && e.type === 'pointerup') {
         target = raycast(5.2, aim);
-        place();
+        if (tapFights(aim)) queueStrike(aim);
+        else place();
       }
     }
     aim = null;

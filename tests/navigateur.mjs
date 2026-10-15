@@ -174,7 +174,10 @@ const combat = await page.evaluate(async () => {
   const P = mines.P;
   const mob = mines.mkMob('shadow', 'test-combat', 0, P.x + 1.5, P.y, P.z, null);
   mines.MOBS.set('test-combat', [mob]);
-  for (let i = 0; i < mines.MK.shadow.hp && mob.hp > 0; i++) mines.attackMob(mob, 1);
+  for (let i = 0; i < mines.MK.shadow.hp && mob.hp > 0; i++) {
+    tickWeapons(1);
+    mines.attackMob(mob);
+  }
   const deadHp = mob.hp;
   const t0 = performance.now();
   while (performance.now() - t0 < 10000 && mines.MOBS.get('test-combat')?.includes(mob)) await new Promise(r => setTimeout(r, 200));
@@ -523,15 +526,32 @@ const pvp = (() => page.evaluate(() => {
   Net.sendHit = p => sent.push(p);
   pvpStruck = false;
   playerAtkT = 0;
-  for (let i = 0; i < 60; i++) attackPlayer({ id: 'other' }, 0.05); // 3 s with the button held
+  for (let i = 0; i < 60; i++) {
+    tickWeapons(0.05);
+    attackPlayer({ id: 'other' });
+  } // 3 s with the button held
   const held = sent.length;
   pvpStruck = false; // released, then a new click
   playerAtkT = 0;
-  attackPlayer({ id: 'other' }, 0.05);
+  attackPlayer({ id: 'other' });
   Net.sendHit = send;
   return { held, again: sent.length - held, blade: pvpDamage(107), genesis: pvpDamage(301), hand: pvpDamage(null) };
 }))();
 const pvpR = await pvp;
+// a single click after a pause strikes at once: the weapon recovers even while the button is up
+const quick = await page.evaluate(() => {
+  playerAtkT = 0;
+  const mob = mines.mkMob('shadow', 'test-quick', 0, mines.P.x + 1.5, mines.P.y, mines.P.z, null);
+  const first = attackMob(mob),
+    tooSoon = attackMob(mob);
+  tickWeapons(0.5); // half a second without touching the button
+  const later = attackMob(mob);
+  queueStrike(null);
+  const kept = STRIKE.buf > 0;
+  tickWeapons(0.5);
+  return { first, tooSoon, later, kept, expired: STRIKE.buf === 0 };
+});
+if (!quick.first || quick.tooSoon || !quick.later || !quick.kept || !quick.expired) await fail('quick click: ' + JSON.stringify(quick));
 if (pvpR.held !== 1 || pvpR.again !== 1 || pvpR.blade !== 2 || pvpR.genesis !== 3 || pvpR.hand !== 1) await fail('pvp: ' + JSON.stringify(pvpR));
 // furniture and signs (19-signs.js), in solo: a chair turns to face you, a carpet is walked over, a
 // sign you place opens its editor, the text is kept and drawn on the board
@@ -753,7 +773,8 @@ const combat2 = await page.evaluate(() => {
   for (const type of ['sentinel', 'wraith']) {
     const mob = mines.mkMob(type, 'test-combat2', 0, P.x + 1.5, P.y, P.z, null);
     mines.MOBS.set('test-combat2', [mob]);
-    mines.attackMob(mob, 1);
+    tickWeapons(1);
+    mines.attackMob(mob);
     out[type] = mob.hp < mines.MK[type].hp;
   }
   mines.S.armor = null;

@@ -889,10 +889,9 @@ function petAnimal(a) {
   }
 }
 // left-click an animal (not the villager: no hp) to fight it; a kill gives back one heart if you're hurt
-function attackAnimal(a, dt) {
-  playerAtkT = Math.max(0, playerAtkT - dt);
+function attackAnimal(a) {
   swing = Math.max(swing, 0.6);
-  if (playerAtkT > 0) return;
+  if (playerAtkT > 0) return false;
   playerAtkT = 0.45;
   a.hp -= heldDmg();
   Sound.hit('pierre');
@@ -907,4 +906,5 @@ function attackAnimal(a, dt) {
       Sound.chime();
     }
   }
+  return true;
 }

@@ -196,12 +196,17 @@ function frame(now) {
     // the mining click attacks instead of mining — a ranged weapon (the Plasma Pistol) fires along the
     // aim direction instead, whatever's in its path, not gated by the short melee pick range
     const heldRanged = ITEM[itemId(S.bar[S.sel])]?.ranged;
+    tickWeapons(dt);
     if (!mining) pvpStruck = false; // the button was released: the next click can strike a player again
-    const mobTarget = !heldRanged && mining ? pickMob(aim, target) : null;
-    const pvpTarget = !heldRanged && !mobTarget && mining && !sanctuary(P.x, P.z) ? pickPlayer(aim, target) : null;
-    const aniTarget = !heldRanged && !mobTarget && !pvpTarget && mining ? pickAnimal(aim, target) : null;
+    // a click kept for a moment (queueStrike) counts as holding the button, for fighting only
+    const fight = mining || STRIKE.buf > 0,
+      fAim = aim || (STRIKE.buf > 0 ? STRIKE.aim : null);
+    const mobTarget = !heldRanged && fight ? pickMob(fAim, target) : null;
+    const pvpTarget = !heldRanged && !mobTarget && fight && !sanctuary(P.x, P.z) ? pickPlayer(fAim, target) : null;
+    const aniTarget = !heldRanged && !mobTarget && !pvpTarget && fight ? pickAnimal(fAim, target) : null;
+    const struck = ok => ok && (STRIKE.buf = 0);
     if (heldRanged) {
-      if (mining) fireRanged(dt);
+      if (fight) struck(fireRanged());
       crack.visible = false;
       mineKey = -1;
       mineT = 0;
@@ -209,17 +214,17 @@ function frame(now) {
       crack.visible = false;
       mineKey = -1;
       mineT = 0;
-      attackMob(mobTarget, dt);
+      struck(attackMob(mobTarget));
     } else if (pvpTarget) {
       crack.visible = false;
       mineKey = -1;
       mineT = 0;
-      attackPlayer(pvpTarget, dt);
+      struck(attackPlayer(pvpTarget));
     } else if (aniTarget && AK[aniTarget.type].hp) {
       crack.visible = false;
       mineKey = -1;
       mineT = 0;
-      attackAnimal(aniTarget, dt);
+      struck(attackAnimal(aniTarget));
     } else if (mining && target && B[target.id].h !== Infinity && !canBuildHere(target.x, target.z)) {
       crack.visible = false;
       mineKey = -1;

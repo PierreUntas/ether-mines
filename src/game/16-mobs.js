@@ -1000,12 +1000,12 @@ function applyMobDamage(a, dmg, hpLeft, fromX, fromZ) {
     }
   }
 }
-function attackMob(a, dt) {
-  playerAtkT = Math.max(0, playerAtkT - dt);
+function attackMob(a) {
   swing = Math.max(swing, 0.6);
-  if (playerAtkT > 0) return;
+  if (playerAtkT > 0) return false;
   playerAtkT = 0.45;
   damageMob(a, heldDmg(), P.x, P.z);
+  return true;
 }
 // ---------- ranged weapons: plasma bolts (the Plasma Pistol, ITEM[206].ranged) ----------
 // A small array of live bolts, updated once a frame — the same shape already used for the falling
@@ -1017,10 +1017,9 @@ const boltGeo = new THREE.SphereGeometry(0.12, 8, 8),
   boltMat = new THREE.MeshBasicMaterial({ color: 0x7fe8ff });
 const BOLT_SPEED = 28,
   BOLT_LIFE = 1.2;
-function fireRanged(dt) {
-  rangedT = Math.max(0, rangedT - dt);
+function fireRanged() {
   swing = Math.max(swing, 0.5);
-  if (rangedT > 0) return;
+  if (rangedT > 0) return false;
   rangedT = 0.35;
   // always straight down the crosshair (screen center), never wherever a touch/click happened to
   // land — unlike melee's pickMob/pickPlayer/pickAnimal, a long thin bolt makes any aim/crosshair
@@ -1032,6 +1031,7 @@ function fireRanged(dt) {
   scene.add(m);
   BOLTS.push({ m, vx: dir.x * BOLT_SPEED, vy: dir.y * BOLT_SPEED, vz: dir.z * BOLT_SPEED, life: BOLT_LIFE, dmg: heldDmg() });
   Sound.shoot();
+  return true;
 }
 // ---------- mobs that hit from a distance: turrets and the Plasma Core ----------
 // A charge (a turret's lens swells, so you see it coming), then a burst of slow bolts aimed where you
@@ -1253,14 +1253,27 @@ function lootMob(type) {
 // player's position) — this just reports the swing; the receiving end decides whether to apply it
 // one click, one blow: unlike mobs, holding the button down doesn't keep striking a player
 let pvpStruck = false;
-function attackPlayer(target, dt) {
-  playerAtkT = Math.max(0, playerAtkT - dt);
+function attackPlayer(target) {
   swing = Math.max(swing, 0.6);
-  if (playerAtkT > 0 || pvpStruck) return;
+  if (playerAtkT > 0 || pvpStruck) return false;
   pvpStruck = true;
   playerAtkT = 0.45;
   Sound.hit('pierre');
   Net.sendHit({ from: ME.id, to: target.id, x: +P.x.toFixed(2), y: +P.y.toFixed(2), z: +P.z.toFixed(2), item: itemId(S.bar[S.sel]) });
+  return true;
+}
+// A click (or a tap on a phone) shorter than a frame, or made while the weapon is still recovering,
+// isn't lost: it's kept for a moment and strikes as soon as the weapon is ready. The recovery itself
+// runs all the time, not only while the button is held: a fresh click after a pause hits at once.
+const STRIKE = { buf: 0, aim: null };
+function queueStrike(at) {
+  STRIKE.buf = 0.3;
+  STRIKE.aim = at || null;
+}
+function tickWeapons(dt) {
+  playerAtkT = Math.max(0, playerAtkT - dt);
+  rangedT = Math.max(0, rangedT - dt);
+  STRIKE.buf = Math.max(0, STRIKE.buf - dt);
 }
 function hurtPlayer(dmg, mx, mz) {
   const reduction = ITEM[S.armor]?.armor || 0;
