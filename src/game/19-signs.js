@@ -19,12 +19,74 @@ function mySign(t) {
   const o = OWN.get(coordKey(t.x, t.y, t.z));
   return !!o && o.by === (SERVER() ? Net.userId : ME.id);
 }
-// right-click on a sign: write on yours, read anyone else's
+// right-click on a sign: write on yours, read anyone else's (online, with a way to report it)
 function useSign(t) {
   const text = SIGNS.get(coordKey(t.x, t.y, t.z)) || '';
   if (mySign(t)) return openSignEditor(t);
   const by = OWN.get(coordKey(t.x, t.y, t.z))?.name;
-  logEv('nft', text ? `“${text}”` : 'An empty sign', by ? `a sign by ${by}` : '');
+  if (!text || !SERVER()) return logEv('nft', text ? `“${text}”` : 'An empty sign', by ? `a sign by ${by}` : '');
+  openSignReader(t, text, by);
+}
+// reading someone else's sign: its text, who wrote it, and "Report" (036_sign_reports.sql: three
+// players who have played take it down). A sign you reported disappears from your screen right away.
+const REPORTED_SIGNS = new Set(); // 'x,y,z|text'
+function closeSignOverlay(el) {
+  el.hidden = true;
+  SIGN_EDIT.open = false;
+  if (playing) tryLock();
+}
+function openSignReader(t, text, by) {
+  let el = $('signRead');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'signRead';
+    el.className = 'signedit';
+    el.innerHTML =
+      '<div class="box"><h3></h3><p class="quote"></p><div class="row"><button class="b" data-k="report">Report</button><button class="b primary" data-k="close">Close</button></div><p class="note">Report a sign that insults someone, gives personal details or is otherwise against the rules. Three reports take it down.</p></div>';
+    document.body.appendChild(el);
+  }
+  el.querySelector('h3').textContent = by ? `A sign by ${by}` : 'A sign';
+  el.querySelector('.quote').textContent = `“${text}”`;
+  const rep = el.querySelector('[data-k=report]');
+  rep.disabled = false;
+  el.hidden = false;
+  SIGN_EDIT.open = true;
+  mining = false;
+  if (document.pointerLockElement) document.exitPointerLock();
+  const close = () => {
+    removeEventListener('keydown', onKey, true);
+    closeSignOverlay(el);
+  };
+  const onKey = e => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      close();
+    }
+  };
+  addEventListener('keydown', onKey, true);
+  el.querySelector('[data-k=close]').onclick = close;
+  rep.onclick = async () => {
+    rep.disabled = true;
+    let r = null;
+    try {
+      r = await Net.act('report_sign', { px: t.x, py: t.y, pz: t.z });
+    } catch (e) {
+      console.error(e);
+    }
+    close();
+    if (r && r.ok) {
+      REPORTED_SIGNS.add(coordKey(t.x, t.y, t.z) + '|' + text);
+      toastInfo(r.removed ? 'Sign reported: it has been taken down.' : 'Sign reported. Thank you: three reports take it down.');
+      return;
+    }
+    const why = {
+      'must have played a little': 'Play a little before you can report a sign.',
+      'too many actions': 'One report at a time, slow down a bit.',
+      'no sign here': 'This sign has no text anymore.',
+      'your own sign': 'This is your own sign.',
+    };
+    logEv('burn', 'Report not sent', (r && why[r.err]) || 'try again later');
+  };
 }
 function openSignEditor(t) {
   let el = $('signEdit');
@@ -127,14 +189,14 @@ function updateSigns(dt) {
   for (const [k, m] of SIGN_MESH) {
     const [x, y, z] = k.split(',').map(Number),
       id = get(x, y, z);
-    if (SIGNS.get(k) !== m.text || id !== m.id || Math.hypot(x - P.x, z - P.z) > R + 4) {
+    if (SIGNS.get(k) !== m.text || id !== m.id || REPORTED_SIGNS.has(k + '|' + m.text) || Math.hypot(x - P.x, z - P.z) > R + 4) {
       scene.remove(m.g);
       m.g.children.forEach(c => c.material.map.dispose());
       SIGN_MESH.delete(k);
     }
   }
   for (const [k, text] of SIGNS) {
-    if (SIGN_MESH.has(k)) continue;
+    if (SIGN_MESH.has(k) || REPORTED_SIGNS.has(k + '|' + text)) continue;
     const [x, y, z] = k.split(',').map(Number);
     if (Math.hypot(x - P.x, z - P.z) > R) continue;
     const id = get(x, y, z);

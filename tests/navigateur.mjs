@@ -581,6 +581,15 @@ const edge = await page.evaluate(() => {
   return { inside, still: Math.max(...last) - Math.min(...last) < 0.02, moved: Math.abs(xs[0] - xs.at(-1)) > 0.3 || inside };
 });
 if (edge.inside || !edge.still || !edge.moved) await fail('mob at the Atrium edge: ' + JSON.stringify(edge));
+// someone else's sign: read, with a Report button; Escape closes it
+const reader = await page.evaluate(() => {
+  openSignReader({ x: 0, y: 0, z: 0 }, 'Hello there', 'Satoshi');
+  const el = document.getElementById('signRead'),
+    shown = !el.hidden && /Satoshi/.test(el.textContent) && /Hello there/.test(el.textContent) && !!el.querySelector('[data-k=report]');
+  dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+  return { shown, closed: el.hidden && !SIGN_EDIT.open };
+});
+if (!reader.shown || !reader.closed) await fail('sign reader: ' + JSON.stringify(reader));
 // the shared world clock: a day lasts 8 minutes, two players asking at the same moment read the same
 // hour, and solo keeps its own clock
 const clock = await page.evaluate(() => {

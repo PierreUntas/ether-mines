@@ -339,3 +339,4 @@ body.cine .hud{opacity:0;transition:opacity .6s}
 .signedit h3{margin:0 0 10px;font-size:16px}
 .signedit input{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--text);font:inherit;font-size:16px}
 .signedit .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+.signedit .quote{margin:0;font-size:18px;line-height:1.4;overflow-wrap:anywhere}

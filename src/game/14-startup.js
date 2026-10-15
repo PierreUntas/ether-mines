@@ -684,7 +684,7 @@ function command(v) {
   if (c === 'report') {
     if (!arg) return addChat('World', '#7fe8ff', 'Type /report followed by a nickname.');
     if (!SERVER()) return addChat('World', '#7fe8ff', 'Reports need an online game.');
-    Net.act('report', { pseudo: arg })
+    Net.act('report', { username: arg })
       .then(r => {
         const m = !r
           ? 'try again later'

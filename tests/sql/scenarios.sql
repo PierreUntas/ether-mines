@@ -791,6 +791,36 @@ select pg_temp.ok('... and the row is gone', not exists (select 1 from signs whe
 reset role;
 \echo Sign scenarios pass.
 
+-- sign reports (036): three players who have played take a sign's text down and mute its author
+reset role;
+delete from rate_limits;
+update players set serial = greatest(serial, 20), created_at = now() - interval '1 day' where user_id = 'aaaaaaaa-0000-0000-0000-000000000001' and world = 'w';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('a sign to report', act_sign('w', 6, 50, 5, 'Something rude') ->> 'ok' = 'true');
+select pg_temp.ok('you can''t report your own sign', act_report_sign('w', 6, 50, 5) ->> 'err' = 'your own sign');
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+reset role;
+update players set created_at = now() where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' and world = 'w';
+set role authenticated;
+select pg_temp.ok('a brand-new account can''t report a sign', act_report_sign('w', 6, 50, 5) ->> 'err' = 'must have played a little');
+select set_config('request.jwt.claim.sub', 'cccccccc-0000-0000-0000-000000000003', false) \g /dev/null
+select pg_temp.ok('nothing to report where there is no sign', act_report_sign('w', 7, 50, 5) ->> 'err' = 'no sign here');
+select pg_temp.ok('first sign report', act_report_sign('w', 6, 50, 5) ->> 'removed' = 'false');
+select pg_temp.ok('reporting a sign twice counts once', act_report_sign('w', 6, 50, 5) ->> 'removed' = 'false');
+select set_config('request.jwt.claim.sub', 'dddddddd-0000-0000-0000-000000000004', false) \g /dev/null
+select pg_temp.ok('second sign report', act_report_sign('w', 6, 50, 5) ->> 'removed' = 'false');
+select pg_temp.ok('players can''t read who reported what', (select count(*) from sign_reports) = 0);
+select set_config('request.jwt.claim.sub', 'eeeeeeee-0000-0000-0000-000000000005', false) \g /dev/null
+select pg_temp.ok('third sign report: the text comes down', act_report_sign('w', 6, 50, 5) ->> 'removed' = 'true');
+select pg_temp.ok('... for everyone', not exists (select 1 from signs where world = 'w' and x = 6 and y = 50 and z = 5));
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('... and its author can''t write signs for a while', act_sign('w', 6, 50, 5, 'again') ->> 'err' = 'muted');
+reset role;
+select pg_temp.ok('... nor chat', (select muted_until > now() from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001' and world = 'w'));
+update players set muted_until = null where user_id = 'aaaaaaaa-0000-0000-0000-000000000001' and world = 'w';
+\echo Sign report scenarios pass.
+
 -- player count (035): every nickname of the world, as a bare number, readable by any player
 reset role;
 select count(*) as named from players where world = 'w' and coalesce(btrim(name), '') <> '' \gset
