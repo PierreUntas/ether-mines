@@ -127,7 +127,7 @@ function migrateSave(s) {
   }
 }
 // Season: changing SEASON wipes the saves kept in browsers (do this together with a database reset).
-const SEASON = '9'; // off-chain pivot: reset.sql + installation.sql run together with this bump
+const SEASON = '10'; // public beta launch: reset.sql + installation.sql run together with this bump
 try {
   if (localStorage.getItem('ether-mines:saison') !== SEASON) {
     for (const k of Object.keys(localStorage))
