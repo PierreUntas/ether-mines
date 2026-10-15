@@ -141,8 +141,10 @@ const water = await page.evaluate(async () => {
   const P = mines.P; P.x = 29.5; P.z = 21.5; P.y = Y + 1.5; P.vy = 0;
   mines.yaw = 0; mines.pitch = 0; mines.playing = true;
   mines.keys.add('KeyW'); mines.keys.add('Space');
-  const t0 = performance.now();
-  while (performance.now() - t0 < 45000 && !(P.z < 19.7 && P.y >= Y + 2.9)) await new Promise(r => setTimeout(r, 200));
+  // 15 s of game time, however long the machine takes to play them (the solo clock counts the game's own
+  // seconds: S.day moves by dt / 480 each frame), within 5 real minutes
+  const S = mines.S, game = () => (S.dayN + S.day) * 480, g0 = game(), t0 = performance.now();
+  while (game() - g0 < 15 && performance.now() - t0 < 300000 && !(P.z < 19.7 && P.y >= Y + 2.9)) await new Promise(r => setTimeout(r, 200));
   mines.keys.clear();
   return P.z < 19.7 && P.y >= Y + 2.9;
 });
