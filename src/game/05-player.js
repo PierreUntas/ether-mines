@@ -168,7 +168,12 @@ function toggleFullscreen() {
       .catch(() => {});
   } catch (e) {}
 }
-document.addEventListener('fullscreenchange', () => $('fsBtn').classList.toggle('on', !!document.fullscreenElement));
+document.addEventListener('fullscreenchange', () => {
+  $('fsBtn').classList.toggle('on', !!document.fullscreenElement);
+  // the lock can drop only once the switch is actually done: on a slow machine that's well after the click,
+  // so the window during which losing it doesn't pause the game starts again from here
+  fsSwitch = Math.max(fsSwitch, performance.now() + 1000);
+});
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === cv;
   if (locked) lockFails = 0;

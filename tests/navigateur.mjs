@@ -406,9 +406,14 @@ const rest = await page.evaluate(() => {
 if (!rest.nearStays || !rest.rests || !rest.back) await fail('daytime rest: ' + JSON.stringify(rest));
 // the full screen button: shown where the browser supports it, toggles full screen, lit while on
 const fsShown = await page.evaluate(() => !document.getElementById('fsBtn').hidden);
+const fsState = () => page.evaluate(() => ({ title: !document.getElementById('title').hidden, panel: !document.getElementById('panel').hidden, locked: !!document.pointerLockElement, noLock, fs: !!document.fullscreenElement, playing }));
+const fsBefore = await fsState();
+if (fsBefore.title || fsBefore.panel) await fail('full screen: a menu covers the game before the test: ' + JSON.stringify(fsBefore));
 await page.click('#fsBtn');
 await page.waitForTimeout(400);
 const fsOn = await page.evaluate(() => !!document.fullscreenElement && document.getElementById('fsBtn').classList.contains('on'));
+const fsMid = await fsState();
+if (fsMid.title) await fail('full screen: entering it opened the pause menu: ' + JSON.stringify(fsMid));
 await page.click('#fsBtn');
 await page.waitForTimeout(400);
 const fsOff = await page.evaluate(() => !document.fullscreenElement && !document.getElementById('fsBtn').classList.contains('on') && document.getElementById('title').hidden);
