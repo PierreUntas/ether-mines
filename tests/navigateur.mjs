@@ -30,6 +30,8 @@ const browser = await chromium.launch({
   args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--no-proxy-server'],
 });
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
+// CPU_SLOW=3 node tests/navigateur.mjs: a CPU three times slower, to reproduce a small CI machine
+if (process.env.CPU_SLOW) await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: +process.env.CPU_SLOW });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if ((m.type() === 'error' && !/Failed to load resource/.test(m.text())) || /mesh/i.test(m.text())) errors.push(m.text()); });
@@ -121,7 +123,11 @@ const circuit = async (lever2) =>
     const Y = 47, y = Y + 1, c = (x, yy, z, id) => mines.commit(x + ',' + yy + ',' + z, id, null);
     for (let x = 16; x <= 22; x++) for (let z = 2; z <= 6; z++) c(x, Y, z, 80);
     c(16, y, 5, 65); c(17, y, 5, 67); c(18, y, 5, 112); c(19, y, 5, 67); c(20, y, 5, l2); c(18, y, 4, 67); c(18, y, 3, 68);
-    await new Promise(r => setTimeout(r, 2500));
+    // the current spreads over frames: a slow CI machine needs longer to light the lamp, so wait for it (up to
+    // 30 s) when it should light, and a fixed 2.5 s when it shouldn't
+    const t0 = performance.now();
+    while (performance.now() - t0 < (l2 === 65 ? 30000 : 2500) && !(l2 === 65 && mines.POWERED.has('18,' + y + ',3')))
+      await new Promise(r => setTimeout(r, 250));
     return mines.POWERED.has('18,' + y + ',3');
   }, lever2);
 const [off, on] = [await circuit(64), await circuit(65)];
@@ -136,7 +142,7 @@ const water = await page.evaluate(async () => {
   mines.yaw = 0; mines.pitch = 0; mines.playing = true;
   mines.keys.add('KeyW'); mines.keys.add('Space');
   const t0 = performance.now();
-  while (performance.now() - t0 < 15000 && !(P.z < 19.7 && P.y >= Y + 2.9)) await new Promise(r => setTimeout(r, 200));
+  while (performance.now() - t0 < 45000 && !(P.z < 19.7 && P.y >= Y + 2.9)) await new Promise(r => setTimeout(r, 200));
   mines.keys.clear();
   return P.z < 19.7 && P.y >= Y + 2.9;
 });
