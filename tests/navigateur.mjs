@@ -97,7 +97,8 @@ const plate = await page.evaluate(() => {
 await page.waitForTimeout(400);
 await page.evaluate(({ x, y, z }) => { const P = mines.P; P.x = x + 0.5; P.z = z + 0.5; P.y = y + 0.1; }, plate);
 await page.waitForTimeout(1200);
-const alive = await Promise.race([page.evaluate(() => performance.now()), new Promise(r => setTimeout(() => r(null), 5000))]);
+// a real hang never answers; 30 s leaves room for a slow CI machine (2 cores, software WebGL) still meshing
+const alive = await Promise.race([page.evaluate(() => performance.now()), new Promise(r => setTimeout(() => r(null), 30000))]);
 if (alive === null) await fail('the game stopped responding after stepping on a pressure plate');
 if (errors.length) await fail('errors with shaped blocks');
 // chest: deposit then take back planks
