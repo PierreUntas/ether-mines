@@ -429,27 +429,37 @@ Net.on('peers', list => {
   PEER_NAMES = list.map(p => (p.id === ME.id ? 'you' : p.name));
   $('online').hidden = !Net.online;
   onlineBadge();
-  refreshMiners();
+  if (!minersStarted) {
+    minersStarted = true;
+    refreshMiners();
+  }
 });
-// the badge: who is connected right now, and how many nicknames the world has in all
+// the badge: who is connected right now, and how many nicknames the world has in all.
+// Three names at most, then "+N": with 50 people online the line stays short.
 let PEER_NAMES = [],
   MINERS = null,
-  minersAt = 0;
+  minersStarted = false,
+  minersTimer = 0;
+const fmtN = n => n.toLocaleString('en-US');
 function onlineBadge() {
   const n = PEER_NAMES,
-    all = MINERS ? ` · ${MINERS} ${MINERS > 1 ? 'miners' : 'miner'}` : '';
-  $('onlineTxt').textContent = `${n.length} online${all} · ${n.slice(0, 5).join(', ')}${n.length > 5 ? '…' : ''}`;
+    miners = MINERS === null ? 0 : Math.max(MINERS, 1), // you count before your first save reaches the server
+    all = miners ? ` · ${fmtN(miners)} ${miners > 1 ? 'miners' : 'miner'}` : '',
+    more = n.length > 3 ? ` +${n.length - 3}` : '';
+  $('onlineTxt').textContent = `${fmtN(n.length)} online${all} · ${n.slice(0, 3).join(', ')}${more}`;
 }
-// asked again when someone joins or leaves, at most once a minute
+// asked when you join, then every minute; a failed request is tried again 10 seconds later
 async function refreshMiners() {
-  if (!Net.online || performance.now() - minersAt < 60000) return;
-  minersAt = performance.now();
+  clearTimeout(minersTimer);
+  let wait = 60000;
   try {
+    if (!Net.online) throw new Error('offline');
     MINERS = await Net.playerCount();
     onlineBadge();
   } catch {
-    minersAt = 0;
+    wait = 10000;
   }
+  minersTimer = setTimeout(refreshMiners, wait);
 }
 Net.on('pos', p => {
   const o = ensureOther(p);
