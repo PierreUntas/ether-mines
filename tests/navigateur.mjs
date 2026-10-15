@@ -538,6 +538,32 @@ const pvp = (() => page.evaluate(() => {
   return { held, again: sent.length - held, blade: pvpDamage(107), genesis: pvpDamage(301), hand: pvpDamage(null) };
 }))();
 const pvpR = await pvp;
+// a mob hunting you while you stand in the Atrium waits at its edge, still: it doesn't tremble in and out
+const edge = await page.evaluate(() => {
+  const P = mines.P,
+    keep = { x: P.x, z: P.z },
+    gy = P.y;
+  P.x = SPAWN.x + 4.5;
+  P.z = SPAWN.z + 0.5;
+  const key = ckey(cOf(SPAWN.x + 8.6), cOf(SPAWN.z + 0.5)),
+    m = mines.mkMob('corrupted_node', key, 990, SPAWN.x + 8.6, gy, SPAWN.z + 0.5, null),
+    keepMobs = mines.MOBS.get(key) || [];
+  mines.MOBS.set(key, [...keepMobs, m]);
+  const xs = [];
+  let inside = false;
+  for (let i = 0; i < 60; i++) {
+    updateMobs(0.05);
+    xs.push(m.g.position.x);
+    if (mobSafe(m.g.position.x, m.g.position.z)) inside = true;
+  }
+  const last = xs.slice(-30);
+  mines.MOBS.set(key, keepMobs);
+  scene.remove(m.g);
+  P.x = keep.x;
+  P.z = keep.z;
+  return { inside, still: Math.max(...last) - Math.min(...last) < 0.02, moved: Math.abs(xs[0] - xs.at(-1)) > 0.3 || inside };
+});
+if (edge.inside || !edge.still || !edge.moved) await fail('mob at the Atrium edge: ' + JSON.stringify(edge));
 // the shared world clock: a day lasts 8 minutes, two players asking at the same moment read the same
 // hour, and solo keeps its own clock
 const clock = await page.evaluate(() => {

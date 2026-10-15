@@ -1440,6 +1440,13 @@ function updateMobs(dt) {
         dr = Math.atan2(Math.sin(dr), Math.cos(dr));
         a.g.rotation.y += dr * Math.min(1, dt * 6);
       }
+      // a hunting mob stops at the edge of a protected zone (the Atrium, the City, the path) and waits there
+      // facing you, instead of stepping in, losing interest, stepping back out: that flip, every frame,
+      // made it tremble against the border
+      if (aggro && mobSafe(nx, nz)) {
+        nx = p.x;
+        nz = p.z;
+      }
       if (a.kbT > 0) {
         a.kbT -= dt;
         nx += a.kbx * dt;
@@ -1492,6 +1499,7 @@ function updateMobs(dt) {
           }
         }
       }
+      const moved = Math.hypot(nx - p.x, nz - p.z) > 0.001;
       p.x = nx;
       p.z = nz;
       // flying (sky_raider, bat) and swimming (water_lurker) mobs skip the ground snap entirely and
@@ -1521,7 +1529,7 @@ function updateMobs(dt) {
         const gr = groundAt(nx, nz, p.y + 0.3, false, 1);
         if (gr && !gr.water) p.y += (gr.y - p.y) * Math.min(1, dt * 10);
       }
-      a.walk = (a.walk || 0) + dt * (dd > 0.1 ? 8 : 1.5);
+      a.walk = (a.walk || 0) + dt * (dd > 0.1 && moved ? 8 : 1.5);
       if (a.parts.legs.length) a.parts.legs.forEach((l, i2) => (l.rotation.x = (i2 % 2 ? -1 : 1) * Math.sin(a.walk) * 0.5));
       else if (a.parts.wings) {
         const T = Date.now() / 1000;
