@@ -51,7 +51,7 @@ const intro = await page.evaluate(async () => {
   while (!CINE.on && performance.now() - t0 < 5000) await new Promise(r => setTimeout(r, 100));
   const on = CINE.on && !!document.getElementById('cine') && document.body.classList.contains('cine');
   for (let i = 0; i < 30; i++) cineTick(0.1); // the first subtitle
-  const sub = (document.querySelector('#cine .sub')?.textContent || '').includes('network went dark');
+  const sub = (document.querySelector('#cine .sub')?.getAttribute('aria-label') || '').includes('network went dark');
   document.querySelector('#cine .skip').click();
   cineTick(0.1);
   return { on, sub, off: !CINE.on && !document.getElementById('cine') && !document.body.classList.contains('cine') };
@@ -749,7 +749,7 @@ const epi = await page.evaluate(async () => {
   for (let i = 0; i < 20; i++) (updateFinale(0.1), cineTick(0.1));
   const fireworks = FINALE.fx.length > 0;
   for (let i = 0; i < 150; i++) (updateFinale(0.1), cineTick(0.1)); // into shot 3: Thea's first subtitle
-  const subtitle = (document.querySelector('#cine .sub')?.textContent || '').includes(EPILOGUE.thea[0].slice(0, 20));
+  const subtitle = (document.querySelector('#cine .sub')?.getAttribute('aria-label') || '').includes(EPILOGUE.thea[0].slice(0, 20));
   document.querySelector('#cine .skip').click(); // Skip
   for (let i = 0; i < 3; i++) (updateFinale(0.1), cineTick(0.1));
   const screen = !!document.querySelector('#finale .epilogue') && !!mines.S.seen.finale && !CINE.on && !document.getElementById('cine');

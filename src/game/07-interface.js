@@ -431,7 +431,7 @@ function cinePlay(scene) {
   if (document.pointerLockElement) document.exitPointerLock();
   const el = document.createElement('div');
   el.id = 'cine';
-  el.innerHTML = '<i class="bar top"></i><i class="bar bottom"></i><p class="sub"></p><button class="skip">Skip ›</button>';
+  el.innerHTML = '<i class="bar top"></i><i class="bar bottom"></i><div class="sub chip" hidden></div><button class="skip">Skip ›</button>';
   el.querySelector('.skip').onclick = cineSkip;
   document.body.appendChild(el);
   addEventListener('keydown', cineKey, true);
@@ -456,10 +456,18 @@ function cineTick(dt) {
     sub = $('cine')?.querySelector('.sub');
   if (sub && i !== CINE.said) {
     CINE.said = i;
-    sub.innerHTML = i < 0 ? '' : `${sc.lines[i][2] ? `<b>${sc.lines[i][2]}</b>` : ''}<span></span>`;
+    // the same bubble as a villager talking in the game (#dialogue, talk() in 09-animals.js): their name in
+    // their outfit's color, their role, the line typed out
+    const who = i < 0 ? null : sc.lines[i][2],
+      h = who && VILLAGERS.find(v => v.name === who);
+    sub.hidden = i < 0;
+    sub.innerHTML =
+      i < 0 ? '' : who ? `<b style="color:${h ? h.outfit[0] : 'var(--cyan)'}">${who}</b>${h ? `<i>${h.role}</i>` : ''}<p></p>` : '<p></p>';
+    // the whole line at once for screen readers, while it types out on screen
+    sub.setAttribute('aria-label', i < 0 ? '' : (who ? who + ': ' : '') + sc.lines[i][3]);
     if (i >= 0) {
-      sub.querySelector('span').textContent = sc.lines[i][3];
-      if (sc.lines[i][2]) Sound.animal('villager', 1);
+      typeLine(sub.querySelector('p'), sc.lines[i][3]);
+      if (who) Sound.animal('villager', 1);
     }
   }
   if (t >= sc.end) {

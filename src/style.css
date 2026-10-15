@@ -308,9 +308,10 @@ body.cine .hud{opacity:0;transition:opacity .6s}
 #cine .bar.top{top:0}
 #cine .bar.bottom{bottom:0}
 @keyframes cineBar{from{height:0}}
-#cine .sub:empty{display:none}
-#cine .sub{position:absolute;left:50%;bottom:calc(11vh + 18px);transform:translateX(-50%);width:min(760px,calc(100% - 32px));margin:0;padding:10px 16px;border-radius:12px;background:rgba(10,8,24,.55);text-align:center;font-size:clamp(17px,2.4vw,24px);line-height:1.4;color:#fff;text-shadow:0 2px 6px #000,0 0 2px #000}
-#cine .sub b{display:block;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold,#ffd95e);margin-bottom:4px}
+#cine .sub{position:absolute;left:50%;bottom:calc(11vh + 18px);transform:translateX(-50%);width:min(560px,calc(100% - 32px));padding:10px 14px;text-align:left;font-size:16px;line-height:1.4;white-space:normal}
+#cine .sub b{font-size:16px}
+#cine .sub i{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:8px}
+#cine .sub p{margin:4px 0 0}
 #cine .skip{pointer-events:auto;position:absolute;right:16px;bottom:calc(11vh - 44px);font-family:var(--mono);font-size:13px;color:#ddd;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 12px}
 /* compass: inside the position chip, scrolls as you turn */
 #compass{position:relative;width:150px;height:16px;overflow:hidden;border-top:1px solid var(--line);margin-top:2px}
