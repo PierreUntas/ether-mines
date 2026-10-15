@@ -641,6 +641,19 @@ function sleep(bed) {
     logEv('burn', 'Too bright to sleep', 'wait for nightfall');
     return;
   }
+  // online the night is everyone's (tickClock, 08-sky.js): a bed rests you, it doesn't skip it
+  if (sharedClock()) {
+    S.slept = 1;
+    if (S.hp < 10) {
+      S.hp = 10;
+      updateHpUI();
+    }
+    dirty = true;
+    swing = 0.6;
+    Sound.door();
+    toastInfo('You rest: full hearts. The night goes on for everyone in this world.');
+    return;
+  }
   if (h >= 0.78) S.dayN++;
   S.day = 0.27;
   S.slept = 1;

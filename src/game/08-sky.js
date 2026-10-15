@@ -23,6 +23,30 @@ function lerpCol(a, b, t, out) {
 }
 const fogC = new THREE.Color(),
   WHITE = new THREE.Color(0xffffff);
+// The clock. Solo, it's your own: it runs from where your save left it, and a bed skips the night.
+// Online, every player of a world shares one clock, read from the real time (no network traffic): the
+// same sky, the same night prowlers, the same resting mobs for everyone fighting side by side. A day
+// still lasts 8 minutes; day 0 began on the official launch. The finale's own night stays personal.
+const DAY_S = 480,
+  WORLD_EPOCH = Date.UTC(2026, 9, 15) / 1000;
+function worldClock(now = Date.now()) {
+  const d = (now / 1000 - WORLD_EPOCH) / DAY_S + 0.3; // + 0.3: day 0 starts in the morning
+  return { day: d - Math.floor(d), n: Math.max(0, Math.floor(d)) };
+}
+const sharedClock = () => Net.online && !FINALE.on;
+function tickClock(dt) {
+  if (sharedClock()) {
+    const c = worldClock();
+    S.day = c.day;
+    S.dayN = c.n;
+    return;
+  }
+  S.day += dt / DAY_S;
+  if (S.day >= 1) {
+    S.day -= 1;
+    S.dayN++;
+  }
+}
 function applyDay() {
   const t = S.day % 1;
   let i = 0;

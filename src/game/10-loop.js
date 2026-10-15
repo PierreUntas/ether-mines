@@ -186,11 +186,7 @@ function frame(now) {
     tierHintT = Math.max(0, tierHintT - dt);
     hintT = Math.max(0, hintT - dt);
     buffT = Math.max(0, buffT - dt);
-    S.day += dt / 480;
-    if (S.day >= 1) {
-      S.day -= 1;
-      S.dayN++;
-    }
+    tickClock(dt);
     updateBolts(dt);
     // combat: aiming a hostile mob, another player (outside protected zones), or a killable animal, with
     // the mining click attacks instead of mining — a ranged weapon (the Plasma Pistol) fires along the
@@ -335,7 +331,7 @@ function frame(now) {
           (tsh === 'door' || tsh === 'lever' ? !canToggleHere(target.x, target.z) : !canBuildHere(target.x, target.z)) &&
           B[target.id].h !== Infinity,
         columnDown = target.id === 73 && ![0, 1, 2].every(i => isSolid(get(target.x + 2, target.y + i, target.z + 2)));
-      tg.innerHTML = `${B[target.id].n}<span>${target.id === 73 ? (columnDown ? 'rebuild the fourth column (its +x, +z corner) first' : `${touch ? 'tap' : 'right-click'} with a validator heart to relight it`) : target.id === 74 ? 'relit · mints a crystal a minute for whoever relit it' : target.id === 135 ? `${touch ? 'tap' : 'right-click'} to eat: increased speed for a while` : (B[target.id].shape || '').startsWith('bed') ? `${touch ? 'tap' : 'right-click'} to sleep: skip to dawn` : locked ? `🔒 ${protectMsg(target.x, target.z)}` : !canMine(target.id) && B[target.id].h !== Infinity ? `⛏ you need ${TIER_NAME[reqTier(target.id)]}` : !inWorld(target.x, target.z) ? 'edge of the world' : own ? `placed by ${ow && ow.by !== ME.id ? ow.name : 'you'} · block #${own}` : `natural · drops token #${tid === 0 ? '—' : tid}`}</span>`;
+      tg.innerHTML = `${B[target.id].n}<span>${target.id === 73 ? (columnDown ? 'rebuild the fourth column (its +x, +z corner) first' : `${touch ? 'tap' : 'right-click'} with a validator heart to relight it`) : target.id === 74 ? 'relit · mints a crystal a minute for whoever relit it' : target.id === 135 ? `${touch ? 'tap' : 'right-click'} to eat: increased speed for a while` : (B[target.id].shape || '').startsWith('bed') ? `${touch ? 'tap' : 'right-click'} to sleep: ${sharedClock() ? 'rest and set your home' : 'skip to dawn, and set your home'}` : locked ? `🔒 ${protectMsg(target.x, target.z)}` : !canMine(target.id) && B[target.id].h !== Infinity ? `⛏ you need ${TIER_NAME[reqTier(target.id)]}` : !inWorld(target.x, target.z) ? 'edge of the world' : own ? `placed by ${ow && ow.by !== ME.id ? ow.name : 'you'} · block #${own}` : `natural · drops token #${tid === 0 ? '—' : tid}`}</span>`;
     } else {
       sel.visible = false;
       $('target').hidden = true;

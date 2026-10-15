@@ -184,7 +184,12 @@ const QUESTS = [
     h: 'Craft a Volt Blade or a Pure Ether Blade to fight back.',
     ok: () => !!(S.got[106] || S.got[107]),
   },
-  { id: 'sleep', t: 'Sleep through the night', h: 'Place a bed, then use it after dusk to skip to dawn.', ok: () => !!S.slept },
+  {
+    id: 'sleep',
+    t: 'Sleep in a bed',
+    h: 'Place a bed, then use it after dusk: it rests you, and it becomes your home.',
+    ok: () => !!S.slept,
+  },
   { id: 'trade', t: 'Trade with another player', h: 'Open Trade, offer something, and have them accept.', ok: () => !!S.traded },
   { id: 'city', t: 'Reach the City', h: 'Follow the validators path from the Atrium to the great diamond.', ok: () => !!S.visitedCity },
   { id: 'pet', t: 'Pet an animal', h: 'Right-click (or tap) a friendly creature.', ok: () => !!S.petted },

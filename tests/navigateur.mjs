@@ -538,6 +538,15 @@ const pvp = (() => page.evaluate(() => {
   return { held, again: sent.length - held, blade: pvpDamage(107), genesis: pvpDamage(301), hand: pvpDamage(null) };
 }))();
 const pvpR = await pvp;
+// the shared world clock: a day lasts 8 minutes, two players asking at the same moment read the same
+// hour, and solo keeps its own clock
+const clock = await page.evaluate(() => {
+  const t0 = Date.UTC(2026, 9, 20, 12),
+    a = worldClock(t0),
+    b = worldClock(t0 + 480000);
+  return { same: a.day.toFixed(6) === b.day.toFixed(6), nextDay: b.n === a.n + 1, launch: worldClock(Date.UTC(2026, 9, 15)).day, solo: !sharedClock() };
+});
+if (!clock.same || !clock.nextDay || Math.abs(clock.launch - 0.3) > 1e-9 || !clock.solo) await fail('world clock: ' + JSON.stringify(clock));
 // a single click after a pause strikes at once: the weapon recovers even while the button is up
 const quick = await page.evaluate(() => {
   playerAtkT = 0;
