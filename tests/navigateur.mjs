@@ -47,6 +47,9 @@ await page.waitForTimeout(800);
 if (errors.length) await fail('error while loading the page');
 await page.evaluate(() => document.getElementById('play').click());
 await page.waitForFunction(() => document.getElementById('title').hidden, null, { timeout: 240000 });
+// look with the mouse dragged, as a browser without pointer lock does: some headless machines (GitLab's)
+// grant the lock, and losing it then pauses the game in the middle of the tests
+await page.evaluate(() => { noLock = true; });
 // a new player's intro cinematic starts, and Skip ends it (Thea's greeting follows)
 const intro = await page.evaluate(async () => {
   const t0 = performance.now();

@@ -42,6 +42,9 @@ browser:
   stage: test
   # Chromium and its system libraries already installed, for the same Playwright version as the tests
   image: mcr.microsoft.com/playwright:v1.56.0-noble
+  # GitLab's small shared machines render WebGL very slowly: a failure here shows in orange without
+  # blocking the pipeline (the same test runs before every delivery on a faster machine)
+  allow_failure: true
   script:
     - npm i --no-save playwright@1.56.0 three@0.128.0
     - node tests/navigateur.mjs
