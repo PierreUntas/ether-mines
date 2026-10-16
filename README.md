@@ -288,9 +288,9 @@ See `supabase/migrations/019_gwei_currency.sql` through `024_loot_tiers.sql` for
 
 ### Respawning
 
-A killed mob stays dead for a while on your screen (`KILLED`, `src/game/16-mobs.js`): 5 minutes for the
-mobs of a chunk (walking away and back no longer brings them straight back), 2 minutes for a night
-prowler, 25 seconds for a network attack node (the wave keeps coming, with room to breathe).
+A killed mob stays dead for a while on your screen (`KILLED`, `src/game/16-mobs.js`): 2 minutes (walking
+away and back no longer brings it straight back, nor does the night bring a prowler back at once), 25
+seconds for a network attack node (the wave keeps coming, with room to breathe).
 
 ### Mob loot tiers
 

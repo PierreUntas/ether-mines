@@ -605,7 +605,7 @@ const respawn = await page.evaluate(() => {
   mines.MOBS.get(k).push(again);
   pruneKilled(k);
   const stillDead = !mines.MOBS.get(k).includes(again);
-  KILLED.set(k + '|991', performance.now() - 301000); // five minutes later
+  KILLED.set(k + '|991', performance.now() - 121000); // two minutes later
   const back = !recentlyKilled(k, 991, 'shadow');
   KILLED.delete(k + '|991');
   mines.MOBS.set(k, keep);

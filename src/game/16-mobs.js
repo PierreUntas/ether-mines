@@ -763,10 +763,10 @@ function restsByDay(a) {
 // prowler or a network attack node don't bring it straight back, which left no time to switch weapons
 // or put a block down. Kept on this screen only, like the mobs themselves.
 const KILLED = new Map(); // 'chunk key|mob index' -> performance.now() at death
-const RESPAWN_S = { prowler: 120, corrupted_node: 25 }; // seconds; every other mob: 5 minutes
+const RESPAWN_S = { corrupted_node: 25 }; // seconds; every other mob: 2 minutes
 function recentlyKilled(k, i, type) {
   const t = KILLED.get(k + '|' + i);
-  return t !== undefined && performance.now() - t < (RESPAWN_S[type] ?? 300) * 1000;
+  return t !== undefined && performance.now() - t < (RESPAWN_S[type] ?? 120) * 1000;
 }
 function pruneKilled(k) {
   const list = MOBS.get(k);
