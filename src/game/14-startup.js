@@ -479,6 +479,8 @@ Net.on('pos', p => {
   }
 });
 Net.on('block', b => applyBlock(b));
+// on a touch screen, a tap on the label under the crosshair opens the block explorer (07-interface.js)
+$('target').addEventListener('click', () => target && openExplorer(target));
 // ignored players: kept in this browser, their messages no longer show up (also blocks PvP, below)
 const IGNORES = new Set(JSON.parse(localStorage.getItem('ether-mines:ignores') || '[]'));
 const saveIgnores = () => localStorage.setItem('ether-mines:ignores', JSON.stringify([...IGNORES]));

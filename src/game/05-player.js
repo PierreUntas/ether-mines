@@ -115,6 +115,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyM') toggleSnd();
   if (e.code === 'KeyF') toggleFullscreen();
   if (e.code === 'KeyO') openTab('quest');
+  if (e.code === 'KeyI' && target && !SIGN_EDIT.open) openExplorer(target);
   if (e.code === 'KeyV' || e.code === 'F5') {
     e.preventDefault();
     changeView();

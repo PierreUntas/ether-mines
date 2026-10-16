@@ -461,6 +461,6 @@ insert into chat_banned_words values ('word') on conflict do nothing;
 - WASD or arrows: walk · Shift: run · Space: jump
 - Hold left click: mine · right click: place
 - Right-click a door or lever: activate it
-- 1 to 9, scroll: item bar · E: chest and crafting · T: ledger view · M: sound · Enter: chat (`/join nickname`, `/sanctuary`, `/claim`, `/unclaim`, `/invite nickname`, `/kick nickname`, `/claims`, `/ignore nickname`, `/listen nickname`, `/report nickname`)
+- 1 to 9, scroll: item bar · E: chest and crafting · T: ledger view · I: block explorer (who placed the block you aim at, when, and its history) · M: sound · Enter: chat (`/join nickname`, `/sanctuary`, `/claim`, `/unclaim`, `/invite nickname`, `/kick nickname`, `/claims`, `/ignore nickname`, `/listen nickname`, `/report nickname`)
 - Mobile (Minecraft mobile layout): stick on the left to walk, drag to look around, long press to mine, short tap to place or activate; on the right, jump (↑), run (», stays active until you stop) and crouch (↓: slower, won't fall off edges, goes down into water); at the top, chest, chat, and menu; "…" at the end of the bar opens the chest
 - Keyboard: C or Ctrl to crouch

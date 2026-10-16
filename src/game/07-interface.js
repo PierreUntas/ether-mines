@@ -60,6 +60,102 @@ function buildRegView() {
   scene.add(regLines);
 }
 
+// ---------- block explorer (I key, or a tap on the block's label) ----------
+// Like a blockchain explorer, for one block of the world: who placed it, when, how many blocks that builder
+// has standing, and its last changes (038_block_history.sql). A block nobody ever touched is a "genesis"
+// block, there since the world was generated. Solo, only what the save knows: who placed it, its number.
+const agoTxt = at => {
+  const s = Math.max(0, (Date.now() - new Date(at).getTime()) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  const d = Math.floor(s / 86400);
+  return d === 1 ? 'yesterday' : `${d} days ago`;
+};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : { 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
+let explorerSeq = 0;
+function openExplorer(t) {
+  if (!t || !B[t.id]) return;
+  let el = $('explorer');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'explorer';
+    el.className = 'signedit';
+    el.innerHTML =
+      '<div class="box"><div class="bxHead"></div><dl class="bxRows"></dl><h4>History</h4><ol class="bxLog"></ol><div class="row"><button class="b primary" data-k="close">Close</button></div><p class="note">Every change to a block is written in the world’s ledger.</p></div>';
+    document.body.appendChild(el);
+  }
+  const seq = ++explorerSeq,
+    k = coordKey(t.x, t.y, t.z),
+    ow = OWN.get(k),
+    mine = ow && ow.by === (SERVER() ? Net.userId : ME.id),
+    who = ow ? (mine ? 'you' : ow.name || 'someone') : null,
+    drop = B[t.id].drop || t.id;
+  el.querySelector('.bxHead').innerHTML =
+    `<img alt="" src="${icon(t.id).toDataURL()}"><div><b>${esc(B[t.id].n)}</b><span>${t.x}, ${t.y}, ${t.z}</span></div>`;
+  const rows = info => {
+    const r = [];
+    if (ow) {
+      r.push(['Placed by', `<b>${esc(who)}</b>${ow.serial ? ` · ${mine ? 'your' : 'their'} ${ord(ow.serial)} block` : ''}`]);
+      if (info?.at) r.push(['When', agoTxt(info.at)]);
+      if (info?.builder_blocks) r.push(['Builder', `${info.builder_blocks.toLocaleString('en-US')} blocks standing in this world`]);
+    } else
+      r.push([
+        'Status',
+        info?.history?.length ? 'Part of the terrain, changed since' : '<b>Genesis block</b> · untouched since the world began',
+      ]);
+    r.push(['Token', drop ? `drops #${drop}` : '—']);
+    el.querySelector('.bxRows').innerHTML = r.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
+  };
+  const log = el.querySelector('.bxLog');
+  const showLog = h => {
+    if (!h) {
+      log.innerHTML = `<li class="muted">${SERVER() ? 'Reading the ledger…' : 'The full history is kept in the online world.'}</li>`;
+      return;
+    }
+    if (!h.length) {
+      log.innerHTML = '<li class="muted">Nothing yet: nobody has changed this block.</li>';
+      return;
+    }
+    log.innerHTML = h
+      .map(e => {
+        const what = e.id ? `placed <b>${esc(B[e.id]?.n || 'a block')}</b>` : `mined <b>${esc(B[e.prev]?.n || 'the terrain')}</b>`;
+        return `<li><span>${esc(e.name || 'someone')}</span> ${what}<i>${agoTxt(e.at)}</i></li>`;
+      })
+      .join('');
+  };
+  rows(null);
+  showLog(null);
+  el.hidden = false;
+  SIGN_EDIT.open = true;
+  mining = false;
+  if (document.pointerLockElement) document.exitPointerLock();
+  const close = () => {
+    removeEventListener('keydown', onKey, true);
+    closeSignOverlay(el);
+  };
+  const onKey = e => {
+    if (e.key === 'Escape' || e.code === 'KeyI') {
+      e.stopImmediatePropagation(); // not reopened by the game's own I key
+      close();
+    }
+  };
+  addEventListener('keydown', onKey, true);
+  el.querySelector('[data-k=close]').onclick = close;
+  if (!SERVER()) return;
+  Net.blockInfo(t.x, t.y, t.z)
+    .then(info => {
+      if (seq !== explorerSeq || el.hidden) return;
+      rows(info);
+      showLog(info?.history || []);
+    })
+    .catch(e => {
+      console.error(e);
+      if (seq === explorerSeq) log.innerHTML = '<li class="muted">The ledger can’t be reached right now.</li>';
+    });
+}
+
 // ---------- bar and panel ----------
 function select(i) {
   S.sel = i;

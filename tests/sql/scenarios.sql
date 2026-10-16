@@ -842,3 +842,30 @@ select act_loot_mob('w', 'titan', 12.5, 33, 8.5) as titan \gset
 select pg_temp.ok('a boss kill gives Diamond Shards', (:'titan'::jsonb ->> 'shards')::int between 1 and 2 and (:'titan'::jsonb -> 'inv' ->> '110')::int >= 1);
 reset role;
 \echo Diamond Shard scenarios pass.
+
+-- block explorer (038): every change of a block is logged, block_info tells its story without account ids
+reset role;
+select count(*) > 0 as logged from block_history \gset
+select pg_temp.ok('the blocks placed and mined above were logged', :'logged'::boolean);
+select x as bx, y as by_, z as bz, placed_name as bname from blocks
+  where world = 'w' and placed_by is not null and placed_name is not null and id <> 0 order by updated_at desc limit 1 \gset
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select block_info('w', :bx, :by_, :bz) as info \gset
+select pg_temp.ok('block_info names the builder', :'info'::jsonb ->> 'name' = :'bname');
+select pg_temp.ok('... counts their standing blocks', (:'info'::jsonb ->> 'builder_blocks')::int >= 1);
+select pg_temp.ok('... and lists its history, newest first, with a name', jsonb_array_length(:'info'::jsonb -> 'history') >= 1
+  and :'info'::jsonb -> 'history' -> 0 ->> 'name' = :'bname');
+select pg_temp.ok('... never an account id', position('aaaaaaaa' in :'info') = 0 and position('bbbbbbbb' in :'info') = 0);
+select pg_temp.ok('an untouched block has no story', jsonb_array_length(block_info('w', 900, 5, 900) -> 'history') = 0
+  and block_info('w', 900, 5, 900) ->> 'name' is null);
+select pg_temp.ok('players can''t read the raw log', (select count(*) from block_history) = 0);
+reset role;
+-- the log keeps the last 12 changes of a block, and a door opening is not a change of hands
+insert into blocks (world, x, y, z, id, placed_by, placed_name, serial) values ('w', 901, 5, 901, 79, 'someone', 'Someone', 1);
+do $$ begin for i in 1..20 loop update blocks set id = case when id = 0 then 79 else 0 end where world = 'w' and x = 901 and y = 5 and z = 901; end loop; end $$;
+select pg_temp.ok('only the last 12 changes are kept', (select count(*) from block_history where world = 'w' and x = 901 and y = 5 and z = 901) = 12);
+insert into blocks (world, x, y, z, id, placed_by, placed_name, serial) values ('w', 902, 5, 902, 90, 'someone', 'Someone', 2);
+update blocks set id = 91 where world = 'w' and x = 902 and y = 5 and z = 902;
+select pg_temp.ok('a door switching state isn''t logged', (select count(*) from block_history where world = 'w' and x = 902 and y = 5 and z = 902) = 1);
+\echo Block explorer scenarios pass.

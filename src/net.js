@@ -100,6 +100,8 @@ window.Net = (() => {
   const claimRecovery = code => rpc('claim_recovery', { code });
   // how many nicknames this world has (035_player_count.sql)
   const playerCount = () => rpc('world_player_count', { w: world });
+  // one block's story for the block explorer (038_block_history.sql)
+  const blockInfo = (px, py, pz) => rpc('block_info', { w: world, px, py, pz });
 
   const on = (ev, fn) => handlers[ev].push(fn);
   const emit = (ev, ...a) => {
@@ -377,6 +379,7 @@ window.Net = (() => {
     deletePlayer,
     recoveryCode,
     playerCount,
+    blockInfo,
     claimRecovery,
     get userId() {
       return userId;
