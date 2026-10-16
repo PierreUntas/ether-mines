@@ -1188,6 +1188,8 @@ function lootMob(type) {
         toastInfo((BOSS_TOAST[r.unique.id] || (() => `${ITEM[r.unique.id].n} earned`))());
         Sound.chime();
       }
+      if (r && r.shards)
+        logEv('mint', `${r.shards} Diamond Shard${r.shards > 1 ? 's' : ''}`, 'cut from the boss: the Genesis gear needs 4');
       if (r && r.bonus) {
         addUnique(r.bonus);
         toastInfo(`Bonus drop: ${ITEM[r.bonus.id].n}!`);
@@ -1212,6 +1214,8 @@ function lootMob(type) {
     mintNft(id, null);
     toastInfo(BOSS_TOAST[id]());
     Sound.chime();
+    // Diamond Shards, as online (037_diamond_shards.sql): 1 or 2 per boss, 2 for the Merge twins
+    give(110, type === 'merge_twins' ? 2 : 1 + Math.floor(Math.random() * 2), 'cut from the boss');
     if (Math.random() < 0.2) {
       const bonusId = type === 'titan' ? 207 : type === 'plasma_core' ? 208 : 210;
       mintNft(bonusId, null);

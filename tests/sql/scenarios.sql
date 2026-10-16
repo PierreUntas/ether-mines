@@ -831,3 +831,14 @@ select pg_temp.ok('... but gets the count of every nickname', world_player_count
 select pg_temp.ok('an empty world counts zero', world_player_count('nowhere') = 0);
 reset role;
 \echo Player count scenarios pass.
+
+-- Diamond Shards (037): a boss kill gives 1 or 2 on top of its trophy
+reset role;
+delete from rate_limits;
+update players set pos_x = 12.5, pos_y = 33, pos_z = 8.5, pos_at = now() where user_id = 'cccccccc-0000-0000-0000-000000000003' and world = 'w';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'cccccccc-0000-0000-0000-000000000003', false) \g /dev/null
+select act_loot_mob('w', 'titan', 12.5, 33, 8.5) as titan \gset
+select pg_temp.ok('a boss kill gives Diamond Shards', (:'titan'::jsonb ->> 'shards')::int between 1 and 2 and (:'titan'::jsonb -> 'inv' ->> '110')::int >= 1);
+reset role;
+\echo Diamond Shard scenarios pass.

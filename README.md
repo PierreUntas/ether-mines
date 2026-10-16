@@ -302,6 +302,10 @@ legendary tier in all but name. See `supabase/migrations/024_loot_tiers.sql`.
 A second, rarer trophy can also drop on a boss kill — an independent ~20% chance on top of the
 guaranteed one (Titan Core Shard, Plasma Conduit Core), purely a keepsake like the main trophy, a reason
 to keep farming a boss past the first kill. See `supabase/migrations/026_boss_bonus_trophies.sql`.
+Every boss kill also gives **Diamond Shards** (1 or 2, 2 for the Merge twins), and every tower's
+treasure chest holds one: the ingredient of the Radiant Diamond and of the Genesis gear (4 each). The
+third source, a chance on each relight once 100 validators are lit in the world, is for the late game
+(`037_diamond_shards.sql`).
 
 ### The Merge Sanctum
 
