@@ -590,6 +590,28 @@ const reader = await page.evaluate(() => {
   return { shown, closed: el.hidden && !SIGN_EDIT.open };
 });
 if (!reader.shown || !reader.closed) await fail('sign reader: ' + JSON.stringify(reader));
+// a killed mob stays dead for a while: reloading its chunk doesn't bring it straight back
+const respawn = await page.evaluate(() => {
+  const P = mines.P,
+    k = ckey(cOf(P.x), cOf(P.z)),
+    keep = mines.MOBS.get(k) || [],
+    m = mines.mkMob('shadow', k, 991, P.x + 3, P.y, P.z, null);
+  mines.MOBS.set(k, [...keep, m]);
+  m.hp = 0;
+  m.dying = 0.01;
+  updateMobs(0.05);
+  const gone = !mines.MOBS.get(k).includes(m);
+  const again = mines.mkMob('shadow', k, 991, P.x + 3, P.y, P.z, null);
+  mines.MOBS.get(k).push(again);
+  pruneKilled(k);
+  const stillDead = !mines.MOBS.get(k).includes(again);
+  KILLED.set(k + '|991', performance.now() - 301000); // five minutes later
+  const back = !recentlyKilled(k, 991, 'shadow');
+  KILLED.delete(k + '|991');
+  mines.MOBS.set(k, keep);
+  return { gone, stillDead, back };
+});
+if (!respawn.gone || !respawn.stillDead || !respawn.back) await fail('respawn delay: ' + JSON.stringify(respawn));
 // the shared world clock: a day lasts 8 minutes, two players asking at the same moment read the same
 // hour, and solo keeps its own clock
 const clock = await page.evaluate(() => {

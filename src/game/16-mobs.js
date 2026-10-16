@@ -759,6 +759,24 @@ function restsByDay(a) {
   if (a.type === 'sky_raider' || a.type === 'water_lurker') return hash(Math.floor(a.hx), Math.floor(a.hz), 320) < 0.65;
   return false;
 }
+// A killed mob stays dead for a while: a chunk loaded again (you walked away and back), a night
+// prowler or a network attack node don't bring it straight back, which left no time to switch weapons
+// or put a block down. Kept on this screen only, like the mobs themselves.
+const KILLED = new Map(); // 'chunk key|mob index' -> performance.now() at death
+const RESPAWN_S = { prowler: 120, corrupted_node: 25 }; // seconds; every other mob: 5 minutes
+function recentlyKilled(k, i, type) {
+  const t = KILLED.get(k + '|' + i);
+  return t !== undefined && performance.now() - t < (RESPAWN_S[type] ?? 300) * 1000;
+}
+function pruneKilled(k) {
+  const list = MOBS.get(k);
+  if (!list) return;
+  for (let i = list.length - 1; i >= 0; i--)
+    if (recentlyKilled(k, list[i].i, list[i].type)) {
+      scene.remove(list[i].g);
+      list.splice(i, 1);
+    }
+}
 function syncDayRest(k, far) {
   const list = MOBS.get(k);
   if (!list) return;
@@ -802,6 +820,7 @@ function syncNightProwler(cx, cz) {
   const hx = x0 + 2 + Math.floor(hash(cx, cz, 311) * 12),
     hz = z0 + 2 + Math.floor(hash(cx, cz, 312) * 12);
   if (heightAt(hx, hz) <= SEA + 1 || islandTop(hx, hz) > 0) return; // no prowlers over water or islands
+  if (recentlyKilled(k, 190, 'prowler')) return;
   const gr = groundAt(hx + 0.5, hz + 0.5, heightAt(hx, hz), true, 2);
   if (!gr || gr.water) return;
   list.push(mkMob('prowler', k, 190, hx + 0.5, gr.y, hz + 0.5, null));
@@ -828,7 +847,7 @@ function syncNetworkAttack(cx, cz) {
   }
   const taken = new Set(list.filter(a => a.type === 'corrupted_node').map(a => a.slot));
   for (let slot = 0; slot < ATTACK_SLOTS; slot++) {
-    if (taken.has(slot)) continue;
+    if (taken.has(slot) || recentlyKilled(k, 400 + slot, 'corrupted_node')) continue;
     const an = hash(aw.windowId, slot, 401) * Math.PI * 2,
       r = 10 + hash(aw.windowId, slot, 402) * 6,
       hx = SPAWN.x + Math.cos(an) * r,
@@ -1354,6 +1373,7 @@ function updateMobs(dt) {
           want.add(k);
           const fresh = !MOBS.has(k);
           spawnMobChunk(pcx + dx, pcz + dz);
+          if (fresh) pruneKilled(k);
           syncDayRest(k, fresh); // a chunk loaded by day starts with its sleepers already out of sight
           syncNightProwler(pcx + dx, pcz + dz);
           syncNetworkAttack(pcx + dx, pcz + dz);
@@ -1402,6 +1422,7 @@ function updateMobs(dt) {
         if (a.dying <= 0) {
           scene.remove(a.g);
           list.splice(i, 1);
+          KILLED.set(a.k + '|' + a.i, performance.now());
         }
         continue;
       }

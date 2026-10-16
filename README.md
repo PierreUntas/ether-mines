@@ -286,6 +286,12 @@ active ──(3 missed checks)──> damaged ──(8 missed checks)──> cor
 See `supabase/migrations/019_gwei_currency.sql` through `024_loot_tiers.sql` for the schema, and
 `legacy/README.md` for what used to exist here (a real, optional Sepolia mirror — retired, not deleted).
 
+### Respawning
+
+A killed mob stays dead for a while on your screen (`KILLED`, `src/game/16-mobs.js`): 5 minutes for the
+mobs of a chunk (walking away and back no longer brings them straight back), 2 minutes for a night
+prowler, 25 seconds for a network attack node (the wave keeps coming, with room to breathe).
+
 ### Mob loot tiers
 
 Every regular (non-boss) kill rolls one layer, independent of the mob's own resource-chance table:
