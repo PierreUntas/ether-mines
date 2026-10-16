@@ -517,8 +517,18 @@ for (let s = 0; s < 8; s++) {
       py = Math.floor(hash(k, 2, 98) * 16);
     }
   }
+  // the clay look: no cracks, the block lights up from its edges as it gives way (added on top, below)
+  if (CLAY) {
+    c.width = c.height = 32;
+    const k = (s + 1) / 8,
+      gr = x.createRadialGradient(16, 16, 2, 16, 16, 23);
+    gr.addColorStop(0, `rgba(190,170,255,${0.05 * k})`);
+    gr.addColorStop(1, `rgba(220,245,255,${0.55 * k})`);
+    x.fillStyle = gr;
+    x.fillRect(0, 0, 32, 32);
+  }
   const t = new THREE.CanvasTexture(c);
-  t.magFilter = t.minFilter = THREE.NearestFilter;
+  t.magFilter = t.minFilter = CLAY ? THREE.LinearFilter : THREE.NearestFilter;
   crackTex.push(t);
 }
 const crack = new THREE.Mesh(
@@ -526,6 +536,7 @@ const crack = new THREE.Mesh(
   new THREE.MeshBasicMaterial({ map: crackTex[0], transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }),
 );
 crack.visible = false;
+if (CLAY) crack.material.blending = THREE.AdditiveBlending;
 scene.add(crack);
 let target = null,
   mineKey = -1,
@@ -797,8 +808,48 @@ function updatePetales(dt) {
   }
   petGeo.attributes.position.needsUpdate = true;
 }
+// the clay look's break: a flash of light that shrinks away, the block's colour in a few soft facets,
+// and sparks of ether drifting up instead of falling (10-loop.js: g is each particle's own gravity)
+const etherGeo = new THREE.OctahedronGeometry(0.07),
+  etherMats = ['#bdf6ff', '#c2b8ff', '#ffffff'].map(
+    c => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }),
+  ),
+  flashGeo = new THREE.BoxGeometry(1.02, 1.02, 1.02),
+  flashMat = new THREE.MeshBasicMaterial({
+    color: '#d8ccff',
+    transparent: true,
+    opacity: 0.55,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+function clayBurst(x, y, z, c) {
+  const f = new THREE.Mesh(flashGeo, flashMat);
+  f.position.set(x + 0.5, y + 0.5, z + 0.5);
+  scene.add(f);
+  parts.push({ m: f, v: [0, 0, 0], t: 0.22, t0: 0.22, g: 0 });
+  for (let i = 0; i < 6; i++) {
+    const m = new THREE.Mesh(etherGeo, c);
+    m.scale.setScalar(1.8);
+    m.position.set(x + 0.2 + Math.random() * 0.6, y + 0.2 + Math.random() * 0.6, z + 0.2 + Math.random() * 0.6);
+    scene.add(m);
+    parts.push({ m, v: [(Math.random() - 0.5) * 2.4, Math.random() * 2 + 0.5, (Math.random() - 0.5) * 2.4], t: 0.55, t0: 0.55, s: 1.8 });
+  }
+  for (let i = 0; i < 9; i++) {
+    const m = new THREE.Mesh(etherGeo, etherMats[i % 3]);
+    m.position.set(x + 0.15 + Math.random() * 0.7, y + 0.3 + Math.random() * 0.6, z + 0.15 + Math.random() * 0.7);
+    scene.add(m);
+    parts.push({
+      m,
+      v: [(Math.random() - 0.5) * 0.8, 0.8 + Math.random() * 1.2, (Math.random() - 0.5) * 0.8],
+      t: 0.9 + Math.random() * 0.4,
+      t0: 1.3,
+      g: -1.2,
+    });
+  }
+}
 function burst(x, y, z, id) {
   const ti = B[id].x != null ? B[id].x : B[id].t[1];
+  if (CLAY) return clayBurst(x, y, z, pMats[ti] || (pMats[ti] = new THREE.MeshLambertMaterial({ color: avgColor(ti) })));
   const c = pMats[ti] || (pMats[ti] = new THREE.MeshLambertMaterial({ color: avgColor(ti) }));
   for (let i = 0; i < 10; i++) {
     const m = new THREE.Mesh(pGeo, c);

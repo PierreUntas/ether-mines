@@ -93,9 +93,28 @@ cloudC.width = cloudC.height = 64;
       }
     }
 }
+// the clay look: soft round clouds, white on top and a little lavender underneath, edges fading out
+if (CLAY) {
+  cloudC.width = cloudC.height = 256;
+  const c = cloudC.getContext('2d'),
+    im = c.createImageData(256, 256),
+    d = im.data;
+  for (let y = 0; y < 256; y++)
+    for (let x = 0; x < 256; x++) {
+      const v = vn2(x / 24, y / 24, 60) * 0.7 + vn2(x / 12, y / 12, 61) * 0.22 + vn2(x / 5, y / 5, 62) * 0.08,
+        a = Math.min(1, Math.max(0, (v - 0.56) / 0.14)),
+        core = Math.min(1, Math.max(0, (v - 0.62) / 0.12)),
+        i = (y * 256 + x) * 4;
+      d[i] = 236 + 19 * core;
+      d[i + 1] = 230 + 25 * core;
+      d[i + 2] = 255;
+      d[i + 3] = 255 * a * a * (3 - 2 * a);
+    }
+  c.putImageData(im, 0, 0);
+}
 const cloudTex = new THREE.CanvasTexture(cloudC);
-cloudTex.magFilter = THREE.NearestFilter;
-cloudTex.minFilter = THREE.NearestFilter;
+cloudTex.magFilter = CLAY ? THREE.LinearFilter : THREE.NearestFilter;
+cloudTex.minFilter = CLAY ? THREE.LinearFilter : THREE.NearestFilter;
 cloudTex.wrapS = cloudTex.wrapT = THREE.RepeatWrapping;
 cloudTex.repeat.set(3, 3);
 let cloudDrift = 0;
@@ -541,6 +560,63 @@ function heldVoxelGeo(ti) {
   heldVoxelCache[ti] = geo;
   return geo;
 }
+// ---------- the clay look's tools and weapons: smooth little 3D models instead of pixel sprites ----------
+// Built along +y (handle down), then laid on the same diagonal as the 16 px icons, so the hand poses
+// (setHand below, updateAvatarHand in 14-startup.js) hold them exactly as they held the voxel versions.
+// Pickaxes and blades only (and the pistol); every other item keeps its voxel model.
+const clayModels = {};
+function clayModel(it) {
+  it = +it;
+  if (!CLAY) return null;
+  if (clayModels[it] !== undefined) return clayModels[it] && clayModels[it].clone();
+  const gem = (c, e, k = 0.35) =>
+      new THREE.MeshPhongMaterial({ color: c, emissive: e, emissiveIntensity: k, flatShading: true, shininess: 80 }),
+    matte = c => new THREE.MeshLambertMaterial({ color: c }),
+    g = new THREE.Group(),
+    add = (geo, mat, x, y, z, rz = 0) => {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, z);
+      m.rotation.z = rz;
+      g.add(m);
+      return m;
+    };
+  const PICK = { 102: ['#b07a52', '#e2c39b', '#000000'], 201: ['#4a3b7a', '#a99cff', '#3a2d8a'], 202: ['#3b4f7a', '#8ff0ff', '#1f7f90'] },
+    BLADE = { 106: ['#ffe28a', '#c98a20', '#5a4a8a'], 107: ['#a6f4ee', '#2aa8b8', '#4a3b7a'], 301: ['#f4ecff', '#9a7cff', '#ffd166'] };
+  if (PICK[it]) {
+    const [h, c, e] = PICK[it];
+    add(new THREE.CylinderGeometry(0.035, 0.045, 1, 8), matte(h), 0, -0.05, 0);
+    const head = gem(c, e, it === 102 ? 0 : 0.4);
+    add(new THREE.OctahedronGeometry(0.11), head, 0, 0.45, 0);
+    add(new THREE.ConeGeometry(0.075, 0.44, 6), head, -0.26, 0.42, 0, Math.PI / 2 + 0.18);
+    add(new THREE.ConeGeometry(0.075, 0.44, 6), head, 0.26, 0.42, 0, -Math.PI / 2 - 0.18);
+  } else if (BLADE[it]) {
+    const [c, e, guard] = BLADE[it],
+      blade = add(new THREE.OctahedronGeometry(0.5), gem(c, e, 0.45), 0, 0.42, 0);
+    blade.scale.set(0.17, 1.05, 0.05);
+    add(new THREE.BoxGeometry(0.36, 0.06, 0.09), gem(guard, '#000000', 0), 0, -0.1, 0);
+    add(new THREE.CylinderGeometry(0.035, 0.035, 0.26, 8), matte('#3a2d52'), 0, -0.26, 0);
+    add(new THREE.OctahedronGeometry(0.055), gem(guard, '#000000', 0), 0, -0.41, 0);
+  } else if (it === 206) {
+    // the pistol: barrel toward +x like its icon, a glowing core in the middle
+    add(new THREE.BoxGeometry(0.5, 0.17, 0.14), matte('#4a3b7a'), 0.02, 0.06, 0);
+    const b = add(new THREE.CylinderGeometry(0.05, 0.06, 0.3, 10), matte('#6a58e0'), 0.38, 0.08, 0, Math.PI / 2);
+    b.rotation.z = -Math.PI / 2;
+    add(new THREE.BoxGeometry(0.13, 0.28, 0.12), matte('#2a1838'), -0.12, -0.14, 0, 0.25);
+    add(new THREE.OctahedronGeometry(0.075), gem('#7fe8ff', '#7fe8ff', 0.9), 0.06, 0.06, 0.07);
+    clayModels[it] = g;
+    return g.clone();
+  }
+  if (!g.children.length) {
+    clayModels[it] = null;
+    return null;
+  }
+  // on the icons' diagonal: handle bottom left, head top right
+  const d = new THREE.Group();
+  g.rotation.z = -Math.PI / 4;
+  d.add(g);
+  clayModels[it] = d;
+  return d.clone();
+}
 function setHand() {
   const key = S.bar[S.sel] || 'main',
     it = S.bar[S.sel] ? itemId(S.bar[S.sel]) : null;
@@ -568,6 +644,17 @@ function setHand() {
     handMesh.position.set(0.4, -0.36, -0.62);
     handMesh.rotation.set(0.25, 0.6, 0);
     if (B[it].shape === 'slab' || B[it].shape === 'stairs') handMesh.scale.y = 0.5;
+  } else if (!B[it] && clayModel(it)) {
+    handMesh = clayModel(it);
+    handMesh.userData.shared = true; // a group: nothing to dispose
+    handMesh.scale.setScalar(0.42); // the models fill their square more than the sprites did
+    handMesh.position.set(0.24, -0.3, -0.68);
+    handMesh.rotation.set(0, -0.5, 0.2);
+    if (ITEM[it]?.ranged) {
+      handMesh.scale.setScalar(0.34);
+      handMesh.position.set(0.275, -0.275, -0.7);
+      handMesh.rotation.set(0.02, 1.76, 0.11);
+    }
   } else {
     const ti = B[it] ? (B[it].icon ?? B[it].x) : ITEM[it].icon;
     handMesh = new THREE.Mesh(heldVoxelGeo(ti), heldVoxelMat);

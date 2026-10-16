@@ -377,11 +377,11 @@ function frame(now) {
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i];
     p.t -= dt;
-    p.v[1] -= 14 * dt;
+    p.v[1] -= (p.g ?? 14) * dt;
     p.m.position.x += p.v[0] * dt;
     p.m.position.y += p.v[1] * dt;
     p.m.position.z += p.v[2] * dt;
-    p.m.scale.setScalar(Math.max(0.05, p.t / 0.7));
+    p.m.scale.setScalar((p.s || 1) * Math.max(0.05, p.t / (p.t0 || 0.7)));
     if (p.t <= 0) {
       scene.remove(p.m);
       parts.splice(i, 1);

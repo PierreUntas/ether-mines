@@ -191,7 +191,7 @@ function updateAvatarHand(av, it = heldNow()) {
   }
   const ti = it && !B[it] ? ITEM[it]?.icon : null;
   if (ti == null) return;
-  const m = new THREE.Mesh(heldVoxelGeo(ti), heldVoxelMat);
+  const m = (!B[it] && clayModel(it)) || new THREE.Mesh(heldVoxelGeo(ti), heldVoxelMat);
   m.scale.setScalar(0.72);
   m.position.set(0.1, -0.3, -0.22); // -z is the front, matching the head's face texture
   m.rotation.set(0, -0.3, 0.3);
