@@ -152,6 +152,22 @@ const water = await page.evaluate(async () => {
   return P.z < 19.7 && P.y >= Y + 2.9;
 });
 if (!water) await fail('unable to get out of the water on a one-block bank');
+// a one-block doorway entered a little off its axis: the player slides into it instead of sticking to the corner
+const doorway = await page.evaluate(async () => {
+  const Y = 47, c = (x, y, z, id) => mines.commit(x + ',' + y + ',' + z, id, null);
+  for (let x = 38; x <= 48; x++) for (let z = 12; z <= 24; z++) { c(x, Y, z, 80); for (let k = 1; k < 5; k++) c(x, Y + k, z, 0); }
+  for (let x = 38; x <= 48; x++) if (x !== 43) for (let k = 1; k <= 3; k++) c(x, Y + k, 18, 79);
+  for (const x of [38, 46]) for (const z of [12, 20]) mines.rebuildAt(x, z);
+  const P = mines.P;
+  P.x = 43.5 + 0.33; P.z = 21.5; P.y = Y + 1.02; P.vy = 0;
+  mines.yaw = 0; mines.pitch = 0; mines.playing = true;
+  mines.keys.add('KeyW');
+  const S = mines.S, game = () => (S.dayN + S.day) * 480, g0 = game(), t0 = performance.now();
+  while (game() - g0 < 3 && performance.now() - t0 < 120000 && P.z > 17) await new Promise(r => setTimeout(r, 100));
+  mines.keys.clear();
+  return { through: P.z < 17.5, jumped: P.y > Y + 1.3, x: +P.x.toFixed(2), z: +P.z.toFixed(2) };
+});
+if (!doorway.through) await fail('doorway off axis: ' + JSON.stringify(doorway));
 // villagers and companions of the Atrium, dialogue bubble, view from behind then from the front, character in the chest
 const life = await page.evaluate(async () => {
   const P = mines.P; P.x = 8.5; P.z = 15.5; P.y = 33.05; P.vy = 0;

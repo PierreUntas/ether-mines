@@ -56,9 +56,32 @@ function moveAxis(ax, amt) {
       }
     } // marche automatique : dalles, escaliers
     P[ax] -= d;
+    if (ax !== 'y' && cornerSlide(ax, d)) continue;
     bumped = true;
     return;
   }
+}
+// Walking into the edge of a doorway (or any one-block gap) a little off its axis: rather than stopping
+// dead against the corner, the player slides sideways toward the opening, a few centimetres a step, as
+// long as the opening is less than about a third of a block away. A one-block door no longer needs a
+// perfect aim.
+function cornerSlide(ax, d) {
+  const pa = ax === 'x' ? 'z' : 'x';
+  for (let off = 0.04; off <= 0.36; off += 0.04)
+    for (const sg of [1, -1]) {
+      P[pa] += sg * off;
+      P[ax] += d;
+      const free = !collides(P.x, P.y, P.z);
+      P[ax] -= d;
+      P[pa] -= sg * off;
+      if (!free) continue;
+      const step = Math.min(off, 0.06);
+      P[pa] += sg * step;
+      if (!collides(P.x, P.y, P.z)) return true;
+      P[pa] -= sg * step;
+      return false;
+    }
+  return false;
 }
 let bumped = false;
 
