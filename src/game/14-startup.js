@@ -152,6 +152,29 @@ function makeAvatar(name, color, horsScene) {
   const tag = nameTag(name, color);
   tag.position.y = 2.1;
   g.add(tag);
+  // the clay look's chibi proportions: a bigger head, a shorter body and legs. Everything above the hips
+  // sits in one group lowered by 0.2, so the animation's absolute heights (updateOthers) still apply.
+  if (CLAY) {
+    const up = new THREE.Group();
+    up.position.y = -0.2;
+    for (const o of [head, body, plate, cape, ...arms]) {
+      g.remove(o);
+      up.add(o);
+    }
+    g.add(up);
+    head.scale.setScalar(1.32);
+    body.geometry.scale(0.94, 0.82, 1);
+    for (const l of legs) {
+      const b = l.children[0];
+      b.scale.y = 0.76;
+      b.position.y = (-0.62 * 0.76) / 2;
+      l.position.y = 0.47;
+    }
+    for (const a of arms) {
+      a.children[0].scale.y = 0.8;
+      a.children[0].position.y = (-0.62 * 0.8) / 2;
+    }
+  }
   if (!horsScene) scene.add(g);
   return { g, head, body, legs, arms, tag, plate, cape, held: null, name, color, walk: 0, t: null, seen: false, ph: Math.random() * 6 };
 }

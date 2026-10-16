@@ -14,7 +14,7 @@
 //   node tools/capture.mjs --shots shots.json
 //
 // Other options: --time morning|noon|sunset|night|<0..1>, --width 1280 --height 720, --hud (keep the interface),
-// --no-mobs (hide hostile mobs), --wait 20000 (max ms to wait for the terrain to load), --offline (block Google Fonts).
+// --no-mobs (hide hostile mobs), --query style=clay (added to the page's address), --wait 20000 (max ms to wait for the terrain to load), --offline (block Google Fonts).
 // Captures go to captures/ by default (ignored by git).
 import { chromium } from 'playwright';
 import { createRequire } from 'node:module';
@@ -54,7 +54,7 @@ const lookAngles = (x, y, z, [tx, ty, tz]) => {
 };
 // one option object → one or several shots {x, y, z, yaw, pitch, day, out}
 function shotsOf(o) {
-  const day = typeof o.time === 'number' ? o.time : TIMES[o.time] ?? (o.time !== undefined && !isNaN(+o.time) ? +o.time : TIMES.noon);
+  const day = typeof o.time === 'number' ? o.time : (TIMES[o.time] ?? (o.time !== undefined && !isNaN(+o.time) ? +o.time : TIMES.noon));
   const out = o.out || 'captures/shot.png';
   if (o.around) {
     const c = vec(o.around),
@@ -78,7 +78,15 @@ function shotsOf(o) {
 const shots = args.shots ? JSON.parse(await readFile(args.shots, 'utf8')).flatMap(shotsOf) : shotsOf(args);
 
 // ---------- the game, served locally ----------
-const types = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.jpg': 'image/jpeg' };
+const types = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.webmanifest': 'application/manifest+json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+};
 const server = createServer(async (req, res) => {
   try {
     const p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -98,14 +106,16 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: num(args.width, 1280), height: num(args.height, 720) } });
 const errors = [];
 page.on('pageerror', e => errors.push(String(e)));
-await page.addInitScript(() => localStorage.setItem('ether-mines:profil', JSON.stringify({ id: 'capture', name: 'Camera', color: '#8a7bef' })));
+await page.addInitScript(() =>
+  localStorage.setItem('ether-mines:profil', JSON.stringify({ id: 'capture', name: 'Camera', color: '#8a7bef' })),
+);
 await page.route('**/three.min.js', r => r.fulfill({ path: three, contentType: 'application/javascript' }));
 await page.route('**/supabase.js', r => r.fulfill({ body: '', contentType: 'application/javascript' }));
 await page.route('**/src/config.js', r => r.fulfill({ body: 'window.CONFIG={}', contentType: 'application/javascript' }));
 await page.route(/_vercel/, r => r.abort());
 if (args.offline) await page.route(/^https:\/\/fonts\./, r => r.abort());
 
-await page.goto(`http://127.0.0.1:${server.address().port}/index.html#debug`);
+await page.goto(`http://127.0.0.1:${server.address().port}/index.html${args.query ? '?' + args.query : ''}#debug`);
 await page.waitForTimeout(800);
 // the first-entry intro cinematic (playIntro) would cover every shot: don't play it
 await page.evaluate(() => (window.playIntro = () => {}));
@@ -148,7 +158,9 @@ for (const s of shots) {
   await page.waitForTimeout(300);
   await mkdir(dirname(s.out), { recursive: true });
   await page.screenshot({ path: s.out });
-  console.log(`${s.out}  (x ${s.x.toFixed(1)}, y ${s.y.toFixed(1)}, z ${s.z.toFixed(1)}, yaw ${s.yaw.toFixed(2)}, pitch ${s.pitch.toFixed(2)}, ${last} chunks)`);
+  console.log(
+    `${s.out}  (x ${s.x.toFixed(1)}, y ${s.y.toFixed(1)}, z ${s.z.toFixed(1)}, yaw ${s.yaw.toFixed(2)}, pitch ${s.pitch.toFixed(2)}, ${last} chunks)`,
+  );
 }
 if (errors.length) console.error('Page errors:\n' + errors.join('\n'));
 await browser.close();

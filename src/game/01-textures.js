@@ -1458,6 +1458,76 @@ tile(134, (P, E) => {
     ag.putImageData(img, ox, oy);
   }
 }
+// ---------- the "clay" look (prototype: ?style=clay, or "pixel" to go back) ----------
+// The same atlas, repainted for the world: each 16 px tile is smoothed 4x (bilinear, clamped to its own
+// tile so nothing bleeds from the neighbour) and its pixel noise pulled toward the tile's mean colour,
+// with a soft light-from-above gradient. The patterns stay readable (ore specks, bricks, planks) but
+// the surfaces read as painted clay rather than pixel art. The 16 px atlas itself is kept untouched:
+// icons and the voxel models of held items are still drawn from it, crisp.
+const STYLE = (() => {
+  const q = new URLSearchParams(location.search).get('style');
+  try {
+    if (q) localStorage.setItem('ether-mines:style', q);
+    return q || localStorage.getItem('ether-mines:style') || 'pixel';
+  } catch (e) {
+    return q || 'pixel';
+  }
+})();
+const CLAY = STYLE === 'clay';
+function clayAtlas(src, flatten, shade, solid) {
+  const S = 4,
+    T = AT * S,
+    out = document.createElement('canvas');
+  out.width = out.height = T * AN;
+  const sd = src.getContext('2d').getImageData(0, 0, AT * AN, AT * AN).data,
+    og = out.getContext('2d'),
+    od = og.createImageData(T * AN, T * AN),
+    o = od.data,
+    W = AT * AN,
+    OW = T * AN;
+  for (let ty = 0; ty < AN; ty++)
+    for (let tx = 0; tx < AN; tx++) {
+      // the tile's mean colour, over its opaque pixels
+      let mr = 0,
+        mg = 0,
+        mb = 0,
+        n = 0;
+      for (let y = 0; y < AT; y++)
+        for (let x = 0; x < AT; x++) {
+          const i = ((ty * AT + y) * W + tx * AT + x) * 4;
+          if (sd[i + 3] < 128) continue;
+          mr += sd[i];
+          mg += sd[i + 1];
+          mb += sd[i + 2];
+          n++;
+        }
+      if (n) ((mr /= n), (mg /= n), (mb /= n));
+      // leaves: no see-through holes in the clay look, a full rounded mass of colour instead
+      const full = solid && solid.has(ty * AN + tx),
+        fl = full ? Math.max(flatten, 0.75) : flatten;
+      const px = (x, y, c) => sd[((ty * AT + Math.min(AT - 1, Math.max(0, y))) * W + tx * AT + Math.min(AT - 1, Math.max(0, x))) * 4 + c];
+      for (let y = 0; y < T; y++)
+        for (let x = 0; x < T; x++) {
+          const fx = (x + 0.5) / S - 0.5,
+            fy = (y + 0.5) / S - 0.5,
+            x0 = Math.floor(fx),
+            y0 = Math.floor(fy),
+            ax = fx - x0,
+            ay = fy - y0,
+            j = ((ty * T + y) * OW + tx * T + x) * 4,
+            lit = shade ? (full ? 1.16 : 1.1) - (y / T) * 0.12 : 1; // a little lighter at the top of each face
+          for (let c = 0; c < 4; c++) {
+            const v =
+              (px(x0, y0, c) * (1 - ax) + px(x0 + 1, y0, c) * ax) * (1 - ay) +
+              (px(x0, y0 + 1, c) * (1 - ax) + px(x0 + 1, y0 + 1, c) * ax) * ay;
+            if (c === 3) o[j + 3] = full ? 255 : v;
+            else o[j + c] = Math.min(255, ((full && px(x0, y0, 3) < 128 ? [mr, mg, mb][c] : v) * (1 - fl) + [mr, mg, mb][c] * fl) * lit);
+          }
+        }
+    }
+  og.putImageData(od, 0, 0);
+  return out;
+}
 const atlasTex = new THREE.CanvasTexture(atlas),
   emisTex = new THREE.CanvasTexture(emis);
 for (const t of [atlasTex, emisTex]) {
@@ -1465,6 +1535,7 @@ for (const t of [atlasTex, emisTex]) {
   t.minFilter = THREE.NearestFilter;
   t.generateMipmaps = false;
 }
+// switched to the clay atlas in 04-render.js, once the blocks (02-blocks.js) say which tiles are leaves
 const waterC = document.createElement('canvas');
 waterC.width = waterC.height = 32;
 {

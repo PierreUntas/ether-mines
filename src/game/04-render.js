@@ -138,6 +138,31 @@ const ethMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.Dou
 const bigEth = new THREE.Mesh(ethGeo(9, 15, 10, 2.5, ['#9a8cf5', '#c2b8ff', '#6a58e0', '#8a7bef']), ethMat);
 bigEth.position.set(SPAWN.x, SY + 40, SPAWN.z - 110);
 scene.add(bigEth);
+// the clay look's floating ethers: small diamonds of the same shape hovering and turning over the
+// Atrium, not on the block grid — the first thing a newcomer sees that isn't a cube
+if (CLAY) {
+  const ring = [];
+  const gy0 = Math.max(heightAt(SPAWN.x, SPAWN.z), SEA) + 1;
+  for (let i = 0; i < 7; i++) {
+    const m = new THREE.Mesh(bigEth.geometry, ethMat),
+      a = (i / 7) * Math.PI * 2;
+    m.scale.setScalar(0.07 + (i % 3) * 0.015);
+    m.userData = { a, r: 9.5 + (i % 2) * 2.5, h: gy0 + 7 + (i % 3) * 1.4, ph: i * 1.7 };
+    scene.add(m);
+    ring.push(m);
+  }
+  const spin = () => {
+    const t = performance.now() / 1000;
+    for (const m of ring) {
+      const u = m.userData,
+        a = u.a + t * 0.05;
+      m.position.set(SPAWN.x + 0.5 + Math.cos(a) * u.r, u.h + Math.sin(t * 0.9 + u.ph) * 0.35, SPAWN.z + 0.5 + Math.sin(a) * u.r);
+      m.rotation.y = t * 0.6 + u.ph;
+    }
+    requestAnimationFrame(spin);
+  };
+  spin();
+}
 // ring of orange blocks orbiting the great diamond (like in ethereum.org's illustrations)
 const anneau = new THREE.Group();
 anneau.position.copy(bigEth.position);
@@ -193,6 +218,16 @@ const OISEAUX = [];
     OISEAUX.push(vol);
   }
 }
+if (CLAY) {
+  const leaves = new Set();
+  for (const b of Object.values(B)) if (b && b.leaf) for (const t of b.t || []) leaves.add(t);
+  atlasTex.image = clayAtlas(atlas, 0.68, true, leaves);
+  emisTex.image = clayAtlas(emis, 0, false);
+  for (const t of [atlasTex, emisTex]) {
+    t.magFilter = t.minFilter = THREE.LinearFilter;
+    t.needsUpdate = true;
+  }
+}
 // ---------- chunk meshing ----------
 const { FACES, AOF, uvRect } = Mesh; // src/mesh.js
 const opMat = new THREE.MeshLambertMaterial({
@@ -202,6 +237,18 @@ const opMat = new THREE.MeshLambertMaterial({
   vertexColors: true,
   alphaTest: 0.5,
 });
+// the clay look's bevel: every block face gets a light rim and a thin dark seam, like a toy brick
+// (inside the face's own tile coordinates, so it costs nothing in geometry)
+if (CLAY)
+  opMat.onBeforeCompile = sh => {
+    sh.fragmentShader = sh.fragmentShader.replace(
+      '#include <map_fragment>',
+      `#include <map_fragment>
+      vec2 tq = fract(vUv * ${AN}.0);
+      float ed = min(min(tq.x, 1.0 - tq.x), min(tq.y, 1.0 - tq.y));
+      diffuseColor.rgb *= mix(0.84, 1.0, smoothstep(0.0, 0.028, ed)) * mix(1.1, 1.0, smoothstep(0.028, 0.1, ed));`,
+    );
+  };
 const glMat = new THREE.MeshLambertMaterial({
   map: atlasTex,
   emissiveMap: emisTex,
