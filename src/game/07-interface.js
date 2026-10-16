@@ -2306,7 +2306,17 @@ const canMine = id => heldTier() >= reqTier(id);
 // ---------- settings ----------
 // the main world keeps its hostile mobs on for everyone (see SETTINGS_CHOICES' mobs entry)
 const mobsForced = () => Net.enabled && (Net.world || 'principal') === 'principal';
+REG.style = STYLE; // 01-textures.js: kept under its own key, read before everything else is drawn
 const SETTINGS_CHOICES = [
+  {
+    k: 'style',
+    t: 'Look',
+    d: 'Clay: smooth, toy-like blocks. Pixel: the original pixel art. The game reloads to switch.',
+    o: [
+      ['clay', 'Clay'],
+      ['pixel', 'Pixel'],
+    ],
+  },
   {
     k: 'view',
     t: 'View distance',
@@ -2431,6 +2441,19 @@ function renderSettings(body) {
   body.appendChild(raz);
 }
 function applySetting(k) {
+  // the look is baked into the textures at start: switching it reloads the page (the save goes out on pagehide)
+  if (k === 'style') {
+    REG.style = REG.style || 'clay';
+    if (REG.style !== STYLE) {
+      try {
+        localStorage.setItem('ether-mines:style', REG.style);
+      } catch (e) {}
+      const u = new URL(location.href);
+      u.searchParams.delete('style');
+      location.replace(u.href);
+    }
+    return;
+  }
   if (k === 'view') {
     VR = REG.view;
     scene.fog.far = VR * CH + 12;

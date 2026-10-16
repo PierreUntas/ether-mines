@@ -1458,7 +1458,7 @@ tile(134, (P, E) => {
     ag.putImageData(img, ox, oy);
   }
 }
-// ---------- the "clay" look (prototype: ?style=clay, or "pixel" to go back) ----------
+// ---------- the "clay" look (the default; ?style=pixel or Settings → Look for the original pixel art) ----------
 // The same atlas, repainted for the world: each 16 px tile is smoothed 4x (bilinear, clamped to its own
 // tile so nothing bleeds from the neighbour) and its pixel noise pulled toward the tile's mean colour,
 // with a soft light-from-above gradient. The patterns stay readable (ore specks, bricks, planks) but
@@ -1468,9 +1468,9 @@ const STYLE = (() => {
   const q = new URLSearchParams(location.search).get('style');
   try {
     if (q) localStorage.setItem('ether-mines:style', q);
-    return q || localStorage.getItem('ether-mines:style') || 'pixel';
+    return q || localStorage.getItem('ether-mines:style') || 'clay';
   } catch (e) {
-    return q || 'pixel';
+    return q || 'clay';
   }
 })();
 const CLAY = STYLE === 'clay';
