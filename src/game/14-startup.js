@@ -156,16 +156,17 @@ function makeAvatar(name, color, horsScene) {
   return { g, head, body, legs, arms, tag, plate, cape, held: null, name, color, walk: 0, t: null, seen: false, ph: Math.random() * 6 };
 }
 // third-person held item: a small voxel version of the selected tool/weapon on the right arm, reusing
-// heldVoxelGeo() (04-render.js) — the same per-pixel cube build used for the first-person hand. Self only.
-function updateAvatarHand(av) {
+// heldVoxelGeo() (04-render.js) — the same per-pixel cube build used for the first-person hand. Yours by
+// default; another player's from the item id their position messages carry (`h`, below).
+const heldNow = () => (S.bar[S.sel] ? itemId(S.bar[S.sel]) : null);
+function updateAvatarHand(av, it = heldNow()) {
   if (!av) return;
   const hand = av.arms[1];
   if (av.held) {
     hand.remove(av.held);
     av.held = null;
   }
-  const it = S.bar[S.sel] ? itemId(S.bar[S.sel]) : null,
-    ti = it && !B[it] ? ITEM[it]?.icon : null;
+  const ti = it && !B[it] ? ITEM[it]?.icon : null;
   if (ti == null) return;
   const m = new THREE.Mesh(heldVoxelGeo(ti), heldVoxelMat);
   m.scale.setScalar(0.72);
@@ -466,6 +467,12 @@ Net.on('pos', p => {
   if (!o) return;
   o.t = p;
   o.tAt = performance.now();
+  // what they hold: a tool or weapon id (older clients send nothing), anything unknown shows an empty hand
+  const h = Number.isInteger(p.h) && ITEM[p.h] && !B[p.h] ? p.h : 0;
+  if (o.heldId !== h) {
+    o.heldId = h;
+    updateAvatarHand(o, h || null);
+  }
   if (!o.seen) {
     o.seen = true;
     o.g.position.set(p.x, p.y, p.z);
@@ -577,7 +584,8 @@ setInterval(() => {
       z: +P.z.toFixed(2),
       yaw: +yaw.toFixed(2),
       pitch: +pitch.toFixed(2),
-      m: mining && !!target,
+      m: mining, // swinging, at a block, a mob or the air: the others see the arm move
+      h: ITEM[heldNow()] && !B[heldNow()] ? +heldNow() : 0,
     };
   const L = lastPos,
     moved =
@@ -585,7 +593,8 @@ setInterval(() => {
       Math.hypot(p.x - L.x, p.y - L.y, p.z - L.z) > 0.08 ||
       Math.abs(p.yaw - L.yaw) > 0.06 ||
       Math.abs(p.pitch - L.pitch) > 0.08 ||
-      p.m !== L.m;
+      p.m !== L.m ||
+      p.h !== L.h;
   if (!moved && now - lastPosT < 4000) return;
   lastPos = p;
   lastPosT = now;
