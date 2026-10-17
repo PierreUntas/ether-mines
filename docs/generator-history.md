@@ -25,3 +25,4 @@ Bump `GEN` on every terrain change. Already-frozen chunks never move: only chunk
 - **23**: towers rebuilt as an octagonal validator beacon, the Ether diamond on each face, an open loggia around the boss, the door on the north side
 - **24**: the Merge Sanctum — a floating arena split between a proof-of-work forge and a proof-of-stake crystal half, a two-tone diamond above its center, reached by the Beacon Stair (one per 192x192 region, `mergeAt()`)
 - **25**: the Circuits Complex's coin-flip room: its circuit moved two rows back, so its lamp no longer blocks the cell just inside the door
+- **26**: the Mempool — an open-air colosseum (one per 224x224 region, `arenaAt()`): a wide flat fighting floor, six tiers of stands in the four quarters' colors, an arcaded facade, four gates whose approaches step down or up to the ground, pending transactions floating overhead; the Front-Runner boss waits at its center

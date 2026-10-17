@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP: below this layer, geodes and large caves
-  const GEN = 25; // generator version: bump it on every terrain change (already-frozen chunks don't move); history in docs/generator-history.md
+  const GEN = 26; // generator version: bump it on every terrain change (already-frozen chunks don't move); history in docs/generator-history.md
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -316,6 +316,48 @@
       g = heightAt(sx, sz);
     if (g >= MERGE_Y - 3) return null;
     return { x, z, y: MERGE_Y, sx, sz, g: Math.max(g, SEA) };
+  }
+  // the Mempool (one per 224x224 region, or none): an open-air colosseum where pending transactions
+  // wait their turn, ruled by the Front-Runner, a MEV bot boss (16-mobs.js). A wide flat floor of radius
+  // ARENA_R to fight on, six tiers of stands and a promenade around it, four gates at the cardinal points,
+  // each with an approach that steps down (or up) to the natural ground. Floor at y, walking surface y + 1.
+  const ARENA = 224,
+    ARENA_R = 17,
+    ARENA_W = 27, // the outer facade's radius
+    ARENA_GATE = 38; // how far out a gate's approach runs
+  // a few spots are tried in each region (like ruinAt()): the first fairly level one, clear of the other landmarks
+  function arenaAt(ax, az) {
+    if (hash(ax * 19 + 7, az * 23 + 3, 320) > 0.8) return null;
+    for (let k = 0; k < 6; k++) {
+      const a = arenaTry(ax, az, k);
+      if (a) return a;
+    }
+    return null;
+  }
+  function arenaTry(ax, az, k) {
+    const x = ax * ARENA + 50 + Math.floor(hash(ax + k * 31, az, 321) * (ARENA - 100)),
+      z = az * ARENA + 50 + Math.floor(hash(ax, az + k * 37, 322) * (ARENA - 100)),
+      y = heightAt(x, z);
+    if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 100 || y <= SEA + 1 || y > DY + 28) return null;
+    // fairly level ground all around, and no sea under its walls
+    for (let i = 0; i < 16; i++) {
+      const an = (i * Math.PI) / 8,
+        h = heightAt(x + Math.round(Math.cos(an) * ARENA_W), z + Math.round(Math.sin(an) * ARENA_W));
+      if (h < SEA - 2 || Math.abs(h - y) > 9) return null;
+    }
+    if (inCity(x, z, 50) || inCircuits(x, z, 50)) return null;
+    const near = (R, fn, d) => {
+      for (let j = Math.floor((z - d) / R); j <= Math.floor((z + d) / R); j++)
+        for (let i = Math.floor((x - d) / R); i <= Math.floor((x + d) / R); i++) {
+          const s = fn(i, j);
+          if (s && Math.hypot(s.x - x, s.z - z) < d) return true;
+          if (s && s.sx !== undefined && Math.hypot(s.sx - x, s.sz - z) < d) return true; // the Merge's stair foot
+        }
+      return false;
+    };
+    if (near(TOWER, towerAt, ARENA_GATE + 10) || near(MERGE, mergeAt, ARENA_GATE + 16)) return null;
+    if (near(RUIN, ruinAt, ARENA_GATE + 4) || near(64, gardenAt, ARENA_GATE + 4)) return null;
+    return { x, z, y };
   }
   // floating islands: rock clouds between DY+31 and DY+45, far from the sanctuary, never above the mountains
   const islandZone = (x, z) =>
@@ -769,6 +811,145 @@
             put(X + dx, Y, Z + dz, dx ? 15 : 128);
             for (let k = 1; k <= 3; k++) put(X + dx, Y + k, Z + dz, 0);
           }
+      }
+    // the Mempool (arenaAt()): column by column. The fighting floor, a radial checkerboard of marble and
+    // granite around an Ether diamond, rings of cyan neon; a low podium wall; six tiers of stands, their
+    // seats in the four quarters' colors (lavender north, mint east, pink south, sky west); a promenade
+    // above the last tier; the arcaded outer facade; four gates and their approaches. Above it all, the
+    // pending transactions float in the air, around the next block waiting to be built. The Front-Runner
+    // spawns at the center (16-mobs.js), its minions 6 blocks west and east.
+    for (let az = Math.floor((z0 - ARENA_GATE - 2) / ARENA); az <= Math.floor((z0 + CH + ARENA_GATE + 2) / ARENA); az++)
+      for (let ax = Math.floor((x0 - ARENA_GATE - 2) / ARENA); ax <= Math.floor((x0 + CH + ARENA_GATE + 2) / ARENA); ax++) {
+        const A = arenaAt(ax, az);
+        if (!A) continue;
+        const { x: X, z: Z, y: Y } = A;
+        if (X + ARENA_GATE + 1 < x0 || X - ARENA_GATE - 1 >= x0 + CH || Z + ARENA_GATE + 1 < z0 || Z - ARENA_GATE - 1 >= z0 + CH) continue;
+        const SEATS = [22, 23, 21, 24]; // north, east, south, west
+        for (let lz = 0; lz < CH; lz++)
+          for (let lx = 0; lx < CH; lx++) {
+            const x = x0 + lx,
+              z = z0 + lz,
+              dx = x - X,
+              dz = z - Z,
+              r = Math.hypot(dx, dz),
+              an = Math.atan2(dz, dx), // 0 east, PI/2 south
+              // which gate's axis this column sits on (if any): its distance across the axis and along it
+              gate = Math.abs(dz) <= 2 ? Math.abs(dz) : Math.abs(dx) <= 2 ? Math.abs(dx) : -1,
+              along = Math.abs(dz) <= 2 ? Math.abs(dx) : Math.abs(dz),
+              quarter = Math.abs(dx) >= Math.abs(dz) ? (dx > 0 ? 1 : 3) : dz > 0 ? 2 : 0,
+              arc = Math.round((an + Math.PI) * ARENA_W); // position around the facade, in blocks
+            // a gate's approach, outside the facade: level with the floor at the gate, then one block of
+            // height per block outward until it meets the natural ground; dug into a hill, built up over a dip
+            if (r > ARENA_W + 0.5) {
+              if (gate < 0 || gate > 2 || along > ARENA_GATE) continue;
+              const out = along - ARENA_W,
+                g = heightAt(x, z),
+                L = Y + clamp(g - Y, -out, out);
+              for (let y = L - 1; y >= Math.max(1, L - 14); y--) {
+                const c = at(x, y, z);
+                if (c > 0 && c !== 11) break;
+                put(x, y, z, 3);
+              }
+              put(x, L, z, gate === 0 ? 128 : gate === 2 ? 81 : 15);
+              for (let k = 1; k <= 4; k++) put(x, L + k, z, 0);
+              continue;
+            }
+            for (let y = Y + 1; y < SY; y++) put(x, y, z, 0);
+            for (let y = Y - 1; y >= Math.max(1, Y - 16); y--) {
+              const c = at(x, y, z);
+              if (c > 0 && c !== 11 && c !== 6 && c !== 7 && c !== 5) break;
+              put(x, y, z, 3);
+            }
+            if (r <= ARENA_R + 0.5) {
+              // the floor: the Ether diamond at the center (lavender north, sky south, a neon seam, a diamond
+              // heart), two neon rings, a checkered ring, and a radial checkerboard between them
+              const sector = Math.floor(((an + Math.PI) * 8) / Math.PI), // 16 slices
+                band = Math.floor(r / 3);
+              let id = (sector + band) % 2 ? 15 : 80;
+              if (Math.abs(dx) / 3 + Math.abs(dz) / 5 <= 1) id = dx === 0 && dz === 0 ? 130 : dz === 0 ? 128 : dz < 0 ? 22 : 24;
+              else if (r >= 6 && r < 7) id = 128;
+              else if (r >= 11.5 && r < 12.5) id = 81;
+              else if (r > ARENA_R - 0.5) id = arc % 4 ? 80 : 128;
+              put(x, Y, z, id);
+              continue;
+            }
+            if (gate >= 0 && gate <= 2) {
+              // a gate: the floor runs straight through the stands and the facade, under a neon lintel
+              put(x, Y, z, gate === 0 ? 128 : 15);
+              if (r > ARENA_W - 1.5) {
+                put(x, Y + 6, z, 128);
+                for (let k = 7; k <= 9; k++) put(x, Y + k, z, k === 9 ? 34 : 15);
+              } else if (r > ARENA_W - 2.5) put(x, Y + 8, z, 15); // the promenade's bridge over the gate
+              continue;
+            }
+            put(x, Y, z, 80);
+            if (r <= ARENA_R + 1.5) {
+              // the podium wall: one checkered step, a lantern every few blocks
+              put(x, Y + 1, z, 81);
+              if (arc % 6 === 0) put(x, Y + 2, z, 14);
+            } else if (r <= ARENA_R + 7.5) {
+              // the stands: tier t tops out at Y + 2 + t, colored seats on every other tier
+              const t = Math.min(5, Math.floor(r - ARENA_R - 1.5));
+              for (let k = 1; k <= 1 + t; k++) put(x, Y + k, z, 80);
+              put(x, Y + 2 + t, z, t % 2 ? SEATS[quarter] : 15);
+            } else if (r <= ARENA_W - 1.5) {
+              // the promenade, a step above the last tier
+              for (let k = 1; k <= 7; k++) put(x, Y + k, z, 80);
+              put(x, Y + 8, z, 81);
+            } else {
+              // the arcaded facade: marble columns, stained-glass arches, a neon band, a parapet
+              const pillar = arc % 4 === 0;
+              for (let k = 1; k <= 9; k++) {
+                let id;
+                if (pillar) id = k === 6 ? 128 : 127;
+                else if (k === 1) id = 81;
+                else if (k <= 4) id = quarter % 2 ? 32 : 29;
+                else if (k === 5) id = 15;
+                else if (k === 6) id = 128;
+                else if (k === 7) id = (arc + 2) % 8 === 0 ? 30 : 15;
+                else if (k === 8) id = 15;
+                else id = 34;
+                put(x, Y + k, z, id);
+              }
+              if (arc % 8 === 0) put(x, Y + 10, z, 84); // a pink lantern on every other column
+            }
+          }
+        // gate pillars: a marble column each side of every gate, a pink lantern on top
+        for (const [ux, uz] of [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ])
+          for (const s of [-3, 3]) {
+            const px = X + ux * ARENA_W + (uz ? s : 0),
+              pz = Z + uz * ARENA_W + (ux ? s : 0);
+            for (let k = 1; k <= 11; k++) put(px, Y + k, pz, k === 11 ? 84 : 127);
+          }
+        // four beacon pylons on the diagonals, seen from afar
+        for (let k = 0; k < 4; k++) {
+          const a2 = ((k + 0.5) * Math.PI) / 2,
+            px = X + Math.round(Math.cos(a2) * (ARENA_W - 1)),
+            pz = Z + Math.round(Math.sin(a2) * (ARENA_W - 1));
+          for (let h = 1; h <= 14; h++) put(px, Y + h, pz, h === 14 ? 145 : h % 4 === 2 ? 128 : 127);
+        }
+        // the pending transactions: glass cubes floating over the floor at different heights
+        for (let k = 0; k < 10; k++) {
+          const a2 = (k / 10) * Math.PI * 2 + hash(X, Z + k, 323) * 0.4,
+            rr = 9 + Math.floor(hash(X + k, Z, 324) * 6),
+            cx2 = X + Math.round(Math.cos(a2) * rr),
+            cz2 = Z + Math.round(Math.sin(a2) * rr),
+            cy2 = Y + 12 + Math.floor(hash(X, Z, 325 + k) * 5),
+            col = [29, 30, 31, 32][k % 4];
+          for (let ddx = 0; ddx <= 1; ddx++)
+            for (let ddy = 0; ddy <= 1; ddy++) for (let ddz = 0; ddz <= 1; ddz++) put(cx2 + ddx, cy2 + ddy, cz2 + ddz, col);
+        }
+        // the next block, waiting to be built: a neon cube frame high over the center, a diamond inside
+        for (let ddx = -2; ddx <= 2; ddx++)
+          for (let ddy = -2; ddy <= 2; ddy++)
+            for (let ddz = -2; ddz <= 2; ddz++)
+              if ((Math.abs(ddx) === 2) + (Math.abs(ddy) === 2) + (Math.abs(ddz) === 2) >= 2) put(X + ddx, Y + 20 + ddy, Z + ddz, 128);
+        put(X, Y + 20, Z, 145);
       }
     // the City, column by column (each column depends only on x and z)
     if (inCity(x0 + 8, z0 + 8, 12)) {
@@ -1260,6 +1441,10 @@
     mergeAt,
     MERGE,
     MERGE_R,
+    arenaAt,
+    ARENA,
+    ARENA_R,
+    ARENA_W,
     CITY,
     inCity,
     CIRCUITS,

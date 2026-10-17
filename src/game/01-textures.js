@@ -1312,6 +1312,43 @@ tile(136, (P, E) => {
     if (c === '#ffd166') E(x, y, c);
   }
 });
+tile(137, (P, E) => {
+  // Front-Runner Boots: a pair of dark boots, cyan neon soles, a gold speed streak trailing behind
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
+  for (const ox of [1, 8]) {
+    for (let y = 4; y <= 11; y++) for (let x = ox + 2; x <= ox + 4; x++) P(x, y, y === 4 ? '#4a3b7a' : '#2a1838');
+    for (let x = ox + 2; x <= ox + 6; x++) for (let y = 10; y <= 12; y++) P(x, y, y === 10 && x > ox + 4 ? '#3a2d52' : '#2a1838');
+    for (let x = ox + 2; x <= ox + 6; x++) {
+      P(x, 13, '#7fe8ff');
+      E(x, 13, '#7fe8ff');
+    }
+    P(ox + 3, 7, '#ffd166');
+    E(ox + 3, 7, '#ffd166');
+  }
+  for (const [x, y] of [
+    [0, 8],
+    [0, 11],
+    [7, 9],
+    [7, 12],
+  ]) {
+    P(x, y, '#ffd166');
+    E(x, y, '#ffd166');
+  }
+});
+tile(138, (P, E) => {
+  // Flashbots Bundle: three transactions stacked and strapped together by a glowing band
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
+  const cols = ['#c9b8ff', '#ffcfae', '#7fe8ff'];
+  for (let k = 0; k < 3; k++)
+    for (let y = 2 + k * 4; y <= 4 + k * 4; y++)
+      for (let x = 3; x <= 12; x++) P(x, y, x === 3 || x === 12 || y === 2 + k * 4 ? '#2a1838' : cols[k]);
+  for (let y = 1; y <= 14; y++) {
+    P(7, y, '#ffd166');
+    P(8, y, '#ffd166');
+    E(7, y, '#ffd166');
+    E(8, y, '#ffd166');
+  }
+});
 tile(125, (P, E, i) => {
   // Pillow: a soft cream cushion with a shadowed fold down the middle.
   noise(P, i, '#fbf6ea', [

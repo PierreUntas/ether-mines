@@ -109,6 +109,26 @@ const MK = {
     hit: [1.0, 1.4, 1.0],
     ranged: { dmg: 2.5, speed: 11, charge: 0.4, burst: 2, gap: 0.25, every: 2.2, color: 0xc9b8ff },
   },
+  // the Mempool's boss (arenaAt(), world.js): a MEV bot that reads your next move in the mempool and
+  // gets there first. It dashes at you (rush), fires bursts of gas bolts, and every few seconds blinks to
+  // the far side of whoever it hunts (frontRun). Below half health it calls in two Sandwich Bots, one
+  // each side of you, and everything comes faster. Built for two or three players: lots of hp, a wide floor.
+  front_runner: {
+    n: 'The Front-Runner',
+    hp: 170,
+    dmg: 5.5,
+    sp: 3.4,
+    aggro: 24,
+    atk: 2.0,
+    cd: 1.0,
+    kb: 1.2,
+    hit: [1.5, 3.4, 1.5],
+    rush: { speed: 10, time: 0.8, every: 4.5, min: 6 },
+    ranged: { dmg: 3, speed: 12, charge: 0.55, burst: 3, gap: 0.2, every: 3.2, min: 7, color: 0x7fe8ff, size: 2.4 },
+    blink: { every: 8, fast: 5, min: 4 },
+  },
+  // the Front-Runner's minions: quick, light, they hem you in from both sides (the sandwich)
+  mev_bot: { n: 'Sandwich Bot', hp: 16, dmg: 2.5, sp: 3.9, aggro: 30, atk: 1.2, cd: 0.8, kb: 4, hit: [0.8, 1.2, 0.8] },
 };
 const TWIN_DOWN = 12;
 const LADDER_CLEAR = 2.2;
@@ -459,8 +479,67 @@ function buildMob(a) {
       const an = (i * Math.PI) / 2;
       abox(ring, 0.18, 0.18, 0.18, i % 2 ? lav : core, Math.cos(an) * 0.75, 0, Math.sin(an) * 0.75, true);
     }
+  } else if (a.type === 'front_runner') {
+    // a MEV bot: a dark chassis with a visor that sweeps the mempool, gold "sandwich" plates for hands,
+    // a pending transaction squeezed between two gold plates on its chest, priority-fee coins orbiting
+    // over its head
+    const dark = '#1c1029',
+      body = '#2a1838',
+      trim = '#4a3b7a',
+      gold = '#ffd166',
+      cyan = '#7fe8ff';
+    for (const x of [-0.24, 0.24]) {
+      const l = pivot(g, x, 0.95, 0);
+      abox(l, 0.28, 0.62, 0.3, dark, 0, -0.31, 0);
+      abox(l, 0.34, 0.3, 0.42, body, 0, -0.78, 0.05);
+      abox(l, 0.36, 0.05, 0.44, cyan, 0, -0.95, 0.05, true);
+      parts.legs.push(l);
+    }
+    abox(g, 0.62, 0.22, 0.46, trim, 0, 1.02, 0);
+    abox(g, 0.96, 0.86, 0.62, body, 0, 1.52, 0);
+    abox(g, 0.5, 0.08, 0.06, gold, 0, 1.72, 0.33, true);
+    abox(g, 0.36, 0.22, 0.06, cyan, 0, 1.55, 0.33, true);
+    abox(g, 0.5, 0.08, 0.06, gold, 0, 1.38, 0.33, true);
+    for (const x of [-0.6, 0.6]) {
+      abox(g, 0.34, 0.24, 0.5, gold, x, 1.9, 0);
+      const arm = pivot(g, x * 1.05, 1.82, 0);
+      abox(arm, 0.22, 0.7, 0.24, dark, 0, -0.38, 0);
+      abox(arm, 0.46, 0.1, 0.46, gold, 0, -0.78, 0.05, true);
+      abox(arm, 0.3, 0.12, 0.3, cyan, 0, -0.88, 0.05, true);
+      abox(arm, 0.46, 0.1, 0.46, gold, 0, -0.98, 0.05, true);
+    }
+    const hd = (parts.head = pivot(g, 0, 2.18, 0));
+    abox(hd, 0.72, 0.44, 0.56, trim, 0, 0, 0);
+    abox(hd, 0.62, 0.14, 0.04, dark, 0, 0.02, 0.29);
+    parts.scan = abox(hd, 0.14, 0.1, 0.03, cyan, 0, 0.02, 0.31, true);
+    for (const x of [-0.26, 0.26]) {
+      abox(hd, 0.04, 0.32, 0.04, dark, x, 0.36, -0.1);
+      abox(hd, 0.08, 0.08, 0.08, '#ff6bd5', x, 0.54, -0.1, true);
+    }
+    const crown = (parts.crown = pivot(g, 0, 2.9, 0));
+    for (let i = 0; i < 6; i++) {
+      const an = (i * Math.PI) / 3;
+      abox(crown, 0.16, 0.16, 0.04, gold, Math.cos(an) * 0.55, 0, Math.sin(an) * 0.55, true);
+    }
+  } else if (a.type === 'mev_bot') {
+    // a Sandwich Bot: a pending transaction caught between two gold plates, on two stubby legs
+    const gold = '#ffd166',
+      cyan = '#7fe8ff',
+      dark = '#2a1838';
+    for (const x of [-0.16, 0.16]) {
+      const l = pivot(g, x, 0.36, 0);
+      abox(l, 0.14, 0.36, 0.16, dark, 0, -0.18, 0);
+      parts.legs.push(l);
+    }
+    abox(g, 0.7, 0.12, 0.6, gold, 0, 0.42, 0);
+    abox(g, 0.5, 0.3, 0.42, cyan, 0, 0.63, 0, true, 0.85);
+    abox(g, 0.7, 0.12, 0.6, gold, 0, 0.84, 0);
+    const hd = (parts.head = pivot(g, 0, 0.84, 0.2));
+    abox(hd, 0.08, 0.08, 0.04, dark, -0.14, 0.02, 0.11, true);
+    abox(hd, 0.08, 0.08, 0.04, dark, 0.14, 0.02, 0.11, true);
   }
   if (a.type === 'titan') g.scale.setScalar(1.7);
+  else if (a.type === 'front_runner') g.scale.setScalar(1.6);
   else if (a.type === 'warden') g.scale.setScalar(1.1);
   else if (a.type === 'pow_twin') g.scale.setScalar(1.5);
   else if (a.type === 'pos_twin') g.scale.setScalar(1.4);
@@ -682,6 +761,16 @@ function spawnMobChunk(cx, cz) {
       pw.twin = ps;
       ps.twin = pw;
       list.push(pw, ps);
+    }
+  }
+  // the Mempool's Front-Runner (arenaAt(), world.js): at the center of the floor, kept on it; it only
+  // really takes damage from someone inside the colosseum (arena.reach), not from the slopes outside
+  {
+    const A = arenaAt(Math.floor((x0 + 8) / ARENA), Math.floor((z0 + 8) / ARENA));
+    if (A && cOf(A.x) === cx && cOf(A.z) === cz) {
+      const fr = mkMob('front_runner', k, 170, A.x + 0.5, A.y + 1, A.z + 0.5, null);
+      fr.arena = { x: A.x + 0.5, z: A.z + 0.5, r: ARENA_R - 1.5, y: A.y + 1, reach: ARENA_W + 1 };
+      list.push(fr);
     }
   }
   // the Genesis Titan: a single boss in its own fixed lair (BOSS_CX/BOSS_CZ), not distributed per-chunk
@@ -937,11 +1026,15 @@ function findMob(id) {
 // you hit it: the twins' shield, then the blow itself, then the word to everyone nearby
 function damageMob(a, dmg, fromX, fromZ) {
   a.provoked = 15; // struck: the Ward Incense no longer fools it for a while
-  if (a.arena && a.twin && Math.hypot(P.x - a.arena.x, P.z - a.arena.z) > a.arena.r + 2.5) {
+  if (a.arena && (a.twin || a.arena.reach) && Math.hypot(P.x - a.arena.x, P.z - a.arena.z) > (a.arena.reach || a.arena.r + 2.5)) {
     dmg *= 0.15;
     if (performance.now() - twinShieldToast > 15000) {
       twinShieldToast = performance.now();
-      toastInfo('The sanctum shields the twins from afar: step onto the disc to really hurt them');
+      toastInfo(
+        a.twin
+          ? 'The sanctum shields the twins from afar: step onto the disc to really hurt them'
+          : 'The Mempool shields its master from afar: step inside the colosseum to really hurt it',
+      );
     }
   }
   if (a.hp <= 0) return;
@@ -1194,6 +1287,7 @@ const BOSS_TOAST = {
   205: () => `The Genesis Titan falls! ${ITEM[205].n} earned — a cape of its own hide. Hold jump while falling to glide.`,
   206: () => `The Plasma Core shatters! ${ITEM[206].n} earned — hold it and click to fire.`,
   209: () => `The Merge is complete! ${ITEM[209].n} earned — equip it from your chest to shrug off most of a hit.`,
+  211: () => `The Front-Runner is outrun! ${ITEM[211].n} earned — from now on you move a step ahead of everyone.`,
 };
 function lootMob(type) {
   if (SERVER()) {
@@ -1228,15 +1322,15 @@ function lootMob(type) {
     });
     return;
   }
-  if (type === 'titan' || type === 'plasma_core' || type === 'merge_twins') {
-    const id = type === 'titan' ? 205 : type === 'plasma_core' ? 206 : 209;
+  if (type === 'titan' || type === 'plasma_core' || type === 'merge_twins' || type === 'front_runner') {
+    const id = type === 'titan' ? 205 : type === 'plasma_core' ? 206 : type === 'merge_twins' ? 209 : 211;
     mintNft(id, null);
     toastInfo(BOSS_TOAST[id]());
     Sound.chime();
     // Diamond Shards, as online (037_diamond_shards.sql): 1 or 2 per boss, 2 for the Merge twins
-    give(110, type === 'merge_twins' ? 2 : 1 + Math.floor(Math.random() * 2), 'cut from the boss');
+    give(110, type === 'merge_twins' || type === 'front_runner' ? 2 : 1 + Math.floor(Math.random() * 2), 'cut from the boss');
     if (Math.random() < 0.2) {
-      const bonusId = type === 'titan' ? 207 : type === 'plasma_core' ? 208 : 210;
+      const bonusId = type === 'titan' ? 207 : type === 'plasma_core' ? 208 : type === 'merge_twins' ? 210 : 212;
       mintNft(bonusId, null);
       toastInfo(`Bonus drop: ${ITEM[bonusId].n}!`);
       Sound.chime();
@@ -1269,7 +1363,9 @@ function lootMob(type) {
                           ? (r < 0.3 && 101) || (r < 0.45 && 103)
                           : type === 'golem'
                             ? (r < 0.3 && 103) || (r < 0.55 && 104)
-                            : false;
+                            : type === 'mev_bot'
+                              ? r < 0.5 && 101
+                              : false;
   if (it) give(it, 1, `dropped by a ${MK[type].n.toLowerCase()}`);
 }
 // PvP: like attackMob, but the target's hp lives only in the target's own client (same as another
@@ -1328,6 +1424,61 @@ function die() {
   hurtT = 1.2;
   pvpGraceUntil = performance.now() + 2000;
   updateHpUI();
+}
+// the Front-Runner's tricks (MK.front_runner): it sees your move coming and gets there first. Every few
+// seconds it vanishes in a flash and reappears on the far side of whoever it hunts, facing them. Below
+// half health it turns frantic (faster, blinks more often, its rush recharges sooner) and calls in two
+// Sandwich Bots, once, one on each side of its target. Every screen runs the same rules: the bots get the
+// same ids everywhere (slots 171 and 172 of the boss's chunk), so their hp is shared like any mob's.
+function frontRun(a, K, tg, d, aggro, dt) {
+  const p = a.g.position;
+  if (!a.frenzy && a.hp <= K.hp / 2) {
+    a.frenzy = true;
+    a.blinkCd = 0.6;
+    const list = MOBS.get(a.k);
+    if (list && tg)
+      for (const [i, s] of [
+        [171, 1],
+        [172, -1],
+      ]) {
+        if (list.some(m => m.i === i) || recentlyKilled(a.k, i, 'mev_bot')) continue;
+        // across the line from the boss to its target, on each side of the target
+        const ux = tg.x - p.x,
+          uz = tg.z - p.z,
+          ul = Math.hypot(ux, uz) || 1,
+          bx = clamp(tg.x + (-uz / ul) * 3 * s, a.arena.x - a.arena.r, a.arena.x + a.arena.r),
+          bz = clamp(tg.z + (ux / ul) * 3 * s, a.arena.z - a.arena.r, a.arena.z + a.arena.r),
+          m = mkMob('mev_bot', a.k, i, bx, a.arena.y, bz, null);
+        m.arena = { ...a.arena, reach: 0 };
+        m.provoked = 15;
+        list.push(m);
+        clayBurst(bx - 0.5, a.arena.y, bz - 0.5, etherMats[1]);
+      }
+    if (tg && tg.me) toastInfo('The Front-Runner calls in its Sandwich Bots!');
+  }
+  a.blinkCd = (a.blinkCd ?? K.blink.every * 0.6) - dt;
+  if (!aggro || !tg || d < K.blink.min || a.blinkCd > 0 || a.rushT > 0) return;
+  a.blinkCd = a.frenzy ? K.blink.fast : K.blink.every;
+  // through its target and 2.5 blocks beyond, kept on the floor
+  const ux = tg.x - p.x,
+    uz = tg.z - p.z,
+    ul = Math.hypot(ux, uz) || 1;
+  let nx = tg.x + (ux / ul) * 2.5,
+    nz = tg.z + (uz / ul) * 2.5;
+  const ox = nx - a.arena.x,
+    oz = nz - a.arena.z,
+    od = Math.hypot(ox, oz);
+  if (od > a.arena.r) {
+    nx = a.arena.x + (ox / od) * a.arena.r;
+    nz = a.arena.z + (oz / od) * a.arena.r;
+  }
+  clayBurst(p.x - 0.5, p.y + 1, p.z - 0.5, etherMats[1]);
+  p.x = nx;
+  p.z = nz;
+  a.g.rotation.y = Math.atan2(tg.x - nx, tg.z - nz);
+  a.atkT = Math.max(a.atkT || 0, 0.45); // a beat to react before it strikes
+  clayBurst(nx - 0.5, p.y + 1, nz - 0.5, etherMats[1]);
+  Sound.shoot();
 }
 let mobT = 0;
 // who a mob goes after: the closest player within its reach, you or one of the others nearby (their
@@ -1448,10 +1599,11 @@ function updateMobs(dt) {
         if (a.rushT > 0) a.rushT -= dt;
         else if (aggro && d > K.rush.min && a.rushCd <= 0) {
           a.rushT = K.rush.time;
-          a.rushCd = K.rush.every;
+          a.rushCd = K.rush.every * (a.frenzy ? 0.6 : 1);
         }
       }
-      const spd = (aggro ? (a.rushT > 0 ? K.rush.speed : K.sp) : K.sp * 0.35) * dt,
+      if (K.blink) frontRun(a, K, tg, d, aggro, dt);
+      const spd = (aggro ? (a.rushT > 0 ? K.rush.speed : K.sp) * (a.frenzy ? 1.2 : 1) : K.sp * 0.35) * dt,
         dx = tx - p.x,
         dz = tz - p.z,
         dd = Math.hypot(dx, dz);
@@ -1566,6 +1718,8 @@ function updateMobs(dt) {
         a.parts.rings.forEach((r, i2) => (r.rotation.y += dt * (1.2 + i2 * 0.7))); // the Plasma Core's cage spins
       else p.y += Math.sin(a.walk) * 0.01; // the shadow floats, no legs
       if (a.parts.drill) a.parts.drill.rotation.y += dt * (aggro ? 14 : 3); // the rig's drill never stops
+      if (a.parts.crown) a.parts.crown.rotation.y += dt * (a.frenzy ? 5 : 2); // the priority-fee coins
+      if (a.parts.scan) a.parts.scan.position.x = Math.sin((Date.now() / 1000) * (aggro ? 7 : 2.5) + a.ph) * 0.22; // the visor sweeps
       a.atkT = Math.max(0, (a.atkT || 0) - dt);
       const holdFire = a.ladder && onLadderNow; // a tower mob waits while you climb
       // it only strikes on the screen of whoever it's after: another player's screen takes the hit for them

@@ -298,6 +298,8 @@ insert into public.rule_items (id, name, tool, tier, uniq, consumable) values
 (208,'Plasma Conduit Core',1,0,true,false),
 (209,'Merge Aegis',1,3,true,false),
 (210,'Difficulty Bomb Fragment',1,0,true,false),
+(211,'Front-Runner Boots',1,0,true,false),
+(212,'Flashbots Bundle',1,0,true,false),
 (301,'Genesis Blade',1,2,false,false),
 (302,'Genesis Plating',1,3,false,false),
 (303,'Ether Tonic',1,0,false,true),

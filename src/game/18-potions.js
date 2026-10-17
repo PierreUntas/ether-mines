@@ -14,6 +14,8 @@ const WARD_IMMUNE = new Set([
   'plasma_core',
   'pow_twin',
   'pos_twin',
+  'front_runner',
+  'mev_bot',
   'corrupted_node',
 ]);
 const wardFools = a => POTION.ward > 0 && !WARD_IMMUNE.has(a.type) && !(a.provoked > 0);

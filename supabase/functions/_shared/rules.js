@@ -210,6 +210,10 @@
   // every win over both twins together, and a rarer keepsake on top (same ~20% bonus as 026)
   ITEM[209] = { n: 'Merge Aegis', icon: 135, armor: 0.6, tier: 3, nft: 1 };
   ITEM[210] = { n: 'Difficulty Bomb Fragment', icon: 136, nft: 1 };
+  // v21: the Mempool's boss, the Front-Runner (039_front_runner.sql): boots minted on every win — owned,
+  // they make you walk and run a little faster for good (10-loop.js) — and a rarer keepsake on top
+  ITEM[211] = { n: 'Front-Runner Boots', icon: 137, nft: 1 };
+  ITEM[212] = { n: 'Flashbots Bundle', icon: 138, nft: 1 };
   const reqTier = id => (B[id] ? (B[id].tier ?? (B[id].stone ? 1 : 0)) : 0);
   const RECIPES = [
     { out: 9, n: 4, need: { 5: 1 }, d: 'Cut up a log' },

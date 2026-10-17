@@ -397,6 +397,34 @@ const twins = await page.evaluate(async () => {
   return { shielded, dormant, rose, both, aegis: mines.S.nfts.some(n => n.id === 209) };
 });
 if (!twins.shielded || !twins.dormant || !twins.rose || !twins.both || !twins.aegis) await fail('merge twins: ' + JSON.stringify(twins));
+// the Front-Runner: shielded from outside its colosseum, blinks past you, calls two Sandwich Bots at half
+// health, and its fall mints the boots (which make you faster)
+const runner = await page.evaluate(async () => {
+  const P = mines.P,
+    tkey = ckey(cOf(P.x), cOf(P.z)),
+    tkeep = mines.MOBS.get(tkey) || [],
+    fr = mines.mkMob('front_runner', tkey, 170, P.x + 6, P.y, P.z, null);
+  fr.arena = { x: P.x + 50, z: P.z, r: 15.5, y: P.y, reach: 28 };
+  mines.MOBS.set(tkey, [...tkeep, fr]);
+  damageMob(fr, 10, P.x, P.z);
+  const shielded = Math.abs(fr.hp - (MK.front_runner.hp - 1.5)) < 0.01;
+  fr.hp = MK.front_runner.hp;
+  fr.arena = { x: P.x, z: P.z, r: 15.5, y: P.y, reach: 28 };
+  const tg = { id: 'me', x: P.x, y: P.y, z: P.z, me: true };
+  fr.blinkCd = 0;
+  const before = fr.g.position.x - P.x;
+  frontRun(fr, MK.front_runner, tg, 6, true, 0.1);
+  const blinked = Math.sign(fr.g.position.x - P.x) !== Math.sign(before);
+  damageMob(fr, 90, P.x, P.z);
+  frontRun(fr, MK.front_runner, tg, 6, true, 0.1);
+  const bots = mines.MOBS.get(tkey).filter(m => m.type === 'mev_bot').length;
+  damageMob(fr, 999, P.x, P.z);
+  await new Promise(r => setTimeout(r, 300));
+  for (const m of mines.MOBS.get(tkey).filter(m => m.type === 'mev_bot')) scene.remove(m.g);
+  mines.MOBS.set(tkey, tkeep);
+  return { shielded, blinked, bots, frenzy: !!fr.frenzy, boots: mines.S.nfts.some(n => n.id === 211) };
+});
+if (!runner.shielded || !runner.blinked || runner.bots !== 2 || !runner.frenzy || !runner.boots) await fail('front-runner: ' + JSON.stringify(runner));
 // daytime rest: by day a sky raider slips out of sight once you're far, a ruin guardian never does
 // (validators keep their full guard), and the raider is back at night
 const rest = await page.evaluate(() => {

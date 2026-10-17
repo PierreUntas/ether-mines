@@ -121,6 +121,11 @@ await page.waitForTimeout(800);
 await page.evaluate(() => (window.playIntro = () => {}));
 await page.evaluate(() => document.getElementById('play').click());
 await page.waitForFunction(() => document.getElementById('title').hidden, null, { timeout: 240000 });
+// first person: the shot is taken from the given eyes, not from behind an avatar (the clay look's default)
+await page.evaluate(() => {
+  viewReady = true;
+  while (VIEW !== 0) changeView(true);
+});
 if (args['no-mobs'])
   await page.evaluate(() => {
     window.spawnMobChunk = () => {};

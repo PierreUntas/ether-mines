@@ -329,6 +329,26 @@ its health. Both must fall together. They never leave their disc. The win (repor
 `merge_twins`, `030_merge_twins.sql`) mints the **Merge Aegis** (item 209), the best armor in the game
 (−60% damage), and with a ~20% chance a **Difficulty Bomb Fragment** (210) as a keepsake.
 
+### The Mempool
+
+An open-air colosseum built for group fights (`arenaAt()`, `world.js`; one per 224 × 224 region, the
+nearest about 170 blocks east of the Atrium, at (149, −81), and another about 190 blocks south-east, at
+(110, 169)). A flat floor 35 blocks across (a radial checkerboard of marble and granite around an Ether
+diamond, rings of cyan neon), a low podium wall, six tiers of stands with seats in the four quarters'
+colors, a promenade, an arcaded facade with pink lanterns and four beacon pylons. Four gates face the
+cardinal points; each approach steps down (or up) to the natural ground. Over the floor float the
+pending transactions, glass cubes around the next block waiting to be built. The nearest Mempool shows
+on the compass (⚔) within 400 m.
+
+Its boss is **the Front-Runner** (`src/game/16-mobs.js`), a MEV bot: dark chassis, a visor that sweeps
+the mempool, gold "sandwich" plates for hands, priority-fee coins orbiting its head. It dashes at you,
+fires bursts of gas bolts, and every few seconds blinks to the far side of whoever it hunts. Below half
+health it turns frantic and calls in two **Sandwich Bots**, one on each side of its target. It stays on
+its floor and is shielded from anyone outside the colosseum (15% damage). Built for two or three
+players (170 hp; its health shows next to its name). The win (`front_runner`, `039_front_runner.sql`)
+mints the **Front-Runner Boots** (211: owned, you walk and run 12% faster), two Diamond Shards, and with
+a ~20% chance a **Flashbots Bundle** (212) as a keepsake.
+
 ### Creatures that stand out
 
 Walking mobs step up one block at most, like you (`updateMobs()`, `src/game/16-mobs.js`): a wall two

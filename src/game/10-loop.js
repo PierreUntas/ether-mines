@@ -97,7 +97,7 @@ function frame(now) {
       }
     }
     const run = !sneak && (keys.has('ShiftLeft') || keys.has('ShiftRight') || sprintOn);
-    const sp = (run ? 6.6 : 4.4) * (inW ? 0.55 : 1) * (sneak && !inW ? 0.35 : 1) * (buffT > 0 ? 1.3 : 1),
+    const sp = (run ? 6.6 : 4.4) * (inW ? 0.55 : 1) * (sneak && !inW ? 0.35 : 1) * (buffT > 0 ? 1.3 : 1) * (hasNft(211) ? 1.12 : 1),
       sn = Math.sin(yaw),
       cs = Math.cos(yaw);
     const vx = (-sn * fz + cs * fx) * sp,
@@ -349,7 +349,7 @@ function frame(now) {
       const tg = $('target');
       tg.hidden = false;
       tg.classList.remove('own');
-      tg.innerHTML = `${MK[mb.type].n}<span>${touch ? 'tap and hold' : 'left-click'}: attack</span>`;
+      tg.innerHTML = `${MK[mb.type].n}${MK[mb.type].hp >= 40 ? ` · ${Math.ceil(mb.hp)}/${MK[mb.type].hp}` : ''}<span>${touch ? 'tap and hold' : 'left-click'}: attack</span>`; // a boss shows its health
     } else {
       const pv = !sanctuary(P.x, P.z) ? pickPlayer(aim, target) : null;
       if (pv) {

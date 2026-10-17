@@ -1392,6 +1392,9 @@ function placeHere() {
   const mg = mergeAt(Math.floor(P.x / MERGE), Math.floor(P.z / MERGE));
   if (mg && Math.hypot(mg.x - P.x, mg.z - P.z) < MERGE_R + 1 && P.y > mg.y && P.y < mg.y + 12)
     return ['The Merge Sanctum', 'where work and stake become one'];
+  const ar = arenaAt(Math.floor(P.x / ARENA), Math.floor(P.z / ARENA));
+  if (ar && Math.hypot(ar.x - P.x, ar.z - P.z) < ARENA_W + 1 && P.y > ar.y && P.y < ar.y + 14)
+    return ['The Mempool', 'where pending transactions wait — and the Front-Runner cuts the line'];
   if (onPath(Math.floor(P.x), Math.floor(P.z), 2)) return ['The validators path', 'from the Atrium to the City'];
   const r = ruinAt(Math.floor(P.x / RUIN), Math.floor(P.z / RUIN));
   if (r && Math.hypot(r.x - P.x, r.z - P.z) < 7 && Math.abs(r.y - P.y) < 8) return ['Old ruins', 'a validator waits here for its heart'];
@@ -1432,6 +1435,19 @@ function nearestMerge() {
       if (!m) continue;
       const d = Math.hypot(m.sx + 0.5 - P.x, m.sz + 0.5 - P.z);
       if (!best || d < best.d) best = { ...m, d };
+    }
+  return best;
+}
+function nearestArena() {
+  const ax = Math.floor(P.x / ARENA),
+    az = Math.floor(P.z / ARENA);
+  let best = null;
+  for (let dz = -2; dz <= 2; dz++)
+    for (let dx = -2; dx <= 2; dx++) {
+      const a = arenaAt(ax + dx, az + dz);
+      if (!a) continue;
+      const d = Math.hypot(a.x + 0.5 - P.x, a.z + 0.5 - P.z);
+      if (!best || d < best.d) best = { ...a, d };
     }
   return best;
 }
@@ -2540,6 +2556,19 @@ function updateCompass(dt) {
       el: home,
       b: () => (Math.hypot(SPAWN.x - P.x, SPAWN.z - P.z) < 6 ? null : Math.atan2(SPAWN.x + 0.5 - P.x, -(SPAWN.z + 0.5 - P.z))),
     });
+    // the nearest Mempool, always on the strip once it's within 400 m: the place to meet for a boss fight
+    const arena = document.createElement('b');
+    arena.className = 'poi arena';
+    arena.textContent = '⚔';
+    arena.title = 'The Mempool';
+    strip.appendChild(arena);
+    COMPASS.marks.push({
+      el: arena,
+      b: () => {
+        const a = COMPASS.arena;
+        return !a || a.d > 400 || a.d < ARENA_W ? null : Math.atan2(a.x + 0.5 - P.x, -(a.z + 0.5 - P.z));
+      },
+    });
     const goal = document.createElement('b');
     goal.className = 'poi goal';
     strip.appendChild(goal);
@@ -2551,6 +2580,8 @@ function updateCompass(dt) {
     // the objective's target changes slowly: looked up a few times a second, not every frame
     COMPASS.t = 0.5;
     COMPASS.target = compassTarget();
+    COMPASS.arena = nearestArena();
+    if (COMPASS.arena) COMPASS.marks.find(m => m.el.classList.contains('arena')).el.textContent = `⚔ ${Math.round(COMPASS.arena.d)} m`;
     COMPASS.goal.textContent = COMPASS.target
       ? `◆ ${COMPASS.target.label} ${Math.round(Math.hypot(COMPASS.target.x - P.x, COMPASS.target.z - P.z))} m`
       : '';

@@ -714,6 +714,15 @@ delete from rate_limits;
 set role authenticated;
 select pg_temp.ok('chapter 5 pays 600 Gwei', (act_claim_chapter('w', 'merge') ->> 'gwei')::int = 600);
 reset role;
+-- the Front-Runner (039): guaranteed boots and two Diamond Shards, rate-limited like every boss
+delete from rate_limits;
+set role authenticated;
+select act_loot_mob('w', 'front_runner', 12.5, 33, 8.5) as fr \gset
+select pg_temp.ok('outrunning the Front-Runner mints its boots', (:'fr'::jsonb) -> 'unique' ->> 'id' = '211');
+select pg_temp.ok('... and cuts two Diamond Shards', ((:'fr'::jsonb) ->> 'shards')::int = 2);
+select pg_temp.ok('a second Front-Runner report right away is rate-limited', act_loot_mob('w', 'front_runner', 12.5, 33, 8.5) ->> 'err' = 'too many actions');
+select pg_temp.ok('a Sandwich Bot drops like an ordinary mob', act_loot_mob('w', 'mev_bot', 12.5, 33, 8.5) ->> 'ok' = 'true');
+reset role;
 \echo Chapter scenarios pass.
 
 -- the shop's week (032_shop.sql): same picks as rules.js, 25% off, limited pieces only in their week

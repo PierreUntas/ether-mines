@@ -109,3 +109,37 @@ test('supabase/installation.sql is up to date with the migrations and the rules'
   const file = readFileSync(new URL('../supabase/installation.sql', import.meta.url), 'utf8');
   assert.equal(gen.trim(), file.trim(), 're-run: node tools/installation.mjs > supabase/installation.sql');
 });
+
+// the Mempool (arenaAt): one within reach of the spawn, a flat open floor, and four gates you can walk
+// through from the floor down (or up) to the natural ground, one block at most per step
+test('the Mempool: a flat floor, open sky above it, and four walkable gates', () => {
+  const found = [];
+  for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) { const a = W.arenaAt(i, j); if (a) found.push(a); }
+  found.sort((a, b) => Math.hypot(a.x - W.SPAWN.x, a.z - W.SPAWN.z) - Math.hypot(b.x - W.SPAWN.x, b.z - W.SPAWN.z));
+  assert.ok(found.length && Math.hypot(found[0].x - W.SPAWN.x, found[0].z - W.SPAWN.z) < 300, 'a Mempool within 300 blocks of the spawn');
+  const cache = new Map();
+  const get = (x, y, z) => {
+    const k = W.cOf(x) + ',' + W.cOf(z);
+    if (!cache.has(k)) cache.set(k, W.genChunk(W.cOf(x), W.cOf(z)));
+    return y < 0 || y >= W.SY ? 0 : cache.get(k)[W.li(x - W.cOf(x) * W.CH, y, z - W.cOf(z) * W.CH)];
+  };
+  const solid = (id) => id > 0 && id !== 11 && !(R.B[id]?.x != null);
+  for (const A of found.slice(0, 3)) {
+    for (let dx = -W.ARENA_R; dx <= W.ARENA_R; dx++)
+      for (let dz = -W.ARENA_R; dz <= W.ARENA_R; dz++) {
+        if (Math.hypot(dx, dz) > W.ARENA_R - 0.5) continue;
+        assert.ok(solid(get(A.x + dx, A.y, A.z + dz)), `floor at ${dx},${dz}`);
+        for (let k = 1; k <= 10; k++) assert.equal(get(A.x + dx, A.y + k, A.z + dz), 0, `open above the floor at ${dx},${dz},+${k}`);
+      }
+    for (const [ux, uz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      let lvl = A.y + 1; // standing height
+      for (let s = 1; s <= W.ARENA_W + 11; s++) {
+        const x = A.x + ux * s, z = A.z + uz * s;
+        let best = null;
+        for (let y = lvl - 1; y <= lvl + 1; y++) if (solid(get(x, y - 1, z)) && !solid(get(x, y, z)) && !solid(get(x, y + 1, z))) { best = y; break; }
+        assert.ok(best !== null, `gate ${ux},${uz} of the Mempool at ${A.x},${A.z}: no step at ${s} (from ${lvl})`);
+        lvl = best;
+      }
+    }
+  }
+});
