@@ -28,8 +28,35 @@ sun.shadow.bias = -0.0006;
 sun.shadow.normalBias = 0.04;
 scene.add(sun);
 scene.add(sun.target);
+// the clay look's glow (Settings → Glow, off by default on phones): bright things (crystals, lanterns, ether
+// ore, the beam, the sun on the clouds) bleed a soft light around them. A bloom pass from three's own
+// examples (src/vendor/three-bloom.js), made on first use; multisampled where WebGL 2 allows, so edges stay smooth.
+let GLOW = null;
+function glowComposer() {
+  if (GLOW !== null) return GLOW;
+  GLOW = false;
+  if (!THREE.EffectComposer || !THREE.UnrealBloomPass) return GLOW;
+  try {
+    const pr = renderer.getPixelRatio(),
+      rt =
+        renderer.capabilities.isWebGL2 && THREE.WebGLMultisampleRenderTarget
+          ? new THREE.WebGLMultisampleRenderTarget(innerWidth * pr, innerHeight * pr, { format: THREE.RGBAFormat })
+          : undefined,
+      c = new THREE.EffectComposer(renderer, rt);
+    c.addPass(new THREE.RenderPass(scene, camera));
+    c.addPass(new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.42, 0.6, 0.84));
+    GLOW = c;
+  } catch (e) {
+    console.error(e);
+  }
+  return GLOW;
+}
 function resize() {
   renderer.setSize(innerWidth, innerHeight);
+  if (GLOW) {
+    GLOW.setPixelRatio(renderer.getPixelRatio());
+    GLOW.setSize(innerWidth, innerHeight);
+  }
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   handCam.aspect = camera.aspect;
@@ -125,6 +152,39 @@ const clouds = new THREE.Mesh(
 clouds.rotation.x = -Math.PI / 2;
 clouds.position.y = SY + 26;
 scene.add(clouds);
+// the clay look's aurora: two long curtains of light low over the horizon, lavender into cyan, slowly
+// waving; only at night (auroraU.night, set by 08-sky.js), following the camera like the stars
+const auroraU = { time: { value: 0 }, night: { value: 0 } };
+const aurora = new THREE.Group();
+if (CLAY) {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: auroraU,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+    fog: false,
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform float time, night; varying vec2 vUv;
+      void main(){
+        float x = vUv.x, y = vUv.y;
+        float wave = 0.5 + 0.5 * sin(x * 26.0 + time * 0.45 + 2.2 * sin(x * 7.0 - time * 0.25));
+        float rays = 0.55 + 0.45 * sin(x * 210.0 + 3.0 * sin(x * 31.0 + time * 0.6));
+        float band = smoothstep(0.0, 0.12, y) * pow(1.0 - y, 2.2) * smoothstep(0.0, 0.1, x) * smoothstep(1.0, 0.9, x);
+        vec3 col = mix(vec3(0.4, 1.0, 0.9), vec3(0.75, 0.55, 1.0), smoothstep(0.1, 0.7, y + 0.12 * sin(x * 9.0 + time * 0.2)));
+        gl_FragColor = vec4(col, band * pow(wave, 1.6) * rays * night * 0.9);
+      }`,
+  });
+  for (const [start, len, h, r] of [
+    [2.2, 1.9, 90, 190],
+    [4.6, 1.5, 75, 175],
+  ]) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 48, 1, true, start, len), mat);
+    m.position.y = 58 + h / 2;
+    aurora.add(m);
+  }
+  scene.add(aurora);
+}
 // grand losange au loin
 function ethGeo(r, ht, hb, gap, cols) {
   const pos = [],

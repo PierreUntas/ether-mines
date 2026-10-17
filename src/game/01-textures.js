@@ -1474,6 +1474,12 @@ const STYLE = (() => {
   }
 })();
 const CLAY = STYLE === 'clay';
+// the clay look's rounded font (fonts/fonts.css): the page's text, and the name tags and signs drawn on canvases
+if (CLAY) {
+  document.documentElement.classList.add('clay');
+  document.fonts?.load('600 30px "Fredoka"').catch(() => {});
+}
+const UI_FONT = CLAY ? '"Fredoka", system-ui, sans-serif' : '"Pixelify Sans", monospace';
 function clayAtlas(src, flatten, shade, solid) {
   const S = 4,
     T = AT * S,

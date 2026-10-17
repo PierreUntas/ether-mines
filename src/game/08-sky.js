@@ -78,6 +78,7 @@ function applyDay() {
   const night = clamp(-dir.y * 4, 0, 1);
   skyU.night.value = night;
   stars.material.opacity = night * 0.9;
+  auroraU.night.value = night;
   scene.fog.color.copy(fogC);
   clouds.material.color.copy(skyU.hor.value).lerp(new THREE.Color(0xffffff), 0.6 - 0.4 * night);
   clouds.material.opacity = 0.85 - 0.35 * night;

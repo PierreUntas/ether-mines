@@ -187,6 +187,7 @@ const life = await page.evaluate(async () => {
   const s = l.find(a => a.h?.name === 'Thea');
   if (s) petAnimal(s);
   const bubble = !document.getElementById('dialogue').hidden && document.getElementById('dialogue').textContent;
+  while (VIEW !== 0) changeView(true); // the clay look starts from behind: begin through the eyes
   changeView();
   await new Promise(r => setTimeout(r, 1200));
   const behind = VIEW === 1 && SELF.g.visible;
@@ -735,10 +736,14 @@ const autoq = await page.evaluate(() => {
     wasPlaying = playing;
   const off = (autoQuality(0.2), REG.sharpness === keep.sharpness); // webdriver: never touches anything
   Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
-  Object.assign(REG, { autoQuality: true, sharpness: 2, shadows: true, view: 5 });
+  Object.assign(REG, { autoQuality: true, sharpness: 2, shadows: true, view: 5, glow: true });
   playing = true;
   AUTOQ.t = AUTOQ.n = AUTOQ.cool = 0;
   for (let i = 0; i < 30; i++) autoQuality(0.2); // 6 s at 5 frames a second
+  const glowFirst = !CLAY || (REG.glow === false && REG.sharpness === 2); // the clay look's glow goes first
+  REG.glow = false;
+  AUTOQ.cool = 0;
+  for (let i = 0; i < 30; i++) autoQuality(0.2);
   const first = REG.sharpness === 1.5 && REG.shadows === true;
   AUTOQ.cool = 0;
   REG.sharpness = 1;
@@ -754,7 +759,7 @@ const autoq = await page.evaluate(() => {
   Object.assign(REG, keep);
   saveSettings();
   for (const k of ['sharpness', 'shadows', 'view']) applySetting(k);
-  return { off, first, second, smooth };
+  return { off, glowFirst, first, second, smooth };
 });
 if (Object.values(autoq).some(v => !v)) await fail('auto quality: ' + JSON.stringify(autoq));
 // hostile mobs can be turned off in solo or a private world, never in the main world

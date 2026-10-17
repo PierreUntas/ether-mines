@@ -2339,6 +2339,16 @@ const SETTINGS_CHOICES = [
     ],
   },
   {
+    k: 'glow',
+    t: 'Glow',
+    d: 'A soft light around crystals, lanterns and the sky (clay look). Costly on a phone.',
+    clay: true,
+    o: [
+      [false, 'No'],
+      [true, 'Yes'],
+    ],
+  },
+  {
     k: 'shadows',
     t: 'Cast shadows',
     d: 'Nice but costly, especially on a phone.',
@@ -2409,6 +2419,7 @@ function renderSettings(body) {
   const box = document.createElement('div');
   box.className = 'settings';
   for (const c of SETTINGS_CHOICES) {
+    if (c.clay && !CLAY) continue;
     const row = document.createElement('div');
     row.className = 'setting';
     const locked = c.solo && mobsForced();

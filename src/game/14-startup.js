@@ -39,10 +39,10 @@ function nameTag(name, color, title) {
   c.width = 256;
   c.height = hgt;
   const x = c.getContext('2d');
-  x.font = '600 30px "Pixelify Sans", monospace';
+  x.font = '600 30px ' + UI_FONT;
   let w = x.measureText(name).width + 44;
   if (title) {
-    x.font = '500 20px "Pixelify Sans", monospace';
+    x.font = '500 20px ' + UI_FONT;
     w = Math.max(w, x.measureText(title).width + 28);
   }
   w = Math.min(240, w);
@@ -54,12 +54,12 @@ function nameTag(name, color, title) {
   x.beginPath();
   x.arc(128 - w / 2 + 18, 32, 6, 0, Math.PI * 2);
   x.fill();
-  x.font = '600 30px "Pixelify Sans", monospace';
+  x.font = '600 30px ' + UI_FONT;
   x.fillStyle = '#f4f1ff';
   x.textBaseline = 'middle';
   x.fillText(name, 128 - w / 2 + 32, 33);
   if (title) {
-    x.font = '500 20px "Pixelify Sans", monospace';
+    x.font = '500 20px ' + UI_FONT;
     x.fillStyle = '#ffd95e';
     x.textAlign = 'center';
     x.fillText(title, 128, 63);
@@ -226,8 +226,24 @@ let VIEW = 0, // 0: through your eyes; 1: from behind; 2: from the front
 const viewFrom = new THREE.Vector3(),
   viewDir = new THREE.Vector3(),
   viewPos = new THREE.Vector3();
-function changeView() {
+// the view is remembered per device (new key); the clay look starts from behind, over the shoulder
+const VIEW_KEY = 'ether-mines:view';
+let viewReady = false;
+function initView() {
+  viewReady = true;
+  let v = CLAY ? 1 : 0;
+  try {
+    const sv = localStorage.getItem(VIEW_KEY);
+    if (sv !== null) v = +sv || 0;
+  } catch (e) {}
+  while (VIEW !== v % 3) changeView(true);
+}
+function changeView(quiet) {
   VIEW = (VIEW + 1) % 3;
+  if (!quiet)
+    try {
+      localStorage.setItem(VIEW_KEY, String(VIEW));
+    } catch (e) {}
   if (SELF && SELF.color !== ME.color) {
     scene.remove(SELF.g);
     SELF = null;
@@ -242,7 +258,7 @@ function changeView() {
     updateAvatarHand(SELF);
   }
   if (SELF) SELF.g.visible = VIEW > 0;
-  logEv('nft', ['Through your eyes', 'View from behind', 'View from the front'][VIEW], touch ? '' : 'press V to change');
+  if (!quiet) logEv('nft', ['Through your eyes', 'View from behind', 'View from the front'][VIEW], touch ? '' : 'press V to change');
 }
 // places the player's avatar and pulls the camera back (without crossing walls); returns a function that resets the camera to the eyes
 function viewFromOutside(dt) {
@@ -281,6 +297,19 @@ function viewFromOutside(dt) {
   }
   camera.position.addScaledVector(viewDir, Math.max(0.4, d));
   if (VIEW === 2) camera.rotation.set(-pitch, yaw + Math.PI, 0);
+  // the clay look: over the right shoulder, turned a touch so the crosshair still meets what you aim at
+  else if (CLAY && d > 1.2) {
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion),
+      fwd = viewDir.clone().negate(),
+      aimAt = viewFrom
+        .clone()
+        .addScaledVector(
+          fwd,
+          target ? clamp(viewFrom.distanceTo(new THREE.Vector3(target.x + 0.5, target.y + 0.5, target.z + 0.5)), 2, 12) : 8,
+        );
+    camera.position.addScaledVector(right, 0.55).y += 0.2;
+    camera.lookAt(aimAt);
+  }
   camera.updateMatrixWorld();
   return () => {
     camera.position.copy(viewFrom);

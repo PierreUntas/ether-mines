@@ -17,6 +17,7 @@ const OLD_REG_KEYS = {
 const REG_DEFAULT = {
   view: touch ? 4 : 5,
   shadows: !touch,
+  glow: !touch, // the clay look's soft light around bright things (04-render.js)
   sharpness: 1.5, // a Retina screen at full resolution (2) costs twice the pixels: kept as a choice, not the default
   fireflies: true,
   animals: true,

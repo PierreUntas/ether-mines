@@ -153,7 +153,7 @@ function signTexture(text) {
   let size = 40,
     lines;
   for (; size >= 20; size -= 4) {
-    g.font = `700 ${size}px "Pixelify Sans", monospace`;
+    g.font = `700 ${size}px ${UI_FONT}`;
     lines = [];
     let cur = '';
     for (const w of text.split(' ')) {

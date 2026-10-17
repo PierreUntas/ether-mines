@@ -34,7 +34,10 @@ function autoQuality(dt) {
   AUTOQ.t = AUTOQ.n = 0;
   if (fps >= 40 || AUTOQ.cool > 0) return;
   let what = null;
-  if (REG.sharpness > 1) {
+  if (CLAY && REG.glow) {
+    REG.glow = false;
+    what = ['glow', 'glow'];
+  } else if (REG.sharpness > 1) {
     REG.sharpness = REG.sharpness > 1.5 ? 1.5 : 1;
     what = ['sharpness', 'sharpness'];
   } else if (REG.shadows) {
@@ -306,6 +309,8 @@ function frame(now) {
   camera.updateMatrixWorld();
   sky.position.copy(camera.position);
   stars.position.copy(camera.position);
+  aurora.position.set(camera.position.x, 0, camera.position.z);
+  auroraU.time.value = performance.now() / 1000;
   // the clouds follow the camera (the plane never ends) but their pattern stays fixed in the world, and drifts slowly
   clouds.position.x = camera.position.x;
   clouds.position.z = camera.position.z;
@@ -459,9 +464,13 @@ function frame(now) {
     updatePotions(dt);
     updateSigns(dt);
   }
+  if (!viewReady && playing && booted) initView();
   const restoreEyes = CINE.on ? cineCamera() : viewFromOutside(dt); // back or front view: the camera pulls back for the duration of the render
-  renderer.clear();
-  renderer.render(scene, camera);
+  if (CLAY && REG.glow && glowComposer()) GLOW.render(dt);
+  else {
+    renderer.clear();
+    renderer.render(scene, camera);
+  }
   if (restoreEyes) restoreEyes();
   else {
     renderer.clearDepth();

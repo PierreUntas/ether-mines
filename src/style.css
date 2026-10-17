@@ -14,6 +14,8 @@
   --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
   color-scheme:dark;
 }
+/* the clay look (01-textures.js puts .clay on <html>): a rounded font, softer chips, a glass item bar */
+html.clay{--pixel:"Fredoka",system-ui,sans-serif}
 [hidden]{display:none!important}
 *,*::before,*::after{box-sizing:border-box}
 html,body{height:100%;margin:0;overflow:hidden}
@@ -354,3 +356,10 @@ body.cine .hud{opacity:0;transition:opacity .6s}
 .bxLog li i{margin-left:auto;font-style:normal;font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
 .bxLog li.muted{color:var(--muted)}
 @media (pointer:coarse){#target{pointer-events:auto}}
+/* ---------- the clay look's item bar: a glass pill, round slots, the chosen one lifted and glowing ---------- */
+html.clay .chip{border-radius:14px}
+html.clay #bar{border-radius:999px;padding:6px 14px;gap:6px;background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(120,100,220,.2));border:1px solid rgba(255,255,255,.38);box-shadow:0 8px 30px rgba(40,20,90,.35),inset 0 1px 0 rgba(255,255,255,.45);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+html.clay .slot{border-radius:50%;border:none;background:rgba(255,255,255,.12);transition:transform .15s,box-shadow .15s}
+html.clay .slot.sel{transform:translateY(-5px) scale(1.12);background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.5),rgba(127,232,255,.2));box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 18px rgba(127,232,255,.85)}
+html.clay .slot b{right:-3px;bottom:-3px;font-size:11px;font-weight:600;padding:0 5px;border-radius:999px;background:rgba(40,30,90,.88);text-shadow:none}
+html.clay .slot i{display:none}
