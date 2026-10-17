@@ -624,6 +624,58 @@ function heldVoxelGeo(ti) {
 // Built along +y (handle down), then laid on the same diagonal as the 16 px icons, so the hand poses
 // (setHand below, updateAvatarHand in 14-startup.js) hold them exactly as they held the voxel versions.
 // Pickaxes and blades only (and the pistol); every other item keeps its voxel model.
+// a long thin blade along +y as one extruded shape: its width narrows toward a real point (a katana's back
+// stays straight to the end, its edge sweeps up into it), with a glowing strip along the cutting edge(s)
+function bladeGeos({ len = 1, bend = 0.12, w0 = 0.075, narrow = 0.45, tip = 0.16, single = true, edgeW = 0.016 }) {
+  const N = 40,
+    L = [],
+    R = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N,
+      y = -0.02 + t * len,
+      xc = bend * t * t,
+      w = w0 * (1 - narrow * t);
+    let kL = 1,
+      kR = 1;
+    if (t > 1 - tip) {
+      const u = (t - (1 - tip)) / tip;
+      kR = Math.sqrt(Math.max(0, 1 - u * u));
+      kL = single ? 1 - u * u * u : kR;
+    }
+    L.push([xc - (w / 2) * kL, y]);
+    R.push([xc + (w / 2) * kR, y]);
+  }
+  const outline = (a, b) => {
+    const sh = new THREE.Shape();
+    sh.moveTo(...a[0]);
+    for (const q of a.slice(1)) sh.lineTo(...q);
+    for (const q of b.slice().reverse()) sh.lineTo(...q);
+    return sh;
+  };
+  const body = new THREE.ExtrudeGeometry(outline(L, R), {
+    depth: 0.022,
+    bevelEnabled: true,
+    bevelThickness: 0.008,
+    bevelSize: 0.006,
+    bevelSegments: 2,
+  });
+  body.translate(0, 0, -0.011);
+  const strip = side => {
+    const out = [],
+      inn = [];
+    for (let i = 1; i <= N; i++) {
+      const [x, y] = side[i],
+        cx = (L[i][0] + R[i][0]) / 2,
+        d = Math.sign(x - cx) || 1;
+      out.push([x + d * 0.002, y]);
+      inn.push([x - d * Math.min(edgeW, Math.abs(x - cx) * 0.9), y]);
+    }
+    const geo = new THREE.ExtrudeGeometry(outline(out, inn), { depth: 0.04, bevelEnabled: false });
+    geo.translate(0, 0, -0.02);
+    return geo;
+  };
+  return { body, edges: single ? [strip(R)] : [strip(R), strip(L)] };
+}
 const clayModels = {};
 function clayModel(it) {
   it = +it;
@@ -655,24 +707,17 @@ function clayModel(it) {
     add(new THREE.ConeGeometry(0.075, 0.44, 6), head, -0.26, 0.42, 0, Math.PI / 2 + 0.18);
     add(new THREE.ConeGeometry(0.075, 0.44, 6), head, 0.26, 0.42, 0, -Math.PI / 2 - 0.18);
   } else if (BLADE[it]) {
-    // a slim curved blade, katana-like, its cutting edge glowing; a round guard
+    // a slim curved blade, katana-like: one smooth extruded shape with a real point, its cutting edge
+    // glowing (bladeGeos below); a round guard
     const [c, e, guard, grip] = BLADE[it],
-      steel = new THREE.MeshPhongMaterial({ color: c, shininess: 40 }),
-      edge = new THREE.MeshBasicMaterial({ color: e }),
-      gold = new THREE.MeshPhongMaterial({ color: guard, shininess: 40 }),
-      n = 9;
-    for (let i = 0; i < n; i++) {
-      const t = i / (n - 1),
-        w = 0.075 * (1 - t * 0.55),
-        x = 0.12 * t * t,
-        a = -Math.atan2(0.24 * t, 0.95);
-      add(new THREE.BoxGeometry(w, 0.13, 0.03), steel, x, -0.02 + t * 0.95, 0, a);
-      add(new THREE.BoxGeometry(0.014, 0.13, 0.034), edge, x + w / 2, -0.02 + t * 0.95, 0, a);
-    }
-    add(new THREE.ConeGeometry(0.04, 0.12, 4), steel, 0.13, 0.99, 0, -0.35).scale.z = 0.4;
-    add(new THREE.CylinderGeometry(0.11, 0.11, 0.035, 20), gold, 0, -0.1, 0);
-    add(new THREE.CylinderGeometry(0.035, 0.035, 0.3, 8), matte(grip), 0, -0.27, 0);
-    add(new THREE.SphereGeometry(0.045, 12, 8), gold, 0, -0.44, 0);
+      { body, edges } = bladeGeos({ len: 1, bend: 0.12, w0: 0.075, narrow: 0.45, tip: 0.16 }),
+      gold = new THREE.MeshPhongMaterial({ color: guard, shininess: 40 });
+    g.add(new THREE.Mesh(body, new THREE.MeshPhongMaterial({ color: c, shininess: 70 })));
+    const glow = new THREE.MeshBasicMaterial({ color: e });
+    for (const eg of edges) g.add(new THREE.Mesh(eg, glow));
+    add(new THREE.CylinderGeometry(0.1, 0.1, 0.03, 24), gold, 0, -0.05, 0);
+    add(new THREE.CylinderGeometry(0.03, 0.033, 0.3, 10), matte(grip), 0, -0.22, 0);
+    add(new THREE.SphereGeometry(0.04, 14, 10), gold, 0, -0.38, 0);
   } else if (it === 206) {
     // the pistol: barrel toward +x like its icon, a glowing core in the middle
     add(new THREE.BoxGeometry(0.5, 0.17, 0.14), matte('#4a3b7a'), 0.02, 0.06, 0);
