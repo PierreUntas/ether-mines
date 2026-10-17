@@ -507,6 +507,26 @@ const hover = await page.evaluate(() => {
   return { sinksOnFoot, riding, glides, lifted, drifts, grips, offWhenPutAway, craft, boarded, behind, off };
 });
 if (Object.values(hover).some(v => !v)) await fail('hovercraft: ' + JSON.stringify(hover));
+// a plasma bolt fired by another player shows up here too (drawn only), and yours is sent to the others
+const shots = await page.evaluate(() => {
+  const P = mines.P, S = mines.S, keep = S.bar[S.sel], sent = [], real = Net.sendShot, wasPlaying = mines.playing;
+  ghostShot({ id: 'someone-else', x: P.x + 5, y: P.y + 1.4, z: P.z, dx: 0, dy: 0, dz: -1 });
+  const drawn = GHOST_BOLTS.length === 1 && GHOST_BOLTS[0].m.parent === scene;
+  for (let i = 0; i < 40; i++) updateGhostBolts(0.05);
+  const gone = GHOST_BOLTS.length === 0;
+  mines.playing = true;
+  Net.sendShot = p => sent.push(p);
+  S.nfts.push({ serial: 9911, id: 206, place: null, date: '', mined: 0 });
+  S.bar[S.sel] = 'nft9911';
+  rangedT = 0;
+  fireRanged();
+  Net.sendShot = real;
+  S.bar[S.sel] = keep;
+  S.nfts = S.nfts.filter(n => n.serial !== 9911);
+  mines.playing = wasPlaying;
+  return { drawn, gone, sent: sent.length === 1 && Number.isFinite(sent[0].dx) };
+});
+if (Object.values(shots).some(v => !v)) await fail('plasma bolts shown to the others: ' + JSON.stringify(shots));
 // daytime rest: by day a sky raider slips out of sight once you're far, a ruin guardian never does
 // (validators keep their full guard), and the raider is back at night
 const rest = await page.evaluate(() => {

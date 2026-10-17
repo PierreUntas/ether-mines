@@ -1155,7 +1155,47 @@ function fireRanged() {
   scene.add(m);
   BOLTS.push({ m, vx: dir.x * BOLT_SPEED, vy: dir.y * BOLT_SPEED, vz: dir.z * BOLT_SPEED, life: BOLT_LIFE, dmg: heldDmg() });
   Sound.shoot();
+  // the players nearby see it fly too (drawn only: the damage still comes from this screen's own bolt)
+  if (typeof Net !== 'undefined' && Net.sendShot)
+    Net.sendShot({
+      id: ME.id,
+      x: +ray.origin.x.toFixed(2),
+      y: +ray.origin.y.toFixed(2),
+      z: +ray.origin.z.toFixed(2),
+      dx: +dir.x.toFixed(3),
+      dy: +dir.y.toFixed(3),
+      dz: +dir.z.toFixed(3),
+    });
   return true;
+}
+// someone else's plasma bolt: the same bolt, flying the same way, but harmless here (GHOST_BOLTS: it stops
+// on the first solid block or on a player, and never touches a mob or you — their own screen settles that)
+const GHOST_BOLTS = [];
+Net.on('shot', s => ghostShot(s));
+function ghostShot(s) {
+  if (!s || s.id === ME.id || IGNORES.has((others.get(s.id)?.name || '').toLowerCase())) return;
+  if (![s.x, s.y, s.z, s.dx, s.dy, s.dz].every(Number.isFinite) || Math.hypot(s.x - P.x, s.y - P.y, s.z - P.z) > 80) return;
+  const l = Math.hypot(s.dx, s.dy, s.dz) || 1,
+    m = new THREE.Mesh(boltGeo, boltMat);
+  m.position.set(s.x, s.y, s.z);
+  scene.add(m);
+  GHOST_BOLTS.push({ m, vx: (s.dx / l) * BOLT_SPEED, vy: (s.dy / l) * BOLT_SPEED, vz: (s.dz / l) * BOLT_SPEED, life: BOLT_LIFE });
+  if (Math.hypot(s.x - P.x, s.z - P.z) < 30) Sound.shoot();
+}
+function updateGhostBolts(dt) {
+  for (let i = GHOST_BOLTS.length - 1; i >= 0; i--) {
+    const b = GHOST_BOLTS[i],
+      p = b.m.position;
+    b.life -= dt;
+    p.x += b.vx * dt;
+    p.y += b.vy * dt;
+    p.z += b.vz * dt;
+    const onYou = Math.abs(p.x - P.x) < 0.45 && Math.abs(p.z - P.z) < 0.45 && p.y > P.y && p.y < P.y + 1.85;
+    if (b.life <= 0 || onYou || isSolid(get(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z)))) {
+      scene.remove(b.m);
+      GHOST_BOLTS.splice(i, 1);
+    }
+  }
 }
 // ---------- mobs that hit from a distance: turrets and the Plasma Core ----------
 // A charge (a turret's lens swells, so you see it coming), then a burst of slow bolts aimed where you
@@ -1253,6 +1293,7 @@ function updateMobBolts(dt) {
 }
 function updateBolts(dt) {
   updateMobBolts(dt);
+  updateGhostBolts(dt);
   for (let i = BOLTS.length - 1; i >= 0; i--) {
     const b = BOLTS[i];
     b.life -= dt;

@@ -3,7 +3,20 @@
 window.Net = (() => {
   const cfg = window.CONFIG || {};
   const enabled = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
-  const handlers = { block: [], pos: [], hit: [], chat: [], peers: [], status: [], claim: [], frozen: [], offer: [], sign: [], mob: [] };
+  const handlers = {
+    block: [],
+    pos: [],
+    hit: [],
+    chat: [],
+    peers: [],
+    status: [],
+    claim: [],
+    frozen: [],
+    offer: [],
+    sign: [],
+    mob: [],
+    shot: [],
+  };
   let sb = null,
     ch = null,
     world = 'principal',
@@ -244,6 +257,7 @@ window.Net = (() => {
         c.on('broadcast', { event: 'pos' }, ({ payload }) => emit('pos', payload));
         c.on('broadcast', { event: 'hit' }, ({ payload }) => emit('hit', payload));
         c.on('broadcast', { event: 'mob' }, ({ payload }) => emit('mob', payload)); // a blow on a shared mob (16-mobs.js)
+        c.on('broadcast', { event: 'shot' }, ({ payload }) => emit('shot', payload)); // a plasma bolt fired nearby, to draw (16-mobs.js)
         c.subscribe();
         regions.set(k, c);
       }
@@ -278,6 +292,10 @@ window.Net = (() => {
   let peersNow = [];
   const sendMob = p => {
     if (anyoneNear(peersNow)) sendRegion('mob', p);
+  };
+  // a plasma bolt you fired, so the players nearby see it fly (only drawn there: hits still go through 'hit')
+  const sendShot = p => {
+    if (anyoneNear(peersNow)) sendRegion('shot', p);
   };
   // is anyone else close enough to receive your moves?
   const anyoneNear = peers => peers.some(p => p.id !== me?.id && (near(p.r, myRegion) || (p.w && near(p.w, myRegion))));
@@ -389,6 +407,7 @@ window.Net = (() => {
     sendPos,
     sendHit,
     sendMob,
+    sendShot,
     setRegion,
     setLook,
     watchRegion,
