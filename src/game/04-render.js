@@ -626,7 +626,7 @@ function heldVoxelGeo(ti) {
 // Pickaxes and blades only (and the pistol); every other item keeps its voxel model.
 // a long thin blade along +y as one extruded shape: its width narrows toward a real point (a katana's back
 // stays straight to the end, its edge sweeps up into it), with a glowing strip along the cutting edge(s)
-function bladeGeos({ len = 1, bend = 0.12, w0 = 0.075, narrow = 0.45, tip = 0.16, single = true, edgeW = 0.016 }) {
+function bladeGeos({ len = 1, bend = 0.12, w0 = 0.075, narrow = 0.45, tip = 0.16, single = true, edgeW = 0.016, fuller = false }) {
   const N = 40,
     L = [],
     R = [];
@@ -674,7 +674,21 @@ function bladeGeos({ len = 1, bend = 0.12, w0 = 0.075, narrow = 0.45, tip = 0.16
     geo.translate(0, 0, -0.02);
     return geo;
   };
-  return { body, edges: single ? [strip(R)] : [strip(R), strip(L)] };
+  const edges = single ? [strip(R)] : [strip(R), strip(L)];
+  // a glowing groove down the middle of the blade (the fuller)
+  if (fuller) {
+    const a = [],
+      b = [];
+    for (let i = 2; i <= N - 8; i++) {
+      const cx = (L[i][0] + R[i][0]) / 2;
+      a.push([cx - 0.006, L[i][1]]);
+      b.push([cx + 0.006, L[i][1]]);
+    }
+    const geo = new THREE.ExtrudeGeometry(outline(a, b), { depth: 0.042, bevelEnabled: false });
+    geo.translate(0, 0, -0.021);
+    edges.push(geo);
+  }
+  return { body, edges };
 }
 const clayModels = {};
 function clayModel(it) {
@@ -697,7 +711,7 @@ function clayModel(it) {
     BLADE = {
       106: ['#fff4cc', '#ffd166', '#c98a20', '#4a3b7a'],
       107: ['#e8fffd', '#7fe8ff', '#2aa8b8', '#3a2d52'],
-      301: ['#eef3ff', '#9ff0ff', '#ffd166', '#6a2d52'],
+      301: ['#dcd6ff', '#7fe8ff', '#8a7bef', '#2a1838'],
     };
   if (PICK[it]) {
     const [h, c, e] = PICK[it];
@@ -707,17 +721,17 @@ function clayModel(it) {
     add(new THREE.ConeGeometry(0.075, 0.44, 6), head, -0.26, 0.42, 0, Math.PI / 2 + 0.18);
     add(new THREE.ConeGeometry(0.075, 0.44, 6), head, 0.26, 0.42, 0, -Math.PI / 2 - 0.18);
   } else if (BLADE[it]) {
-    // a slim curved blade, katana-like: one smooth extruded shape with a real point, its cutting edge
-    // glowing (bladeGeos below); a round guard
+    // the ether blade: long, straight and thin, both edges and the fuller glowing, a guard in the shape of
+    // the Ethereum diamond and a small glowing gem for a pommel
     const [c, e, guard, grip] = BLADE[it],
-      { body, edges } = bladeGeos({ len: 1, bend: 0.12, w0: 0.075, narrow: 0.45, tip: 0.16 }),
-      gold = new THREE.MeshPhongMaterial({ color: guard, shininess: 40 });
+      { body, edges } = bladeGeos({ len: 1.05, bend: 0, w0: 0.07, narrow: 0.3, tip: 0.14, single: false, edgeW: 0.01, fuller: true }),
+      glow = new THREE.MeshBasicMaterial({ color: e }),
+      jewel = col => new THREE.MeshPhongMaterial({ color: col, emissive: col, emissiveIntensity: 0.35, flatShading: true });
     g.add(new THREE.Mesh(body, new THREE.MeshPhongMaterial({ color: c, shininess: 70 })));
-    const glow = new THREE.MeshBasicMaterial({ color: e });
     for (const eg of edges) g.add(new THREE.Mesh(eg, glow));
-    add(new THREE.CylinderGeometry(0.1, 0.1, 0.03, 24), gold, 0, -0.05, 0);
+    add(new THREE.OctahedronGeometry(0.07), jewel(guard), 0, -0.05, 0).scale.set(1.6, 0.6, 0.6);
     add(new THREE.CylinderGeometry(0.03, 0.033, 0.3, 10), matte(grip), 0, -0.22, 0);
-    add(new THREE.SphereGeometry(0.04, 14, 10), gold, 0, -0.38, 0);
+    add(new THREE.OctahedronGeometry(0.045), jewel(e), 0, -0.4, 0).scale.y = 1.4;
   } else if (it === 206) {
     // the pistol: barrel toward +x like its icon, a glowing core in the middle
     add(new THREE.BoxGeometry(0.5, 0.17, 0.14), matte('#4a3b7a'), 0.02, 0.06, 0);
