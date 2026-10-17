@@ -107,8 +107,11 @@ function frame(now) {
         (RIDE ? 2 : 1), // on a hovercraft (20-hover.js): twice as fast
       sn = Math.sin(yaw),
       cs = Math.cos(yaw);
-    const vx = (-sn * fz + cs * fx) * sp,
+    let vx = (-sn * fz + cs * fx) * sp,
       vz = (-cs * fz - sn * fx) * sp;
+    if (RIDE) [vx, vz] = rideVelocity(vx, vz, dt); // a hovercraft has inertia: it drifts in hard turns (20-hover.js)
+    const px0 = P.x,
+      pz0 = P.z;
     const was = P.on;
     bumped = false;
     const guard = sneak && was && !inW;
@@ -136,6 +139,7 @@ function frame(now) {
         P.y = oy;
       }
     }
+    if (RIDE && dt > 0) rideMoved((P.x - px0) / dt, (P.z - pz0) / dt);
     if (ladderCell) {
       // the ladder's panel (mesh.js LADDER): o0 on the cell's -z face, o1 -x, o2 +z, o3 +x, 1/8 block thick
       const [cx, , cz] = ladderCell,

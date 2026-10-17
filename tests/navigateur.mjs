@@ -472,6 +472,17 @@ const hover = await page.evaluate(() => {
   const riding = !!RIDE && RIDE.mesh.parent === scene;
   const glides = collides(P.x, y - 3, P.z);
   const lifted = rideLift() > 0.3;
+  // a hard turn at speed: the old speed carries on sideways for a while (a drift), then fades
+  const y0 = yaw;
+  yaw = 0;
+  RIDE.vx = 0;
+  RIDE.vz = -13;
+  yaw = -Math.PI / 2; // now facing east (+x), still sliding north
+  let [vx1, vz1] = rideVelocity(13, 0, 0.05);
+  const drifts = vz1 < -10 && vx1 > 0;
+  for (let i = 0; i < 60; i++) [RIDE.vx, RIDE.vz] = rideVelocity(13, 0, 0.05);
+  const grips = Math.abs(RIDE.vz) < 1.5 && RIDE.vx > 12;
+  yaw = y0;
   S.bar[S.sel] = keep;
   updateRide(0.05);
   const offWhenPutAway = !RIDE;
@@ -493,7 +504,7 @@ const hover = await page.evaluate(() => {
   scene.remove(o.g);
   S.nfts = S.nfts.filter(n => n.serial !== 9901);
   mines.playing = wasPlaying;
-  return { sinksOnFoot, riding, glides, lifted, offWhenPutAway, craft, boarded, behind, off };
+  return { sinksOnFoot, riding, glides, lifted, drifts, grips, offWhenPutAway, craft, boarded, behind, off };
 });
 if (Object.values(hover).some(v => !v)) await fail('hovercraft: ' + JSON.stringify(hover));
 // daytime rest: by day a sky raider slips out of sight once you're far, a ruin guardian never does

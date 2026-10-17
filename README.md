@@ -364,7 +364,9 @@ takes, with 4 Cyan Neon and 2 Marble for the frame:
 | Diamond Shard | 3 | 5 |
 
 Hold one and right-click to ride it: twice as fast, it glides over the water and floats over one-block
-steps; right-click again, or put it away, to step off. No fighting on board. The **Twin Diamond** has a
+steps; right-click again, or put it away, to step off. No fighting on board. You sit low in it, hands
+on the controls, and it has inertia: turn hard at speed and it drifts sideways, leaning into the turn,
+throwing spray off its side. The **Twin Diamond** has a
 back seat: a friend right-clicks its driver to sit behind them (jump to get off) and goes wherever the
 driver goes; the others see both on the craft. The server lets a glider's owner, and the passenger of a
 Twin Diamond, move twice as fast (`040_hovercraft.sql`, `_check_pos`); a rider pings its position every

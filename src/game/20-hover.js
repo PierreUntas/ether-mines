@@ -132,17 +132,32 @@ function buildHover(id) {
       g.add(hull);
     }
     g.add(hvMesh(hvBox(0.75, 0.08, 1.05, 0.03), hvMat(c.seam, 0.3), 0, 0.62, 0.05));
-    for (const z of [-0.22, 0.38]) g.add(hvMesh(hvBox(0.36, 0.12, 0.36, 0.05), hvMat('#f4f1ff'), 0, 0.7, z));
+    // two low seats sunk into the bridge, each with a backrest and a glass windshield in front: you sit in it
+    for (const z of [-0.22, 0.38]) {
+      g.add(hvMesh(hvBox(0.36, 0.06, 0.34, 0.03), hvMat('#f4f1ff'), 0, 0.68, z));
+      g.add(hvMesh(hvBox(0.36, 0.26, 0.06, 0.03), hvMat(c.deep, 0.1), 0, 0.8, z + 0.2));
+      const ws = hvMesh(hvBox(0.42, 0.22, 0.03, 0.015), hvGlow('#e8fbff', 0.45), 0, 0.8, z - 0.24);
+      ws.rotation.x = -0.45;
+      g.add(ws);
+    }
     g.add(hvMesh(hvBox(0.5, 0.04, 1.2, 0.02), hvGlow(c.glow, 0.85), 0, 0.26, 0));
     g.add((g.userData.cushion = hvCushion(0.95, 1.15, c.glow)));
-    seatY = 0.76;
+    seatY = 0.71;
     seatZ = -0.22;
     back = 0.38;
   } else {
     const hull = hvHull(0.62, 1.05, 0.4, 0.55, c.mid === '#4a3a66' ? c.mid : c.deep, c.dark, c.glow, c.glow);
     hull.position.y = 0.55;
     g.add(hull);
-    g.add(hvMesh(hvBox(0.34, 0.12, 0.42, 0.05), hvMat(c.glow, 0.25), 0, 0.92, 0.12));
+    // a cockpit cut into the diamond's top: the seat sits below the facets, a glowing rim and a windshield around you
+    const rim = hvMesh(new THREE.TorusGeometry(0.3, 0.035, 8, 24), hvMat(c.glow, 0.5), 0, 0.88, 0.12);
+    rim.rotation.x = Math.PI / 2;
+    rim.scale.set(1, 1.25, 1);
+    g.add(rim);
+    g.add(hvMesh(new THREE.CylinderGeometry(0.29, 0.29, 0.02, 24), hvMat(c.dark), 0, 0.86, 0.12));
+    const ws = hvMesh(hvBox(0.46, 0.22, 0.03, 0.015), hvGlow('#e8fbff', 0.45), 0, 0.98, -0.22);
+    ws.rotation.x = -0.5;
+    g.add(ws);
     const gem = hvGem(0.14, c.light, c.mid, c.seam);
     gem.position.set(0, 1.05, -0.85);
     g.add(gem);
@@ -152,7 +167,7 @@ function buildHover(id) {
       g.add(f);
     }
     g.add((g.userData.cushion = hvCushion(0.8, 1.2, c.glow)));
-    seatY = 0.98;
+    seatY = 0.8;
     seatZ = 0.12;
     back = null;
   }
@@ -220,6 +235,82 @@ function toggleRide() {
   if (RIDE) dismountHover();
   else mountHover();
 }
+// ---------- drifting ----------
+// On board, your velocity has inertia (10-loop.js): the part along the craft's nose follows the stick
+// quickly, the part across it only slowly lets go. Turn hard at speed and the craft slides sideways, its
+// nose already pointing the new way: a drift, with spray off its side and the craft leaning into it.
+const HOVER_ACCEL = 3.5, // how fast the speed along the nose follows the stick, per second
+  HOVER_GRIP = 1.4; // how fast a sideways slide fades, per second: lower, longer drifts
+function rideVelocity(vx, vz, dt) {
+  const fx = -Math.sin(yaw),
+    fz = -Math.cos(yaw),
+    cvx = RIDE.vx || 0,
+    cvz = RIDE.vz || 0,
+    f = cvx * fx + cvz * fz,
+    tf = vx * fx + vz * fz,
+    nf = f + (tf - f) * Math.min(1, dt * HOVER_ACCEL),
+    k = Math.min(1, dt * HOVER_GRIP),
+    lx = cvx - f * fx + (vx - tf * fx - (cvx - f * fx)) * k,
+    lz = cvz - f * fz + (vz - tf * fz - (cvz - f * fz)) * k;
+  return [nf * fx + lx, nf * fz + lz];
+}
+// what you really moved this frame (a wall stops the slide too)
+function rideMoved(vx, vz) {
+  RIDE.vx = vx;
+  RIDE.vz = vz;
+}
+// a craft's sideways slide (m: the craft; its heading, its world velocity from frame to frame): leans
+// the hull (and the rider, ro) into it, throws spray off its side
+const hvP = new THREE.Vector3();
+function driftFx(m, ro, dt, color) {
+  m.getWorldPosition(hvP);
+  m.getWorldQuaternion(hvQ);
+  const ry = hvE.setFromQuaternion(hvQ, 'YXZ').y,
+    u = m.userData;
+  if (u.px === undefined || dt <= 0) {
+    u.px = hvP.x;
+    u.pz = hvP.z;
+    u.vx = u.vz = 0;
+    return;
+  }
+  const k = Math.min(1, dt * 8);
+  u.vx += ((hvP.x - u.px) / dt - u.vx) * k;
+  u.vz += ((hvP.z - u.pz) / dt - u.vz) * k;
+  u.px = hvP.x;
+  u.pz = hvP.z;
+  if (Math.hypot(u.vx, u.vz) > 40) u.vx = u.vz = 0; // a jump across the map (a teleport), not a slide
+  const rx = Math.cos(ry),
+    rz = -Math.sin(ry), // the craft's right side
+    lat = u.vx * rx + u.vz * rz,
+    roll = clamp(lat * 0.05, -0.32, 0.32);
+  u.body.rotation.z += (roll - u.body.rotation.z) * Math.min(1, dt * 6);
+  if (ro) ro.rotation.z = u.body.rotation.z;
+  // spray off the side it slides away from, behind the seat
+  if (Math.abs(lat) > 2.6 && Math.hypot(u.vx, u.vz) > 4) {
+    u.sprayT = (u.sprayT || 0) - dt;
+    if (u.sprayT <= 0) {
+      u.sprayT = 0.03;
+      const side = -Math.sign(lat),
+        bx = hvP.x + rx * side * 0.7 + Math.sin(ry) * 0.6,
+        bz = hvP.z + rz * side * 0.7 + Math.cos(ry) * 0.6,
+        pm = new THREE.Mesh(etherGeo, u.sprayMat || (u.sprayMat = hvGlow(color, 0.9)));
+      pm.position.set(bx, hvP.y - HOVER_GAP + 0.15, bz);
+      scene.add(pm);
+      parts.push({
+        m: pm,
+        v: [
+          rx * side * (1.5 + Math.random() * 2) - u.vx * 0.15,
+          1.5 + Math.random() * 2,
+          rz * side * (1.5 + Math.random() * 2) - u.vz * 0.15,
+        ],
+        t: 0.5,
+        t0: 0.5,
+        g: 6,
+        s: 1.6,
+      });
+    }
+  }
+}
 // every frame: your craft follows you (and stays only while you hold it), the others' crafts animate
 function updateRide(dt) {
   const t = performance.now() / 1000;
@@ -231,8 +322,13 @@ function updateRide(dt) {
     dr = Math.atan2(Math.sin(dr), Math.cos(dr));
     m.rotation.y += dr * Math.min(1, dt * 10);
     animateHover(m, t);
+    driftFx(m, VIEW && SELF ? SELF.seat : null, dt, HOVER_COLORS[hoverOf(RIDE.id).k].glow);
   }
-  for (const o of others.values()) if (o.craft) animateHover(o.craft, t + o.ph);
+  for (const o of others.values())
+    if (o.craft) {
+      animateHover(o.craft, t + o.ph);
+      driftFx(o.craft, o.seat, dt, HOVER_COLORS[hoverOf(o.craft.userData.id).k].glow);
+    }
 }
 // ---------- the avatars on board ----------
 // everything an avatar shows goes under one inner group the first time it rides, so lifting it onto the
@@ -252,9 +348,13 @@ function sitAvatar(o, on) {
   const s = seatGroup(o);
   s.position.y = on ? rideLiftFor(o) : 0;
   if (on) {
-    o.legs[0].rotation.x = o.legs[1].rotation.x = 1.45; // knees forward, sitting
+    // seated: knees forward, both hands forward on the controls, still (no running swing)
+    o.legs[0].rotation.x = o.legs[1].rotation.x = 1.45;
+    o.arms[0].rotation.x = o.arms[1].rotation.x = -0.95;
+    o.arms[0].rotation.z = 0.12;
+    o.arms[1].rotation.z = -0.12;
     o.body.position.y = 0.94;
-  }
+  } else s.rotation.z = 0;
 }
 const rideLiftFor = o => {
   const m = o === SELF ? (RIDE ? RIDE.mesh : boardCraft()?.craft) : o.craft || (o.t?.on && driverCraft(o.t.on));
