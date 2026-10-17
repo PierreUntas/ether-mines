@@ -177,7 +177,10 @@ window.Net = (() => {
       const st = ch.presenceState(),
         list = [];
       for (const k in st) {
-        const p = st[k][0];
+        // one entry per connection: after a reconnection (or with a second tab) the oldest can be stale,
+        // without the square the player is in. Take the newest one that has it.
+        const metas = st[k] || [],
+          p = [...metas].reverse().find(m => m && m.r) || metas[metas.length - 1];
         if (p) list.push({ id: k, name: p.name, color: p.color, title: p.title || '', look: p.look || '', r: p.r || null, w: p.w || null });
       }
       peersNow = list;

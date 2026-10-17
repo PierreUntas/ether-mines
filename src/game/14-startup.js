@@ -720,8 +720,17 @@ function command(v) {
   }
   if (c === 'join') {
     const o = [...others.values()].find(o => o.name.toLowerCase() === arg || o.name.toLowerCase().startsWith(arg));
-    if (!o || (!o.t && !o.r)) {
+    if (!o) {
       addChat('World', '#7fe8ff', arg ? `No one here is called "${arg}".` : 'Type /join followed by a nickname.');
+      return;
+    }
+    if (!o.t && !o.r) {
+      // online, but their game hasn't said where they are yet (on the title screen or paused, or just reconnected)
+      addChat(
+        'World',
+        '#7fe8ff',
+        `${o.name} is online but not in the game right now: ask them to resume and move a little, then try again.`,
+      );
       return;
     }
     const go = () => {
