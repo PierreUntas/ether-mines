@@ -1035,6 +1035,7 @@ function findMob(id) {
 // you hit it: the twins' shield, then the blow itself, then the word to everyone nearby
 function damageMob(a, dmg, fromX, fromZ) {
   a.provoked = 15; // struck: the Ward Incense no longer fools it for a while
+  if (a.stunT > 0) dmg *= 1.5; // a riposte, while it reels from a parry
   if (a.arena && (a.twin || a.arena.reach) && Math.hypot(P.x - a.arena.x, P.z - a.arena.z) > (a.arena.reach || a.arena.r + 2.5)) {
     dmg *= 0.15;
     if (performance.now() - twinShieldToast > 15000) {
@@ -1122,6 +1123,7 @@ function applyMobDamage(a, dmg, hpLeft, fromX, fromZ) {
   }
 }
 function attackMob(a) {
+  if (guarding()) return false; // the blade is up: no strike while you guard
   swing = Math.max(swing, 0.6);
   if (playerAtkT > 0) return false;
   playerAtkT = 0.45;
@@ -1239,7 +1241,7 @@ function updateMobBolts(dt) {
     p.z += b.vz * dt;
     let dead = b.life <= 0 || isSolid(get(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z)));
     if (!dead && Math.abs(p.x - P.x) < 0.45 && Math.abs(p.z - P.z) < 0.45 && p.y > P.y && p.y < P.y + 1.85) {
-      if (hurtT <= 0) hurtPlayer(b.dmg, b.ox, b.oz);
+      if (hurtT <= 0) hurtPlayer(b.dmg, b.ox, b.oz, 'bolt');
       dead = true;
     }
     if (dead) {
@@ -1382,6 +1384,7 @@ function lootMob(type) {
 // one click, one blow: unlike mobs, holding the button down doesn't keep striking a player
 let pvpStruck = false;
 function attackPlayer(target) {
+  if (guarding()) return false;
   swing = Math.max(swing, 0.6);
   if (playerAtkT > 0 || pvpStruck) return false;
   pvpStruck = true;
@@ -1403,9 +1406,73 @@ function tickWeapons(dt) {
   rangedT = Math.max(0, rangedT - dt);
   STRIKE.buf = Math.max(0, STRIKE.buf - dt);
 }
-function hurtPlayer(dmg, mx, mz) {
+// ---------- guarding and parrying with a blade ----------
+// Hold the right button (or the shield button on a touch screen) with a blade in hand: the blade comes up
+// across you. A blow from in front then only does a quarter of its damage, and a bolt from in front is
+// deflected. Raise the guard just before the blow lands (PARRY_WINDOW) and it's a parry: no damage at all,
+// and the mob that struck reels back, stunned for STUN_S seconds, open to a riposte (+50% damage).
+// Guarding slows you down, and you can't strike at the same time.
+const PARRY_WINDOW = 0.35,
+  STUN_S = 1.3,
+  GUARD_ARC = Math.cos((80 * Math.PI) / 180); // in front: within 80 degrees of where you look
+let guardHeld = false,
+  guardT = 0, // seconds since the guard went up
+  guardAmt = 0, // 0..1, the blade's way up (the hand's animation, 10-loop.js)
+  parryTold = 0;
+function heldBlade() {
+  const id = S.bar[S.sel] ? itemId(S.bar[S.sel]) : null;
+  return !!(id && !B[id] && ITEM[id]?.dmg && !ITEM[id].ranged);
+}
+const guarding = () => guardHeld && playing && heldBlade();
+function setGuard(on) {
+  if (on && !guardHeld) guardT = 0;
+  guardHeld = on;
+}
+function updateGuard(dt) {
+  const blade = heldBlade();
+  if (guardHeld && !blade) guardHeld = false;
+  guardT += dt;
+  guardAmt += ((guarding() ? 1 : 0) - guardAmt) * Math.min(1, dt * 14);
+  const v = $('vignette'),
+    tb = $('tGuard');
+  if (v) v.classList.toggle('guard', guarding());
+  if (tb && tb.hidden === blade) tb.hidden = !blade;
+}
+// is (mx, mz) in front of you?
+function facing(mx, mz) {
+  const dx = mx - P.x,
+    dz = mz - P.z,
+    d = Math.hypot(dx, dz);
+  return d < 0.05 || (-Math.sin(yaw) * dx - Math.cos(yaw) * dz) / d > GUARD_ARC;
+}
+// sparks off the blade, in front of you
+function guardSpark(parry) {
+  const fx = P.x - Math.sin(yaw) * 0.8,
+    fz = P.z - Math.cos(yaw) * 0.8;
+  clayBurst(fx - 0.5, P.y + 0.8, fz - 0.5, etherMats[parry ? 0 : 1]);
+  Sound.hit('pierre');
+  if (parry) Sound.click();
+}
+// a blow that reaches you: 'parry' (none of it, the striker reels), 'block' (none or a quarter of it), or
+// undefined (a plain hit). kind: 'melee', 'bolt' or 'pvp'.
+function hurtPlayer(dmg, mx, mz, kind = 'melee') {
+  let blocked = false;
+  if (guarding() && facing(mx, mz)) {
+    const parry = guardT < PARRY_WINDOW;
+    guardSpark(parry);
+    if (parry || kind === 'bolt') {
+      hurtT = 0.35;
+      return parry ? 'parry' : 'block';
+    }
+    dmg *= 0.25;
+    blocked = true;
+  }
   const reduction = ITEM[S.armor]?.armor || 0;
-  dmg = Math.max(1, Math.round(dmg * (1 - reduction)));
+  dmg = Math.max(blocked ? 0 : 1, Math.round(dmg * (1 - reduction)));
+  if (!dmg) {
+    hurtT = 0.35;
+    return 'block';
+  }
   S.hp = Math.max(0, S.hp - dmg);
   regenT = 6;
   hurtT = 0.5;
@@ -1413,15 +1480,16 @@ function hurtPlayer(dmg, mx, mz) {
   const dx = P.x - mx,
     dz = P.z - mz,
     dd = Math.hypot(dx, dz) || 1;
-  moveAxis('x', (dx / dd) * 2.4);
-  moveAxis('z', (dz / dd) * 2.4);
-  P.vy = Math.max(P.vy, 4);
+  moveAxis('x', (dx / dd) * (blocked ? 1.2 : 2.4));
+  moveAxis('z', (dz / dd) * (blocked ? 1.2 : 2.4));
+  if (!blocked) P.vy = Math.max(P.vy, 4);
   Sound.hurt();
   $('vignette').classList.add('hurt');
   setTimeout(() => $('vignette').classList.remove('hurt'), 220);
   dirty = true;
   updateHpUI();
   if (S.hp <= 0) die();
+  return blocked ? 'block' : undefined;
 }
 function die() {
   logEv('burn', 'You fell in combat', 'back to the sanctuary');
@@ -1587,6 +1655,17 @@ function updateMobs(dt) {
         continue;
       }
       if (a.provoked > 0) a.provoked -= dt;
+      if (a.stunT > 0) {
+        // stunned by a parry: it sways on the spot, carried by the knockback, and does nothing else
+        a.stunT -= dt;
+        if (a.kbT > 0) {
+          a.kbT -= dt;
+          a.g.position.x += a.kbx * dt;
+          a.g.position.z += a.kbz * dt;
+        }
+        a.g.rotation.z = a.stunT > 0 ? Math.sin(a.stunT * 18) * 0.15 : 0;
+        continue;
+      }
       const K = MK[a.type],
         p = a.g.position,
         tg = mobTarget(a, p), // you, or another player nearby: whoever is closest, the same on every screen
@@ -1736,7 +1815,20 @@ function updateMobs(dt) {
       // no bite through a wall: the mob must actually reach you
       if (aggro && tg.me && !holdFire && d < K.atk && hurtT <= 0 && a.atkT <= 0 && lineClear(...mobEye(a), P.x, P.y + 1, P.z)) {
         a.atkT = K.cd;
-        hurtPlayer(K.dmg, p.x, p.z);
+        if (hurtPlayer(K.dmg, p.x, p.z, 'melee') === 'parry') {
+          // parried: it reels back, stunned, open to a riposte
+          a.stunT = STUN_S;
+          const ux = p.x - P.x,
+            uz = p.z - P.z,
+            ul = Math.hypot(ux, uz) || 1;
+          a.kbx = (ux / ul) * 7;
+          a.kbz = (uz / ul) * 7;
+          a.kbT = 0.25;
+          if (parryTold < 2) {
+            parryTold++;
+            toastInfo(`Parried! The ${MK[a.type].n.replace(/^The /, '')} reels — strike now for extra damage`);
+          }
+        }
       }
     }
 }

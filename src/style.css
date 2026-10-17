@@ -23,6 +23,7 @@ body{background:#1c163a;color:var(--text);font-family:var(--pixel);-webkit-user-
 #game{position:fixed;inset:0;touch-action:none}
 #game canvas{display:block;width:100%;height:100%}
 #vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(20,12,48,.28) 100%);transition:background .15s}
+#vignette.guard{background:radial-gradient(ellipse at center,transparent 50%,rgba(127,232,255,.22) 100%)}
 #vignette.hurt{background:radial-gradient(ellipse at center,rgba(255,60,80,.05) 45%,rgba(255,40,70,.6) 100%)}
 #hp{position:absolute;left:16px;top:calc(env(safe-area-inset-top,0px) + 198px);padding:5px 9px;display:flex;gap:3px;font-size:14px;line-height:1}
 #hp span{color:var(--burn)}
@@ -191,6 +192,8 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 #tJump{right:0;top:0}
 #tSneak{right:0;bottom:0}
 #tSprint{left:0;top:59px}
+#tGuard{left:0;top:118px}
+#tGuard[hidden]{display:none}
 .slot.more{display:none;font-size:16px;letter-spacing:1px}
 @media (pointer:coarse){
   .slot.more{display:grid}

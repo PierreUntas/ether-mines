@@ -14,7 +14,7 @@
 //   node tools/capture.mjs --shots shots.json
 //
 // Other options: --time morning|noon|sunset|night|<0..1>, --width 1280 --height 720, --hud (keep the interface),
-// --no-mobs (hide hostile mobs), --query style=clay (added to the page's address), --wait 20000 (max ms to wait for the terrain to load), --offline (block Google Fonts).
+// --no-mobs (hide hostile mobs), --eval "js" (run in the page just before the shot, e.g. to raise a guard), --query style=clay (added to the page's address), --wait 20000 (max ms to wait for the terrain to load), --offline (block Google Fonts).
 // Captures go to captures/ by default (ignored by git).
 import { chromium } from 'playwright';
 import { createRequire } from 'node:module';
@@ -66,14 +66,14 @@ function shotsOf(o) {
         x = c[0] + Math.sin(a) * r,
         z = c[2] + Math.cos(a) * r,
         y = c[1] + h;
-      return { x, y, z, ...lookAngles(x, y, z, c), day, out: out.replace(/(\.png)?$/, `-${i + 1}.png`) };
+      return { x, y, z, ...lookAngles(x, y, z, c), day, eval: o.eval, out: out.replace(/(\.png)?$/, `-${i + 1}.png`) };
     });
   }
   const x = num(o.x, 8.5),
     y = num(o.y, 40),
     z = num(o.z, 24);
   const ang = o['look-at'] ? lookAngles(x, y, z, vec(o['look-at'])) : { yaw: num(o.yaw, 0), pitch: num(o.pitch, -0.15) };
-  return [{ x, y, z, ...ang, day, out }];
+  return [{ x, y, z, ...ang, day, eval: o.eval, out }];
 }
 const shots = args.shots ? JSON.parse(await readFile(args.shots, 'utf8')).flatMap(shotsOf) : shotsOf(args);
 
@@ -160,6 +160,7 @@ for (const s of shots) {
     if (stable >= 1500 && Date.now() - t0 > 2500) break;
   }
   await page.evaluate(s => (mines.S.day = s.day), s);
+  if (s.eval) await page.evaluate(s.eval);
   await page.waitForTimeout(300);
   await mkdir(dirname(s.out), { recursive: true });
   await page.screenshot({ path: s.out });

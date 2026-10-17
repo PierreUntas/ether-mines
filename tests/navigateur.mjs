@@ -425,6 +425,39 @@ const runner = await page.evaluate(async () => {
   return { shielded, blinked, bots, frenzy: !!fr.frenzy, boots: mines.S.nfts.some(n => n.id === 211) };
 });
 if (!runner.shielded || !runner.blinked || runner.bots !== 2 || !runner.frenzy || !runner.boots) await fail('front-runner: ' + JSON.stringify(runner));
+// guarding with a blade: a blow from in front just after the guard goes up is parried (no damage), later
+// it's blocked (a quarter), a bolt from in front is deflected, a blow from behind lands in full; a mob
+// reeling from a parry takes +50%
+const guard = await page.evaluate(() => {
+  const P = mines.P, S = mines.S, keep = S.bar[S.sel], wasPlaying = mines.playing;
+  mines.playing = true; // guarding only counts while you're in the game
+  S.bar[S.sel] = 107; // a Pure Ether Blade
+  const fx = P.x - Math.sin(yaw) * 1.5, fz = P.z - Math.cos(yaw) * 1.5,
+    bx = P.x + Math.sin(yaw) * 1.5, bz = P.z + Math.cos(yaw) * 1.5;
+  S.armor = null;
+  S.hp = 10;
+  setGuard(true);
+  updateGuard(0.05);
+  const parry = hurtPlayer(8, fx, fz, 'melee') === 'parry' && S.hp === 10;
+  guardT = 2;
+  const block = hurtPlayer(8, fx, fz, 'melee') === 'block' && S.hp === 8;
+  const bolt = hurtPlayer(3, fx, fz, 'bolt') === 'block' && S.hp === 8;
+  const behind = hurtPlayer(3, bx, bz, 'melee') === undefined && S.hp === 5;
+  const noStrike = attackMob({ hp: 5 }) === false;
+  setGuard(false);
+  updateGuard(1);
+  const a = mines.mkMob('shadow', 'test-guard', 0, fx, P.y, fz, null);
+  a.stunT = 1;
+  damageMob(a, 4, P.x, P.z);
+  const riposte = Math.abs(a.hp - (MK.shadow.hp - 6)) < 0.01;
+  scene.remove(a.g);
+  S.bar[S.sel] = keep;
+  S.hp = 10;
+  hurtT = 0;
+  mines.playing = wasPlaying;
+  return { parry, block, bolt, behind, noStrike, riposte, button: document.getElementById('tGuard').hidden };
+});
+if (Object.entries(guard).some(([k, v]) => k !== 'button' && !v)) await fail('guard and parry: ' + JSON.stringify(guard));
 // daytime rest: by day a sky raider slips out of sight once you're far, a ruin guardian never does
 // (validators keep their full guard), and the raider is back at night
 const rest = await page.evaluate(() => {

@@ -217,9 +217,13 @@ cv.addEventListener('mousedown', e => {
     dragging = true;
     queueStrike(null);
   }
-  if (e.button === 2) place();
+  if (e.button === 2) {
+    if (heldBlade()) setGuard(true); // a blade in hand: right button held = on guard (16-mobs.js)
+    place();
+  }
 });
 addEventListener('mouseup', e => {
+  if (e.button === 2) setGuard(false);
   if (e.button === 0) {
     mining = false;
     dragging = false;
@@ -430,6 +434,11 @@ hold(
   $('tSneak'),
   () => (sneakHeld = true),
   () => (sneakHeld = false),
+);
+hold(
+  $('tGuard'),
+  () => setGuard(true),
+  () => setGuard(false),
 );
 $('tSprint').addEventListener('pointerdown', e => {
   e.preventDefault();

@@ -349,6 +349,15 @@ players (170 hp; its health shows next to its name). The win (`front_runner`, `0
 mints the **Front-Runner Boots** (211: owned, you walk and run 12% faster), two Diamond Shards, and with
 a ~20% chance a **Flashbots Bundle** (212) as a keepsake.
 
+### Guarding and parrying
+
+With a blade in hand (Volt Blade, Pure Ether Blade, Genesis Blade), hold the right button (on a touch
+screen, the shield button on the right) to raise it across you (`setGuard()`, `hurtPlayer()`,
+`src/game/16-mobs.js`). A blow from in front then only does a quarter of its damage, and a bolt from in
+front is deflected. Raise the guard just before the blow lands (0.35 s) and it's a **parry**: no damage
+at all, and the mob that struck reels back, stunned for 1.3 s, and takes +50% from your riposte. You
+walk slower on guard and can't strike at the same time; the others see your sword arm raised.
+
 ### Creatures that stand out
 
 Walking mobs step up one block at most, like you (`updateMobs()`, `src/game/16-mobs.js`): a wall two

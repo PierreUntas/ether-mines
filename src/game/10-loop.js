@@ -97,7 +97,13 @@ function frame(now) {
       }
     }
     const run = !sneak && (keys.has('ShiftLeft') || keys.has('ShiftRight') || sprintOn);
-    const sp = (run ? 6.6 : 4.4) * (inW ? 0.55 : 1) * (sneak && !inW ? 0.35 : 1) * (buffT > 0 ? 1.3 : 1) * (hasNft(211) ? 1.12 : 1),
+    const sp =
+        (run ? 6.6 : 4.4) *
+        (inW ? 0.55 : 1) *
+        (sneak && !inW ? 0.35 : 1) *
+        (buffT > 0 ? 1.3 : 1) *
+        (hasNft(211) ? 1.12 : 1) *
+        (guarding() ? 0.55 : 1),
       sn = Math.sin(yaw),
       cs = Math.cos(yaw);
     const vx = (-sn * fz + cs * fx) * sp,
@@ -429,6 +435,7 @@ function frame(now) {
     }
   }
   swing = Math.max(0, swing - dt * 3);
+  if (typeof updateGuard === 'function') updateGuard(dt);
   if (handMesh) {
     // a blow goes toward the crosshair: the item reaches forward and in, its tip leaning into the target,
     // then comes back. A pistol kicks back and up instead, as it fires.
@@ -441,9 +448,11 @@ function frame(now) {
       hand.position.set(bx, by + s * 0.015, s * 0.04);
       if (rest) handMesh.rotation.copy(rest.r);
     } else {
+      // on guard (16-mobs.js): the blade comes up, flat across the middle of the screen
+      const g = typeof guardAmt === 'number' ? guardAmt : 0;
       hand.rotation.set(0, 0, 0);
-      hand.position.set(bx - s * 0.17, by + s * 0.13, -s * 0.3);
-      if (rest) handMesh.rotation.set(rest.r.x - s * 0.75, rest.r.y + s * 0.25, rest.r.z + s * 0.35);
+      hand.position.set(bx - s * 0.17 - g * 0.1, by + s * 0.13 + g * 0.16, -s * 0.3 - g * 0.04);
+      if (rest) handMesh.rotation.set(rest.r.x - s * 0.75 - g * 0.2, rest.r.y + s * 0.25 + g * 0.3, rest.r.z + s * 0.35 + g * 1.9);
     }
   }
   if (booted) {

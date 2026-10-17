@@ -278,7 +278,9 @@ function viewFromOutside(dt) {
   o.legs[0].rotation.x = a;
   o.legs[1].rotation.x = -a;
   o.arms[0].rotation.x = -a;
-  o.arms[1].rotation.x = swing > 0 ? -1.3 + Math.sin(swing * Math.PI) * 0.8 : a;
+  // on guard (16-mobs.js): the sword arm raised across the chest, the blade held flat in front
+  o.arms[1].rotation.x = guardAmt > 0.05 ? -1.25 * guardAmt + a * (1 - guardAmt) : swing > 0 ? -1.3 + Math.sin(swing * Math.PI) * 0.8 : a;
+  o.arms[1].rotation.z = -guardAmt * 0.7;
   o.body.scale.set(1 + br * 0.02, 1 + br * 0.012, 1 + br * 0.035);
   o.body.position.y = 0.94 + hop;
   o.head.position.y = 1.52 + hop + br * 0.012;
@@ -552,7 +554,7 @@ Net.on('hit', p => {
   // plausibility, not a trust boundary: melee range, or the Plasma Pistol's bolt range plus slack
   if (Math.hypot(P.x - p.x, P.y - p.y, P.z - p.z) > (ITEM[p.item]?.ranged ? 30 : 6.5)) return;
   lastHitFrom.set(p.from, performance.now());
-  hurtPlayer(pvpDamage(p.item), p.x, p.z);
+  hurtPlayer(pvpDamage(p.item), p.x, p.z, ITEM[p.item]?.ranged ? 'bolt' : 'pvp');
 });
 // weapons are tuned against mobs (10 to 60 hp): against a player's 10 hearts they'd kill in two blows.
 // Between players a hit does 40% of it, at least one heart: a fight takes several clean hits.
@@ -597,7 +599,7 @@ function updateOthers(dt) {
     o.legs[0].rotation.x = a;
     o.legs[1].rotation.x = -a;
     o.arms[0].rotation.x = -a;
-    o.arms[1].rotation.x = o.t.m ? -1.2 + Math.sin(performance.now() / 90) * 0.5 : a;
+    o.arms[1].rotation.x = o.t.gd ? -1.25 : o.t.m ? -1.2 + Math.sin(performance.now() / 90) * 0.5 : a;
     o.ph += dt;
     const br = Math.sin(o.ph * 2.2),
       mv = Math.min(1, sp / 2),
@@ -607,7 +609,7 @@ function updateOthers(dt) {
     o.head.position.y = 1.52 + hop + br * 0.012;
     o.head.rotation.z = Math.sin(o.walk) * 0.06 * mv;
     o.arms[0].rotation.z = -0.06 - br * 0.03 * (1 - mv);
-    o.arms[1].rotation.z = 0.06 + br * 0.03 * (1 - mv);
+    o.arms[1].rotation.z = o.t.gd ? -0.7 : 0.06 + br * 0.03 * (1 - mv);
     o.arms[0].position.y = o.arms[1].position.y = 1.26 + hop;
     o.tag.position.y = 2.1 + hop;
   }
@@ -640,6 +642,7 @@ setInterval(() => {
       pitch: +pitch.toFixed(2),
       m: mining, // swinging, at a block, a mob or the air: the others see the arm move
       h: ITEM[heldNow()] && !B[heldNow()] ? +heldNow() : 0,
+      gd: guarding() ? 1 : 0, // the blade up, on guard
     };
   const L = lastPos,
     moved =
@@ -648,7 +651,8 @@ setInterval(() => {
       Math.abs(p.yaw - L.yaw) > 0.06 ||
       Math.abs(p.pitch - L.pitch) > 0.08 ||
       p.m !== L.m ||
-      p.h !== L.h;
+      p.h !== L.h ||
+      p.gd !== L.gd;
   if (!moved && now - lastPosT < 4000) return;
   lastPos = p;
   lastPosT = now;
