@@ -349,6 +349,27 @@ players (170 hp; its health shows next to its name). The win (`front_runner`, `0
 mints the **Front-Runner Boots** (211: owned, you walk and run 12% faster), two Diamond Shards, and with
 a ~20% chance a **Flashbots Bundle** (212) as a keepsake.
 
+### Hovercraft: the Diamond Gliders
+
+Crafted in the **Travel** tab (`src/game/20-hover.js`, items 213–220): the Ethereum diamond as a hull,
+floating on its own glow, in the colors of the crystal it's built from (Ether Crystal: cyan, Pure Shard:
+lavender, Genesis Fragment: basalt and ember, Diamond Shard: gold). The rarer the crystal, the fewer it
+takes, with 4 Cyan Neon and 2 Marble for the frame:
+
+| Crystal | Neon Glider | Twin Diamond |
+|---|---|---|
+| Ether Crystal | 12 | 18 |
+| Pure Shard | 6 | 9 |
+| Genesis Fragment | 4 | 6 |
+| Diamond Shard | 3 | 5 |
+
+Hold one and right-click to ride it: twice as fast, it glides over the water and floats over one-block
+steps; right-click again, or put it away, to step off. No fighting on board. The **Twin Diamond** has a
+back seat: a friend right-clicks its driver to sit behind them (jump to get off) and goes wherever the
+driver goes; the others see both on the craft. The server lets a glider's owner, and the passenger of a
+Twin Diamond, move twice as fast (`040_hovercraft.sql`, `_check_pos`); a rider pings its position every
+3 seconds instead of 15.
+
 ### Guarding and parrying
 
 With a blade in hand (Volt Blade, Pure Ether Blade, Genesis Blade), hold the right button (on a touch

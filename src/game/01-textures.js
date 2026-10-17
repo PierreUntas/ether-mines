@@ -1335,6 +1335,46 @@ tile(137, (P, E) => {
     E(x, y, '#ffd166');
   }
 });
+// v22 (20-hover.js): the Diamond Gliders' icons, in each crystal's colors (light, mid, deep, glow):
+// the Twin Diamond as two small diamonds under a bridge, the Neon Glider as one with a glowing outline
+[
+  ['#9ef0ff', '#3fc6f5', '#1f6f8f', '#7fe8ff'],
+  ['#d9c2ff', '#9a6bf0', '#5a3cb0', '#c9a6ff'],
+  ['#8a7aa2', '#4a3a66', '#2b2244', '#ffb347'],
+  ['#fff6d6', '#ffd95e', '#d9a531', '#ffe9a8'],
+].forEach(([light, mid, deep, glow], k) => {
+  const diamond = (P, cx, cy, rw, rh, top, bot, edge) => {
+    for (let y = cy - rh; y <= cy + rh; y++)
+      for (let x = cx - rw; x <= cx + rw; x++) {
+        const d = Math.abs(x - cx) / (rw + 0.5) + Math.abs(y - cy) / (rh + 0.5);
+        if (d > 1) continue;
+        P(x, y, d > 0.78 && edge ? edge : y <= cy ? (x < cx ? light : top) : bot);
+      }
+  };
+  tile(154 + k, (P, E) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
+    diamond(P, 4, 8, 3, 5, mid, deep, '#1c1029');
+    diamond(P, 11, 8, 3, 5, mid, deep, '#1c1029');
+    for (let x = 3; x <= 12; x++) P(x, 6, '#ffd166');
+    for (let x = 2; x <= 13; x++) {
+      P(x, 14, glow);
+      E(x, 14, glow);
+    }
+  });
+  tile(158 + k, (P, E) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
+    diamond(P, 7, 7, 6, 6, k === 2 ? mid : deep, '#1c1029', glow);
+    for (let y = 1; y < 14; y++)
+      for (let x = 1; x < 14; x++) {
+        const d = Math.abs(x - 7) / 6.5 + Math.abs(y - 7) / 6.5;
+        if (d > 0.78 && d <= 1) E(x, y, glow);
+      }
+    for (let x = 3; x <= 11; x++) {
+      P(x, 15, glow);
+      E(x, 15, glow);
+    }
+  });
+});
 tile(138, (P, E) => {
   // Flashbots Bundle: three transactions stacked and strapped together by a glowing band
   for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);

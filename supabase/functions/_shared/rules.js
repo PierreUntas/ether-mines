@@ -214,6 +214,20 @@
   // they make you walk and run a little faster for good (10-loop.js) — and a rarer keepsake on top
   ITEM[211] = { n: 'Front-Runner Boots', icon: 137, nft: 1 };
   ITEM[212] = { n: 'Flashbots Bundle', icon: 138, nft: 1 };
+  // v22: hovercraft, the Diamond Gliders (src/game/20-hover.js; 040_hovercraft.sql lets their riders go
+  // twice as fast). Two models, each built from one kind of crystal, which gives it its colors; the rarer
+  // the crystal, the fewer it takes. The Twin Diamond seats a passenger and costs half as much again.
+  // Unique items, crafted like the special pickaxes (_core_craft mints them).
+  const HOVER_CRYSTALS = [
+    [101, 'Ether', 12],
+    [103, 'Pure', 6],
+    [104, 'Genesis', 4],
+    [110, 'Radiant', 3],
+  ];
+  HOVER_CRYSTALS.forEach(([, name], k) => {
+    ITEM[213 + k] = { n: `${name} Twin Diamond`, icon: 154 + k, nft: 1, hover: { model: 'twin', k } };
+    ITEM[217 + k] = { n: `${name} Neon Glider`, icon: 158 + k, nft: 1, hover: { model: 'neon', k } };
+  });
   const reqTier = id => (B[id] ? (B[id].tier ?? (B[id].stone ? 1 : 0)) : 0);
   const RECIPES = [
     { out: 9, n: 4, need: { 5: 1 }, d: 'Cut up a log' },
@@ -419,6 +433,27 @@
     { out: 159, n: 1, need: { 4: 1, 3: 1, 17: 1 }, d: 'A flower in a terracotta pot', cat: 'Furniture' },
     { out: 160, n: 2, need: { 9: 3 }, d: 'Right-click it to write a line that everyone can read', cat: 'Furniture' },
   );
+  // v22: the Diamond Gliders (see ITEM 213-220): the crystal picks the colors, a little neon and marble for the frame
+  HOVER_CRYSTALS.forEach(([crystal, , n], k) => {
+    RECIPES.push(
+      {
+        out: 213 + k,
+        n: 1,
+        need: { [crystal]: Math.ceil(n * 1.5), 128: 4, 15: 2 },
+        d: 'Unique hovercraft · right-click to ride: twice as fast, glides over water · a back seat for a friend',
+        nft: 1,
+        cat: 'Travel',
+      },
+      {
+        out: 217 + k,
+        n: 1,
+        need: { [crystal]: n, 128: 4, 15: 2 },
+        d: 'Unique hovercraft · right-click to ride: twice as fast, glides over water',
+        nft: 1,
+        cat: 'Travel',
+      },
+    );
+  });
   const TOOLS = { 102: 1, 201: 1, 202: 1 };
   // v14: off-chain pivot. Purely decorative, bought with Gwei (act_buy_cosmetic): never a combat, speed,
   // harvest, or access effect. A separate id space from B/ITEM, so no collision with the append-only

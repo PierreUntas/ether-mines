@@ -723,6 +723,27 @@ select pg_temp.ok('... and cuts two Diamond Shards', ((:'fr'::jsonb) ->> 'shards
 select pg_temp.ok('a second Front-Runner report right away is rate-limited', act_loot_mob('w', 'front_runner', 12.5, 33, 8.5) ->> 'err' = 'too many actions');
 select pg_temp.ok('a Sandwich Bot drops like an ordinary mob', act_loot_mob('w', 'mev_bot', 12.5, 33, 8.5) ->> 'ok' = 'true');
 reset role;
+-- hovercraft (040): twice the pace for a glider's owner, and for the passenger of a Twin Diamond's driver
+update players set pos_x = 112.5, pos_y = 33, pos_z = 8.5, pos_at = clock_timestamp() - interval '3 seconds' where user_id = 'c4000000-0000-0000-0000-000000000004';
+set role authenticated;
+select pg_temp.ok('50 blocks in 3 seconds on foot: refused', act_pos('w', 162.5, 33, 8.5) ->> 'err' = 'impossible move');
+reset role;
+insert into uniques (user_id, world, serial, item) values ('c4000000-0000-0000-0000-000000000004', 'w', 900, 217);
+set role authenticated;
+select pg_temp.ok('... on a Neon Glider: allowed', (act_pos('w', 162.5, 33, 8.5) ->> 'ok')::boolean);
+reset role;
+update players set pos_x = 112.5, pos_y = 33, pos_z = 9.5, pos_at = clock_timestamp() - interval '3 seconds' where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('behind a Neon Glider (no back seat): refused', act_pos('w', 150.5, 33, 9.5) ->> 'err' = 'impossible move');
+reset role;
+insert into uniques (user_id, world, serial, item) values ('c4000000-0000-0000-0000-000000000004', 'w', 901, 213);
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('in the back seat of a Twin Diamond: allowed', (act_pos('w', 150.5, 33, 9.5) ->> 'ok')::boolean);
+select set_config('request.jwt.claim.sub', 'c4000000-0000-0000-0000-000000000004', false) \g /dev/null
+reset role;
+select pg_temp.ok('the Diamond Gliders are crafted uniques', (select count(*) from rule_recipes where out_item between 213 and 220 and uniq) = 8);
 \echo Chapter scenarios pass.
 
 -- the shop's week (032_shop.sql): same picks as rules.js, 25% off, limited pieces only in their week

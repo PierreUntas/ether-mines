@@ -458,6 +458,44 @@ const guard = await page.evaluate(() => {
   return { parry, block, bolt, behind, noStrike, riposte, button: document.getElementById('tGuard').hidden };
 });
 if (Object.entries(guard).some(([k, v]) => k !== 'button' && !v)) await fail('guard and parry: ' + JSON.stringify(guard));
+// hovercraft: on board you glide over water, putting it away steps you off; a friend's Twin Diamond shows
+// under them and takes you in its back seat, behind them
+const hover = await page.evaluate(() => {
+  const P = mines.P, S = mines.S, keep = S.bar[S.sel], wasPlaying = mines.playing;
+  mines.playing = true;
+  S.nfts.push({ serial: 9901, id: 217, place: null, date: '', mined: 0 });
+  S.bar[S.sel] = 'nft9901';
+  const x = Math.floor(P.x), y = Math.floor(P.y), z = Math.floor(P.z);
+  mines.commit(`${x},${y - 3},${z}`, 11, null);
+  const sinksOnFoot = !collides(P.x, y - 3, P.z);
+  mountHover();
+  const riding = !!RIDE && RIDE.mesh.parent === scene;
+  const glides = collides(P.x, y - 3, P.z);
+  const lifted = rideLift() > 0.3;
+  S.bar[S.sel] = keep;
+  updateRide(0.05);
+  const offWhenPutAway = !RIDE;
+  mines.commit(`${x},${y - 3},${z}`, 0, null);
+  // another player on a Twin Diamond, right next to you
+  const o = ensureOther({ id: 'hover-test', name: 'Friend', color: '#ff9ec7' });
+  o.t = { id: 'hover-test', x: P.x + 1.5, y: P.y, z: P.z, yaw: 0, pitch: 0, rd: 213, on: 0 };
+  o.tAt = performance.now();
+  o.g.position.set(P.x + 1.5, P.y, P.z);
+  o.g.rotation.y = 0;
+  rideOther(o);
+  const craft = !!o.craft && o.craft.userData.back > 0;
+  const boarded = tryBoard({ id: 'hover-test', o }) && !!BOARD;
+  boardTick();
+  const behind = Math.abs(P.x - (o.g.position.x)) < 0.01 && Math.abs(P.z - (o.g.position.z + o.craft.userData.back)) < 0.01;
+  unboard();
+  const off = !BOARD;
+  others.delete('hover-test');
+  scene.remove(o.g);
+  S.nfts = S.nfts.filter(n => n.serial !== 9901);
+  mines.playing = wasPlaying;
+  return { sinksOnFoot, riding, glides, lifted, offWhenPutAway, craft, boarded, behind, off };
+});
+if (Object.values(hover).some(v => !v)) await fail('hovercraft: ' + JSON.stringify(hover));
 // daytime rest: by day a sky raider slips out of sight once you're far, a ruin guardian never does
 // (validators keep their full guard), and the raider is back at night
 const rest = await page.evaluate(() => {

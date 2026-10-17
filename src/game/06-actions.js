@@ -408,6 +408,12 @@ function breakBlock(t) {
   if (regView) buildRegView();
 }
 function place() {
+  if (playing && typeof toggleRide === 'function') {
+    // hovercraft (20-hover.js): off the back seat, into a friend's back seat, on or off your own craft
+    if (BOARD) return unboard();
+    if (!RIDE && tryBoard(pickPlayer(aim, target))) return;
+    if (RIDE || heldHover()) return toggleRide();
+  }
   if (playing) {
     const an = pickAnimal(aim, target);
     if (an) {

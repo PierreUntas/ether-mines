@@ -8,6 +8,9 @@ let yaw = 0,
 const PW = 0.3,
   PH = 1.75,
   EYE = 1.6;
+// on board a Diamond Glider (20-hover.js): RIDE your own craft { id, mesh }, BOARD someone's back seat { driver }
+let RIDE = null,
+  BOARD = null;
 function collides(x, y, z) {
   const ax0 = x - PW,
     ax1 = x + PW,
@@ -19,6 +22,7 @@ function collides(x, y, z) {
       for (let bz = Math.floor(az0); bz <= Math.floor(az1 - 1e-4); bz++) {
         if (by < 0 || !loaded(bx, bz) || !inWorld(bx, bz)) return true;
         const id = get(bx, by, bz);
+        if (id === 11 && RIDE) return true; // a hovercraft glides over the water instead of sinking into it
         if (!isSolid(id)) continue;
         if (!isShaped(id)) return true;
         for (const b of collBoxes(id, coordKey(bx, by, bz)))
@@ -44,7 +48,8 @@ function moveAxis(ax, amt) {
     }
     if (P.on) {
       let up = 0;
-      for (const h of [0.26, 0.52])
+      for (const h of RIDE ? [0.26, 0.52, 1.05] : [0.26, 0.52])
+        // a hovercraft floats over one-block steps
         if (!collides(P.x, P.y + h, P.z)) {
           up = h;
           break;

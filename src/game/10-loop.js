@@ -103,7 +103,8 @@ function frame(now) {
         (sneak && !inW ? 0.35 : 1) *
         (buffT > 0 ? 1.3 : 1) *
         (hasNft(211) ? 1.12 : 1) *
-        (guarding() ? 0.55 : 1),
+        (guarding() ? 0.55 : 1) *
+        (RIDE ? 2 : 1), // on a hovercraft (20-hover.js): twice as fast
       sn = Math.sin(yaw),
       cs = Math.cos(yaw);
     const vx = (-sn * fz + cs * fx) * sp,
@@ -180,6 +181,7 @@ function frame(now) {
       P.z = SPAWN.z + 2.5;
       P.vy = 0;
     }
+    if (BOARD && typeof boardTick === 'function') boardTick(); // in a friend's back seat: you go where the seat goes
     if (l > 0.1 || !P.on) dirty = true;
     if (l > 0.1 && P.on) bob += dt * (run ? 13 : 9);
     const under = () => MAT_OF(get(Math.floor(P.x), Math.floor(P.y - 0.1), Math.floor(P.z)));
@@ -311,7 +313,8 @@ function frame(now) {
   }
   camera.rotation.set(pitch, yaw, 0);
   stepUp = Math.max(0, stepUp - dt * 5);
-  camera.position.set(P.x, P.y + EYE - stepUp - crouch + Math.sin(bob) * 0.04, P.z);
+  const lift = (RIDE || BOARD) && typeof rideLift === 'function' ? rideLift() : 0; // on board: seated higher
+  camera.position.set(P.x, P.y + EYE + lift - stepUp - crouch + (lift ? 0 : Math.sin(bob) * 0.04), P.z);
   camera.updateMatrixWorld();
   sky.position.copy(camera.position);
   stars.position.copy(camera.position);
@@ -436,6 +439,8 @@ function frame(now) {
   }
   swing = Math.max(0, swing - dt * 3);
   if (typeof updateGuard === 'function') updateGuard(dt);
+  if (typeof updateRide === 'function') updateRide(dt);
+  hand.visible = !RIDE && !BOARD; // on board, both hands on the craft
   if (handMesh) {
     // a blow goes toward the crosshair: the item reaches forward and in, its tip leaning into the target,
     // then comes back. A pistol kicks back and up instead, as it fires.

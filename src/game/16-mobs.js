@@ -1123,7 +1123,7 @@ function applyMobDamage(a, dmg, hpLeft, fromX, fromZ) {
   }
 }
 function attackMob(a) {
-  if (guarding()) return false; // the blade is up: no strike while you guard
+  if (guarding() || RIDE || BOARD) return false; // the blade is up, or you're on board a hovercraft: no strike
   swing = Math.max(swing, 0.6);
   if (playerAtkT > 0) return false;
   playerAtkT = 0.45;
@@ -1141,6 +1141,7 @@ const boltGeo = new THREE.SphereGeometry(0.12, 8, 8),
 const BOLT_SPEED = 28,
   BOLT_LIFE = 1.2;
 function fireRanged() {
+  if (BOARD) return false; // in a back seat, no shooting either
   swing = Math.max(swing, 0.5);
   if (rangedT > 0) return false;
   rangedT = 0.35;
@@ -1384,7 +1385,7 @@ function lootMob(type) {
 // one click, one blow: unlike mobs, holding the button down doesn't keep striking a player
 let pvpStruck = false;
 function attackPlayer(target) {
-  if (guarding()) return false;
+  if (guarding() || RIDE || BOARD) return false;
   swing = Math.max(swing, 0.6);
   if (playerAtkT > 0 || pvpStruck) return false;
   pvpStruck = true;
@@ -1493,6 +1494,10 @@ function hurtPlayer(dmg, mx, mz, kind = 'melee') {
 }
 function die() {
   logEv('burn', 'You fell in combat', 'back to the sanctuary');
+  if (typeof dismountHover === 'function') {
+    dismountHover();
+    unboard();
+  }
   P.x = SPAWN.x + 0.5;
   P.y = SPAWN.y + 0.1;
   P.z = SPAWN.z + 2.5;

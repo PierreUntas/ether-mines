@@ -285,6 +285,7 @@ function viewFromOutside(dt) {
   o.body.position.y = 0.94 + hop;
   o.head.position.y = 1.52 + hop + br * 0.012;
   o.arms[0].position.y = o.arms[1].position.y = 1.26 + hop;
+  if (typeof rideSelf === 'function') rideSelf(o); // on board: seated on the craft
   viewFrom.copy(camera.position);
   viewDir.set(0, 0, VIEW === 1 ? 1 : -1).applyQuaternion(camera.quaternion);
   let d = 0;
@@ -612,6 +613,7 @@ function updateOthers(dt) {
     o.arms[1].rotation.z = o.t.gd ? -0.7 : 0.06 + br * 0.03 * (1 - mv);
     o.arms[0].position.y = o.arms[1].position.y = 1.26 + hop;
     o.tag.position.y = 2.1 + hop;
+    if (typeof rideOther === 'function') rideOther(o); // on board a hovercraft, or in someone's back seat
   }
 }
 setInterval(() => {
@@ -643,6 +645,8 @@ setInterval(() => {
       m: mining, // swinging, at a block, a mob or the air: the others see the arm move
       h: ITEM[heldNow()] && !B[heldNow()] ? +heldNow() : 0,
       gd: guarding() ? 1 : 0, // the blade up, on guard
+      rd: RIDE ? RIDE.id : 0, // on board a hovercraft (20-hover.js): which one
+      on: BOARD ? BOARD.driver : 0, // in the back seat of that player's craft
     };
   const L = lastPos,
     moved =
@@ -652,14 +656,20 @@ setInterval(() => {
       Math.abs(p.pitch - L.pitch) > 0.08 ||
       p.m !== L.m ||
       p.h !== L.h ||
-      p.gd !== L.gd;
+      p.gd !== L.gd ||
+      p.rd !== L.rd ||
+      p.on !== L.on;
   if (!moved && now - lastPosT < 4000) return;
   lastPos = p;
   lastPosT = now;
   // nobody within one square of you: nothing to send (Supabase counts every message)
   if (Net.anyoneNear(PEERS)) Net.sendPos(p);
   // server position: a ping every 15 s while moving (used by /join and by move validation)
-  if (SERVER() && booted && (!lastSrvPos || (now - lastSrvPos.t > 15000 && Math.hypot(p.x - lastSrvPos.x, p.z - lastSrvPos.z) > 2))) {
+  if (
+    SERVER() &&
+    booted &&
+    (!lastSrvPos || (now - lastSrvPos.t > (RIDE || BOARD ? 3000 : 15000) && Math.hypot(p.x - lastSrvPos.x, p.z - lastSrvPos.z) > 2))
+  ) {
     lastSrvPos = { t: now, x: p.x, z: p.z };
     Net.act('pos', position()).catch(() => {});
   }
