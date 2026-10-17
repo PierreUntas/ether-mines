@@ -690,6 +690,46 @@ function bladeGeos({ len = 1, bend = 0.12, w0 = 0.075, narrow = 0.45, tip = 0.16
   }
   return { body, edges };
 }
+// the pickaxe's parts (clayModel): built once, shared by every pickaxe (only the materials differ)
+const pickHandleGeo = new THREE.CylinderGeometry(0.03, 0.038, 0.9, 8),
+  pickHalfGeo = (() => {
+    // half an octahedron (a square pyramid pointing up), its corners on the axes like the Ether diamond's
+    const g = new THREE.ConeGeometry(0.075, 0.1, 4, 1);
+    g.translate(0, 0.05, 0);
+    g.scale(1, 1, 0.6);
+    return g;
+  })(),
+  pickCapGeo = (() => {
+    const g = new THREE.ConeGeometry(0.05, 0.03, 4, 1);
+    g.scale(1, 1, 0.6);
+    return g;
+  })(),
+  pickArmGeo = (() => {
+    // one blade, to the right (+x): a square-cut root near the diamond, a curve out and down, a point
+    const N = 24,
+      top = [],
+      bot = [];
+    for (let i = 0; i <= N; i++) {
+      const t = i / N,
+        x = 0.1 + 0.44 * t,
+        y = 0.5 + 0.03 * t - 0.24 * t * t,
+        w = 0.068 * Math.pow(1 - t, 0.75) + 0.004, // thick at the root, thin at the tip
+        dx = 0.44,
+        dy = 0.03 - 0.48 * t,
+        l = Math.hypot(dx, dy),
+        nx = -dy / l,
+        ny = dx / l;
+      top.push([x + nx * w * 0.6, y + ny * w * 0.6]);
+      bot.push([x - nx * w * 0.4, y - ny * w * 0.4]);
+    }
+    const sh = new THREE.Shape();
+    sh.moveTo(...top[0]);
+    for (const p of top.slice(1)) sh.lineTo(...p);
+    for (const p of bot.reverse()) sh.lineTo(...p);
+    const g = new THREE.ExtrudeGeometry(sh, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.008, bevelSegments: 2 });
+    g.translate(0, 0, -0.025);
+    return g;
+  })();
 const clayModels = {};
 function clayModel(it) {
   it = +it;
@@ -714,12 +754,17 @@ function clayModel(it) {
       301: ['#dcd6ff', '#7fe8ff', '#8a7bef', '#2a1838'],
     };
   if (PICK[it]) {
-    const [h, c, e] = PICK[it];
-    add(new THREE.CylinderGeometry(0.035, 0.045, 1, 8), matte(h), 0, -0.05, 0);
-    const head = gem(c, e, it === 102 ? 0 : 0.4);
-    add(new THREE.OctahedronGeometry(0.11), head, 0, 0.45, 0);
-    add(new THREE.ConeGeometry(0.075, 0.44, 6), head, -0.26, 0.42, 0, Math.PI / 2 + 0.18);
-    add(new THREE.ConeGeometry(0.075, 0.44, 6), head, 0.26, 0.42, 0, -Math.PI / 2 - 0.18);
+    // Pierre's sketch: a long straight handle, the Ethereum diamond at the top of it (a small cap, a
+    // pyramid pointing up, one pointing down, a hair apart), and on each side, set slightly apart from the
+    // diamond, a curved blade: square-cut where it starts, sweeping out and down into a point
+    const [h, c, e] = PICK[it],
+      head = gem(c, e, it === 102 ? 0 : 0.4),
+      light = gem(new THREE.Color(c).lerp(new THREE.Color('#ffffff'), 0.35), e, it === 102 ? 0 : 0.5);
+    add(pickHandleGeo, matte(h), 0, -0.13, 0);
+    add(pickHalfGeo, light, 0, 0.47, 0);
+    add(pickHalfGeo, head, 0, 0.43, 0).rotation.x = Math.PI;
+    add(pickCapGeo, light, 0, 0.59, 0);
+    for (const sx of [-1, 1]) add(pickArmGeo, head, 0, 0, 0).scale.x = sx;
   } else if (BLADE[it]) {
     // the ether blade: long, straight and thin, both edges and the fuller glowing, a guard in the shape of
     // the Ethereum diamond and a small glowing gem for a pommel
