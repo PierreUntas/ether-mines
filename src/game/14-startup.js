@@ -479,7 +479,11 @@ Net.on('peers', list => {
   for (const id of [...others.keys()]) if (!ids.has(id)) removeOther(id);
   for (const p of list) {
     const o = ensureOther(p);
-    if (o) o.r = p.r;
+    if (o) {
+      o.r = p.r;
+      // through the game server, everyone's position comes with the list (/join goes straight there)
+      o.at = Number.isFinite(p.x) && Number.isFinite(p.z) ? { x: p.x, y: p.y, z: p.z } : null;
+    }
   }
   if (!wasNear && Net.anyoneNear(list)) lastPos = null; // someone just came close: show yourself right away
   PEER_NAMES = list.map(p => (p.id === ME.id ? 'you' : p.name));
@@ -722,6 +726,14 @@ function command(v) {
     const o = [...others.values()].find(o => o.name.toLowerCase() === arg || o.name.toLowerCase().startsWith(arg));
     if (!o) {
       addChat('World', '#7fe8ff', arg ? `No one here is called "${arg}".` : 'Type /join followed by a nickname.');
+      return;
+    }
+    if (!o.t && o.at) {
+      P.x = o.at.x + 1;
+      P.y = o.at.y + 0.5;
+      P.z = o.at.z + 1;
+      P.vy = 0;
+      addChat('World', '#7fe8ff', `You join ${o.name}.`);
       return;
     }
     if (!o.t && !o.r) {

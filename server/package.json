@@ -1,0 +1,15 @@
+{
+  "name": "ethermines-game-server",
+  "private": true,
+  "description": "Ether Mines real-time game server (positions, PvP, shared mobs, shots).",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "AUTH_MODE=test PORT=8787 node src/server.js"
+  },
+  "dependencies": {
+    "ws": "8.18.3"
+  }
+}

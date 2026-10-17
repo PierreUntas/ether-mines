@@ -1,0 +1,37 @@
+# Fly.io: the game server, one small machine in Paris, always on (players stay connected to it).
+# Deployed by GitLab CI (.gitlab-ci.yml, "game-server" job) from main when server/ changes.
+app = "ethermines-game"
+primary_region = "cdg"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  SUPABASE_URL = "https://euytymfcncakzqzdynbq.supabase.co"
+  # the pages allowed to connect (the site, its Vercel previews, a local test server)
+  ALLOWED_ORIGINS = "https://ethermines.org,https://www.ethermines.org,https://ether-mines.vercel.app,*.vercel.app,http://localhost:*,http://127.0.0.1:*"
+  # the public "anon" key, the same as src/config.js (not a secret: it's already in every browser)
+  SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1eXR5bWZjbmNha3pxemR5bmJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3NzIwNjksImV4cCI6MjEwNjM0ODA2OX0.fqVxk4YpTVJctgrr7wcf8iAzwduI8JUcm6mxL75kmog"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 400
+    hard_limit = 500
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  path = "/health"
+  timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

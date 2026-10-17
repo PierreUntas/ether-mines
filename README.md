@@ -45,6 +45,7 @@ Nothing is recorded on a real blockchain. No wallet, no RPC call, nothing to buy
 
 - Native HTML, CSS, and JavaScript, no framework or build step.
 - [Supabase](https://supabase.com): Auth (guest accounts), Realtime (presence, positions, block and claim changes), Postgres (world, chests, rules, arbitration functions), and one Edge Function (`freeze`).
+- A game server (`server/`, Node.js + `ws`, on Fly.io) for the players' real time: see `server/README.md`.
 - Static hosting on Vercel.
 
 ### The server is authoritative
@@ -153,7 +154,8 @@ To wipe everything and start over:
 | Owned cosmetics | Supabase, `cosmetics_owned` table (read-only for the player); equipped choice in `players.state` |
 | Game rules | Supabase, `rule_*` tables (from `rules.sql`) |
 | Game preferences: bar, position, seen objectives, ledger | Supabase, `players` table, `state` column (the only part the player can modify); a copy in the browser (`ether-mines:<world>`) |
-| Positions, chat, presence | Supabase Realtime (nothing is kept) |
+| Positions, presence, PvP hits, mob blows, shots | The game server (`server/`, a WebSocket on Fly.io), or Supabase Realtime when it isn't set up or can't be reached (nothing is kept) |
+| Chat | Supabase (the `chat` table, delivered through Realtime) |
 | Guest account | Supabase Auth; the session is kept by the browser (`ether-mines:session`) |
 | Recovery codes | Supabase, `recovery` table (SHA-256 hash only, never the code) |
 | Nickname, color, id | Browser (`ether-mines:profil`) |

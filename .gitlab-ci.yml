@@ -4,6 +4,7 @@
 # CI/CD variables to create once (Settings → CI/CD → Variables, "Masked" and "Protected" checked):
 #   SUPABASE_ACCESS_TOKEN: personal token (supabase.com → Account → Access Tokens)
 #   SUPABASE_PROJECT_REF:  project id (euytymfcncakzqzdynbq)
+#   FLY_API_TOKEN:         deploy token for the game server (fly tokens create deploy -a ethermines-game)
 stages: [test, deploy]
 
 workflow:
@@ -17,7 +18,8 @@ js:
   stage: test
   image: node:22
   script:
-    - for f in src/*.js src/game/*.js supabase/functions/_shared/*.js tools/*.mjs tests/*.mjs; do node --check "$f"; done
+    - for f in src/*.js src/game/*.js supabase/functions/_shared/*.js tools/*.mjs tests/*.mjs server/src/*.js; do node --check "$f"; done
+    - npm ci --prefix server
     - node --test tests/*.test.mjs
     - npx --yes prettier@3 --check "src/game/*.js" "src/*.js" "supabase/functions/_shared/*.js"
 
@@ -60,3 +62,17 @@ freeze:
     - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "web"
   script:
     - npx --yes supabase@2 functions deploy freeze --project-ref "$SUPABASE_PROJECT_REF" --use-api
+
+# the game server (server/), on Fly.io: deployed from main when it changes, once the tests have passed
+game-server:
+  stage: deploy
+  image: node:22
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" && $FLY_API_TOKEN
+      changes:
+        - server/**/*
+        - .gitlab-ci.yml
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "web" && $FLY_API_TOKEN
+  script:
+    - curl -fsSL https://fly.io/install.sh | sh
+    - cd server && ~/.fly/bin/flyctl deploy --remote-only

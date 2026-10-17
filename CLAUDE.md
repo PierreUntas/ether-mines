@@ -9,6 +9,7 @@ Minecraft-style block game set in the Ethereum universe. Static site (ethermines
 ## Architecture
 - **Client**: no build. Three.js r128, classic scripts `src/game/NN-*.js` loaded in order by `index.html` and sharing the global scope (a test checks the order). Modules shared between client and server: `supabase/functions/_shared/world.js` (generator), `rules.js` (blocks, items, recipes), `src/mesh.js`.
 - **Server**: Supabase. Anonymous auth, RLS, `act_*` functions (security definer) that arbitrate everything; `_*` functions are internal. `freeze` Edge Function (terrain), deployed by GitLab CI (`.gitlab-ci.yml`).
+- **Game server** (`server/`, Node.js + `ws`, hosted on Fly.io): the players' real time (presence, moves, PvP hits, mob blows, shots) over one WebSocket, when `CONFIG.GAME_SERVER` is set; otherwise, or when it's down, `src/net.js` falls back to Supabase Realtime's presence and region channels. It saves nothing. `PROTOCOL` (server) and `GS_PROTOCOL` (net.js) must change together. See `server/README.md`.
 - **Identity**: one unique nickname per world, linked to an anonymous Supabase account (recovery code to switch devices). No wallet, no real blockchain (the old Sepolia layer lives in `legacy/`).
 
 ## Rules to never break
@@ -32,7 +33,7 @@ Minecraft-style block game set in the Ethereum universe. Static site (ethermines
 - **Every branch gets a Vercel preview** (link in the pull request). Test it with a throwaway world: `…vercel.app/?monde=test-something`. Never test on `principal`, the players' world: it shares the same database.
 
 ## Tests (all must pass before pushing)
-- `node --test tests/*.test.mjs`
+- `npm ci --prefix server` (once), then `node --test tests/*.test.mjs` (includes the game server's tests)
 - `tests/sql/run.sh` (local Postgres 16; PGHOST, PGPORT, PGUSER variables). If there's no local Postgres, push to a branch and let GitLab CI run them.
 - `node tests/navigateur.mjs` (Playwright + Chromium, solo mode). Setup once: `npm i --no-save playwright@1.56.0 three@0.128.0 && npx playwright install chromium`
 - `npx prettier@3 --check "src/game/*.js" "src/*.js" "supabase/functions/_shared/*.js"`

@@ -1,5 +1,9 @@
 // Network layer: Supabase Realtime (presence + broadcast) for real time,
 // "chunks" and "blocks" tables to keep the world, "players" for each player's save.
+// With CONFIG.GAME_SERVER set, the players' real-time traffic (who is online and where, moves, PvP hits,
+// blows on mobs, shots) goes through the game server instead (server/src/server.js): one WebSocket, the
+// server decides who receives what. If it can't be reached, or drops, everything falls back to the
+// Supabase presence and region channels below, and the game server is tried again every few seconds.
 window.Net = (() => {
   const cfg = window.CONFIG || {};
   const enabled = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
@@ -17,6 +21,12 @@ window.Net = (() => {
     mob: [],
     shot: [],
   };
+  const GS_PROTOCOL = 1; // must match server/src/server.js PROTOCOL
+  let gs = null, // the game server's WebSocket
+    gsReady = false, // welcomed by it: real time goes through it
+    gsOff = false, // it turned us away for good (an older or newer protocol): don't insist
+    gsRetry = 0,
+    gsSelf = null; // your id on the game server (your account's)
   let sb = null,
     ch = null,
     world = 'principal',
@@ -173,7 +183,9 @@ window.Net = (() => {
       const r = p.new;
       if (r && r.user_id !== userId) emit('chat', { id: r.user_id, name: r.name, color: r.color, text: r.text });
     });
-    ch.on('presence', { event: 'sync' }, () => {
+    ch.on('presence', { event: 'sync' }, () => presenceSync());
+    const presenceSync = () => {
+      if (gsReady) return; // the game server keeps the list of players
       const st = ch.presenceState(),
         list = [];
       for (const k in st) {
@@ -185,7 +197,8 @@ window.Net = (() => {
       }
       peersNow = list;
       emit('peers', list);
-    });
+    };
+    resyncPresence = presenceSync;
     await new Promise((resolve, reject) => {
       const t = setTimeout(() => reject(new Error('the realtime channel is not responding')), 10000);
       ch.subscribe(async status => {
@@ -195,6 +208,8 @@ window.Net = (() => {
           clearTimeout(t);
           await track();
           syncRegions();
+          // the game server, if there is one: a moment to connect before the game starts, then on its own
+          if (cfg.GAME_SERVER) await Promise.race([gsConnect(), new Promise(r => setTimeout(r, 4000))]);
           resolve();
         }
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
@@ -241,8 +256,78 @@ window.Net = (() => {
       r: myRegion,
       w: extraRegion ? extraRegion.k : null,
     });
+  let resyncPresence = () => {};
+  // ---------- the game server ----------
+  async function gsConnect() {
+    if (gsOff || gs || !cfg.GAME_SERVER || typeof WebSocket === 'undefined') return;
+    let token = null;
+    try {
+      const { data } = await sb.auth.getSession();
+      token = data && data.session && data.session.access_token;
+    } catch (e) {}
+    if (!token) return;
+    return new Promise(resolve => {
+      const ws = new WebSocket(cfg.GAME_SERVER);
+      gs = ws;
+      let welcomed = false;
+      ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', v: GS_PROTOCOL, world, token, title: me.title || '', look: me.look || '' }));
+      ws.onmessage = e => {
+        let m;
+        try {
+          m = JSON.parse(e.data);
+        } catch (err) {
+          return;
+        }
+        // the server names players by their account; the game knows itself by its own id (me.id)
+        const mine = v => (v === gsSelf ? me.id : v);
+        if (m.t === 'welcome') {
+          gsSelf = m.id;
+          welcomed = true;
+          gsReady = true;
+          gsRetry = 0;
+          syncRegions(); // the region channels are no longer needed
+          emit('status', 'GAME_SERVER');
+          resolve(true);
+        } else if (m.t === 'bye') {
+          if (m.reason === 'version' || m.reason === 'world' || m.reason === 'elsewhere') gsOff = true;
+        } else if (m.t === 'peers') {
+          const list = (m.list || []).map(p => ({ ...p, id: mine(p.id) }));
+          peersNow = list;
+          emit('peers', list);
+        } else if (m.t === 'pos' || m.t === 'hit' || m.t === 'mob' || m.t === 'shot') {
+          const t = m.t;
+          delete m.t;
+          for (const k of ['id', 'from', 'to', 'on']) if (k in m) m[k] = mine(m[k]);
+          emit(t, m);
+        }
+      };
+      ws.onclose = () => {
+        if (gs === ws) gs = null;
+        const was = gsReady;
+        gsReady = false;
+        if (!welcomed) resolve(false);
+        if (was) {
+          // back to Supabase's channels until the game server answers again
+          syncRegions();
+          if (ch && online) track().catch(() => {});
+          resyncPresence();
+          emit('status', 'GAME_SERVER_LOST');
+        }
+        if (!gsOff && online) setTimeout(gsConnect, Math.min(30000, 3000 * 2 ** gsRetry++));
+      };
+      ws.onerror = () => {};
+    });
+  }
+  const gsSend = m => {
+    if (gsReady && gs && gs.readyState === 1) gs.send(JSON.stringify(m));
+  };
   function syncRegions() {
     if (!sb || !online) return;
+    if (gsReady) {
+      for (const c of regions.values()) sb.removeChannel(c);
+      regions.clear();
+      return;
+    }
     const want = new Set();
     if (myRegion) {
       const [rx, rz] = myRegion.split(',').map(Number);
@@ -281,11 +366,13 @@ window.Net = (() => {
   }
   // listen to a far square for a while (to find a player's exact position before joining them)
   function watchRegion(k, ms = 8000) {
+    if (gsReady) return; // the game server already sends everyone's position (peers)
     extraRegion = { k, until: Date.now() + ms };
     syncRegions();
     if (ch && online) track().catch(() => {});
   }
   const sendRegion = (event, payload) => {
+    if (gsReady) return gsSend({ ...payload, t: event });
     const c = myRegion && regions.get(myRegion);
     if (c && online) c.send({ type: 'broadcast', event, payload });
   };
@@ -301,7 +388,9 @@ window.Net = (() => {
     if (anyoneNear(peersNow)) sendRegion('shot', p);
   };
   // is anyone else close enough to receive your moves?
-  const anyoneNear = peers => peers.some(p => p.id !== me?.id && (near(p.r, myRegion) || (p.w && near(p.w, myRegion))));
+  // (through the game server: anyone else in the world, the server itself keeps it to the players nearby)
+  const anyoneNear = peers =>
+    gsReady ? peers.some(p => p.id !== me?.id) : peers.some(p => p.id !== me?.id && (near(p.r, myRegion) || (p.w && near(p.w, myRegion))));
   // Chat: through the server if act_chat exists; otherwise (003 not run yet) direct broadcast like before.
   let serverChat = true;
   async function chat(text) {
@@ -371,6 +460,7 @@ window.Net = (() => {
     if (!me || (me.title || '') === (t || '')) return;
     me.title = t || '';
     if (ch && online) track().catch(() => {});
+    gsSend({ t: 'look', title: me.title, look: me.look || '' });
   }
   // what you wear (17-looks.js lookCode), and your outfit color: re-tracked when either changes
   // (me is the game's own ME object, so its color is already the current one)
@@ -381,6 +471,7 @@ window.Net = (() => {
     if (lastLook === code + '|' + me.color) return;
     lastLook = code + '|' + me.color;
     if (ch && online) track().catch(() => {});
+    gsSend({ t: 'look', title: me.title || '', look: code });
   }
   const loadClaims = () => readAll('claims', 'cx,cz,owner,owner_name,members', world, ['cx', 'cz']);
 
@@ -429,6 +520,10 @@ window.Net = (() => {
     loadArea,
     get online() {
       return online;
+    },
+    // real time through the game server (true), or through Supabase's channels (false)
+    get gameServer() {
+      return gsReady;
     },
     get world() {
       return world;
