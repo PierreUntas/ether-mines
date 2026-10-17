@@ -641,7 +641,12 @@ function clayModel(it) {
       return m;
     };
   const PICK = { 102: ['#b07a52', '#e2c39b', '#000000'], 201: ['#4a3b7a', '#a99cff', '#3a2d8a'], 202: ['#3b4f7a', '#8ff0ff', '#1f7f90'] },
-    BLADE = { 106: ['#ffe28a', '#c98a20', '#5a4a8a'], 107: ['#a6f4ee', '#2aa8b8', '#4a3b7a'], 301: ['#f4ecff', '#9a7cff', '#ffd166'] };
+    // blades: [steel, glowing edge, guard and pommel, grip]
+    BLADE = {
+      106: ['#fff4cc', '#ffd166', '#c98a20', '#4a3b7a'],
+      107: ['#e8fffd', '#7fe8ff', '#2aa8b8', '#3a2d52'],
+      301: ['#eef3ff', '#9ff0ff', '#ffd166', '#6a2d52'],
+    };
   if (PICK[it]) {
     const [h, c, e] = PICK[it];
     add(new THREE.CylinderGeometry(0.035, 0.045, 1, 8), matte(h), 0, -0.05, 0);
@@ -650,12 +655,24 @@ function clayModel(it) {
     add(new THREE.ConeGeometry(0.075, 0.44, 6), head, -0.26, 0.42, 0, Math.PI / 2 + 0.18);
     add(new THREE.ConeGeometry(0.075, 0.44, 6), head, 0.26, 0.42, 0, -Math.PI / 2 - 0.18);
   } else if (BLADE[it]) {
-    const [c, e, guard] = BLADE[it],
-      blade = add(new THREE.OctahedronGeometry(0.5), gem(c, e, 0.45), 0, 0.42, 0);
-    blade.scale.set(0.17, 1.05, 0.05);
-    add(new THREE.BoxGeometry(0.36, 0.06, 0.09), gem(guard, '#000000', 0), 0, -0.1, 0);
-    add(new THREE.CylinderGeometry(0.035, 0.035, 0.26, 8), matte('#3a2d52'), 0, -0.26, 0);
-    add(new THREE.OctahedronGeometry(0.055), gem(guard, '#000000', 0), 0, -0.41, 0);
+    // a slim curved blade, katana-like, its cutting edge glowing; a round guard
+    const [c, e, guard, grip] = BLADE[it],
+      steel = new THREE.MeshPhongMaterial({ color: c, shininess: 40 }),
+      edge = new THREE.MeshBasicMaterial({ color: e }),
+      gold = new THREE.MeshPhongMaterial({ color: guard, shininess: 40 }),
+      n = 9;
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1),
+        w = 0.075 * (1 - t * 0.55),
+        x = 0.12 * t * t,
+        a = -Math.atan2(0.24 * t, 0.95);
+      add(new THREE.BoxGeometry(w, 0.13, 0.03), steel, x, -0.02 + t * 0.95, 0, a);
+      add(new THREE.BoxGeometry(0.014, 0.13, 0.034), edge, x + w / 2, -0.02 + t * 0.95, 0, a);
+    }
+    add(new THREE.ConeGeometry(0.04, 0.12, 4), steel, 0.13, 0.99, 0, -0.35).scale.z = 0.4;
+    add(new THREE.CylinderGeometry(0.11, 0.11, 0.035, 20), gold, 0, -0.1, 0);
+    add(new THREE.CylinderGeometry(0.035, 0.035, 0.3, 8), matte(grip), 0, -0.27, 0);
+    add(new THREE.SphereGeometry(0.045, 12, 8), gold, 0, -0.44, 0);
   } else if (it === 206) {
     // the pistol: barrel toward +x like its icon, a glowing core in the middle
     add(new THREE.BoxGeometry(0.5, 0.17, 0.14), matte('#4a3b7a'), 0.02, 0.06, 0);
