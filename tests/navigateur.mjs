@@ -429,8 +429,7 @@ if (!runner.shielded || !runner.blinked || runner.bots !== 2 || !runner.frenzy |
 // (validators keep their full guard), and the raider is back at night
 const rest = await page.evaluate(() => {
   const P = mines.P, key = ckey(cOf(P.x), cOf(P.z)), keep = mines.MOBS.get(key) || [];
-  let dz = 0;
-  while (!restsByDay({ type: 'sky_raider', hx: P.x + 2, hz: P.z + dz })) dz++; // one of the raiders that rest by day
+  const dz = 0;
   const cr = mines.mkMob('sky_raider', key, 170, P.x + 2, P.y, P.z + dz, null),
     wd = mines.mkMob('guardian', key, 111, P.x - 2, P.y, P.z, null),
     list = [cr, wd];
@@ -452,6 +451,10 @@ const rest = await page.evaluate(() => {
   return { nearStays, rests, back };
 });
 if (!rest.nearStays || !rest.rests || !rest.back) await fail('daytime rest: ' + JSON.stringify(rest));
+const dayRule = await page.evaluate(() =>
+  ['shadow', 'bat', 'sentinel', 'golem', 'wraith', 'warden', 'turret', 'garden_guardian', 'water_lurker'].every(t => restsByDay({ type: t })) &&
+  ['guardian', 'crawler', 'corrupted_node', 'front_runner', 'plasma_core'].every(t => !restsByDay({ type: t })));
+if (!dayRule) await fail('daytime rest: only the validators guards and the bosses stay by day');
 // the full screen button: shown where the browser supports it, toggles full screen, lit while on
 const fsShown = await page.evaluate(() => !document.getElementById('fsBtn').hidden);
 const fsState = () => page.evaluate(() => ({ title: !document.getElementById('title').hidden, panel: !document.getElementById('panel').hidden, locked: !!document.pointerLockElement, noLock, fs: !!document.fullscreenElement, playing }));

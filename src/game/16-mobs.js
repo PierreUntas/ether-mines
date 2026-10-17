@@ -837,16 +837,25 @@ function spawnMobChunk(cx, cz) {
     }
   }
 }
-// daytime rest: by day, most of the open-surface mobs are out of sight (playtest: too many hostiles
-// in broad daylight), and they come back at dusk. Caves, towers, the Merge Sanctum and the bosses never
-// see the sun, so they are untouched. A resting mob leaves its chunk's list for list.resting: every
-// loop over MOBS (updates, aiming, bolts) skips it without knowing about the rule.
+// daytime rest: by day the hostile mobs are out of sight (Pierre: no mobs in daylight), and they come
+// back at dusk. Only the validators' guards stay on watch: the guardians and crawlers of the ruins, and the
+// network attack's nodes going for the Atrium's validator. The bosses (and the Front-Runner's bots) stay
+// too: a boss fight is something you go looking for. A resting mob leaves its chunk's list for
+// list.resting: every loop over MOBS (updates, aiming, bolts) skips it without knowing about the rule.
 const REST_FAR = 24; // never vanishes under your eyes: only once you are this far away, and unhurt
+const DAY_WATCH = new Set([
+  'guardian',
+  'crawler',
+  'corrupted_node',
+  'titan',
+  'plasma_core',
+  'pow_twin',
+  'pos_twin',
+  'front_runner',
+  'mev_bot',
+]);
 function restsByDay(a) {
-  // the ruins keep their full guard day and night (playtest): guardians and crawlers never rest
-  if (a.type === 'garden_guardian') return a.i % 2 === 1; // one of the pair stays on watch
-  if (a.type === 'sky_raider' || a.type === 'water_lurker') return hash(Math.floor(a.hx), Math.floor(a.hz), 320) < 0.65;
-  return false;
+  return !DAY_WATCH.has(a.type);
 }
 // A killed mob stays dead for a while: a chunk loaded again (you walked away and back), a night
 // prowler or a network attack node don't bring it straight back, which left no time to switch weapons
