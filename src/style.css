@@ -212,6 +212,11 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 #attack{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 46px);transform:translateX(-50%);padding:6px 12px;font-size:13px;color:var(--text);border-color:var(--burn);max-width:min(460px,calc(100% - 32px));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;animation:attackPulse 1.6s ease-in-out infinite}
 @keyframes attackPulse{50%{box-shadow:0 0 14px rgba(255,154,184,.55)}}
 @media (prefers-reduced-motion:reduce){#attack{animation:none}}
+#claimBar{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 88px);transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:6px 8px 6px 12px;font-size:13px;color:var(--text);pointer-events:auto;max-width:calc(100% - 32px)}
+#claimBar[hidden]{display:none}
+#claimBar span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#claimBar .b{padding:5px 10px;font-size:13px;flex:none}
+#claimBar.bad #claimOk{display:none}
 @media (pointer:coarse){#quest{top:calc(env(safe-area-inset-top,0px) + 60px);max-width:calc(100% - 380px);font-size:12px}#attack{left:16px;top:calc(env(safe-area-inset-top,0px) + 162px);transform:none;font-size:11px;padding:5px 9px;max-width:calc(50% - 90px)}}
 .qintro{color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 12px}
 .quests{list-style:none;margin:0 0 14px;padding:0;display:grid;gap:6px;counter-reset:q}

@@ -107,9 +107,12 @@ addEventListener('keydown', e => {
   if (chatOpen || (document.activeElement && document.activeElement.tagName === 'INPUT')) return;
   if (e.code === 'Enter' && playing) {
     e.preventDefault();
-    openChat();
+    if (PICK.on && PICK.ok)
+      confirmClaimPick(); // choosing a plot: Enter takes it (06-actions.js)
+    else openChat();
     return;
   }
+  if (e.code === 'KeyX' && PICK.on) clearClaimPick();
   if (e.code === 'KeyE' && (playing || !$('panel').hidden)) {
     togglePanel();
     return;

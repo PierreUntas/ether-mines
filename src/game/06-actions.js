@@ -269,6 +269,140 @@ Net.on('claim', (ev, n, o) => {
   buildClaimLines(true);
   updatePosHud();
 });
+// ---------- choosing a plot before claiming it ----------
+// /claim first shows the plot you stand in: a glowing square on the ground, gold when it's free, green when
+// it's already yours, red when it can't be yours (someone else's, a public zone). It follows you as you
+// walk from plot to plot (the world's 16 × 16 grid); Enter or "Claim it" takes the one shown, X or
+// "Cancel" puts it away.
+const PICK = { on: false, key: '', g: null, qx: 0, qz: 0, ok: false };
+const pickCol = { free: 0xffd166, mine: 0x9fe3c4, bad: 0xff6b6b };
+function pickState(qx, qz) {
+  const c = CLAIMS.get(ckey(qx, qz));
+  if (c)
+    return c.owner === ME.id || (c.members || []).includes(ME.id)
+      ? ['mine', 'already your plot']
+      : ['bad', `${c.owner_name || 'someone'}'s plot`];
+  const x0 = qx * CH,
+    z0 = qz * CH;
+  for (const [x, z] of [
+    [x0 + 8, z0 + 8],
+    [x0, z0],
+    [x0 + CH - 1, z0],
+    [x0, z0 + CH - 1],
+    [x0 + CH - 1, z0 + CH - 1],
+  ])
+    if (sanctuary(x, z) || inCircuits(x, z)) return ['bad', 'a public zone: it belongs to everyone'];
+  return ['free', '2 crystals'];
+}
+function drawClaimPick() {
+  if (!PICK.on) return;
+  const qx = cOf(Math.floor(P.x)),
+    qz = cOf(Math.floor(P.z)),
+    [st, why] = pickState(qx, qz),
+    key = `${qx},${qz},${st}`;
+  if (key === PICK.key) return;
+  PICK.key = key;
+  PICK.qx = qx;
+  PICK.qz = qz;
+  PICK.ok = st === 'free';
+  clearClaimPick(true);
+  const col = pickCol[st],
+    x0 = qx * CH,
+    z0 = qz * CH,
+    // the ground of each column (the terrain's own height, above the sea): the square follows the slopes
+    hy = (x, z) => Math.max(heightAt(x, z), SEA) + 1.04,
+    g = new THREE.Group(),
+    fill = [],
+    pos = [];
+  for (let dz = 0; dz < CH; dz++)
+    for (let dx = 0; dx < CH; dx++) {
+      const x = x0 + dx,
+        z = z0 + dz,
+        y = hy(x, z);
+      fill.push(x, y, z, x + 1, y, z, x + 1, y, z + 1, x, y, z, x + 1, y, z + 1, x, y, z + 1);
+    }
+  const fg = new THREE.BufferGeometry();
+  fg.setAttribute('position', new THREE.Float32BufferAttribute(fill, 3));
+  g.add(
+    new THREE.Mesh(
+      fg,
+      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.26, depthWrite: false, side: THREE.DoubleSide }),
+    ),
+  );
+  // the edge, block by block at its ground height (with a step where the ground steps), doubled a little
+  // higher so it reads from afar, and a tall post at each corner
+  const edge = (ax, az, sx, sz, ox, oz) => {
+    let prev = null;
+    for (let k = 0; k < CH; k++) {
+      const cx = ax + sx * k + ox,
+        cz = az + sz * k + oz,
+        y = hy(cx, cz),
+        x1 = ax + sx * k,
+        z1 = az + sz * k;
+      if (prev !== null && Math.abs(prev - y) > 0.01) pos.push(x1, prev, z1, x1, y, z1);
+      for (const up of [0, 0.35]) pos.push(x1, y + up, z1, x1 + sx, y + up, z1 + sz);
+      prev = y;
+    }
+  };
+  edge(x0, z0, 1, 0, 0, 0);
+  edge(x0, z0 + CH, 1, 0, 0, -1);
+  edge(x0, z0, 0, 1, 0, 0);
+  edge(x0 + CH, z0, 0, 1, -1, 0);
+  for (const [x, z, cx, cz] of [
+    [x0, z0, x0, z0],
+    [x0 + CH, z0, x0 + CH - 1, z0],
+    [x0, z0 + CH, x0, z0 + CH - 1],
+    [x0 + CH, z0 + CH, x0 + CH - 1, z0 + CH - 1],
+  ]) {
+    const y = hy(cx, cz);
+    pos.push(x, y, z, x, y + 10, z);
+  }
+  const lg = new THREE.BufferGeometry();
+  lg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: col })));
+  scene.add(g);
+  PICK.g = g;
+  $('claimTxt').textContent =
+    `Plot ${qx}, ${qz} · ${why}${PICK.ok ? (touch ? '' : ' · Enter: claim · X: cancel') : ' · walk to another plot'}`;
+  $('claimBar').classList.toggle('bad', !PICK.ok);
+}
+function clearClaimPick(keepBar) {
+  if (PICK.g) {
+    scene.remove(PICK.g);
+    PICK.g.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) o.material.dispose();
+    });
+    PICK.g = null;
+  }
+  if (!keepBar) {
+    PICK.on = false;
+    PICK.key = '';
+    $('claimBar').hidden = true;
+  }
+}
+function startClaimPick() {
+  PICK.on = true;
+  PICK.key = '';
+  $('claimBar').hidden = false;
+  drawClaimPick();
+}
+async function confirmClaimPick() {
+  if (!PICK.on || !PICK.ok) return;
+  const { qx, qz } = PICK;
+  if (cOf(Math.floor(P.x)) !== qx || cOf(Math.floor(P.z)) !== qz) return drawClaimPick(); // (you just walked off it)
+  clearClaimPick();
+  const r = await serverAct('claim', { qx, qz }, null, 'claim');
+  if (r) addChat('World', '#7fe8ff', `Plot ${qx}, ${qz} claimed (2 crystals). Only you and your invites can build there.`);
+}
+$('claimOk').addEventListener('click', e => {
+  e.preventDefault();
+  confirmClaimPick();
+});
+$('claimNo').addEventListener('click', e => {
+  e.preventDefault();
+  clearClaimPick();
+});
 async function claimCmd(c, arg) {
   if (!SERVER()) {
     addChat('World', '#7fe8ff', 'Claims need an online game.');
@@ -278,8 +412,9 @@ async function claimCmd(c, arg) {
     qz = cOf(Math.floor(P.z)),
     say = t => addChat('World', '#7fe8ff', t);
   if (c === 'claim') {
-    const r = await serverAct('claim', { qx, qz }, null, 'claim');
-    if (r) say(`Plot ${qx}, ${qz} claimed (2 crystals). Only you and your invites can build there.`);
+    // first, see it: /claim shows the plot; typed again (or Enter, or the button), it takes it
+    if (PICK.on) confirmClaimPick();
+    else startClaimPick();
     return;
   }
   if (c === 'unclaim') {
@@ -301,7 +436,7 @@ async function claimCmd(c, arg) {
     say(
       mine.length
         ? `Your plots: ${mine.map(v => v.cx + ', ' + v.cz).join(' · ')}`
-        : "You don't have a plot yet. /claim takes the one you're standing in.",
+        : "You don't have a plot yet. /claim shows the one you're standing in, then takes it.",
     );
   }
 }

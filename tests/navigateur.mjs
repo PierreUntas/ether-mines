@@ -587,6 +587,28 @@ const boots = await page.evaluate(async () => {
   return { offFirst, noDash, worn, dashed, again };
 });
 if (Object.values(boots).some(v => !v)) await fail('the Front-Runner Boots: ' + JSON.stringify(boots));
+// claiming a plot: first see it — gold when free, red in a public zone or on someone else's — following you
+const pick = await page.evaluate(() => {
+  const P = mines.P,
+    home = { x: P.x, y: P.y, z: P.z };
+  startClaimPick();
+  const shown = !!PICK.g && !$('claimBar').hidden;
+  const publicZone = !PICK.ok && /public zone/.test($('claimTxt').textContent);
+  P.x += 64;
+  updatePosHud();
+  const free = PICK.ok && /2 crystals/.test($('claimTxt').textContent),
+    q = [PICK.qx, PICK.qz];
+  CLAIMS.set(ckey(q[0], q[1]), { cx: q[0], cz: q[1], owner: 'someone', owner_name: 'Alice' });
+  updatePosHud();
+  const taken = !PICK.ok && /Alice/.test($('claimTxt').textContent);
+  CLAIMS.delete(ckey(q[0], q[1]));
+  clearClaimPick();
+  const gone = !PICK.g && $('claimBar').hidden && !PICK.on;
+  Object.assign(P, home);
+  updatePosHud();
+  return { shown, publicZone, free, taken, gone };
+});
+if (Object.values(pick).some(v => !v)) await fail('choosing a plot: ' + JSON.stringify(pick));
 // the Front-Runner: shielded from outside its colosseum, blinks past you, calls two Sandwich Bots at half
 // health, and its fall mints the boots (which make you faster)
 const runner = await page.evaluate(async () => {

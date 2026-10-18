@@ -7,6 +7,7 @@ function updatePosHud() {
   $('borderTxt').textContent =
     `Position ${Math.floor(P.x)} · ${Math.floor(P.z)}${c ? ` · ${c.owner === ME.id ? 'your' : (c.owner_name || '?') + "'s"} plot` : ''}`;
   buildClaimLines();
+  drawClaimPick(); // choosing a plot to claim (06-actions.js): it follows you
 }
 const others = new Map();
 function faceTex(hair) {
