@@ -311,6 +311,7 @@ window.Net = (() => {
           const t = m.t;
           delete m.t;
           for (const k of ['id', 'from', 'to', 'on']) if (k in m) m[k] = mine(m[k]);
+          if (Array.isArray(m.by)) m.by = m.by.map(mine);
           emit(t, m);
         }
       };
@@ -415,10 +416,12 @@ window.Net = (() => {
   };
   const sendPos = p => sendRegion('pos', p);
   const sendHit = p => sendRegion('hit', p);
-  // a blow on a mob, for the players nearby; nothing goes out when nobody is (anyoneNear needs peers)
+  // a blow on a mob: through the game server, always (it keeps the mobs' health and answers with what's
+  // left); otherwise for the players nearby, and nothing goes out when nobody is (anyoneNear needs peers)
   let peersNow = [];
   const sendMob = p => {
-    if (anyoneNear(peersNow)) sendRegion('mob', p);
+    if (gsReady) gsSend({ ...p, t: 'mob' });
+    else if (anyoneNear(peersNow)) sendRegion('mob', p);
   };
   // a plasma bolt you fired, so the players nearby see it fly (only drawn there: hits still go through 'hit')
   const sendShot = p => {

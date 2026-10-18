@@ -261,3 +261,67 @@ test('a blow does the damage of the real weapon, at its own pace', async () => {
     await own.close();
   }
 });
+
+// step 3: the mobs' health lives on the server
+import { MOB_HP } from '../server/src/server.js';
+test("the server's mob health matches the game's", () => {
+  const src = readFileSync(new URL('../src/game/16-mobs.js', import.meta.url), 'utf8'),
+    from = src.indexOf('const MK = {'),
+    to = src.indexOf('\n};\n', from);
+  const MK = new Function(`return ${src.slice(from + 'const MK = '.length, to + 2)};`)();
+  assert.deepEqual(MOB_HP, Object.fromEntries(Object.entries(MK).map(([k, v]) => [k, v.hp])));
+});
+test('a blow on a mob is settled by the server: health, pace, reach, death, loot', async () => {
+  const a = await player('ma', 'A', 'w8'),
+    b = await player('mb', 'B', 'w8');
+  a.send({ t: 'pos', x: 0, y: 30, z: 0 });
+  b.send({ t: 'pos', x: 4, y: 30, z: 0 });
+  await wait(30);
+  const blow = (p, extra) => p.send({ t: 'mob', id: '0,0|3|shadow', item: 107, dmg: 5, x: 2, y: 30, z: 0, fx: 0, fz: 0, ...extra });
+  blow(a);
+  await wait(40);
+  assert.deepEqual([a.of('mob')[0].hp, a.of('mob')[0].from], [5, 'ma'], 'the striker hears back');
+  assert.equal(b.of('mob')[0].hp, 5, 'and the players nearby');
+  blow(a); // too soon
+  await wait(40);
+  assert.equal(a.of('mob')[1].hp, 5, 'a blow too soon takes nothing off');
+  blow(b, { item: 0, dmg: 99 }); // bare hands can't do 99
+  await wait(40);
+  assert.equal(b.of('mob').at(-1).hp, 3.5);
+  await wait(400);
+  blow(a, { x: 40 }); // a mob 40 blocks away is out of a sword's reach
+  await wait(40);
+  assert.equal(a.of('mob').at(-1).hp, 3.5);
+  await wait(400);
+  blow(a);
+  await wait(40);
+  const death = b.of('mob').at(-1);
+  assert.deepEqual([death.hp, death.dead, [...death.by].sort()], [0, 1, ['ma', 'mb']], 'both took part: both get their loot');
+  await wait(400);
+  const n = b.of('mob').length;
+  blow(a);
+  await wait(40);
+  assert.equal(a.of('mob').at(-1).dead, 1, 'still dead');
+  assert.equal(b.of('mob').length, n, 'and nothing to tell the others');
+  [a, b].forEach(p => p.close());
+});
+test('the Merge twins only stay down together', async () => {
+  const a = await player('ta', 'A', 'w9');
+  a.send({ t: 'pos', x: 0, y: 30, z: 0 });
+  await wait(30);
+  const blow = (i, type) => a.send({ t: 'mob', id: `5,5|${i}|${type}`, item: 301, dmg: 999, x: 1, y: 30, z: 0 });
+  // 60 hp at 11.25 (7.5 × 1.5) a blow
+  for (let n = 0; n < 6; n++) {
+    blow(160, 'pow_twin');
+    await wait(400);
+  }
+  const down = a.of('mob').at(-1);
+  assert.deepEqual([down.hp, down.down, down.dead], [0, 1, undefined], 'the first only falls dormant');
+  for (let n = 0; n < 4; n++) {
+    blow(161, 'pos_twin');
+    await wait(400);
+  }
+  const end = a.of('mob').at(-1);
+  assert.deepEqual([end.hp, end.dead, end.both, end.by], [0, 1, 1, ['ta']]);
+  a.close();
+});

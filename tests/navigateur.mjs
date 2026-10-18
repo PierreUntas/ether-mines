@@ -397,6 +397,39 @@ const twins = await page.evaluate(async () => {
   return { shielded, dormant, rose, both, aegis: mines.S.nfts.some(n => n.id === 209) };
 });
 if (!twins.shielded || !twins.dormant || !twins.rose || !twins.both || !twins.aegis) await fail('merge twins: ' + JSON.stringify(twins));
+// through the game server, a mob's health is the server's: the killing blow waits for its word, its answer
+// puts the health right, another player's blow sets it, and with no answer this screen settles it
+const served = await page.evaluate(async () => {
+  const P = mines.P,
+    key = ckey(cOf(P.x), cOf(P.z)),
+    keep = mines.MOBS.get(key) || [],
+    mk = i => mines.mkMob('shadow', key, 950 + i, P.x + 1.5, P.y, P.z, null),
+    [m1, m2, m3] = [mk(0), mk(1), mk(2)],
+    sent = [],
+    send = Net.sendMob,
+    real = Object.getOwnPropertyDescriptor(Net, 'gameServer');
+  mines.MOBS.set(key, [...keep, m1, m2, m3]);
+  Object.defineProperty(Net, 'gameServer', { get: () => true, configurable: true });
+  Net.sendMob = p => sent.push(p);
+  const id = a => `${a.k}|${a.i}|${a.type}`;
+  damageMob(m1, 999, P.x, P.z, 107);
+  const waits = m1.hp > 0 && !m1.dying && sent[0]?.item === 107;
+  remoteMobHit({ id: id(m1), from: ME.id, dmg: 7.5, hp: 0, dead: 1, by: [ME.id], x: m1.g.position.x, y: P.y, z: P.z, fx: P.x, fz: P.z });
+  const died = m1.dying > 0;
+  damageMob(m2, 3, P.x, P.z);
+  remoteMobHit({ id: id(m2), from: ME.id, dmg: 2, hp: 8, x: m2.g.position.x, y: P.y, z: P.z, fx: P.x, fz: P.z });
+  const corrected = m2.hp === 8;
+  remoteMobHit({ id: id(m2), from: 'someone', dmg: 6, hp: 2, x: m2.g.position.x, y: P.y, z: P.z, fx: P.x, fz: P.z });
+  const theirs = m2.hp === 2;
+  damageMob(m3, 999, P.x, P.z);
+  await new Promise(r => setTimeout(r, 1000));
+  const settled = m3.dying > 0 || !mines.MOBS.get(key)?.includes(m3);
+  Object.defineProperty(Net, 'gameServer', real);
+  Net.sendMob = send;
+  mines.MOBS.set(key, keep);
+  return { waits, died, corrected, theirs, settled };
+});
+if (Object.values(served).some(v => !v)) await fail('mobs through the game server: ' + JSON.stringify(served));
 // the Front-Runner: shielded from outside its colosseum, blinks past you, calls two Sandwich Bots at half
 // health, and its fall mints the boots (which make you faster)
 const runner = await page.evaluate(async () => {

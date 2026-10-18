@@ -21,6 +21,13 @@ the game falls back to those channels on its own and tries the server again ever
   `token`). A blow with a weapon you don't have counts as bare hands; blows faster than the weapon's pace
   (450 ms, 300 ms for the pistol) are dropped; the damage (`dmg`) is computed here from `WEAPONS`, which a
   test keeps equal to `rules.js`. A plasma shot is only shown to others if you own the pistol.
+- **Mobs' health lives here.** Each screen still moves its own copy of a mob, but every blow comes here
+  with the weapon used: checked like a PvP blow (owned weapon, pace, reach; at most 1.5× the weapon's
+  damage, for a riposte), taken off the mob's health, and sent back to the striker and to everyone within
+  64 blocks. The server alone says a mob is dead, names who struck it in the last 30 s (each gets their
+  own loot from Supabase, as before), and keeps it dead for 2 minutes (25 s for a network attack's node).
+  The Merge twins only stay down if both fall within 12 s. `MOB_HP` must match `MK` in
+  `src/game/16-mobs.js` (a test checks). An older page (blows without `item`) is only relayed, as before.
 - **The list of players.** Every two seconds, everyone in a world gets the list of the others with their
   position (the online badge, `/join`).
 - **One connection per account.** A second tab or a reconnection replaces the older connection.

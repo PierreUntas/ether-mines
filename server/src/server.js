@@ -6,7 +6,8 @@
 // then on the server knows, for every world, who is connected and where they stand, and it decides who
 // receives what: your moves go to the players around you, a blow on a player only to that player (if
 // they really are in reach), a blow on a mob and a plasma shot to the players nearby. Every player gets
-// the list of the others, with their position, every two seconds (the "online" badge, /join).
+// the list of the others, with their position, every two seconds (the "online" badge, /join). PvP blows
+// and the mobs' health are settled here (see WEAPONS and MOB_HP below).
 //
 // Nothing here is saved: the world, inventories and accounts stay in Supabase, behind its act_*
 // functions, exactly as before. This server only replaces Supabase Realtime's presence and region
@@ -34,6 +35,43 @@ const PISTOL = 206;
 const COOLDOWN = { melee: 450, ranged: 300 }; // ms between two blows (the game's own: 0.45 s, 0.35 s)
 const OWNED_EVERY = 60000; // ms between two looks at a player's weapons
 const OWNED_RETRY = 10000; // ...or sooner when they use one we didn't know about (just crafted)
+// Mobs (step 3): their health lives here. Each screen still moves its own copy of a mob, but a blow is
+// sent here, checked (the weapon you have, its pace, its reach) and taken off the mob's health, and
+// everyone nearby, the striker included, gets the health left. The server alone says when a mob dies,
+// who took part (the loot), and keeps it dead until it comes back (2 minutes, 25 s for a network attack's
+// node). The mobs' full health is MK[type].hp in src/game/16-mobs.js (a test checks they match).
+export const MOB_HP = {
+  shadow: 10,
+  guardian: 19,
+  sentinel: 14,
+  wraith: 22,
+  titan: 120,
+  warden: 16,
+  turret: 12,
+  plasma_core: 45,
+  garden_guardian: 15,
+  prowler: 11,
+  sky_raider: 12,
+  water_lurker: 17,
+  bat: 9,
+  crawler: 15,
+  golem: 26,
+  corrupted_node: 20,
+  pow_twin: 60,
+  pos_twin: 40,
+  front_runner: 170,
+  mev_bot: 16,
+};
+const MOB_ID_RE = /^(-?\d{1,6},-?\d{1,6})\|(\d{1,4})\|([a-z_]{1,20})$/; // chunk | slot | kind (16-mobs.js mobId)
+const MOB_RESPAWN = { corrupted_node: 25000 }; // ms; every other mob: 2 minutes
+const MOB_RESPAWN_MS = 120000;
+const MOB_FORGET = 300000; // a mob nobody struck for 5 minutes is forgotten (back to full health)
+const SHARE_MS = 30000; // whoever struck it in the last 30 s gets their own loot
+const TWIN_DOWN_MS = 12000; // a Merge twin struck down only sleeps this long, unless its twin falls too
+const MOB_SLACK = 0.8; // the pace of blows on a mob, with room for the network's jitter
+const RIPOSTE = 1.5; // the most a blow can be raised (a riposte after a parry)
+// the Merge twins come as a pair, side by side in their chunk (16-mobs.js: slots 160 and 161)
+const twinOf = (k, i, type) => (type === 'pow_twin' ? `${k}|${i + 1}|pos_twin` : type === 'pos_twin' ? `${k}|${i - 1}|pow_twin` : null);
 
 const num = (v, lim = 1e6) => (Number.isFinite(v) && Math.abs(v) <= lim ? v : null);
 const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
@@ -125,6 +163,69 @@ export function createGameServer(opts = {}) {
     return 0;
   }
   const worlds = new Map(); // world -> Map(id -> player)
+  const mobsOf = new Map(); // world -> Map(mob id -> { hp, by: Map(player id -> ms), at, down, deadUntil })
+  function mobState(world, id, type, now) {
+    if (!mobsOf.has(world)) mobsOf.set(world, new Map());
+    const mobs = mobsOf.get(world);
+    let s = mobs.get(id);
+    if (s && s.deadUntil && now >= s.deadUntil) s = null; // back again
+    if (s && s.down && now >= s.down) Object.assign(s, { down: 0, hp: MOB_HP[type] }); // a twin that rose again
+    if (!s) mobs.set(id, (s = { hp: MOB_HP[type], by: new Map(), at: now, down: 0, deadUntil: 0 }));
+    return s;
+  }
+  const struckBy = (s, now) => [...s.by].filter(([, t]) => now - t < SHARE_MS).map(([id]) => id);
+  // a blow on a mob: checked, settled, and told to everyone nearby (the striker included)
+  function mobBlow(me, m) {
+    const id = str(m.id, 80),
+      r = MOB_ID_RE.exec(id),
+      x = num(m.x, 1e5),
+      y = num(m.y, 1e3),
+      z = num(m.z, 1e5);
+    if (!r || !MOB_HP[r[3]] || !me.pos || x === null || y === null || z === null) return;
+    const [, k, slot, type] = r,
+      now = Date.now(),
+      s = mobState(me.world, id, type, now),
+      item = weaponOf(me, m.item),
+      ranged = item === PISTOL,
+      msg = { t: 'mob', id, from: me.id, dmg: 0, hp: s.hp, x, y, z, fx: num(m.fx, 1e5) ?? x, fz: num(m.fz, 1e5) ?? z };
+    const pace = now - (me.lastMobHit || 0) >= (ranged ? COOLDOWN.ranged : COOLDOWN.melee) * MOB_SLACK,
+      reach = Math.hypot(x - me.pos.x, z - me.pos.z) <= (ranged ? RANGE.hitRanged : RANGE.hitMelee);
+    if (s.hp <= 0 || !pace || !reach) {
+      // nothing taken off: the striker's screen is put right (a mob already dead, a blow too soon)
+      if (s.deadUntil) msg.dead = 1;
+      else if (s.down) msg.down = 1;
+      return send(me, msg);
+    }
+    me.lastMobHit = now;
+    const base = WEAPONS[item] || 1,
+      dmg = Math.max(0, Math.min(num(m.dmg, 1e4) ?? base, base * RIPOSTE));
+    s.hp = Math.max(0, +(s.hp - dmg).toFixed(2));
+    s.at = now;
+    s.by.set(me.id, now);
+    Object.assign(msg, { dmg: +dmg.toFixed(2), hp: s.hp });
+    if (s.hp <= 0) {
+      const tw = twinOf(k, +slot, type),
+        o = tw && mobsOf.get(me.world).get(tw);
+      if (tw && !(o && o.hp <= 0 && o.down > now)) {
+        s.down = now + TWIN_DOWN_MS; // the first twin to fall only sleeps
+        msg.down = 1;
+      } else {
+        const back = now + (MOB_RESPAWN[type] ?? MOB_RESPAWN_MS),
+          by = new Set(struckBy(s, now));
+        s.deadUntil = back;
+        if (o) {
+          // both twins down together: both done for, and both paid whoever fought either
+          Object.assign(o, { down: 0, deadUntil: back });
+          for (const p of struckBy(o, now)) by.add(p);
+          msg.both = 1;
+        }
+        msg.dead = 1;
+        msg.by = [...by];
+      }
+    }
+    send(me, msg);
+    relay(me, RANGE.mob, msg);
+  }
   const stats = { connections: 0, messages: 0 };
 
   const http = createServer((req, res) => {
@@ -174,9 +275,14 @@ export function createGameServer(opts = {}) {
     }
   }
   const tick = setInterval(() => {
+    const now = Date.now();
     for (const [w, room] of worlds) {
       sendPeers(w);
-      for (const p of room.values()) if (Date.now() - (p.ownedAt || 0) > OWNED_EVERY) refreshOwned(p);
+      for (const p of room.values()) if (now - (p.ownedAt || 0) > OWNED_EVERY) refreshOwned(p);
+    }
+    for (const [w, mobs] of mobsOf) {
+      for (const [id, s] of mobs) if (s.deadUntil ? now >= s.deadUntil : now - s.at > MOB_FORGET) mobs.delete(id);
+      if (!mobs.size) mobsOf.delete(w);
     }
   }, PEERS_EVERY);
   // a dead connection (a closed laptop) is dropped after a missed ping
@@ -265,6 +371,7 @@ export function createGameServer(opts = {}) {
           pos: null,
           owned: null,
           lastHit: 0,
+          lastMobHit: 0,
         };
         room.set(me.id, me);
         refreshOwned(me);
@@ -309,6 +416,8 @@ export function createGameServer(opts = {}) {
         me.lastHit = now;
         send(tgt, { t: 'hit', from: me.id, to: tgt.id, x: me.pos.x, y: me.pos.y, z: me.pos.z, item, dmg: pvpDamage(item) });
       } else if (m.t === 'mob') {
+        if ('item' in m) return mobBlow(me, m);
+        // an older page (before step 3): its blow is only passed on, as before
         relay(me, RANGE.mob, {
           t: 'mob',
           id: str(m.id, 80),
@@ -340,6 +449,7 @@ export function createGameServer(opts = {}) {
   return {
     http,
     worlds,
+    mobs: mobsOf,
     stats,
     listen: () =>
       new Promise(res =>

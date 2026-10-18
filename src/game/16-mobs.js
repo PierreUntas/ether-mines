@@ -1020,10 +1020,12 @@ function heldDmg() {
 // the sky (playtest: they can't follow you off it) barely scratches them, and says so once
 let twinShieldToast = 0;
 // ---------- shared combat: a mob is the same mob on every nearby screen ----------
-// Each screen still moves its own copy of a mob, but every blow is told to the players nearby (net.js,
-// on the region channels): its damage, the mob's hp left, where it stands. So a mob loses the same hp
-// everywhere and dies for everyone, and whoever struck it in the last 30 seconds gets their own loot
-// (the server still decides what drops, as before). A mob's id is the same everywhere: its chunk, its
+// Each screen still moves its own copy of a mob, but every blow is told to the players nearby: its damage,
+// the mob's hp left, where it stands. So a mob loses the same hp everywhere and dies for everyone, and
+// whoever struck it in the last 30 seconds gets their own loot (Supabase still decides what drops). With
+// the game server (server/src/server.js), the mob's health lives there: it checks each blow, says when
+// the mob dies and who gets paid, and keeps it dead until it comes back. Without it, on the region
+// channels, each screen judges for itself as before. A mob's id is the same everywhere: its chunk, its
 // slot there and its kind, all derived from the world itself (spawnMobChunk and friends).
 const mobId = a => `${a.k}|${a.i}|${a.type}`;
 const SHARE_LOOT_MS = 30000;
@@ -1032,8 +1034,12 @@ function findMob(id) {
   const [k, i, type] = id.split('|');
   return (MOBS.get(k) || []).find(a => String(a.i) === i && a.type === type) || null;
 }
-// you hit it: the twins' shield, then the blow itself, then the word to everyone nearby
-function damageMob(a, dmg, fromX, fromZ) {
+// you hit it: the twins' shield, then the blow itself, then the word to everyone nearby.
+// Through the game server, the mob's health is the server's: the blow shows here at once, but the mob
+// only dies when the server says so (the answer comes back in a few hundredths of a second), and the
+// loot goes to whoever it names. With no answer (the server just went away), this screen settles it.
+const MOB_WAIT_MS = 800;
+function damageMob(a, dmg, fromX, fromZ, item = itemId(S.bar[S.sel])) {
   a.provoked = 15; // struck: the Ward Incense no longer fools it for a while
   if (a.stunT > 0) dmg *= 1.5; // a riposte, while it reels from a parry
   if (a.arena && (a.twin || a.arena.reach) && Math.hypot(P.x - a.arena.x, P.z - a.arena.z) > (a.arena.reach || a.arena.r + 2.5)) {
@@ -1049,11 +1055,23 @@ function damageMob(a, dmg, fromX, fromZ) {
   }
   if (a.hp <= 0) return;
   a.hitAt = performance.now(); // you took part: you'll get your own loot if it falls soon
-  const hpLeft = a.hp - dmg;
-  applyMobDamage(a, dmg, hpLeft, fromX, fromZ);
+  const hpLeft = a.hp - dmg,
+    served = typeof Net !== 'undefined' && Net.gameServer;
+  if (served && hpLeft <= 0) {
+    // the killing blow waits for the server's word; if none comes, this screen settles it as before
+    const wait = (a.wait = {});
+    setTimeout(() => {
+      if (a.wait === wait && a.hp > 0) {
+        a.wait = null;
+        setMobHp(a, hpLeft);
+      }
+    }, MOB_WAIT_MS);
+  }
+  applyMobDamage(a, dmg, served ? Math.max(hpLeft, 0.01) : hpLeft, fromX, fromZ);
   if (typeof Net !== 'undefined' && Net.sendMob)
     Net.sendMob({
       id: mobId(a),
+      item,
       dmg: +dmg.toFixed(2),
       hp: +Math.max(0, hpLeft).toFixed(2),
       x: +a.g.position.x.toFixed(2),
@@ -1063,43 +1081,73 @@ function damageMob(a, dmg, fromX, fromZ) {
       fz: +fromZ.toFixed(2),
     });
 }
-// a blow from another player nearby: same damage here, and the mob is put back where they see it
+// a blow on a mob nearby, told by the others or by the game server. From the server (m.from is set), its
+// health is the truth: your own blow comes back with what's left, the others' with their knockback too.
 function remoteMobHit(m) {
   const a = findMob(m.id);
-  if (!a || a.hp <= 0) return;
+  if (!a) return;
+  if (m.from === undefined) {
+    // straight from another player (no game server): their blow on top of ours, but never above what
+    // they see (a screen that arrived late, with the mob still at full health, catches up at once)
+    if (a.hp <= 0) return;
+    nudgeMob(a, m);
+    applyMobDamage(a, m.dmg, Math.min(a.hp - m.dmg, m.hp), m.fx, m.fz);
+    return;
+  }
+  const paid = m.dead ? () => Array.isArray(m.by) && m.by.includes(ME.id) : undefined,
+    end = m.both ? 'both' : m.dead ? 'dead' : m.down ? 'down' : null;
+  if (m.from === ME.id) {
+    a.wait = null;
+    if (a.hp <= 0 && !a.down) return; // already gone here
+    setMobHp(a, m.hp, paid, end);
+    return;
+  }
+  if (a.hp <= 0 && !(end === 'both' && a.down)) return;
+  nudgeMob(a, m);
+  applyMobDamage(a, m.dmg, m.hp, m.fx, m.fz, paid, end);
+}
+// the mob is put back where the striker sees it
+function nudgeMob(a, m) {
   const p = a.g.position;
   if (Math.hypot(p.x - m.x, p.z - m.z) > 1.5) p.set(m.x, m.y, m.z);
   else {
     p.x += (m.x - p.x) * 0.5;
     p.z += (m.z - p.z) * 0.5;
   }
-  // hp: their blow on top of ours, but never above what they see (a screen that arrived late, with
-  // the mob still at full health, catches up at once)
-  applyMobDamage(a, m.dmg, Math.min(a.hp - m.dmg, m.hp), m.fx, m.fz);
 }
-// a mob loses hp, wherever the blow came from; at 0 it dies here too, and pays whoever took part
-function applyMobDamage(a, dmg, hpLeft, fromX, fromZ) {
+// a mob loses hp, wherever the blow came from: the knockback and the sound, then its health
+function applyMobDamage(a, dmg, hpLeft, fromX, fromZ, paid, end) {
   a.provoked = 15;
+  if (dmg > 0) {
+    Sound.hit('pierre');
+    const K = MK[a.type],
+      dx = a.g.position.x - fromX,
+      dz = a.g.position.z - fromZ,
+      dd = Math.hypot(dx, dz) || 1;
+    a.kbx = (dx / dd) * K.kb;
+    a.kbz = (dz / dd) * K.kb;
+    a.kbT = 0.25;
+  }
+  setMobHp(a, hpLeft, paid, end);
+}
+// its health; at 0 it dies here too, and pays whoever took part. paid(mob) says who did (by default,
+// whoever struck it here in the last 30 s); end is the game server's word: 'down' (a twin falls
+// dormant), 'dead', 'both' (the two twins together), or nothing for this screen to judge
+function setMobHp(a, hpLeft, paid, end) {
   a.hp = hpLeft;
-  Sound.hit('pierre');
-  const K = MK[a.type],
-    dx = a.g.position.x - fromX,
-    dz = a.g.position.z - fromZ,
-    dd = Math.hypot(dx, dz) || 1;
-  a.kbx = (dx / dd) * K.kb;
-  a.kbz = (dz / dd) * K.kb;
-  a.kbT = 0.25;
-  const tookPart = x => x && x.hitAt && performance.now() - x.hitAt < SHARE_LOOT_MS;
+  const tookPart = paid || (x => x && x.hitAt && performance.now() - x.hitAt < SHARE_LOOT_MS);
+  if (end && hpLeft > 0) return;
   if (a.hp <= 0 && a.twin) {
     // the Merge twins: the first to fall only goes dormant; if its twin is already dormant, both are
     // done for good — together, which is the only way they stay down
     a.hp = 0;
     Sound.animal(a.type, 1);
-    if (a.twin.hp > 0) {
+    if (end === 'down' || (!end && a.twin.hp > 0)) {
       a.down = TWIN_DOWN;
       if (tookPart(a))
         toastInfo(`${MK[a.type].n} falls dormant… strike ${MK[a.twin.type].n} down within ${TWIN_DOWN} s, or it rises again`);
     } else {
+      a.twin.hp = 0;
       a.down = a.twin.down = 0;
       a.dying = a.twin.dying = 0.4;
       if (tookPart(a) || tookPart(a.twin)) {
@@ -1153,7 +1201,15 @@ function fireRanged() {
   const m = new THREE.Mesh(boltGeo, boltMat);
   m.position.copy(ray.origin);
   scene.add(m);
-  BOLTS.push({ m, vx: dir.x * BOLT_SPEED, vy: dir.y * BOLT_SPEED, vz: dir.z * BOLT_SPEED, life: BOLT_LIFE, dmg: heldDmg() });
+  BOLTS.push({
+    m,
+    vx: dir.x * BOLT_SPEED,
+    vy: dir.y * BOLT_SPEED,
+    vz: dir.z * BOLT_SPEED,
+    life: BOLT_LIFE,
+    dmg: heldDmg(),
+    item: itemId(S.bar[S.sel]),
+  });
   Sound.shoot();
   // the players nearby see it fly too (drawn only: the damage still comes from this screen's own bolt)
   if (typeof Net !== 'undefined' && Net.sendShot)
@@ -1309,7 +1365,7 @@ function updateBolts(dt) {
           const K = MK[a.type],
             ap = a.g.position;
           if (Math.hypot(p.x - ap.x, p.y - (ap.y + K.hit[1] / 2), p.z - ap.z) < 0.55 + K.hit[0] / 2) {
-            damageMob(a, b.dmg, p.x, p.z);
+            damageMob(a, b.dmg, p.x, p.z, b.item);
             dead = true;
             break outer;
           }
