@@ -49,6 +49,22 @@ test('a mob hunts the closest player, walks up to them and strikes them, and onl
   assert.ok(hits.every(([to, msg]) => to === 'a' && msg.dmg === MK.shadow.dmg));
 });
 
+test('a player who turned hostile mobs off is never hunted nor hit, and keeps no mobs alive', () => {
+  const now = findTime(true),
+    a = player('a', far.x, far.z, { noMobs: true }),
+    b = player('b', far.x - 12, far.z);
+  const { sim, sent } = setup([a, b], { now });
+  const m = mob('shadow', chunkOf(far.x, far.z), 905, far.x + 6, 30, far.z, null);
+  assert.ok(sim.place(m));
+  for (let i = 0; i < 60; i++) sim.tick([a, b], 0.1, now + i * 100);
+  const hits = sent.filter(([, msg]) => msg.t === 'mhit');
+  assert.ok(hits.length >= 1, 'it went for b');
+  assert.ok(hits.every(([to]) => to === 'b'), 'never a');
+  // alone, the mobs around them go away
+  for (let i = 0; i < 3; i++) sim.tick([a], 0.1, now + 7000 + i * 100);
+  assert.equal(sim.count(), 0);
+});
+
 test('every player nearby sees it, a turret fires at them, and its bolt is seen by everyone around', () => {
   const now = findTime(true),
     a = player('a', far.x, far.z),

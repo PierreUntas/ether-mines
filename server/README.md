@@ -36,7 +36,9 @@ the game falls back to those channels on its own and tries the server again ever
   the browsers pass on the block changes they see, `edit`). Each player gets the mobs within 48 blocks
   (`ms`: ten times a second for one on the hunt, twice for one wandering), the blows aimed at them
   (`mhit`, which they may parry: `parry` stuns the mob here) and every bolt fired nearby (`mshot`). The
-  `welcome` says `mobs: 1`; `MOB_SIM=0` turns it off (the screens then run the mobs, as below).
+  `welcome` says `mobs: 1`; `MOB_SIM=0` turns it off (the screens then run the mobs, as below). A player
+  whose world has hostile mobs turned off (`nm` in `hello` and `pos`) is left alone: not hunted, not hit,
+  sent no mobs.
 - **Your hearts live here** (`src/health.js`, while the server runs the mobs). Every blow is settled here:
   a mob's, another player's (none in the sanctuary), a mob's bolt (flown here, on the terrain, until it
   reaches someone or a wall). The guard counts if you hold a blade you own and the blow comes from in

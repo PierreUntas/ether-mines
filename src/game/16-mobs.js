@@ -1213,6 +1213,8 @@ function hurtShown(hp, mx, mz, blocked) {
 Net.on('hurt', m => serverHurt(m));
 function serverHurt(m) {
   if (!m || !Number.isFinite(m.hp) || !Number.isFinite(m.x) || !Number.isFinite(m.z)) return;
+  // a mob's blow (no player behind it) while hostile mobs are off here: not yours to take
+  if (!m.from && !mobsHere()) return;
   if (m.res === 'parry' || (m.res === 'block' && !m.dmg)) {
     guardSpark(m.res === 'parry');
     hurtT = 0.35;

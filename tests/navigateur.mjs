@@ -547,13 +547,22 @@ const srvHp = await page.evaluate(async () => {
   setInv(loot.r.inv, 'mob loot');
   showLoot(loot.type, loot.r);
   const paid = before === inv0 && (S.inv[101] || 0) === inv0 + 1;
+  // hostile mobs turned off: a mob's blow is ignored, another player's still lands
+  const regMobs = REG.mobs;
+  REG.mobs = false;
+  S.hp = 10;
+  serverHurt({ dmg: 3, hp: 7, x: P.x + 1, z: P.z, kind: 'melee', res: 'hit' });
+  hurtT = 0;
+  serverHurt({ dmg: 2, hp: 8, x: P.x + 1, z: P.z, kind: 'pvp', res: 'hit', from: 'someone' });
+  const noMobs = S.hp === 8 && !mobsHere();
+  REG.mobs = regMobs;
   Object.defineProperty(Net, 'hpServer', real);
   Object.defineProperty(Net, 'lootServer', realLoot);
   Net.sendHeal = heal;
   S.hp = 10;
   Object.assign(P, home);
   hurtT = 0;
-  return { shown, noRegen, fell, paid };
+  return { shown, noRegen, fell, paid, noMobs };
 });
 if (Object.values(srvHp).some(v => !v)) await fail('your hearts on the game server: ' + JSON.stringify(srvHp));
 // the Front-Runner Boots: worn from the chest, they show on your feet, make you faster, and Q dodges

@@ -818,6 +818,7 @@ setInterval(() => {
       ld: playerOnLadder() ? 1 : 0, // on a ladder: the game server's tower mobs hold their blows
       ar: S.armor ? +S.armor : 0, // the plating you wear (the game server checks you own it)
       bt: bootsOn() ? 1 : 0, // the Front-Runner Boots on your feet: the others see them
+      nm: mobsHere() ? 0 : 1, // hostile mobs turned off in this world: the game server's mobs leave you be
     };
   const L = lastPos,
     moved =
@@ -833,7 +834,8 @@ setInterval(() => {
       p.wd !== L.wd ||
       p.ld !== L.ld ||
       p.ar !== L.ar ||
-      p.bt !== L.bt;
+      p.bt !== L.bt ||
+      p.nm !== L.nm;
   if (!moved && now - lastPosT < 4000) return;
   lastPos = p;
   lastPosT = now;
@@ -1316,7 +1318,7 @@ async function boot(world) {
       }
     } else setTimeout(() => logEv('burn', 'Account unavailable', 'progress kept in this browser'), 1500);
     // your hearts and plating, for the game server (it keeps the hearts from then on)
-    Net.setHello(() => ({ hp: S.hp, ar: S.armor ? +S.armor : 0, bt: bootsOn() ? 1 : 0 }));
+    Net.setHello(() => ({ hp: S.hp, ar: S.armor ? +S.armor : 0, bt: bootsOn() ? 1 : 0, nm: mobsHere() ? 0 : 1 }));
     await Net.join(world, ME);
     if (Net.userId) {
       await syncInventory();

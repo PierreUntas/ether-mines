@@ -97,7 +97,8 @@ export function createMobSim({ terrain, ledger, send, hurt, open = () => true, l
     for (const a of [...c.list]) if (a.type === 'guardian' && W.get(a.rx, a.ry + 1, a.rz) !== 73) remove(c, a);
   }
   function tick(players, dt, now = Date.now()) {
-    const here = players.filter(p => p.pos);
+    // a player who turned hostile mobs off is not hunted, not hit, and keeps no mobs alive around them
+    const here = players.filter(p => p.pos && !p.noMobs);
     // the chunks around the players: loaded (when their terrain has been read), the others dropped
     const want = new Set();
     let budget = 3; // new chunks generated per tick, for all the players together

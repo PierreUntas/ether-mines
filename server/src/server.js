@@ -322,7 +322,7 @@ export function createGameServer(opts = {}) {
         cfg.log(`mobs of ${world}: ${e.stack || e.message}`);
       }
       for (const p of players) {
-        if (!p.pos) continue;
+        if (!p.pos || p.noMobs) continue;
         const l = w.sim.view(p, now);
         // an empty view goes out once (the last mobs around you are gone), then not again
         if (!l.length && w.last.get(p.id)) continue;
@@ -494,6 +494,7 @@ export function createGameServer(opts = {}) {
           lastHitOn: new Map(),
           armor: Number.isInteger(m.ar) ? m.ar : 0,
           boots: m.bt ? 211 : 0,
+          noMobs: !!m.nm, // hostile mobs turned off on their screen: the mobs here leave them be
           held: 0,
           yaw: 0,
         };
@@ -529,6 +530,7 @@ export function createGameServer(opts = {}) {
         me.held = Number.isInteger(m.h) ? m.h : 0;
         if (Number.isInteger(m.ar) || m.ar === null) me.armor = m.ar || 0;
         me.boots = m.bt ? 211 : 0;
+        me.noMobs = !!m.nm;
         health.guard(me, !!m.gd);
         me.ladder = !!m.ld; // on a ladder: tower mobs hold their blows
         // what the others need to draw you: position and look, what you hold, mining, guard, hovercraft
