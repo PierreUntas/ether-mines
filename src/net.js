@@ -27,7 +27,8 @@ window.Net = (() => {
     gsOff = false, // it turned us away for good (an older or newer protocol): don't insist
     gsRetry = 0,
     gsSelf = null, // your id on the game server (your account's)
-    gsTokenWatch = false;
+    gsTokenWatch = false,
+    gsKicked = false; // replaced by another tab or device of yours
   let sb = null,
     ch = null,
     world = 'principal',
@@ -299,7 +300,9 @@ window.Net = (() => {
           emit('status', 'GAME_SERVER');
           resolve(true);
         } else if (m.t === 'bye') {
-          if (m.reason === 'version' || m.reason === 'world' || m.reason === 'elsewhere') gsOff = true;
+          if (m.reason === 'version' || m.reason === 'world') gsOff = true;
+          // another tab or device of yours took over: no automatic retry, but coming back to this page takes it back
+          else if (m.reason === 'elsewhere') gsKicked = true;
         } else if (m.t === 'peers') {
           const list = (m.list || []).map(p => ({ ...p, id: mine(p.id) }));
           peersNow = list;
@@ -323,10 +326,34 @@ window.Net = (() => {
           resyncPresence();
           emit('status', 'GAME_SERVER_LOST');
         }
-        if (!gsOff && online) setTimeout(gsConnect, Math.min(30000, 3000 * 2 ** gsRetry++));
+        // retry soon: while the server restarts (a deploy), players who already came back to it can't see
+        // those still waiting on Supabase's channels, so the wait stays short
+        if (!gsOff && !gsKicked && online) gsLater(Math.min(10000, 2000 * 2 ** gsRetry++) + Math.random() * 1000);
       };
       ws.onerror = () => {};
     });
+  }
+  let gsTimer = null;
+  function gsLater(ms) {
+    clearTimeout(gsTimer);
+    gsTimer = setTimeout(() => {
+      gsTimer = null;
+      gsConnect();
+    }, ms);
+  }
+  // back on the page (a phone waking up, the app brought back): try the game server right away
+  const gsWake = () => {
+    if (!gs && !gsOff && online && cfg.GAME_SERVER && (typeof document === 'undefined' || !document.hidden)) {
+      gsKicked = false;
+      clearTimeout(gsTimer);
+      gsTimer = null;
+      gsConnect();
+    }
+  };
+  if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('visibilitychange', gsWake);
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('online', gsWake);
+    window.addEventListener('pageshow', gsWake);
   }
   const gsSend = m => {
     if (gsReady && gs && gs.readyState === 1) gs.send(JSON.stringify(m));
