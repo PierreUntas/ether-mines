@@ -28,7 +28,16 @@ the game falls back to those channels on its own and tries the server again ever
   own loot from Supabase, as before), and keeps it dead for 2 minutes (25 s for a network attack's node).
   The Merge twins only stay down if both fall within 12 s. `MOB_HP` must match `MK` in
   `src/game/16-mobs.js` (a test checks). An older page (blows without `item`) is only relayed, as before.
-- **One mob, one place.** The screen of the player a mob is after leads it: about 8 times a second it
+- **The mobs run here.** For every world with someone in it, the server runs the hostile mobs itself,
+  ten times a second, with the game's own logic (`src/mobs-core.js`, `src/mobs.js`): where they spawn
+  (from the seed and the terrain), resting by day, the night prowlers, the network attack, the guardians
+  of a relit validator gone. It reads the terrain like the browser does (`src/terrain.js`: generated from
+  the seed at once, then the frozen chunks and changed blocks from Supabase with a player's own token;
+  the browsers pass on the block changes they see, `edit`). Each player gets the mobs within 48 blocks
+  (`ms`: ten times a second for one on the hunt, twice for one wandering), the blows aimed at them
+  (`mhit`, which they may parry: `parry` stuns the mob here) and every bolt fired nearby (`mshot`). The
+  `welcome` says `mobs: 1`; `MOB_SIM=0` turns it off (the screens then run the mobs, as below).
+- **One mob, one place (without the server's mobs).** The screen of the player a mob is after leads it: about 8 times a second it
   sends where the mobs it leads stand (`mobs`, 24 at most), and the bolts they fire (`mobshot`). The server
   passes them on to the players nearby, whose screens stop moving their own copy and follow. If two
   screens both lead the same mob, the one whose player stands closer keeps it.
@@ -40,7 +49,8 @@ the game falls back to those channels on its own and tries the server again ever
 - **Protocol.** `PROTOCOL` in `src/server.js` and `GS_PROTOCOL` in `src/net.js` must match: a browser
   with another version is turned away (`bye: version`) and stays on Supabase's channels.
 
-`GET /health` answers `{ ok, protocol, players, worlds, connections, messages }`.
+`GET /health` answers `{ ok, protocol, players, worlds, mobs, connections, messages }` (`mobs`: how many
+the server is running).
 
 ## Running it locally
 
@@ -56,9 +66,11 @@ Tests: `npm ci --prefix server && node --test tests/gameserver.test.mjs` (from t
 1. Create an account on fly.io and install `flyctl` (`brew install flyctl`), then `fly auth login`.
 2. From `server/`: `fly apps create ethermines-game` (if the name is taken, pick another one and change
    `app` in `fly.toml`).
-3. First deploy, by hand: `fly deploy` (from `server/`). Check `https://ethermines-game.fly.dev/health`.
+3. First deploy, by hand: copy the game's shared scripts in, then deploy (from the repository's root):
+   `mkdir -p server/shared && cp supabase/functions/_shared/world.js supabase/functions/_shared/rules.js src/mesh.js src/mobs-core.js server/shared/ && cd server && fly deploy`.
+   Check `https://ethermines-game.fly.dev/health`.
 4. Automatic deploys from GitLab: `fly tokens create deploy -a ethermines-game`, and save the token as the
-   CI/CD variable `FLY_API_TOKEN` (masked, protected). The `game-server` job then deploys on every push to
+   CI/CD variable `FLY_API_TOKEN` (masked, protected). The `game-server` job then copies the shared scripts in and deploys on every push to
    main that changes `server/`.
 5. Turn it on for the players: set `GAME_SERVER: 'wss://ethermines-game.fly.dev'` in `src/config.js`
    and push.

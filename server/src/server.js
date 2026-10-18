@@ -18,6 +18,9 @@
 // accepts tokens of the form "test:<id>:<name>" without asking Supabase.
 import { createServer } from 'node:http';
 import { WebSocketServer } from 'ws';
+import { MobsCore } from './shared.js';
+import { createTerrain, supabaseArea } from './terrain.js';
+import { createMobSim, TICK_MS } from './mobs.js';
 
 export const PROTOCOL = 1;
 // how far (horizontally, in blocks) each kind of message travels
@@ -39,29 +42,8 @@ const OWNED_RETRY = 10000; // ...or sooner when they use one we didn't know abou
 // sent here, checked (the weapon you have, its pace, its reach) and taken off the mob's health, and
 // everyone nearby, the striker included, gets the health left. The server alone says when a mob dies,
 // who took part (the loot), and keeps it dead until it comes back (2 minutes, 25 s for a network attack's
-// node). The mobs' full health is MK[type].hp in src/game/16-mobs.js (a test checks they match).
-export const MOB_HP = {
-  shadow: 10,
-  guardian: 19,
-  sentinel: 14,
-  wraith: 22,
-  titan: 120,
-  warden: 16,
-  turret: 12,
-  plasma_core: 45,
-  garden_guardian: 15,
-  prowler: 11,
-  sky_raider: 12,
-  water_lurker: 17,
-  bat: 9,
-  crawler: 15,
-  golem: 26,
-  corrupted_node: 20,
-  pow_twin: 60,
-  pos_twin: 40,
-  front_runner: 170,
-  mev_bot: 16,
-};
+// node). The mobs' full health is MK[type].hp in src/mobs-core.js, the logic the game and this server share.
+export const MOB_HP = Object.fromEntries(Object.entries(MobsCore.MK).map(([k, v]) => [k, v.hp]));
 const MOB_ID_RE = /^(-?\d{1,6},-?\d{1,6})\|(\d{1,4})\|([a-z_]{1,20})$/; // chunk | slot | kind (16-mobs.js mobId)
 const MOB_RESPAWN = { corrupted_node: 25000 }; // ms; every other mob: 2 minutes
 const MOB_RESPAWN_MS = 120000;
@@ -164,13 +146,13 @@ export function createGameServer(opts = {}) {
   }
   const worlds = new Map(); // world -> Map(id -> player)
   const mobsOf = new Map(); // world -> Map(mob id -> { hp, by: Map(player id -> ms), at, down, deadUntil })
-  function mobState(world, id, type, now) {
+  function mobState(world, id, type, now, init) {
     if (!mobsOf.has(world)) mobsOf.set(world, new Map());
     const mobs = mobsOf.get(world);
     let s = mobs.get(id);
     if (s && s.deadUntil && now >= s.deadUntil) s = null; // back again
-    if (s && s.down && now >= s.down) Object.assign(s, { down: 0, hp: MOB_HP[type] }); // a twin that rose again
-    if (!s) mobs.set(id, (s = { hp: MOB_HP[type], by: new Map(), at: now, down: 0, deadUntil: 0 }));
+    if (s && s.down && now >= s.down) Object.assign(s, { down: 0, hp: Math.round(MOB_HP[type] * 0.6) }); // a twin that rose again, at 60%
+    if (!s) mobs.set(id, (s = { hp: init ?? MOB_HP[type], by: new Map(), at: now, down: 0, deadUntil: 0 }));
     return s;
   }
   const struckBy = (s, now) => [...s.by].filter(([, t]) => now - t < SHARE_MS).map(([id]) => id);
@@ -184,12 +166,15 @@ export function createGameServer(opts = {}) {
     if (!r || !MOB_HP[r[3]] || !me.pos || x === null || y === null || z === null) return;
     const [, k, slot, type] = r,
       now = Date.now(),
-      s = mobState(me.world, id, type, now),
+      sim = sims.get(me.world)?.sim.find(id), // run here: its own position, its own health
+      s = mobState(me.world, id, type, now, sim ? sim.hp : undefined),
       item = weaponOf(me, m.item),
       ranged = item === PISTOL,
-      msg = { t: 'mob', id, from: me.id, dmg: 0, hp: s.hp, x, y, z, fx: num(m.fx, 1e5) ?? x, fz: num(m.fz, 1e5) ?? z };
+      at = sim ? sim.p : { x, y, z },
+      msg = { t: 'mob', id, from: me.id, dmg: 0, hp: s.hp, x: at.x, y: at.y, z: at.z, fx: num(m.fx, 1e5) ?? x, fz: num(m.fz, 1e5) ?? z };
     const pace = now - (me.lastMobHit || 0) >= (ranged ? COOLDOWN.ranged : COOLDOWN.melee) * MOB_SLACK,
-      reach = Math.hypot(x - me.pos.x, z - me.pos.z) <= (ranged ? RANGE.hitRanged : RANGE.hitMelee);
+      // the reach from where the mob really is, when it's run here (a little slack: what you saw was a moment ago)
+      reach = Math.hypot(at.x - me.pos.x, at.z - me.pos.z) <= (ranged ? RANGE.hitRanged : RANGE.hitMelee) + (sim ? 1.5 : 0);
     if (s.hp <= 0 || !pace || !reach) {
       // nothing taken off: the striker's screen is put right (a mob already dead, a blow too soon)
       if (s.deadUntil) msg.dead = 1;
@@ -223,16 +208,70 @@ export function createGameServer(opts = {}) {
         msg.by = [...by];
       }
     }
+    if (sim) sims.get(me.world).sim.struck(id, msg.fx, msg.fz, s.hp);
+    for (const k of ['x', 'y', 'z']) msg[k] = Math.round(msg[k] * 100) / 100;
     send(me, msg);
     relay(me, RANGE.mob, msg);
   }
+  // the worlds whose mobs run here: their terrain and their simulation, while someone plays there
+  const sims = new Map(); // world -> { terrain, sim, last: Map(player id -> was empty) }
+  const simOn = opts.sim ?? process.env.MOB_SIM !== '0';
+  function simOf(world) {
+    if (!simOn) return null;
+    let w = sims.get(world);
+    if (!w) {
+      // the terrain is read with a connected player's own token, like the browser reads it
+      const fetchArea =
+        opts.fetchArea ??
+        (cfg.authMode === 'test'
+          ? async () => ({ chunks: [], edits: [] })
+          : (cx0, cz0, cx1, cz1) => {
+              const p = [...(worlds.get(world)?.values() || [])].find(q => q.token);
+              return p ? supabaseArea(cfg, p.token, world, cx0, cz0, cx1, cz1) : Promise.resolve(null);
+            });
+      const terrain = createTerrain(
+        (...a) => fetchArea(...a, world),
+        m => cfg.log(world + ': ' + m),
+      );
+      const sim = createMobSim({ terrain, ledger: id => mobsOf.get(world)?.get(id), send, log: cfg.log });
+      sims.set(world, (w = { terrain, sim, last: new Map() }));
+    }
+    return w;
+  }
+  const simTick = setInterval(() => {
+    const now = Date.now();
+    for (const [world, w] of sims) {
+      const room = worlds.get(world);
+      if (!room || !room.size) {
+        w.terrain.close();
+        sims.delete(world);
+        continue;
+      }
+      const players = [...room.values()];
+      try {
+        w.sim.tick(players, TICK_MS / 1000, now);
+      } catch (e) {
+        cfg.log(`mobs of ${world}: ${e.stack || e.message}`);
+      }
+      for (const p of players) {
+        if (!p.pos) continue;
+        const l = w.sim.view(p, now);
+        // an empty view goes out once (the last mobs around you are gone), then not again
+        if (!l.length && w.last.get(p.id)) continue;
+        w.last.set(p.id, !l.length);
+        send(p, { t: 'ms', l });
+      }
+      if (Math.random() < 0.01) w.terrain.prune();
+    }
+  }, TICK_MS);
   const stats = { connections: 0, messages: 0 };
 
   const http = createServer((req, res) => {
     if (req.url === '/health') {
       const players = [...worlds.values()].reduce((n, m) => n + m.size, 0);
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, protocol: PROTOCOL, players, worlds: worlds.size, ...stats }));
+      const mobs = [...sims.values()].reduce((n, w) => n + w.sim.count(), 0);
+      res.end(JSON.stringify({ ok: true, protocol: PROTOCOL, players, worlds: worlds.size, mobs, ...stats }));
       return;
     }
     res.writeHead(404);
@@ -375,7 +414,8 @@ export function createGameServer(opts = {}) {
         };
         room.set(me.id, me);
         refreshOwned(me);
-        send(me, { t: 'welcome', id: me.id, name: me.name, color: me.color, protocol: PROTOCOL });
+        // mobs: 1 — this server runs the world's mobs itself (the game then only draws them)
+        send(me, { t: 'welcome', id: me.id, name: me.name, color: me.color, protocol: PROTOCOL, mobs: simOf(world) ? 1 : 0 });
         sendPeers(world);
         return;
       }
@@ -385,6 +425,8 @@ export function createGameServer(opts = {}) {
           z = num(m.z, 1e5);
         if (x === null || y === null || z === null) return;
         me.pos = { x, y, z };
+        me.ward = !!m.wd; // under the Ward Incense: most mobs don't see you
+        me.ladder = !!m.ld; // on a ladder: tower mobs hold their blows
         // what the others need to draw you: position and look, what you hold, mining, guard, hovercraft
         relay(me, RANGE.pos, {
           t: 'pos',
@@ -451,6 +493,12 @@ export function createGameServer(opts = {}) {
         const s = { t: 'shot', id: me.id };
         for (const k of ['x', 'y', 'z', 'dx', 'dy', 'dz']) s[k] = num(m[k], 1e5) ?? 0;
         relay(me, RANGE.shot, s);
+      } else if (m.t === 'parry') {
+        // you parried a mob's blow: it reels back, stunned
+        sims.get(me.world)?.sim.parry(me, str(m.id, 80));
+      } else if (m.t === 'edit') {
+        // a block changed (the browser saw it in Supabase's own feed): the mobs walk the new terrain
+        sims.get(me.world)?.terrain.edit(m.x, m.y, m.z, m.id);
       } else if (m.t === 'token') {
         // the browser's session token, renewed every hour: kept to look at the weapons again later
         me.token = str(m.token, 4096) || me.token;
@@ -480,6 +528,8 @@ export function createGameServer(opts = {}) {
         if (closed) return res();
         closed = true;
         clearInterval(tick);
+        clearInterval(simTick);
+        for (const w of sims.values()) w.terrain.close();
         clearInterval(pinger);
         for (const ws of wss.clients) ws.terminate();
         wss.close();

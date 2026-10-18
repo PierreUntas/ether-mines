@@ -264,12 +264,10 @@ test('a blow does the damage of the real weapon, at its own pace', async () => {
 
 // step 3: the mobs' health lives on the server
 import { MOB_HP } from '../server/src/server.js';
-test("the server's mob health matches the game's", () => {
-  const src = readFileSync(new URL('../src/game/16-mobs.js', import.meta.url), 'utf8'),
-    from = src.indexOf('const MK = {'),
-    to = src.indexOf('\n};\n', from);
-  const MK = new Function(`return ${src.slice(from + 'const MK = '.length, to + 2)};`)();
-  assert.deepEqual(MOB_HP, Object.fromEntries(Object.entries(MK).map(([k, v]) => [k, v.hp])));
+test("the server's mob health is the game's own", () => {
+  // both read MK from src/mobs-core.js
+  assert.equal(MOB_HP.front_runner, 170);
+  assert.deepEqual(Object.keys(MOB_HP).sort(), Object.keys(globalThis.MobsCore.MK).sort());
 });
 test('a blow on a mob is settled by the server: health, pace, reach, death, loot', async () => {
   const a = await player('ma', 'A', 'w8'),
@@ -352,4 +350,18 @@ test('the mobs a screen leads, and their bolts, reach the players nearby', async
   assert.equal(c.of('mobs').length + c.of('mobshot').length, 0, 'too far: nothing');
   assert.equal(a.of('mobs').length, 0, 'not back to the sender');
   [a, b, c].forEach(p => p.close());
+});
+
+// step 5: the server runs the mobs itself
+test("the server runs the world's mobs: it says so, and tells each player where they stand", async () => {
+  const a = await player('sm1', 'A', 'w11');
+  assert.equal(a.of('welcome')[0].mobs, 1);
+  a.send({ t: 'pos', x: 150, y: 30, z: -80 });
+  await wait(1500); // the terrain around is generated a few chunks a tick
+  const seen = a.of('ms').flatMap(m => m.l);
+  assert.ok(seen.length > 0, 'mobs around');
+  const [id, x, , z] = seen[0];
+  assert.match(id, /^-?\d+,-?\d+\|\d+\|[a-z_]+$/);
+  assert.ok(Math.hypot(x - 150, z + 80) <= 48);
+  a.close();
 });

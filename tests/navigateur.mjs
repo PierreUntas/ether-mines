@@ -481,6 +481,44 @@ const led = await page.evaluate(async () => {
   return { leads, follows, kept, back };
 });
 if (Object.values(led).some(v => !v)) await fail('one mob, one place: ' + JSON.stringify(led));
+// the game server runs the mobs: this screen spawns none, draws the ones it's told of, takes their blows
+// (and tells the server of a parry), their bolts, and drops a mob the server stops mentioning
+const srvMobs = await page.evaluate(async () => {
+  const P = mines.P,
+    real = Object.getOwnPropertyDescriptor(Net, 'mobServer'),
+    send = Net.sendParry,
+    parries = [];
+  Object.defineProperty(Net, 'mobServer', { get: () => true, configurable: true });
+  Net.sendParry = id => parries.push(id);
+  updateMobs(0.05); // the switch: this screen's own mobs go
+  const cleared = [...mines.MOBS.values()].every(l => !l.length);
+  const k = ckey(cOf(P.x) + 9, cOf(P.z) + 9),
+    id = `${k}|100|shadow`;
+  serverMob([id, P.x + 5, P.y, P.z, 0, 7, 8, 0]);
+  const a = findMob(id),
+    drawn = !!a && a.hp === 7 && a.g.parent === scene;
+  serverMob([id, P.x + 4, P.y, P.z, 1, 7, 8, 0]);
+  for (let i = 0; i < 20; i++) updateMobs(0.05);
+  const moved = Math.abs(a.g.position.x - (P.x + 4)) < 0.05;
+  hurtT = 0;
+  const hp0 = mines.S.hp;
+  serverMobHit({ id, dmg: 2, x: P.x + 1, z: P.z, kind: 'melee' });
+  const hit = mines.S.hp < hp0;
+  hurtT = 0;
+  serverMobShot({ id, x: P.x + 3, y: P.y + 1.2, z: P.z, vx: -8, vy: 0, vz: 0, dmg: 1.8, c: 0x5fe8ff, s: 1.6 });
+  const bolt = MOB_BOLTS.length > 0;
+  for (let i = 0; i < 40 && MOB_BOLTS.length; i++) updateMobBolts(0.05);
+  // the server's word stops: gone
+  a.srv.t -= 5000;
+  updateMobs(0.05);
+  const gone = !findMob(id);
+  Object.defineProperty(Net, 'mobServer', real);
+  Net.sendParry = send;
+  updateMobs(0.05); // and back to this screen's own mobs
+  mines.S.hp = 10;
+  return { cleared, drawn, moved, hit, bolt, gone };
+});
+if (Object.values(srvMobs).some(v => !v)) await fail('the game server runs the mobs: ' + JSON.stringify(srvMobs));
 // the Front-Runner: shielded from outside its colosseum, blinks past you, calls two Sandwich Bots at half
 // health, and its fall mints the boots (which make you faster)
 const runner = await page.evaluate(async () => {

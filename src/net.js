@@ -22,6 +22,9 @@ window.Net = (() => {
     shot: [],
     mobs: [], // where the mobs another screen leads stand (16-mobs.js)
     mobshot: [],
+    ms: [], // the game server's mobs: where they stand (16-mobs.js)
+    mhit: [], // ...a blow one of them strikes you
+    mshot: [], // ...a bolt one of them fires
   };
   const GS_PROTOCOL = 1; // must match server/src/server.js PROTOCOL
   let gs = null, // the game server's WebSocket
@@ -30,7 +33,8 @@ window.Net = (() => {
     gsRetry = 0,
     gsSelf = null, // your id on the game server (your account's)
     gsTokenWatch = false,
-    gsKicked = false; // replaced by another tab or device of yours
+    gsKicked = false, // replaced by another tab or device of yours
+    gsMobs = false; // the game server runs the world's mobs itself
   let sb = null,
     ch = null,
     world = 'principal',
@@ -168,8 +172,11 @@ window.Net = (() => {
     // blocks and claims: the database is authoritative, every server-validated change arrives here
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'blocks', filter: 'world=eq.' + w }, p => {
       const r = p.new;
-      if (r && r.x !== undefined)
+      if (r && r.x !== undefined) {
         emit('block', { x: r.x, y: r.y, z: r.z, id: r.id, by: r.placed_by, name: r.placed_name, serial: r.serial });
+        // the game server's mobs walk the same terrain: it hears of the change too
+        if (gsMobs) gsSend({ t: 'edit', x: r.x, y: r.y, z: r.z, id: r.id });
+      }
     });
     // signs' text (034_signs.sql): written or cleared by their owner, read by everyone
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'signs', filter: 'world=eq.' + w }, p => {
@@ -295,6 +302,7 @@ window.Net = (() => {
             } catch (err) {}
           }
           gsSelf = m.id;
+          gsMobs = !!m.mobs;
           welcomed = true;
           gsReady = true;
           gsRetry = 0;
@@ -309,7 +317,7 @@ window.Net = (() => {
           const list = (m.list || []).map(p => ({ ...p, id: mine(p.id) }));
           peersNow = list;
           emit('peers', list);
-        } else if (['pos', 'hit', 'mob', 'shot', 'mobs', 'mobshot'].includes(m.t)) {
+        } else if (['pos', 'hit', 'mob', 'shot', 'mobs', 'mobshot', 'ms', 'mhit', 'mshot'].includes(m.t)) {
           const t = m.t;
           delete m.t;
           for (const k of ['id', 'from', 'to', 'on']) if (k in m) m[k] = mine(m[k]);
@@ -432,6 +440,8 @@ window.Net = (() => {
   // the mobs your screen leads, and their bolts (16-mobs.js): through the game server only
   const sendMobs = p => gsReady && gsSend({ ...p, t: 'mobs' });
   const sendMobShot = p => gsReady && gsSend({ ...p, t: 'mobshot' });
+  // you parried a blow from one of the game server's mobs: it reels back there
+  const sendParry = id => gsReady && gsSend({ t: 'parry', id });
   // is anyone else close enough to receive your moves?
   // (through the game server: anyone else in the world, the server itself keeps it to the players nearby)
   const anyoneNear = peers =>
@@ -548,6 +558,7 @@ window.Net = (() => {
     sendMob,
     sendMobs,
     sendMobShot,
+    sendParry,
     sendShot,
     setRegion,
     setLook,
@@ -571,6 +582,10 @@ window.Net = (() => {
     // real time through the game server (true), or through Supabase's channels (false)
     get gameServer() {
       return gsReady;
+    },
+    // the game server runs the mobs (the game only draws them, 16-mobs.js)
+    get mobServer() {
+      return gsReady && gsMobs;
     },
     get world() {
       return world;

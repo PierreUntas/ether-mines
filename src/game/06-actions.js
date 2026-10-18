@@ -186,15 +186,9 @@ function syncInventory() {
 // ---------- claims ----------
 const CLAIMS = new Map();
 // protected public zones (same measurements as 006_public_zones.sql): the Atrium and the City
-const sanctuary = (x, z) =>
-  Math.hypot(Math.floor(x) - SPAWN.x, Math.floor(z) - SPAWN.z) <= 7.9 ||
-  Math.hypot(Math.floor(x) - CITY.x, Math.floor(z) - CITY.z) <= CITY.R + 0.5;
-// mob danger only (not build protection, left to sanctuary() alone): the Atrium and City circles
-// leave a gap on the validators path between them — a first-time player, explicitly told by Thea to
-// "follow the paved path north," could otherwise be ambushed on the one route the game points them
-// down. onPath (world.js) is the same corridor the terrain generator already paves, widened well past
-// its literal pavement for a comfortable walking berth.
-const mobSafe = (x, z) => sanctuary(x, z) || onPath(x, z, 6);
+// the Atrium and the City (build protection and no mobs), and for mob danger only, the validators path
+// between them too: src/mobs-core.js, shared with the game server
+const { sanctuary, mobSafe } = MobsCore;
 const claimAt = (x, z) => CLAIMS.get(ckey(cOf(Math.floor(x)), cOf(Math.floor(z))));
 function canBuildHere(x, z) {
   if (!SERVER()) return true;

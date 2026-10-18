@@ -105,7 +105,8 @@ src/game/               the game, in files loaded in order (shared global scope)
   12-circuits.js        electrical current (levers, cables, lamps, doors)
   13-chunks.js          loading chunks around the player
   14-startup.js         account, title screen, startup
-  16-mobs.js            hostile mobs, bosses
+  16-mobs.js            hostile mobs, bosses (drawing, combat; their logic is src/mobs-core.js)
+src/mobs-core.js        the mobs' logic: what they are, where they stand, how they hunt (game and game server)
 src/audio.js            generative sounds (Web Audio)
 supabase/functions/_shared/world.js   world generator (game and server)
 supabase/functions/_shared/rules.js   blocks, items, tiers, recipes, cosmetics (game and server)
@@ -276,6 +277,11 @@ active ──(3 missed checks)──> damaged ──(8 missed checks)──> cor
   characters) that every player reads: only whoever placed it writes on it (`act_sign`), through the
   chat's word filter, muted players can't; the text lives in the `signs` table (streamed like blocks)
   online and in the save solo, and is drawn on both faces of the board while the sign stands.
+- **Mobs run by the game server** (`server/src/mobs.js`, `src/mobs-core.js`): when the game server is
+  up, it runs every world's mobs itself, with the same logic as the game, on the terrain it reads from
+  Supabase: one mob, one place for everyone. Each screen only draws what it's told (ten times a second for
+  a mob on the hunt), takes the blows aimed at its own player (and may parry them) and sees every bolt.
+  Without the game server, each screen runs the mobs itself, as below.
 - **Shared combat** (`src/game/16-mobs.js`, `src/net.js`): every screen still moves its own copy of a
   mob, but a mob has the same id everywhere (its chunk, its slot there and its kind), and every blow is
   sent to the players nearby on the region channels: the damage, the hp left and where the mob stands.
@@ -385,7 +391,7 @@ walk slower on guard and can't strike at the same time; the others see your swor
 
 ### Creatures that stand out
 
-Walking mobs step up one block at most, like you (`updateMobs()`, `src/game/16-mobs.js`): a wall two
+Walking mobs step up one block at most, like you (`step()`, `src/mobs-core.js`): a wall two
 blocks high stops them and they slide along it, and they only bite when nothing solid stands between
 you, so a closed hut, a wall or a moat really shelters you. Fliers and swimmers (sky raiders, bats,
 lurkers, the Proof-of-Stake twin, the Plasma Core) move freely, as before.

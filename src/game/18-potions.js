@@ -3,22 +3,8 @@
 // (act_use_item, which also clears the Home Beacon's teleport); the effect itself plays here, like the
 // rest of combat. Timers aren't saved: a reload ends them.
 const POTION = { vision: 0, ward: 0 };
-// mobs the Ward Incense never fools: guardians of ruins and gardens, tower wardens and turrets, bosses,
-// the network attack's nodes
-const WARD_IMMUNE = new Set([
-  'guardian',
-  'garden_guardian',
-  'warden',
-  'turret',
-  'titan',
-  'plasma_core',
-  'pow_twin',
-  'pos_twin',
-  'front_runner',
-  'mev_bot',
-  'corrupted_node',
-]);
-const wardFools = a => POTION.ward > 0 && !WARD_IMMUNE.has(a.type) && !(a.provoked > 0);
+// the mobs it never fools: MobsCore.WARD_IMMUNE (src/mobs-core.js)
+const wardFools = a => POTION.ward > 0 && !MobsCore.WARD_IMMUNE.has(a.type) && !(a.provoked > 0);
 function heldConsumable() {
   const it = S.bar[S.sel] ? itemId(S.bar[S.sel]) : null;
   return it && ITEM[it]?.use && (S.inv[it] || 0) > 0 ? it : null;

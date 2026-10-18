@@ -27,12 +27,8 @@ const fogC = new THREE.Color(),
 // Online, every player of a world shares one clock, read from the real time (no network traffic): the
 // same sky, the same night prowlers, the same resting mobs for everyone fighting side by side. A day
 // still lasts 8 minutes; day 0 began on the official launch. The finale's own night stays personal.
-const DAY_S = 480,
-  WORLD_EPOCH = Date.UTC(2026, 9, 15) / 1000;
-function worldClock(now = Date.now()) {
-  const d = (now / 1000 - WORLD_EPOCH) / DAY_S + 0.3; // + 0.3: day 0 starts in the morning
-  return { day: d - Math.floor(d), n: Math.max(0, Math.floor(d)) };
-}
+const DAY_S = 480;
+const worldClock = MobsCore.worldClock; // src/mobs-core.js: the game server reads the same clock
 const sharedClock = () => Net.online && !FINALE.on;
 function tickClock(dt) {
   if (sharedClock()) {

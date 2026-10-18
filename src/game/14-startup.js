@@ -653,6 +653,8 @@ setInterval(() => {
       gd: guarding() ? 1 : 0, // the blade up, on guard
       rd: RIDE ? RIDE.id : 0, // on board a hovercraft (20-hover.js): which one
       on: BOARD ? BOARD.driver : 0, // in the back seat of that player's craft
+      wd: POTION.ward > 0 ? 1 : 0, // under the Ward Incense: the game server's mobs don't see you
+      ld: playerOnLadder() ? 1 : 0, // on a ladder: the game server's tower mobs hold their blows
     };
   const L = lastPos,
     moved =
@@ -664,12 +666,15 @@ setInterval(() => {
       p.h !== L.h ||
       p.gd !== L.gd ||
       p.rd !== L.rd ||
-      p.on !== L.on;
+      p.on !== L.on ||
+      p.wd !== L.wd ||
+      p.ld !== L.ld;
   if (!moved && now - lastPosT < 4000) return;
   lastPos = p;
   lastPosT = now;
   // nobody within one square of you: nothing to send (Supabase counts every message)
-  if (Net.anyoneNear(PEERS)) Net.sendPos(p);
+  // (when the game server runs the mobs, it needs your position even alone: they hunt you there)
+  if (Net.anyoneNear(PEERS) || Net.mobServer) Net.sendPos(p);
   // server position: a ping every 15 s while moving (used by /join and by move validation)
   if (
     SERVER() &&

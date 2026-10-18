@@ -4,3 +4,4 @@ node_modules/
 supabase/.temp/
 WEB3_SETUP.md
 captures/
+server/shared/

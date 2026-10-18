@@ -72,7 +72,13 @@ game-server:
       changes:
         - server/**/*
         - .gitlab-ci.yml
+        # the game's scripts the server runs too (server/src/shared.js)
+        - supabase/functions/_shared/world.js
+        - supabase/functions/_shared/rules.js
+        - src/mesh.js
+        - src/mobs-core.js
     - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "web" && $FLY_API_TOKEN
   script:
     - curl -fsSL https://fly.io/install.sh | sh
+    - mkdir -p server/shared && cp supabase/functions/_shared/world.js supabase/functions/_shared/rules.js src/mesh.js src/mobs-core.js server/shared/
     - cd server && ~/.fly/bin/flyctl deploy --remote-only

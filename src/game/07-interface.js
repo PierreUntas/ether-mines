@@ -899,10 +899,9 @@ const networkLevel = () => TIERS.filter(p => NETWORK.n >= p).length;
 // ---------- the network attack event (027_network_attack.sql): an hourly window, computed from the
 // clock alone (no server round-trip, same reasoning as the day/night cycle) so the HUD banner can react
 // the instant it opens; only the kill count/score need the existing 60s network poll. ----------
+// src/mobs-core.js, shared with the game server
 function attackWindow(t = Date.now()) {
-  const epoch = Math.floor(t / 1000),
-    windowId = Math.floor(epoch / 3600);
-  return { windowId, active: epoch % 3600 < 600, endsAt: (windowId * 3600 + 600) * 1000 };
+  return MobsCore.attackWindow(t);
 }
 const SCORE_TIERS = [5, 15, 30, 50, 80],
   SCORE_PALETTES = [
