@@ -201,11 +201,18 @@ function ui() {
   const armorEl = $('armor');
   armorEl.hidden = !S.armor || !ITEM[S.armor];
   if (!armorEl.hidden) armorEl.textContent = `🛡 ${ITEM[S.armor].n} · -${Math.round(ITEM[S.armor].armor * 100)}% dmg`;
+  if (bootsOn()) {
+    armorEl.hidden = false;
+    armorEl.textContent =
+      (armorEl.textContent && S.armor ? armorEl.textContent + '  ·  ' : '') + `👢 +${Math.round(ITEM[211].boots * 100)}% speed · Q: dodge`;
+  }
+  $('tDash').hidden = !bootsOn();
   const gweiEl = $('gwei');
   gweiEl.hidden = !SERVER();
   if (!gweiEl.hidden) gweiEl.innerHTML = `${ethIcon} ${S.gwei || 0} Gwei`;
   applyLook(SELF, myLook());
   updateArmorVisual(SELF);
+  updateBootsVisual(SELF, bootsOn());
   updateCapeVisual(SELF);
   updateAvatarHand(SELF);
   if (!$('panel').hidden) renderPanel();
@@ -2171,6 +2178,19 @@ function renderPanelBody() {
         eq.textContent = S.armor === key ? 'Unequip' : 'Equip';
         eq.onclick = () => {
           S.armor = S.armor === key ? null : key;
+          dirty = true;
+          ui();
+        };
+        br.appendChild(eq);
+      }
+      if (ITEM[id]?.boots) {
+        // the boots: their own slot, beside the plating
+        const key = String(id),
+          eq = document.createElement('button');
+        eq.className = 'b';
+        eq.textContent = String(S.boots) === key ? 'Take off' : 'Wear';
+        eq.onclick = () => {
+          S.boots = String(S.boots) === key ? null : key;
           dirty = true;
           ui();
         };

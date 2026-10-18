@@ -117,6 +117,7 @@ addEventListener('keydown', e => {
   if (!playing) return;
   keys.add(e.code);
   if (/^Digit[1-9]$/.test(e.code)) select(+e.code.slice(5) - 1);
+  if (e.code === 'KeyQ' && playing) dodge(); // the Front-Runner Boots' dodge (16-mobs.js)
   if (e.code === 'KeyM') toggleSnd();
   if (e.code === 'KeyF') toggleFullscreen();
   if (e.code === 'KeyO') openTab('quest');
@@ -445,6 +446,10 @@ hold(
   () => setGuard(true),
   () => setGuard(false),
 );
+$('tDash').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  dodge();
+});
 $('tSprint').addEventListener('pointerdown', e => {
   e.preventDefault();
   sprintOn = !sprintOn;

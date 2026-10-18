@@ -964,7 +964,7 @@ const BOSS_TOAST = {
   205: () => `The Genesis Titan falls! ${ITEM[205].n} earned — a cape of its own hide. Hold jump while falling to glide.`,
   206: () => `The Plasma Core shatters! ${ITEM[206].n} earned — hold it and click to fire.`,
   209: () => `The Merge is complete! ${ITEM[209].n} earned — equip it from your chest to shrug off most of a hit.`,
-  211: () => `The Front-Runner is outrun! ${ITEM[211].n} earned — from now on you move a step ahead of everyone.`,
+  211: () => `The Front-Runner is outrun! ${ITEM[211].n} earned — wear them from your chest: faster on your feet, and Q to dodge.`,
 };
 // what a kill paid you (Supabase rolled it: asked by this screen, or by the game server)
 function showLoot(type, r) {
@@ -1114,6 +1114,40 @@ function updateGuard(dt) {
     tb = $('tGuard');
   if (v) v.classList.toggle('guard', guarding());
   if (tb && tb.hidden === blade) tb.hidden = !blade;
+}
+// ---------- the Front-Runner Boots: a quick dodge ----------
+// Worn (S.boots, from the chest), they make you 12% faster (10-loop.js) and give a dodge: Q, or the dash
+// button on a touch screen. A short dash the way you're moving (forward when you stand still), out of
+// reach of blows for a moment, then a short recharge. The game server knows (`dodge`): your hearts live there.
+const DASH = { speed: 20, time: 0.2, cd: 1.6, safe: 0.35 };
+let dashT = 0,
+  dashCd = 0;
+const dashV = [0, 0],
+  moveIn = [0, 0]; // the way you're pushing (10-loop.js)
+const bootsOn = () => String(S.boots) === '211' && hasNft(211);
+function dodge() {
+  if (!bootsOn() || RIDE || BOARD || dashCd > 0 || dashT > 0) return false;
+  let fx = moveIn[0],
+    fz = moveIn[1];
+  const l = Math.hypot(fx, fz);
+  if (l < 0.1) {
+    fx = 0;
+    fz = 1;
+  } else {
+    fx /= l;
+    fz /= l;
+  }
+  const sn = Math.sin(yaw),
+    cs = Math.cos(yaw);
+  dashV[0] = (-sn * fz + cs * fx) * DASH.speed;
+  dashV[1] = (-cs * fz - sn * fx) * DASH.speed;
+  dashT = DASH.time;
+  dashCd = DASH.cd;
+  hurtT = Math.max(hurtT, DASH.safe);
+  if (typeof Net !== 'undefined' && Net.hpServer) Net.sendDodge();
+  clayBurst(P.x - 0.5, P.y + 0.2, P.z - 0.5, etherMats[1]);
+  Sound.shoot();
+  return true;
 }
 // is (mx, mz) in front of you?
 function facing(mx, mz) {

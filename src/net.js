@@ -459,6 +459,7 @@ window.Net = (() => {
   const sendGuard = on => gsReady && gsSend({ t: 'guard', on: !!on });
   const sendHeal = kind => gsReady && gsSend({ t: 'heal', kind });
   const useTonic = () => gsReady && gsSend({ t: 'use', item: 303 });
+  const sendDodge = () => gsReady && gsSend({ t: 'dodge' });
   // is anyone else close enough to receive your moves?
   // (through the game server: anyone else in the world, the server itself keeps it to the players nearby)
   const anyoneNear = peers =>
@@ -579,6 +580,7 @@ window.Net = (() => {
     sendGuard,
     sendHeal,
     useTonic,
+    sendDodge,
     setHello: f => (hello = f),
     sendShot,
     setRegion,

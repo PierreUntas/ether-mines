@@ -10,7 +10,9 @@ const PARRY_MS = 350 + 150, // the game's parry window, and room for the guard's
   REGEN_MS = 4000, // a heart back every 4 s...
   REGEN_AFTER_HURT_MS = 6000, // ...6 s after a blow
   GRACE_MS = 2500, // just respawned: nobody can hurt you
-  REMEMBER_MS = 10 * 60000; // hearts kept for a player who left (a reconnection doesn't heal)
+  REMEMBER_MS = 10 * 60000, // hearts kept for a player who left (a reconnection doesn't heal)
+  DODGE_SAFE_MS = 350 + 100, // the game's dodge (16-mobs.js DASH), and room for its word to arrive
+  DODGE_EVERY_MS = 1400; // its recharge (1.6 s), a little shorter for the network's jitter
 export const BLADES = new Set([106, 107, 301]);
 export const ARMOR = Object.fromEntries(
   Object.entries(Rules.ITEM)
@@ -96,6 +98,13 @@ export function createHealth({ send, owns }) {
       p.healAt[kind] = now;
       p.hp = kind === 'bed' ? MAX_HP : Math.min(MAX_HP, p.hp + (kind === 'tonic' ? 5 : 1));
       tell(p, now);
+      return true;
+    },
+    // a dodge with the Front-Runner Boots (worn and owned): out of reach for a moment, then a recharge
+    dodge(p, now = Date.now()) {
+      if (p.boots !== 211 || !owns(p, 211) || now - (p.dodgeAt ?? -Infinity) < DODGE_EVERY_MS) return false;
+      p.dodgeAt = now;
+      p.invulnUntil = Math.max(p.invulnUntil || 0, now + DODGE_SAFE_MS);
       return true;
     },
     // the guard goes up or down (the browser says so the moment it happens)

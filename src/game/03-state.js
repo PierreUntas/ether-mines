@@ -65,6 +65,7 @@ const S0 = () => ({
   totalBurn: 0,
   hp: 10,
   armor: null,
+  boots: null, // the boots worn (the Front-Runner Boots, 211): their own slot, beside the plating
   gwei: 0, // the game's own fictional currency, server-authoritative (see 019_gwei_currency.sql)
   cosmetics: [], // owned cosmetic ids (022_cosmetics.sql), server-authoritative
   look: {}, // the cosmetic worn in each slot (17-looks.js), checked against cosmetics when drawn
@@ -83,6 +84,8 @@ function useState(s) {
   S = Object.assign(S0(), s || {});
   if (s && !s.v) S.v = 1;
   migrateSave(S);
+  // the Front-Runner Boots used to work just by being owned: a save from then wears them already
+  if (s && !('boots' in s) && S.nfts.some(n => n.id === 211)) S.boots = '211';
   for (const k of Object.keys(S.inv)) S.got[k] = 1;
   for (const n of S.nfts) S.got[n.id || 201] = 1;
 }

@@ -43,9 +43,9 @@ const COOLDOWN = { melee: 450, ranged: 300 }; // ms between two blows (the game'
 const OWNED_EVERY = 60000; // ms between two looks at a player's weapons
 const OWNED_RETRY = 10000; // ...or sooner when they use one we didn't know about (just crafted)
 // what the server looks for in a player's inventory: the blades and the platings, and among their
-// uniques, the Plasma Pistol and the Merge Aegis
+// uniques, the Plasma Pistol, the Merge Aegis and the Front-Runner Boots
 const OWNED_INV = [...BLADES, ...Object.keys(ARMOR).map(Number)].filter(i => i !== 209),
-  OWNED_UNIQ = [206, 209];
+  OWNED_UNIQ = [206, 209, 211];
 const PVP_FLOOR_MS = 700; // between two blows of the same player on the same target, whatever the weapon
 // Mobs (step 3): their health lives here. Each screen still moves its own copy of a mob, but a blow is
 // sent here, checked (the weapon you have, its pace, its reach) and taken off the mob's health, and
@@ -482,6 +482,7 @@ export function createGameServer(opts = {}) {
           lastMobHit: 0,
           lastHitOn: new Map(),
           armor: Number.isInteger(m.ar) ? m.ar : 0,
+          boots: m.bt ? 211 : 0,
           held: 0,
           yaw: 0,
         };
@@ -516,6 +517,7 @@ export function createGameServer(opts = {}) {
         me.yaw = num(m.yaw, 100) ?? me.yaw; // where you look: a guard only covers what's in front
         me.held = Number.isInteger(m.h) ? m.h : 0;
         if (Number.isInteger(m.ar) || m.ar === null) me.armor = m.ar || 0;
+        me.boots = m.bt ? 211 : 0;
         health.guard(me, !!m.gd);
         me.ladder = !!m.ld; // on a ladder: tower mobs hold their blows
         // what the others need to draw you: position and look, what you hold, mining, guard, hovercraft
@@ -534,6 +536,7 @@ export function createGameServer(opts = {}) {
           gd: m.gd ? 1 : 0,
           rd: Number.isInteger(m.rd) ? m.rd : 0,
           on: typeof m.on === 'string' ? m.on.slice(0, 64) : 0,
+          bt: m.bt ? 1 : 0, // the Front-Runner Boots on their feet
         });
       } else if (m.t === 'hit') {
         // only to its target, and only if the target really stands within reach of you here
@@ -592,6 +595,9 @@ export function createGameServer(opts = {}) {
         const s = { t: 'shot', id: me.id };
         for (const k of ['x', 'y', 'z', 'dx', 'dy', 'dz']) s[k] = num(m[k], 1e5) ?? 0;
         relay(me, RANGE.shot, s);
+      } else if (m.t === 'dodge') {
+        // a dodge with the Front-Runner Boots: out of reach of blows for a moment
+        health.dodge(me);
       } else if (m.t === 'guard') {
         // the guard up or down, the moment it happens (a parry is about timing)
         health.guard(me, !!m.on);

@@ -102,7 +102,7 @@ function frame(now) {
         (inW ? 0.55 : 1) *
         (sneak && !inW ? 0.35 : 1) *
         (buffT > 0 ? 1.3 : 1) *
-        (hasNft(211) ? 1.12 : 1) *
+        (bootsOn() ? 1 + ITEM[211].boots : 1) * // the Front-Runner Boots, worn
         (guarding() ? 0.55 : 1) *
         (RIDE ? 2 : 1), // on a hovercraft (20-hover.js): twice as fast
       sn = Math.sin(yaw),
@@ -110,6 +110,15 @@ function frame(now) {
     let vx = (-sn * fz + cs * fx) * sp,
       vz = (-cs * fz - sn * fx) * sp;
     if (RIDE) [vx, vz] = rideVelocity(vx, vz, dt); // a hovercraft has inertia: it drifts in hard turns (20-hover.js)
+    moveIn[0] = fx;
+    moveIn[1] = fz;
+    // a dodge (the Front-Runner Boots, 16-mobs.js): a short dash, faster than any run
+    dashCd = Math.max(0, dashCd - dt);
+    if (dashT > 0) {
+      dashT -= dt;
+      vx = dashV[0];
+      vz = dashV[1];
+    }
     const px0 = P.x,
       pz0 = P.z;
     const was = P.on;

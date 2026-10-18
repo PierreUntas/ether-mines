@@ -170,3 +170,15 @@ test("a mob's bolt flies on the server and hurts the player it reaches", async (
   for (let i = 0; i < 60; i++) sim.tick([p], 0.1, t + i * 100);
   assert.ok(hurts.some(([id, dmg, kind]) => id === 'p' && kind === 'bolt' && dmg === MobsCore.MK.turret.ranged.dmg));
 });
+test('a dodge with the Front-Runner Boots puts you out of reach for a moment, if you wear and own them', () => {
+  const { h, p } = setup([211]);
+  assert.equal(h.dodge(p, 1000), false, 'not worn');
+  p.boots = 211;
+  assert.equal(h.dodge(p, 1000), true);
+  assert.equal(h.hurt(p, 3, 0, 2, 'melee', 1200), null, 'out of reach');
+  assert.equal(h.dodge(p, 1500), false, 'recharging');
+  assert.equal(h.hurt(p, 3, 0, 2, 'melee', 2000), 'hit');
+  const o = setup([]);
+  o.p.boots = 211;
+  assert.equal(o.h.dodge(o.p, 1000), false, "boots it doesn't own");
+});

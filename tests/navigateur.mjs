@@ -556,6 +556,37 @@ const srvHp = await page.evaluate(async () => {
   return { shown, noRegen, fell, paid };
 });
 if (Object.values(srvHp).some(v => !v)) await fail('your hearts on the game server: ' + JSON.stringify(srvHp));
+// the Front-Runner Boots: worn from the chest, they show on your feet, make you faster, and Q dodges
+const boots = await page.evaluate(async () => {
+  const P = mines.P,
+    S = mines.S,
+    had = S.nfts.slice(),
+    home = { x: P.x, y: P.y, z: P.z },
+    was = mines.playing;
+  mines.playing = true;
+  if (!S.nfts.some(n => n.id === 211)) S.nfts.push({ id: 211, k: 'test-boots', serial: 1 });
+  S.boots = null;
+  ui();
+  const offFirst = !bootsOn() && !SELF.boots[0].visible && $('tDash').hidden;
+  const noDash = !dodge();
+  S.boots = '211';
+  ui();
+  const worn = bootsOn() && SELF.boots.every(b => b.visible) && !$('tDash').hidden;
+  dashCd = 0;
+  window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyQ' }));
+  const dashed = dashT > 0 && hurtT > 0;
+  const again = !dodge(); // recharging
+  S.boots = null;
+  S.nfts.length = 0;
+  S.nfts.push(...had);
+  ui();
+  Object.assign(P, home);
+  mines.playing = was;
+  dashT = 0;
+  hurtT = 0;
+  return { offFirst, noDash, worn, dashed, again };
+});
+if (Object.values(boots).some(v => !v)) await fail('the Front-Runner Boots: ' + JSON.stringify(boots));
 // the Front-Runner: shielded from outside its colosseum, blinks past you, calls two Sandwich Bots at half
 // health, and its fall mints the boots (which make you faster)
 const runner = await page.evaluate(async () => {

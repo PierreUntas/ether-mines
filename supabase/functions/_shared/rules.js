@@ -212,7 +212,8 @@
   ITEM[210] = { n: 'Difficulty Bomb Fragment', icon: 136, nft: 1 };
   // v21: the Mempool's boss, the Front-Runner (039_front_runner.sql): boots minted on every win — owned,
   // they make you walk and run a little faster for good (10-loop.js) — and a rarer keepsake on top
-  ITEM[211] = { n: 'Front-Runner Boots', icon: 137, nft: 1 };
+  // worn like a plating, in their own slot (S.boots): 12% faster on your feet, and a quick dodge (Q)
+  ITEM[211] = { n: 'Front-Runner Boots', icon: 137, nft: 1, boots: 0.12 };
   ITEM[212] = { n: 'Flashbots Bundle', icon: 138, nft: 1 };
   // v22: hovercraft, the Diamond Gliders (src/game/20-hover.js; 040_hovercraft.sql lets their riders go
   // twice as fast). Two models, each built from one kind of crystal, which gives it its colors; the rarer

@@ -357,7 +357,9 @@ fires bursts of gas bolts, and every few seconds blinks to the far side of whoev
 health it turns frantic and calls in two **Sandwich Bots**, one on each side of its target. It stays on
 its floor and is shielded from anyone outside the colosseum (15% damage). Built for two or three
 players (170 hp; its health shows next to its name). The win (`front_runner`, `039_front_runner.sql`)
-mints the **Front-Runner Boots** (211: owned, you walk and run 12% faster), two Diamond Shards, and with
+mints the **Front-Runner Boots** (211: worn from the chest in their own slot, dark boots with a glowing
+cyan band that every player sees on you; 12% faster, and Q or the dash button dodges: a short dash out of reach of
+blows, every 1.6 s), two Diamond Shards, and with
 a ~20% chance a **Flashbots Bundle** (212) as a keepsake.
 
 ### Hovercraft: the Diamond Gliders

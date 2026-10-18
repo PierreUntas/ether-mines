@@ -175,8 +175,48 @@ function makeAvatar(name, color, horsScene) {
       a.children[0].position.y = (-0.62 * 0.8) / 2;
     }
   }
+  // the Front-Runner Boots: the boss's dark chassis, a glowing visor stripe across the toe and a small thruster
+  // at the heel. Hidden unless worn (updateBootsVisual: yours from S.boots, another player's from `bt`)
+  const bootMat = M(0x21161a),
+    glow = new THREE.MeshLambertMaterial({ color: 0x3fc8e8, emissive: 0x2aa8d0, emissiveIntensity: 0.55 }),
+    boots = legs.map(l => {
+      const b = new THREE.Group(),
+        len = CLAY ? 0.62 * 0.76 : 0.62,
+        shell = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.2, 0.34), bootMat),
+        cuff = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.1, 0.28), bootMat),
+        stripe = new THREE.Mesh(new THREE.BoxGeometry(0.29, 0.04, 0.04), glow),
+        band = new THREE.Mesh(new THREE.BoxGeometry(0.285, 0.03, 0.285), glow),
+        heel = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.03), glow);
+      shell.castShadow = true;
+      cuff.position.set(0, 0.15, 0.02);
+      band.position.set(0, 0.19, 0.02);
+      stripe.position.set(0, 0.03, -0.16);
+      heel.position.set(0, -0.03, 0.175);
+      b.add(shell, cuff, band, stripe, heel);
+      b.position.set(0, -len + 0.09, -0.02);
+      b.visible = false;
+      l.add(b);
+      return b;
+    });
   if (!horsScene) scene.add(g);
-  return { g, head, body, legs, arms, tag, plate, cape, held: null, name, color, walk: 0, t: null, seen: false, ph: Math.random() * 6 };
+  return {
+    g,
+    head,
+    body,
+    legs,
+    arms,
+    tag,
+    plate,
+    cape,
+    boots,
+    held: null,
+    name,
+    color,
+    walk: 0,
+    t: null,
+    seen: false,
+    ph: Math.random() * 6,
+  };
 }
 // third-person held item: a small voxel version of the selected tool/weapon on the right arm, reusing
 // heldVoxelGeo() (04-render.js) — the same per-pixel cube build used for the first-person hand. Yours by
@@ -212,6 +252,11 @@ function updateArmorVisual(av) {
       child.material.emissive.setHex(c);
     }
   }
+}
+// shows/hides the Front-Runner Boots on an avatar's feet
+function updateBootsVisual(av, on) {
+  if (!av || !av.boots) return;
+  for (const b of av.boots) b.visible = !!on;
 }
 // no equip slot: owning a Genesis Titan Fang is the only condition, there's nothing to choose between
 const hasCape = () => S.nfts.some(n => n.id === 205);
@@ -526,6 +571,7 @@ Net.on('pos', p => {
   if (!o) return;
   o.t = p;
   o.tAt = performance.now();
+  updateBootsVisual(o, !!p.bt); // the boots they wear
   // what they hold: a tool or weapon id (older clients send nothing), anything unknown shows an empty hand
   const h = Number.isInteger(p.h) && ITEM[p.h] && !B[p.h] ? p.h : 0;
   if (o.heldId !== h) {
@@ -656,6 +702,7 @@ setInterval(() => {
       wd: POTION.ward > 0 ? 1 : 0, // under the Ward Incense: the game server's mobs don't see you
       ld: playerOnLadder() ? 1 : 0, // on a ladder: the game server's tower mobs hold their blows
       ar: S.armor ? +S.armor : 0, // the plating you wear (the game server checks you own it)
+      bt: bootsOn() ? 1 : 0, // the Front-Runner Boots on your feet: the others see them
     };
   const L = lastPos,
     moved =
@@ -670,7 +717,8 @@ setInterval(() => {
       p.on !== L.on ||
       p.wd !== L.wd ||
       p.ld !== L.ld ||
-      p.ar !== L.ar;
+      p.ar !== L.ar ||
+      p.bt !== L.bt;
   if (!moved && now - lastPosT < 4000) return;
   lastPos = p;
   lastPosT = now;
@@ -1153,7 +1201,7 @@ async function boot(world) {
       }
     } else setTimeout(() => logEv('burn', 'Account unavailable', 'progress kept in this browser'), 1500);
     // your hearts and plating, for the game server (it keeps the hearts from then on)
-    Net.setHello(() => ({ hp: S.hp, ar: S.armor ? +S.armor : 0 }));
+    Net.setHello(() => ({ hp: S.hp, ar: S.armor ? +S.armor : 0, bt: bootsOn() ? 1 : 0 }));
     await Net.join(world, ME);
     if (Net.userId) {
       await syncInventory();
