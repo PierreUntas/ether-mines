@@ -8,12 +8,12 @@ drop table if exists public.players, public.inventory, public.uniques, public.cl
   public.daily, public.rule_defis, public.chests, public.offers,
   public.wallets, public.wallet_nonces, -- removed: the game no longer uses a real blockchain (see legacy/)
   public.validators, public.rule_cosmetics, public.cosmetics_owned,
-  public.network_events, public.network_score, public.signs, public.sign_reports, public.block_history, public.game_servers cascade; -- daily, rule_defis: removed challenge feature, dropped if still present
+  public.network_events, public.network_score, public.signs, public.sign_reports, public.block_history, public.game_servers, public.world_restores cascade; -- daily, rule_defis: removed challenge feature, dropped if still present
 
 -- game functions: act_*, internal _* tools, recovery codes, older versions
 do $$ declare f record; begin
   for f in select p.oid::regprocedure as sig from pg_proc p join pg_namespace s on s.oid = p.pronamespace
-           where s.nspname = 'public' and (left(p.proname, 1) = '_' or left(p.proname, 4) = 'act_' or left(p.proname, 4) = 'srv_'
+           where s.nspname = 'public' and (left(p.proname, 1) = '_' or left(p.proname, 4) = 'act_' or left(p.proname, 4) = 'srv_' or left(p.proname, 6) = 'admin_'
              or p.proname in ('set_recovery_code', 'claim_recovery', 'claim_legacy', 'on_block_placed', 'log_error',
                'pseudo_pris', 'is_username_taken', 'block_info')) loop
     execute format('drop function if exists %s cascade', f.sig);

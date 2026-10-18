@@ -688,6 +688,15 @@ Net.on('pos', p => {
   }
 });
 Net.on('block', b => applyBlock(b));
+// the world was put back the way it was generated, outside the claims (042_world_restore.sql): read it again
+let restoring = false;
+Net.on('restored', () => {
+  if (restoring) return;
+  restoring = true;
+  logEv('burn', 'The map is being restored', 'everything outside the claimed plots is back as it was');
+  toastInfo('The map was restored outside the claimed plots: reloading…');
+  setTimeout(() => location.reload(), 4000);
+});
 // on a touch screen, a tap on the label under the crosshair opens the block explorer (07-interface.js)
 $('target').addEventListener('click', () => target && openExplorer(target));
 // ignored players: kept in this browser, their messages no longer show up (also blocks PvP, below)
@@ -1373,6 +1382,12 @@ async function boot(world) {
     await new Promise(r => setTimeout(r, 0));
   }
   updatePosHud();
+  // inside the rock (a gallery filled again by a restore, a block placed where you stood): up to the surface
+  if (collides(P.x, P.y, P.z)) {
+    let y = Math.floor(P.y) + 1;
+    while (y < SY && collides(P.x, y + 0.01, P.z)) y++;
+    P.y = y + 0.01;
+  }
   if (collides(P.x, P.y, P.z)) {
     P.x = SPAWN.x + 0.5;
     P.y = SPAWN.y + 0.1;

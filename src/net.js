@@ -29,6 +29,7 @@ window.Net = (() => {
     hp: [], // ...your hearts now
     loot: [], // ...the loot of a kill it paid you
     used: [], // ...a tonic it took for you
+    restored: [], // the world was put back the way it was generated (042_world_restore.sql)
   };
   const GS_PROTOCOL = 2; // must match server/src/server.js PROTOCOL
   let gs = null, // the game server's WebSocket
@@ -193,6 +194,10 @@ window.Net = (() => {
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'claims', filter: 'world=eq.' + w }, p =>
       emit('claim', p.eventType, p.new, p.old),
     );
+    // the world put back the way it was generated (042_world_restore.sql): the screens reload
+    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'world_restores', filter: 'world=eq.' + w }, p => {
+      if (p.new && p.new.at) emit('restored', p.new);
+    });
     // trade offers (008_trades.sql): everyone only receives the ones concerning them
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'offers', filter: 'world=eq.' + w }, p => emit('offer', p.new));
     ch.on('broadcast', { event: 'chat' }, ({ payload }) => emit('chat', payload));

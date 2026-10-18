@@ -38,7 +38,8 @@ the game falls back to those channels on its own and tries the server again ever
   (`mhit`, which they may parry: `parry` stuns the mob here) and every bolt fired nearby (`mshot`). The
   `welcome` says `mobs: 1`; `MOB_SIM=0` turns it off (the screens then run the mobs, as below). A player
   whose world has hostile mobs turned off (`nm` in `hello` and `pos`) is left alone: not hunted, not hit,
-  sent no mobs.
+  sent no mobs. When a world is restored (`admin_restore_world`, 042_world_restore.sql), the server sees it
+  within 20 s (`world_restores`) and reads that world's terrain again.
 - **Your hearts live here** (`src/health.js`, while the server runs the mobs). Every blow is settled here:
   a mob's, another player's (none in the sanctuary), a mob's bolt (flown here, on the terrain, until it
   reaches someone or a wall). The guard counts if you hold a blade you own and the blow comes from in

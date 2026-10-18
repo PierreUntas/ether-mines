@@ -939,3 +939,42 @@ select pg_temp.ok('... only a tonic', not (srv_use_item('cccccccc-0000-0000-0000
 reset role;
 select pg_temp.ok('... one less in the inventory', _count('cccccccc-0000-0000-0000-000000000003', 'w', 303) = :tonics - 1);
 \echo Game server scenarios pass.
+
+-- restoring a world (042_world_restore.sql): everything players changed goes, except in claims, chests,
+-- signs and validators' ruins; a preview first; only the owner (SQL Editor) can run it
+reset role;
+insert into claims (world, cx, cz, owner) values ('rw', 40, 40, 'aaaaaaaa-0000-0000-0000-000000000001');
+insert into blocks (world, x, y, z, id, placed_name) values
+  ('rw', 645, 30, 645, 3, 'Alice'),   -- inside the claimed chunk (40, 40)
+  ('rw', 700, 30, 700, 3, 'Bob'),     -- out in the wild: goes
+  ('rw', 701, 30, 700, 0, null),      -- a hole: filled again
+  ('rw', 710, 30, 710, 98, 'Bob'),    -- a chest: stays
+  ('rw', 720, 30, 720, 3, 'Bob'),     -- a sign's cell: stays
+  ('rw', 731, 32, 730, 3, 'Bob'),     -- a relit validator's column: stays
+  ('rw', 800, 50, 800, 0, null);      -- a tower chest someone broke
+insert into chests (world, x, y, z, items) values ('rw', 710, 30, 710, '{"101": 3}');
+insert into signs (world, x, y, z, text) values ('rw', 720, 30, 720, 'hello');
+insert into validators (world, x, y, z, state) values ('rw', 729, 30, 728, 'active');
+select admin_restore_world('rw') as preview \gset
+select pg_temp.ok('restore preview: says what would go', (:'preview'::jsonb ->> 'would_erase')::int = 3
+  and (:'preview'::jsonb ->> 'kept_in_claims')::int = 1 and (:'preview'::jsonb ->> 'kept_elsewhere')::int = 3);
+select pg_temp.ok('... and changes nothing', (select count(*) from blocks where world = 'rw') = 7);
+select pg_temp.ok('... names who built there', :'preview'::jsonb -> 'zones' @> '[{"builders": ["Bob"]}]');
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.refused('a player can''t restore a world', $$select admin_restore_world('rw', true)$$);
+reset role;
+set role service_role;
+select pg_temp.refused('... nor the game server', $$select admin_restore_world('rw', true)$$);
+reset role;
+select admin_restore_world('rw', true) as restored \gset
+select pg_temp.ok('restore: the wild blocks are gone', (:'restored'::jsonb ->> 'erased')::int = 3
+  and not exists (select 1 from blocks where world = 'rw' and (x, z) in ((700, 700), (701, 700), (800, 800))));
+select pg_temp.ok('... claims, chests, signs and ruins stay', (select count(*) from blocks where world = 'rw') = 4
+  and (select items from chests where world = 'rw' and x = 710) = '{"101": 3}');
+select pg_temp.ok('... the screens are told', (select erased from world_restores where world = 'rw') = 3);
+select _seed_tower_chest('rw', 800, 50, 800) \g /dev/null
+select pg_temp.ok('... a broken tower chest comes back empty', not exists (select 1 from chests where world = 'rw' and x = 800));
+select _seed_tower_chest('rw', 810, 50, 810) \g /dev/null
+select pg_temp.ok('... an untouched one still holds its treasure', exists (select 1 from chests where world = 'rw' and x = 810));
+\echo World restore scenarios pass.

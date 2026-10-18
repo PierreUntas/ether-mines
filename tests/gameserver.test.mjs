@@ -368,3 +368,36 @@ test("the server runs the world's mobs: it says so, and tells each player where 
   assert.ok(Math.hypot(x - 150, z + 80) <= 48);
   a.close();
 });
+
+test('a restored world: the server reads its terrain again', async () => {
+  let at = '2026-01-01',
+    reads = 0;
+  const logs = [];
+  const s2 = createGameServer({
+    port: 0,
+    authMode: 'test',
+    log: m => logs.push(m),
+    restoreMs: 50,
+    restoresOf: async list => list.map(world => ({ world, at })),
+    fetchArea: async () => {
+      reads++;
+      return { chunks: [], edits: [] };
+    },
+  });
+  const port = await s2.listen(),
+    ws = new WebSocket(`ws://127.0.0.1:${port}`);
+  await new Promise(r => (ws.onopen = r));
+  ws.send(JSON.stringify({ t: 'hello', v: PROTOCOL, world: 'rw', token: 'test:r1:R' }));
+  await wait(100);
+  ws.send(JSON.stringify({ t: 'pos', x: 150, y: 30, z: -80 }));
+  await wait(400);
+  const before = reads;
+  assert.ok(before > 0, 'the terrain was read');
+  assert.ok(!logs.some(m => /restored/.test(m)), 'nothing restored yet');
+  at = '2026-02-02';
+  await wait(400);
+  assert.ok(logs.some(m => /rw: restored/.test(m)));
+  assert.ok(reads > before, 'read again');
+  ws.close();
+  s2.close();
+});

@@ -305,6 +305,49 @@ export function createGameServer(opts = {}) {
         if (worlds.size) srv('srv_heartbeat', { worlds: [...worlds.keys()] }).catch(e => cfg.log('heartbeat: ' + e.message));
       }, 60000)
     : null;
+  // a world put back the way it was generated (042_world_restore.sql): its terrain is read again, its mobs
+  // start over. Looked at every 20 s for the worlds whose mobs run here.
+  const restoredAt = new Map(); // world -> the last restore seen
+  const restoresOf =
+    opts.restoresOf ??
+    (cfg.authMode === 'test'
+      ? null
+      : async list => {
+          const r = await fetch(
+            `${cfg.supabaseUrl}/rest/v1/world_restores?select=world,at&world=in.(${list.map(w => '"' + w.replace(/"/g, '') + '"').join(',')})`,
+            {
+              headers: cfg.anonKey.startsWith('sb_')
+                ? { apikey: cfg.anonKey }
+                : { apikey: cfg.anonKey, Authorization: 'Bearer ' + cfg.anonKey },
+            },
+          );
+          return r.ok ? r.json() : [];
+        });
+  async function checkRestores() {
+    if (!restoresOf || !sims.size) return;
+    const list = [...sims.keys()];
+    let rows;
+    try {
+      rows = await restoresOf(list);
+    } catch (e) {
+      return cfg.log('restores: ' + e.message);
+    }
+    for (const w of list) {
+      const at = (rows || []).find(r => r.world === w)?.at || '';
+      if (!restoredAt.has(w)) restoredAt.set(w, at);
+      else if (restoredAt.get(w) !== at) {
+        restoredAt.set(w, at);
+        const s = sims.get(w);
+        if (s) {
+          s.terrain.close();
+          sims.delete(w);
+          simOf(w); // made again at once, from what Supabase holds now
+          cfg.log(w + ': restored, terrain read again');
+        }
+      }
+    }
+  }
+  const restoreWatch = setInterval(checkRestores, opts.restoreMs ?? 20000);
   const simTick = setInterval(() => {
     const now = Date.now();
     for (const [world, w] of sims) {
@@ -673,6 +716,7 @@ export function createGameServer(opts = {}) {
         clearInterval(tick);
         clearInterval(simTick);
         clearInterval(beat);
+        clearInterval(restoreWatch);
         for (const w of sims.values()) w.terrain.close();
         clearInterval(pinger);
         for (const ws of wss.clients) ws.terminate();
