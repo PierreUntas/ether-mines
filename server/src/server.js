@@ -134,7 +134,12 @@ export function createGameServer(opts = {}) {
     (async (fn, body) => {
       const r = await fetch(`${cfg.supabaseUrl}/rest/v1/rpc/${fn}`, {
         method: 'POST',
-        headers: { apikey: cfg.serviceKey, Authorization: 'Bearer ' + cfg.serviceKey, 'Content-Type': 'application/json' },
+        // a legacy service_role key is a JWT, sent both ways; a new secret key (sb_secret_…) only as apikey
+        headers: {
+          apikey: cfg.serviceKey,
+          ...(cfg.serviceKey.startsWith('sb_') ? {} : { Authorization: 'Bearer ' + cfg.serviceKey }),
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error(`${fn}: ${r.status} ${(await r.text()).slice(0, 200)}`);

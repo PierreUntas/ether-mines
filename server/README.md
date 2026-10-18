@@ -89,6 +89,6 @@ Tests: `npm ci --prefix server && node --test tests/gameserver.test.mjs` (from t
 
 Configuration (`fly.toml`, `[env]`): `SUPABASE_URL`, `SUPABASE_ANON_KEY` (the public key),
 `ALLOWED_ORIGINS`, `PORT`. A secret, never in the repository: `SUPABASE_SERVICE_KEY` (Supabase → Project
-Settings → API keys → the `service_role` key), set once with
+Settings → API Keys: the secret key, `sb_secret_…`, or the legacy `service_role` key), set once with
 `fly secrets set SUPABASE_SERVICE_KEY=... -a ethermines-game`. `MOB_SIM=0` turns the server's mobs (and
 with them the hearts) off.
