@@ -245,9 +245,11 @@ function updateAvatarHand(av, it = heldNow()) {
 // the Genesis Plating, basalt and ember, a gorget, stepped shoulders with a spike and a burning core; the
 // Pure Ether Plating, a pale breastplate with a violet crystal and a validator node (a hexagon ring around
 // a glowing core) on the chest, crystal shards rising from the shoulders; the Volt Plating, the same in
-// blues. The Merge Aegis keeps the plate and its golden seam. A plating trim (17-looks.js) tints the glow.
+// blues; the Merge Aegis, the Genesis cut in black and white, with crystals: one burning at the heart, and
+// on each shoulder where the spike was. A plating trim (17-looks.js) tints the glow.
 const ARMOR_LOOKS = {
-  302: { kind: 'genesis' },
+  302: { kind: 'genesis', base: 0x3a2d3a, dark: 0x2a1f2a, line: 0xff7a3a, core: 0xffb347 },
+  209: { kind: 'genesis', base: 0x1c1c24, dark: 0xf2f2f6, line: 0xffffff, core: 0xdff6ff, crystals: true },
   109: { kind: 'node', plate: 0xe8e2ff, crystal: [0xd8ccff, 0x6a50d8], shard: [0xc9b8ff, 0x8a6cff], ring: 0x6a50d8, core: 0x9fe8ff },
   108: { kind: 'node', plate: 0xdbe9ff, crystal: [0xbfe2ff, 0x2a7ad8], shard: [0x9fd8ff, 0x2a8ad8], ring: 0x2a6fd8, core: 0x7fe8ff },
 };
@@ -277,13 +279,19 @@ function buildArmorLook(av, id) {
     return o;
   };
   if (L.kind === 'genesis') {
-    const basalt = mat(0x3a2d3a),
-      dark = mat(0x2a1f2a),
-      ember = () => new THREE.MeshLambertMaterial({ color: 0xff7a3a, emissive: 0xff7a3a, emissiveIntensity: 0.7 }),
-      core = new THREE.MeshLambertMaterial({ color: 0xffb347, emissive: 0xffb347, emissiveIntensity: 1.2 });
+    const basalt = mat(L.base),
+      dark = mat(L.dark),
+      ember = () => new THREE.MeshLambertMaterial({ color: L.line, emissive: L.line, emissiveIntensity: L.crystals ? 0.35 : 0.7 }),
+      core = new THREE.MeshLambertMaterial({ color: L.core, emissive: L.core, emissiveIntensity: L.crystals ? 0.9 : 1.2 }),
+      crystal = () =>
+        new THREE.MeshLambertMaterial({ color: 0xeafcff, emissive: 0x9fe8ff, emissiveIntensity: 0.8, transparent: true, opacity: 0.9 });
     box(root, W + 0.1, H * 0.7, D + 0.1, basalt, 0, H * 0.08, 0);
     box(root, 0.36, 0.1, D + 0.14, dark, 0, H * 0.5, 0); // the gorget
-    box(root, 0.14, 0.14, 0.04, core, 0, H * 0.14, FZ - 0.05, 0, true); // the core
+    if (L.crystals) {
+      // the heart: a crystal standing on its point, in a white setting
+      box(root, 0.18, 0.18, 0.03, dark, 0, H * 0.14, FZ - 0.035);
+      box(root, 0.11, 0.11, 0.06, crystal(), 0, H * 0.14, FZ - 0.07, Math.PI / 4, true);
+    } else box(root, 0.14, 0.14, 0.04, core, 0, H * 0.14, FZ - 0.05, 0, true); // the core
     for (const x of [-0.16, 0.16]) box(root, 0.04, H * 0.5, 0.03, ember(), x, H * 0.06, FZ - 0.04, 0, true);
     box(root, W + 0.12, 0.08, D + 0.12, dark, 0, -H * 0.27, 0);
     arms.forEach((g, k) => {
@@ -292,7 +300,11 @@ function buildArmorLook(av, id) {
       box(g, 0.3, 0.12, 0.3, basalt, 0, 0.02, 0);
       box(g, 0.255, 0.084, 0.27, basalt, s * 0.02, -0.06, 0);
       box(g, 0.31, 0.03, 0.31, ember(), 0, 0.08, 0, 0, true);
-      box(g, 0.05, 0.1, 0.05, dark, 0, 0.13, 0);
+      if (L.crystals) {
+        // crystals rising from the shoulder, where the Genesis has its spike
+        box(g, 0.07, 0.18, 0.07, crystal(), 0, 0.17, 0, s * -0.2, true);
+        box(g, 0.05, 0.11, 0.05, crystal(), s * 0.07, 0.13, 0.05, s * -0.55, true);
+      } else box(g, 0.05, 0.1, 0.05, dark, 0, 0.13, 0);
     });
   } else {
     const plate = mat(L.plate),
