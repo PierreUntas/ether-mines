@@ -17,6 +17,31 @@ function homeBed() {
   return id >= 137 && id <= 144 ? h : null;
 }
 let potionBusy = false;
+// the tonic, through the game server: its answer (`used`) says whether it took one; the hearts follow (`hp`)
+let tonicWait = null;
+function tonicThroughServer(it) {
+  potionBusy = true;
+  tonicWait = setTimeout(() => {
+    potionBusy = false;
+    tonicWait = null;
+    logEv('burn', 'No answer', 'try again in a moment');
+  }, 5000);
+  Net.useTonic();
+}
+Net.on('used', m => {
+  if (!tonicWait) return;
+  clearTimeout(tonicWait);
+  tonicWait = null;
+  potionBusy = false;
+  const r = m && m.r;
+  if (!r || !r.ok) return logEv('burn', 'Refused', (r && (REFUSAL[r.err] ? REFUSAL[r.err]() : r.err)) || 'try again in a moment');
+  setInv(r.inv);
+  swing = 0.6;
+  Sound.chime();
+  toastInfo('Ether Tonic: +5 hearts.');
+  dirty = true;
+  ui();
+});
 async function useConsumable(it) {
   if (potionBusy) return;
   const u = ITEM[it].use;
@@ -24,6 +49,8 @@ async function useConsumable(it) {
   if (u === 'heal' && S.hp >= 10) return logEv('burn', 'Already in full health', 'keep the tonic for later');
   const bed = u === 'home' ? homeBed() : null;
   if (u === 'home' && !bed) return logEv('burn', 'No bed to go back to', 'sleep in a bed first: the beacon brings you back to it');
+  // your hearts on the game server: it takes the tonic from your inventory itself, then heals you
+  if (u === 'heal' && Net.hpServer && Net.lootServer) return tonicThroughServer(it);
   potionBusy = true;
   try {
     if (SERVER()) {
@@ -36,8 +63,12 @@ async function useConsumable(it) {
   swing = 0.6;
   Sound.chime();
   if (u === 'heal') {
-    S.hp = Math.min(10, S.hp + 5);
-    updateHpUI();
+    if (Net.hpServer)
+      Net.sendHeal('tonic'); // (a game server without its key: it trusts this, once in a while)
+    else {
+      S.hp = Math.min(10, S.hp + 5);
+      updateHpUI();
+    }
     toastInfo('Ether Tonic: +5 hearts.');
   } else if (u === 'speed') {
     buffT = Math.max(buffT, 120);

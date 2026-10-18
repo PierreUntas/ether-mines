@@ -644,7 +644,9 @@ function sleep(bed) {
   // online the night is everyone's (tickClock, 08-sky.js): a bed rests you, it doesn't skip it
   if (sharedClock()) {
     S.slept = 1;
-    if (S.hp < 10) {
+    if (Net.hpServer)
+      Net.sendHeal('bed'); // your hearts live on the game server: it fills them
+    else if (S.hp < 10) {
       S.hp = 10;
       updateHpUI();
     }

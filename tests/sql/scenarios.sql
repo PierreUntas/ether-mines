@@ -899,3 +899,43 @@ insert into blocks (world, x, y, z, id, placed_by, placed_name, serial) values (
 update blocks set id = 91 where world = 'w' and x = 902 and y = 5 and z = 902;
 select pg_temp.ok('a door switching state isn''t logged', (select count(*) from block_history where world = 'w' and x = 902 and y = 5 and z = 902) = 1);
 \echo Block explorer scenarios pass.
+
+-- the game server (041): it pays the loot and the tonic with the service key; while it's up, players can't
+reset role;
+delete from rate_limits;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'cccccccc-0000-0000-0000-000000000003', false) \g /dev/null
+do $$ begin
+  perform srv_loot_mob('cccccccc-0000-0000-0000-000000000003', 'w', 'shadow', 0, 0, 0);
+  raise exception 'a player called srv_loot_mob';
+exception when insufficient_privilege then null; end $$;
+do $$ begin
+  perform srv_heartbeat(array['w']);
+  raise exception 'a player called srv_heartbeat';
+exception when insufficient_privilege then null; end $$;
+reset role;
+set role service_role;
+select srv_loot_mob('cccccccc-0000-0000-0000-000000000003', 'w', 'titan', 9999, 0, 9999) as srvloot \gset
+select pg_temp.ok('the game server pays a kill, wherever it says', (:'srvloot'::jsonb ->> 'ok')::boolean and :'srvloot'::jsonb -> 'unique' is not null);
+select pg_temp.ok('... never for someone not in the world', not (srv_loot_mob('dddddddd-0000-0000-0000-00000000dddd', 'w', 'shadow', 0, 0, 0) ->> 'ok')::boolean);
+select srv_heartbeat(array['w']) \g /dev/null
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'cccccccc-0000-0000-0000-000000000003', false) \g /dev/null
+select act_loot_mob('w', 'wraith', 12.5, 33, 8.5) as claimed \gset
+select pg_temp.ok('while the game server is up, a player can''t claim loot', :'claimed'::jsonb ->> 'err' = 'the game server pays the loot');
+reset role;
+update game_servers set seen = now() - interval '5 minutes';
+delete from rate_limits;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'cccccccc-0000-0000-0000-000000000003', false) \g /dev/null
+select pg_temp.ok('... and can again once it''s gone', (act_loot_mob('w', 'wraith', 12.5, 33, 8.5) ->> 'ok')::boolean);
+reset role;
+select _give('cccccccc-0000-0000-0000-000000000003', 'w', 303, 1, '{}') \g /dev/null
+select _count('cccccccc-0000-0000-0000-000000000003', 'w', 303) as tonics \gset
+set role service_role;
+select pg_temp.ok('the game server takes a tonic', (srv_use_item('cccccccc-0000-0000-0000-000000000003', 'w', 303) ->> 'ok')::boolean);
+select pg_temp.ok('... only a tonic', not (srv_use_item('cccccccc-0000-0000-0000-000000000003', 'w', 304) ->> 'ok')::boolean);
+reset role;
+select pg_temp.ok('... one less in the inventory', _count('cccccccc-0000-0000-0000-000000000003', 'w', 303) = :tonics - 1);
+\echo Game server scenarios pass.

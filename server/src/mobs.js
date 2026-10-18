@@ -15,15 +15,22 @@ const SEE = 48, // blocks: how far around you the mobs are sent
   BOLT_SEE = 96,
   REST_FAR = 24, // a mob never goes to rest with a player this close
   PARRY_REACH = 6,
-  IDLE_MS = 500; // a wandering mob's place goes out twice a second
+  IDLE_MS = 500, // a wandering mob's place goes out twice a second
+  BOLT_LIFE = 3, // s
+  BOLT_STEPS = 4, // per tick: a quarter block or so each
+  BOLT_HIT = 0.4; // half a player's width (a little less than on the screen: what you saw was a moment ago)
 const r2 = v => Math.round(v * 100) / 100;
 // what a player's screen needs to draw a mob: its flags
 const F = { rush: 1, frenzy: 2, stun: 4, aggro: 8, down: 16 };
 
 // ledger(id): the mob's entry in the server's ledger, if any ({ hp, down, deadUntil }), without creating it
-export function createMobSim({ terrain, ledger, send, log = () => {} }) {
+// hurt(p, dmg, x, z, kind): a blow landing on a player (health.js: their hearts live on the server too);
+// returns 'parry' when they parried it. open(p): can a blow land on them right now. Without hurt (older
+// setups), the blow is only told to the player's screen (`mhit`), which settles it.
+export function createMobSim({ terrain, ledger, send, hurt, open = () => true, log = () => {} }) {
   const chunks = new Map(), // key -> { list: [mob], resting: [mob] }
-    byId = new Map();
+    byId = new Map(),
+    bolts = []; // the mobs' bolts in flight: they hurt whoever they reach, here
   const W = terrain;
   const dead = (id, now) => {
     const s = ledger(id);
@@ -110,10 +117,11 @@ export function createMobSim({ terrain, ledger, send, log = () => {} }) {
     for (const c of chunks.values()) rules(c, night, aw, here, now);
     // the players as the mobs see them
     const cands = () =>
-      here.map(p => ({ id: p.id, x: p.pos.x, y: p.pos.y, z: p.pos.z, ward: !!p.ward, ladder: !!p.ladder, canHurt: true, p }));
+      here.map(p => ({ id: p.id, x: p.pos.x, y: p.pos.y, z: p.pos.z, ward: !!p.ward, ladder: !!p.ladder, canHurt: open(p, now), p }));
     const ev = {
       now,
       melee(a, tg) {
+        if (hurt) return hurt(tg.p, MK[a.type].dmg, a.p.x, a.p.z, 'melee', a);
         send(tg.p, { t: 'mhit', id: a.id, dmg: MK[a.type].dmg, x: r2(a.p.x), z: r2(a.p.z), kind: 'melee' });
       },
       fire(a, R, tg) {
@@ -121,21 +129,35 @@ export function createMobSim({ terrain, ledger, send, log = () => {} }) {
           tx = tg.x,
           ty = tg.y + 1.2,
           tz = tg.z,
-          dd = Math.hypot(tx - x, ty - y, tz - z) || 1,
-          msg = JSON.stringify({
-            t: 'mshot',
-            id: a.id,
-            to: tg.id,
-            x: r2(x),
-            y: r2(y),
-            z: r2(z),
-            vx: r2(((tx - x) / dd) * R.speed),
-            vy: r2(((ty - y) / dd) * R.speed),
-            vz: r2(((tz - z) / dd) * R.speed),
+          dd = Math.hypot(tx - x, ty - y, tz - z) || 1;
+        if (hurt)
+          bolts.push({
+            x,
+            y,
+            z,
+            vx: ((tx - x) / dd) * R.speed,
+            vy: ((ty - y) / dd) * R.speed,
+            vz: ((tz - z) / dd) * R.speed,
+            life: BOLT_LIFE,
             dmg: R.dmg,
-            c: R.color,
-            s: R.size || 1.6,
+            ox: x,
+            oz: z,
           });
+        const msg = JSON.stringify({
+          t: 'mshot',
+          id: a.id,
+          to: tg.id,
+          x: r2(x),
+          y: r2(y),
+          z: r2(z),
+          vx: r2(((tx - x) / dd) * R.speed),
+          vy: r2(((ty - y) / dd) * R.speed),
+          vz: r2(((tz - z) / dd) * R.speed),
+          dmg: R.dmg,
+          c: R.color,
+          s: R.size || 1.6,
+          hl: hurt ? 1 : 0, // harmless on the screens: the server says who it hits
+        });
         for (const p of here) if (Math.hypot(p.pos.x - x, p.pos.z - z) <= BOLT_SEE) send(p, msg);
       },
       summon(a, i, x, y, z) {
@@ -148,6 +170,7 @@ export function createMobSim({ terrain, ledger, send, log = () => {} }) {
         add(c, m);
       },
     };
+    flyBolts(here, dt, now);
     for (const c of chunks.values())
       for (const a of [...c.list]) {
         const s = ledger(a.id);
@@ -175,6 +198,31 @@ export function createMobSim({ terrain, ledger, send, log = () => {} }) {
           st = MobsCore.step(W, a, tg, dt, ev);
         a.aggro = st.aggro;
       }
+  }
+  // the bolts fly on, in small steps: the first solid block stops one, the first player it reaches is hit
+  function flyBolts(here, dt, now) {
+    for (let i = bolts.length - 1; i >= 0; i--) {
+      const b = bolts[i];
+      let dead = false;
+      for (let k = 0; k < BOLT_STEPS && !dead; k++) {
+        const t = dt / BOLT_STEPS;
+        b.x += b.vx * t;
+        b.y += b.vy * t;
+        b.z += b.vz * t;
+        b.life -= t;
+        if (b.life <= 0 || W.isSolid(W.get(Math.floor(b.x), Math.floor(b.y), Math.floor(b.z)))) dead = true;
+        else
+          for (const p of here) {
+            const q = p.pos;
+            if (Math.abs(b.x - q.x) < BOLT_HIT && Math.abs(b.z - q.z) < BOLT_HIT && b.y > q.y && b.y < q.y + 1.85) {
+              hurt(p, b.dmg, b.ox, b.oz, 'bolt');
+              dead = true;
+              break;
+            }
+          }
+      }
+      if (dead) bolts.splice(i, 1);
+    }
   }
   // what each player sees: the mobs within SEE blocks. A mob on the hunt goes out every time; one quietly
   // wandering only twice a second (it barely moves: the screen smooths it), which saves most of the traffic
@@ -218,6 +266,7 @@ export function createMobSim({ terrain, ledger, send, log = () => {} }) {
       return true;
     },
     count: () => byId.size,
+    bolts: () => bolts.length,
     // a mob put down by hand in a loaded chunk (the tests)
     place(a) {
       const c = chunks.get(a.k);

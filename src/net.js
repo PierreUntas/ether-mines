@@ -25,8 +25,12 @@ window.Net = (() => {
     ms: [], // the game server's mobs: where they stand (16-mobs.js)
     mhit: [], // ...a blow one of them strikes you
     mshot: [], // ...a bolt one of them fires
+    hurt: [], // a blow landed on you: the game server keeps your hearts (16-mobs.js)
+    hp: [], // ...your hearts now
+    loot: [], // ...the loot of a kill it paid you
+    used: [], // ...a tonic it took for you
   };
-  const GS_PROTOCOL = 1; // must match server/src/server.js PROTOCOL
+  const GS_PROTOCOL = 2; // must match server/src/server.js PROTOCOL
   let gs = null, // the game server's WebSocket
     gsReady = false, // welcomed by it: real time goes through it
     gsOff = false, // it turned us away for good (an older or newer protocol): don't insist
@@ -34,7 +38,10 @@ window.Net = (() => {
     gsSelf = null, // your id on the game server (your account's)
     gsTokenWatch = false,
     gsKicked = false, // replaced by another tab or device of yours
-    gsMobs = false; // the game server runs the world's mobs itself
+    gsMobs = false, // the game server runs the world's mobs itself
+    gsHp = false, // ...keeps your hearts
+    gsLoot = false, // ...pays the loot
+    hello = null; // what the game adds to its hello (setHello)
   let sb = null,
     ch = null,
     world = 'principal',
@@ -281,7 +288,10 @@ window.Net = (() => {
       const ws = new WebSocket(cfg.GAME_SERVER);
       gs = ws;
       let welcomed = false;
-      ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', v: GS_PROTOCOL, world, token, title: me.title || '', look: me.look || '' }));
+      // your hearts and your plating as this screen knows them (the server keeps them from then on)
+      const extra = typeof hello === 'function' ? hello() : {};
+      ws.onopen = () =>
+        ws.send(JSON.stringify({ t: 'hello', v: GS_PROTOCOL, world, token, title: me.title || '', look: me.look || '', ...extra }));
       ws.onmessage = e => {
         let m;
         try {
@@ -303,6 +313,9 @@ window.Net = (() => {
           }
           gsSelf = m.id;
           gsMobs = !!m.mobs;
+          gsHp = Number.isFinite(m.hp);
+          gsLoot = !!m.loot;
+          if (gsHp) emit('hp', { hp: m.hp });
           welcomed = true;
           gsReady = true;
           gsRetry = 0;
@@ -317,7 +330,7 @@ window.Net = (() => {
           const list = (m.list || []).map(p => ({ ...p, id: mine(p.id) }));
           peersNow = list;
           emit('peers', list);
-        } else if (['pos', 'hit', 'mob', 'shot', 'mobs', 'mobshot', 'ms', 'mhit', 'mshot'].includes(m.t)) {
+        } else if (['pos', 'hit', 'mob', 'shot', 'mobs', 'mobshot', 'ms', 'mhit', 'mshot', 'hurt', 'hp', 'loot', 'used'].includes(m.t)) {
           const t = m.t;
           delete m.t;
           for (const k of ['id', 'from', 'to', 'on']) if (k in m) m[k] = mine(m[k]);
@@ -442,6 +455,10 @@ window.Net = (() => {
   const sendMobShot = p => gsReady && gsSend({ ...p, t: 'mobshot' });
   // you parried a blow from one of the game server's mobs: it reels back there
   const sendParry = id => gsReady && gsSend({ t: 'parry', id });
+  // your hearts on the game server: the guard (the moment it goes up), a bed, a hunted animal, a tonic
+  const sendGuard = on => gsReady && gsSend({ t: 'guard', on: !!on });
+  const sendHeal = kind => gsReady && gsSend({ t: 'heal', kind });
+  const useTonic = () => gsReady && gsSend({ t: 'use', item: 303 });
   // is anyone else close enough to receive your moves?
   // (through the game server: anyone else in the world, the server itself keeps it to the players nearby)
   const anyoneNear = peers =>
@@ -559,6 +576,10 @@ window.Net = (() => {
     sendMobs,
     sendMobShot,
     sendParry,
+    sendGuard,
+    sendHeal,
+    useTonic,
+    setHello: f => (hello = f),
     sendShot,
     setRegion,
     setLook,
@@ -586,6 +607,13 @@ window.Net = (() => {
     // the game server runs the mobs (the game only draws them, 16-mobs.js)
     get mobServer() {
       return gsReady && gsMobs;
+    },
+    // ...keeps your hearts (16-mobs.js shows them), pays the mobs' loot
+    get hpServer() {
+      return gsReady && gsHp;
+    },
+    get lootServer() {
+      return gsReady && gsLoot;
     },
     get world() {
       return world;

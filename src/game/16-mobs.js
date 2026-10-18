@@ -966,37 +966,46 @@ const BOSS_TOAST = {
   209: () => `The Merge is complete! ${ITEM[209].n} earned — equip it from your chest to shrug off most of a hit.`,
   211: () => `The Front-Runner is outrun! ${ITEM[211].n} earned — from now on you move a step ahead of everyone.`,
 };
+// what a kill paid you (Supabase rolled it: asked by this screen, or by the game server)
+function showLoot(type, r) {
+  if (r && r.item) {
+    logEv('burn', `1 ${ITEM[r.item].n}`, `→ dropped by a ${MK[type].n.toLowerCase()}`);
+    Sound.chime();
+  }
+  if (r && r.unique) {
+    addUnique(r.unique);
+    toastInfo((BOSS_TOAST[r.unique.id] || (() => `${ITEM[r.unique.id].n} earned`))());
+    Sound.chime();
+  }
+  if (r && r.shards) logEv('mint', `${r.shards} Diamond Shard${r.shards > 1 ? 's' : ''}`, 'cut from the boss: the Genesis gear needs 4');
+  if (r && r.bonus) {
+    addUnique(r.bonus);
+    toastInfo(`Bonus drop: ${ITEM[r.bonus.id].n}!`);
+    Sound.chime();
+  }
+  if (r && r.gwei) {
+    S.gwei = r.total_gwei;
+    toastInfo(`+${r.gwei} Gwei — dropped by a ${MK[type].n.toLowerCase()}`);
+    Sound.chime();
+    ui();
+  }
+  if (r && r.cosmetic) {
+    S.cosmetics.push(+r.cosmetic);
+    toastInfo(`${COSMETICS[r.cosmetic].n} earned — a combat trophy, check the Shop tab`);
+    Sound.chime();
+  }
+}
+// the game server paid you for a kill you took part in
+Net.on('loot', m => {
+  if (!m || !m.r || !m.r.ok || (!MK[m.type] && m.type !== 'merge_twins')) return;
+  applyServer(m.r);
+  setInv(m.r.inv, 'mob loot');
+  showLoot(m.type === 'merge_twins' ? 'pow_twin' : m.type, m.r);
+});
 function lootMob(type) {
+  if (typeof Net !== 'undefined' && Net.lootServer) return; // the game server pays it (`loot`, below)
   if (SERVER()) {
-    serverAct('loot_mob', { mob_type: type }, null, 'mob loot').then(r => {
-      if (r && r.item) {
-        logEv('burn', `1 ${ITEM[r.item].n}`, `→ dropped by a ${MK[type].n.toLowerCase()}`);
-        Sound.chime();
-      }
-      if (r && r.unique) {
-        addUnique(r.unique);
-        toastInfo((BOSS_TOAST[r.unique.id] || (() => `${ITEM[r.unique.id].n} earned`))());
-        Sound.chime();
-      }
-      if (r && r.shards)
-        logEv('mint', `${r.shards} Diamond Shard${r.shards > 1 ? 's' : ''}`, 'cut from the boss: the Genesis gear needs 4');
-      if (r && r.bonus) {
-        addUnique(r.bonus);
-        toastInfo(`Bonus drop: ${ITEM[r.bonus.id].n}!`);
-        Sound.chime();
-      }
-      if (r && r.gwei) {
-        S.gwei = r.total_gwei;
-        toastInfo(`+${r.gwei} Gwei — dropped by a ${MK[type].n.toLowerCase()}`);
-        Sound.chime();
-        ui();
-      }
-      if (r && r.cosmetic) {
-        S.cosmetics.push(+r.cosmetic);
-        toastInfo(`${COSMETICS[r.cosmetic].n} earned — a combat trophy, check the Shop tab`);
-        Sound.chime();
-      }
-    });
+    serverAct('loot_mob', { mob_type: type }, null, 'mob loot').then(r => showLoot(type, r));
     return;
   }
   if (type === 'titan' || type === 'plasma_core' || type === 'merge_twins' || type === 'front_runner') {
@@ -1092,6 +1101,8 @@ function heldBlade() {
 const guarding = () => guardHeld && playing && heldBlade();
 function setGuard(on) {
   if (on && !guardHeld) guardT = 0;
+  // your hearts on the game server: it needs to know the moment the guard goes up (a parry is timing)
+  if (!!on !== guardHeld && typeof Net !== 'undefined' && Net.hpServer) Net.sendGuard(on && !!heldBlade());
   guardHeld = on;
 }
 function updateGuard(dt) {
@@ -1139,7 +1150,13 @@ function hurtPlayer(dmg, mx, mz, kind = 'melee') {
     hurtT = 0.35;
     return 'block';
   }
-  S.hp = Math.max(0, S.hp - dmg);
+  hurtShown(Math.max(0, S.hp - dmg), mx, mz, blocked);
+  if (S.hp <= 0) die();
+  return blocked ? 'block' : undefined;
+}
+// a blow landed: your hearts, the knock back, the red flash
+function hurtShown(hp, mx, mz, blocked) {
+  S.hp = hp;
   regenT = 6;
   hurtT = 0.5;
   hpBarOn = true;
@@ -1154,9 +1171,46 @@ function hurtPlayer(dmg, mx, mz, kind = 'melee') {
   setTimeout(() => $('vignette').classList.remove('hurt'), 220);
   dirty = true;
   updateHpUI();
-  if (S.hp <= 0) die();
-  return blocked ? 'block' : undefined;
 }
+// ---------- your hearts on the game server ----------
+// When it keeps them (Net.hpServer: it runs the mobs too), every blow is settled there — the guard, the
+// parry, your plating, the mobs' bolts — and this screen only shows it (`hurt`), the hearts it says you
+// have (`hp`: coming back slowly, a bed, a tonic), and a fall. Nothing here can make you harder to kill.
+Net.on('hurt', m => serverHurt(m));
+function serverHurt(m) {
+  if (!m || !Number.isFinite(m.hp) || !Number.isFinite(m.x) || !Number.isFinite(m.z)) return;
+  if (m.res === 'parry' || (m.res === 'block' && !m.dmg)) {
+    guardSpark(m.res === 'parry');
+    hurtT = 0.35;
+    if (m.res === 'parry') {
+      // the mob that struck reels (the server stunned it): which one, the closest to where the blow came from
+      let best = null,
+        bd = 4;
+      for (const l of MOBS.values())
+        for (const a of l) {
+          const d = Math.hypot(a.g.position.x - m.x, a.g.position.z - m.z);
+          if (a.hp > 0 && d < bd) {
+            bd = d;
+            best = a;
+          }
+        }
+      if (best) {
+        best.stunT = 1.3;
+        parryToast(best);
+      }
+    }
+    return;
+  }
+  if (m.res === 'block') guardSpark(false);
+  hurtShown(clamp(Math.round(m.hp), 0, 10), m.x, m.z, m.res === 'block');
+  if (m.dead) die();
+}
+Net.on('hp', m => {
+  if (!m || !Number.isFinite(m.hp)) return;
+  S.hp = clamp(Math.round(m.hp), 0, 10);
+  dirty = true;
+  updateHpUI();
+});
 function die() {
   logEv('burn', 'You fell in combat', 'back to the sanctuary');
   if (typeof dismountHover === 'function') {
@@ -1235,6 +1289,7 @@ let mobT = 0;
 function tickPlayerHealth(dt) {
   regenT = Math.max(0, regenT - dt);
   hurtT = Math.max(0, hurtT - dt);
+  if (typeof Net !== 'undefined' && Net.hpServer) return; // the game server gives them back
   if (regenT <= 0 && S.hp < 10) {
     regenT = 4;
     S.hp++;
@@ -1334,6 +1389,18 @@ Net.on('mshot', s => serverMobShot(s));
 function serverMobShot(s) {
   if (!mobsHere() || !Net.mobServer || !s || ![s.x, s.y, s.z, s.vx, s.vy, s.vz, s.dmg, s.c, s.s].every(Number.isFinite)) return;
   if (Math.hypot(s.x - P.x, s.y - P.y, s.z - P.z) > 80) return;
+  if (s.hl) {
+    // harmless here: the game server flies it and says whom it hits
+    const color = s.c & 0xffffff;
+    if (!mobBoltMats.has(color)) mobBoltMats.set(color, new THREE.MeshBasicMaterial({ color }));
+    const m = new THREE.Mesh(boltGeo, mobBoltMats.get(color));
+    m.scale.setScalar(clamp(s.s, 0.5, 3));
+    m.position.set(s.x, s.y, s.z);
+    scene.add(m);
+    GHOST_BOLTS.push({ m, vx: s.vx, vy: s.vy, vz: s.vz, life: MOB_BOLT_LIFE });
+    Sound.hit('pierre');
+    return;
+  }
   spawnMobBolt(s.x, s.y, s.z, s.vx, s.vy, s.vz, clamp(s.dmg, 0, 20), s.c & 0xffffff, clamp(s.s, 0.5, 3));
 }
 function drawServerMobs(dt) {

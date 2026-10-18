@@ -281,6 +281,9 @@ active ──(3 missed checks)──> damaged ──(8 missed checks)──> cor
   up, it runs every world's mobs itself, with the same logic as the game, on the terrain it reads from
   Supabase: one mob, one place for everyone. Each screen only draws what it's told (ten times a second for
   a mob on the hunt), takes the blows aimed at its own player (and may parry them) and sees every bolt.
+  The server also keeps every player's hearts (`server/src/health.js`): the blows, the bolts, the guard,
+  the parry and the plating are settled there, and it pays the loot of a kill itself (`srv_loot_mob`,
+  `041_game_server.sql`) to everyone who struck the mob; meanwhile the browsers can't claim any.
   Without the game server, each screen runs the mobs itself, as below.
 - **Shared combat** (`src/game/16-mobs.js`, `src/net.js`): every screen still moves its own copy of a
   mob, but a mob has the same id everywhere (its chunk, its slot there and its kind), and every blow is

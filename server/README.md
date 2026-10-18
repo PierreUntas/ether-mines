@@ -37,6 +37,18 @@ the game falls back to those channels on its own and tries the server again ever
   (`ms`: ten times a second for one on the hunt, twice for one wandering), the blows aimed at them
   (`mhit`, which they may parry: `parry` stuns the mob here) and every bolt fired nearby (`mshot`). The
   `welcome` says `mobs: 1`; `MOB_SIM=0` turns it off (the screens then run the mobs, as below).
+- **Your hearts live here** (`src/health.js`, while the server runs the mobs). Every blow is settled here:
+  a mob's, another player's (none in the sanctuary), a mob's bolt (flown here, on the terrain, until it
+  reaches someone or a wall). The guard counts if you hold a blade you own and the blow comes from in
+  front (the browser says the moment it goes up, `guard`); a parry stuns the mob here; your plating counts
+  if you own it. Your screen is told what happened (`hurt`) and how many hearts you have (`hp`: one back
+  every 4 s, 6 s after a blow; `heal` for a bed at night or a hunted animal). A fall brings you back full,
+  out of reach for 2.5 s. Leaving and coming back within 10 minutes keeps your hearts.
+- **The loot is paid here** (with `SUPABASE_SERVICE_KEY`). When a mob dies, the server calls
+  `srv_loot_mob` (041_game_server.sql) for everyone who struck it in the last 30 s, and tells each of them
+  (`loot`); an Ether Tonic is taken by `srv_use_item` (`use` → `used`) before it heals. Every minute
+  `srv_heartbeat` tells Supabase the server is up for its worlds: meanwhile `act_loot_mob` refuses the
+  browsers. Without the key, the browsers claim their loot as before.
 - **One mob, one place (without the server's mobs).** The screen of the player a mob is after leads it: about 8 times a second it
   sends where the mobs it leads stand (`mobs`, 24 at most), and the bolts they fire (`mobshot`). The server
   passes them on to the players nearby, whose screens stop moving their own copy and follow. If two
@@ -76,4 +88,7 @@ Tests: `npm ci --prefix server && node --test tests/gameserver.test.mjs` (from t
    and push.
 
 Configuration (`fly.toml`, `[env]`): `SUPABASE_URL`, `SUPABASE_ANON_KEY` (the public key),
-`ALLOWED_ORIGINS`, `PORT`.
+`ALLOWED_ORIGINS`, `PORT`. A secret, never in the repository: `SUPABASE_SERVICE_KEY` (Supabase → Project
+Settings → API keys → the `service_role` key), set once with
+`fly secrets set SUPABASE_SERVICE_KEY=... -a ethermines-game`. `MOB_SIM=0` turns the server's mobs (and
+with them the hearts) off.

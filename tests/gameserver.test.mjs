@@ -98,25 +98,26 @@ test('everyone gets the others with their positions (the online badge, /join)', 
   a.close();
 });
 
-test('a blow on a player reaches only that player, and only within reach', async () => {
+test('a blow on a player lands only on that player, only within reach, and the server takes the hearts', async () => {
   const a = await player('a4', 'A', 'w4'),
     b = await player('b4', 'B', 'w4'),
     c = await player('c4', 'C', 'w4');
-  a.send({ t: 'pos', x: 0, y: 30, z: 0 });
-  b.send({ t: 'pos', x: 3, y: 30, z: 0 });
-  c.send({ t: 'pos', x: 2, y: 30, z: 1 });
+  a.send({ t: 'pos', x: 40, y: 30, z: 40 });
+  b.send({ t: 'pos', x: 43, y: 30, z: 40 });
+  c.send({ t: 'pos', x: 42, y: 30, z: 41 });
   await wait(30);
   a.send({ t: 'hit', to: 'b4', item: 107 });
   await wait(30);
-  assert.equal(b.of('hit').length, 1);
-  assert.equal(b.of('hit')[0].from, 'a4');
-  assert.equal(c.of('hit').length, 0);
-  b.send({ t: 'pos', x: 30, y: 30, z: 0 });
-  await wait(500);
+  const h = b.of('hurt').filter(x => x.from);
+  assert.equal(h.length, 1);
+  assert.deepEqual([h[0].from, h[0].dmg, h[0].hp], ['a4', 2, 8], 'a Pure Ether Blade: 2 hearts between players');
+  assert.equal(c.of('hurt').filter(x => x.from).length, 0);
+  b.send({ t: 'pos', x: 70, y: 30, z: 40 });
+  await wait(800);
   a.send({ t: 'hit', to: 'b4', item: 107 });
   a.send({ t: 'hit', to: 'b4', item: 206 }); // the pistol reaches further
   await wait(30);
-  assert.equal(b.of('hit').length, 2, 'the sword misses at 30 blocks, the pistol does not');
+  assert.equal(b.of('hurt').filter(x => x.from).length, 2, 'the sword misses at 30 blocks, the pistol does not');
   [a, b, c].forEach(p => p.close());
 });
 
@@ -166,7 +167,7 @@ test('net.js: through the game server, then back to Supabase when it goes away',
     A = netPlayer(b, 'la', cfg, { WebSocket, token: 'test:acc-a:A', setTimeout }),
     B = netPlayer(b, 'lb', cfg, { WebSocket, token: 'test:acc-b:B', setTimeout });
   const hits = [];
-  B.Net.on('hit', h => hits.push(h));
+  B.Net.on('hurt', h => hits.push(h));
   try {
     await A.Net.join('w', { id: 'la', name: 'A', color: '#fff' });
     await B.Net.join('w', { id: 'lb', name: 'B', color: '#fff' });
@@ -175,16 +176,18 @@ test('net.js: through the game server, then back to Supabase when it goes away',
     await wait(50);
     // each sees the other, and itself under its own id
     assert.ok(A.peers().some(p => p.id === 'la') && A.peers().some(p => p.id === 'acc-b'));
-    B.Net.sendPos({ id: 'lb', x: 8, y: 30, z: 6 });
+    B.Net.sendPos({ id: 'lb', x: 48, y: 30, z: 46 });
     await wait(30);
-    A.Net.sendPos({ id: 'la', x: 5, y: 30, z: 5 });
+    A.Net.sendPos({ id: 'la', x: 45, y: 30, z: 45 });
     await wait(50);
     assert.equal(B.got.at(-1)?.id, 'acc-a');
     assert.equal(b.billed, 0, 'nothing went through Supabase');
-    // a hit on B arrives addressed to B's own id
+    // a hit on B: the server takes B's hearts, and tells B who struck
     A.Net.sendHit({ from: 'la', to: 'acc-b', item: 107 });
     await wait(50);
-    assert.equal(hits[0]?.to, 'lb');
+    const pvp = hits.find(h => h.from);
+    assert.deepEqual([pvp?.from, pvp?.dmg], ['acc-a', 2]);
+    assert.equal(B.Net.hpServer, true);
     // the server goes away: back to Supabase's region channels
     await own.close();
     await wait(100);
@@ -246,14 +249,14 @@ test('a blow does the damage of the real weapon, at its own pace', async () => {
     await wait(50);
     a.send({ t: 'hit', to: 'vic', item: 301 });
     a.send({ t: 'hit', to: 'vic', item: 301 }); // too soon: dropped
-    await wait(50);
+    await wait(700); // (a blow leaves its target a moment before the next can land)
     b.send({ t: 'hit', to: 'vic', item: 301 }); // claims a Genesis Blade it doesn't have: bare hands
     b.send({ t: 'shot', x: 1, y: 31, z: 0, dx: 1, dy: 0, dz: 0 }); // no pistol: no bolt shown
     await wait(50);
-    const hits = c.of('hit');
+    const hits = c.of('hurt').filter(h => h.from); // (a night prowler may join in)
     assert.equal(hits.length, 2);
-    assert.deepEqual([hits[0].from, hits[0].item, hits[0].dmg], ['arm', 301, pvpDamage(301)]);
-    assert.deepEqual([hits[1].from, hits[1].item, hits[1].dmg], ['bare', 0, 1]);
+    assert.deepEqual([hits[0].from, hits[0].dmg], ['arm', pvpDamage(301)]);
+    assert.deepEqual([hits[1].from, hits[1].dmg], ['bare', 1]);
     assert.equal(c.of('shot').length, 0);
     [a, b, c].forEach(p => p.close());
   } finally {

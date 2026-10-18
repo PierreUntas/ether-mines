@@ -550,7 +550,7 @@ Net.on('chat', m => {
 // The attacker only reports a weapon id, never a damage number: dmg is computed here, on the receiving end.
 const lastHitFrom = new Map();
 Net.on('hit', p => {
-  if (p.to !== ME.id || !playing) return;
+  if (p.to !== ME.id || !playing || Net.hpServer) return; // (the game server keeps your hearts: it sends `hurt`)
   if (IGNORES.has((others.get(p.from)?.name || '').toLowerCase())) return;
   if (performance.now() < pvpGraceUntil) return; // just respawned
   if (sanctuary(P.x, P.z)) return; // my own true position — can't be spoofed by the attacker
@@ -655,6 +655,7 @@ setInterval(() => {
       on: BOARD ? BOARD.driver : 0, // in the back seat of that player's craft
       wd: POTION.ward > 0 ? 1 : 0, // under the Ward Incense: the game server's mobs don't see you
       ld: playerOnLadder() ? 1 : 0, // on a ladder: the game server's tower mobs hold their blows
+      ar: S.armor ? +S.armor : 0, // the plating you wear (the game server checks you own it)
     };
   const L = lastPos,
     moved =
@@ -668,7 +669,8 @@ setInterval(() => {
       p.rd !== L.rd ||
       p.on !== L.on ||
       p.wd !== L.wd ||
-      p.ld !== L.ld;
+      p.ld !== L.ld ||
+      p.ar !== L.ar;
   if (!moved && now - lastPosT < 4000) return;
   lastPos = p;
   lastPosT = now;
@@ -1150,6 +1152,8 @@ async function boot(world) {
         setTimeout(() => logEv('burn', 'Online save unavailable', 'progress kept in this browser (SQL schema needs to be run)'), 1500);
       }
     } else setTimeout(() => logEv('burn', 'Account unavailable', 'progress kept in this browser'), 1500);
+    // your hearts and plating, for the game server (it keeps the hearts from then on)
+    Net.setHello(() => ({ hp: S.hp, ar: S.armor ? +S.armor : 0 }));
     await Net.join(world, ME);
     if (Net.userId) {
       await syncInventory();

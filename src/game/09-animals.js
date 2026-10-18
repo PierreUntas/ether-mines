@@ -900,9 +900,13 @@ function attackAnimal(a) {
     a.dying = 0.4;
     Sound.animal(a.type, 1);
     if (S.hp < 10) {
-      S.hp++;
-      dirty = true;
-      updateHpUI();
+      if (Net.hpServer)
+        Net.sendHeal('hunt'); // your hearts live on the game server: it gives the heart
+      else {
+        S.hp++;
+        dirty = true;
+        updateHpUI();
+      }
       Sound.chime();
     }
   }

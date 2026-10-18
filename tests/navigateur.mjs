@@ -519,6 +519,43 @@ const srvMobs = await page.evaluate(async () => {
   return { cleared, drawn, moved, hit, bolt, gone };
 });
 if (Object.values(srvMobs).some(v => !v)) await fail('the game server runs the mobs: ' + JSON.stringify(srvMobs));
+// your hearts on the game server: this screen shows the blows it's told of, a fall, the hearts it gives
+// back, and asks it for a bed; the loot of a kill comes from it, not from this screen
+const srvHp = await page.evaluate(async () => {
+  const P = mines.P,
+    S = mines.S,
+    real = Object.getOwnPropertyDescriptor(Net, 'hpServer'),
+    realLoot = Object.getOwnPropertyDescriptor(Net, 'lootServer'),
+    heal = Net.sendHeal,
+    asked = [],
+    home = { x: P.x, y: P.y, z: P.z };
+  Object.defineProperty(Net, 'hpServer', { get: () => true, configurable: true });
+  Object.defineProperty(Net, 'lootServer', { get: () => true, configurable: true });
+  Net.sendHeal = k => asked.push(k);
+  S.hp = 10;
+  serverHurt({ dmg: 3, hp: 7, x: P.x + 1, z: P.z, kind: 'melee', res: 'hit' });
+  const shown = S.hp === 7;
+  tickPlayerHealth(10); // no hearts back here: the server gives them
+  const noRegen = S.hp === 7;
+  serverHurt({ dmg: 9, hp: 0, x: P.x + 1, z: P.z, kind: 'melee', res: 'hit', dead: 1 });
+  const fell = S.hp === 10 && Math.hypot(P.x - SPAWN.x - 0.5, P.z - SPAWN.z - 2.5) < 0.1;
+  const inv0 = S.inv[101] || 0;
+  lootMob('shadow'); // nothing asked of Supabase here
+  const before = S.inv[101] || 0;
+  const loot = { type: 'shadow', r: { ok: true, inv: { 101: inv0 + 1 }, item: 101 } };
+  applyServer(loot.r);
+  setInv(loot.r.inv, 'mob loot');
+  showLoot(loot.type, loot.r);
+  const paid = before === inv0 && (S.inv[101] || 0) === inv0 + 1;
+  Object.defineProperty(Net, 'hpServer', real);
+  Object.defineProperty(Net, 'lootServer', realLoot);
+  Net.sendHeal = heal;
+  S.hp = 10;
+  Object.assign(P, home);
+  hurtT = 0;
+  return { shown, noRegen, fell, paid };
+});
+if (Object.values(srvHp).some(v => !v)) await fail('your hearts on the game server: ' + JSON.stringify(srvHp));
 // the Front-Runner: shielded from outside its colosseum, blinks past you, calls two Sandwich Bots at half
 // health, and its fall mints the boots (which make you faster)
 const runner = await page.evaluate(async () => {

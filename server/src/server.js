@@ -15,14 +15,18 @@
 //
 // Configuration (environment variables): PORT (8080), SUPABASE_URL, SUPABASE_ANON_KEY (the public key,
 // the same as src/config.js), ALLOWED_ORIGINS (comma-separated; empty = any). AUTH_MODE=test (tests only)
-// accepts tokens of the form "test:<id>:<name>" without asking Supabase.
+// accepts tokens of the form "test:<id>:<name>" without asking Supabase. SUPABASE_SERVICE_KEY (a Fly
+// secret, never in the repository): with it, the server pays the mobs' loot and the tonic itself (the
+// srv_* functions, 041_game_server.sql), and tells Supabase it's up so the browsers can't claim loot.
 import { createServer } from 'node:http';
 import { WebSocketServer } from 'ws';
 import { MobsCore } from './shared.js';
 import { createTerrain, supabaseArea } from './terrain.js';
 import { createMobSim, TICK_MS } from './mobs.js';
+import { createHealth, BLADES, ARMOR } from './health.js';
 
-export const PROTOCOL = 1;
+// 2: the players' hearts live here (health.js): a browser that doesn't know it is turned away
+export const PROTOCOL = 2;
 // how far (horizontally, in blocks) each kind of message travels
 const RANGE = { pos: 160, mob: 64, shot: 96, hitMelee: 8, hitRanged: 40 };
 const REGION = 96; // the old region squares (src/net.js), still sent so older code paths keep working
@@ -38,6 +42,11 @@ const PISTOL = 206;
 const COOLDOWN = { melee: 450, ranged: 300 }; // ms between two blows (the game's own: 0.45 s, 0.35 s)
 const OWNED_EVERY = 60000; // ms between two looks at a player's weapons
 const OWNED_RETRY = 10000; // ...or sooner when they use one we didn't know about (just crafted)
+// what the server looks for in a player's inventory: the blades and the platings, and among their
+// uniques, the Plasma Pistol and the Merge Aegis
+const OWNED_INV = [...BLADES, ...Object.keys(ARMOR).map(Number)].filter(i => i !== 209),
+  OWNED_UNIQ = [206, 209];
+const PVP_FLOOR_MS = 700; // between two blows of the same player on the same target, whatever the weapon
 // Mobs (step 3): their health lives here. Each screen still moves its own copy of a mob, but a blow is
 // sent here, checked (the weapon you have, its pace, its reach) and taken off the mob's health, and
 // everyone nearby, the striker included, gets the health left. The server alone says when a mob dies,
@@ -80,8 +89,8 @@ async function ownedSupabase(cfg, token, id, world) {
     base = `${cfg.supabaseUrl}/rest/v1`,
     who = `user_id=eq.${encodeURIComponent(id)}&world=eq.${encodeURIComponent(world)}`;
   const [inv, uni] = await Promise.all([
-    fetch(`${base}/inventory?select=item,n&${who}&item=in.(106,107,301)`, { headers: h }),
-    fetch(`${base}/uniques?select=item&${who}&item=eq.${PISTOL}`, { headers: h }),
+    fetch(`${base}/inventory?select=item,n&${who}&item=in.(${OWNED_INV.join(',')})`, { headers: h }),
+    fetch(`${base}/uniques?select=item&${who}&item=in.(${OWNED_UNIQ.join(',')})`, { headers: h }),
   ]);
   if (!inv.ok || !uni.ok) return null;
   const set = new Set();
@@ -117,13 +126,28 @@ export function createGameServer(opts = {}) {
       .map(s => s.trim())
       .filter(Boolean),
     log: opts.log ?? (m => console.log(new Date().toISOString(), m)),
+    serviceKey: opts.serviceKey ?? process.env.SUPABASE_SERVICE_KEY ?? '',
   };
+  // the game server's own Supabase functions (srv_*), with the service key
+  const srv =
+    opts.srv ??
+    (async (fn, body) => {
+      const r = await fetch(`${cfg.supabaseUrl}/rest/v1/rpc/${fn}`, {
+        method: 'POST',
+        headers: { apikey: cfg.serviceKey, Authorization: 'Bearer ' + cfg.serviceKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error(`${fn}: ${r.status} ${(await r.text()).slice(0, 200)}`);
+      const t = await r.text();
+      return t ? JSON.parse(t) : null;
+    });
+  const pays = !!(cfg.serviceKey || opts.srv);
   const verify = cfg.authMode === 'test' ? (t, w) => Promise.resolve(verifyTest(t, w)) : (t, w) => verifySupabase(cfg, t, w);
   // tests: opts.owned(id) gives a player's weapons; by default in test mode, every weapon
   const owned =
     opts.owned ??
     (cfg.authMode === 'test'
-      ? () => Promise.resolve(new Set(Object.keys(WEAPONS).map(Number)))
+      ? () => Promise.resolve(new Set([...Object.keys(WEAPONS).map(Number), ...OWNED_INV, ...OWNED_UNIQ]))
       : p => ownedSupabase(cfg, p.token, p.id, p.world));
   async function refreshOwned(p) {
     if (p.ownedBusy) return;
@@ -144,6 +168,13 @@ export function createGameServer(opts = {}) {
     if (Date.now() - (p.ownedAt || 0) > OWNED_RETRY) refreshOwned(p);
     return 0;
   }
+  // does this player really have it (a blade they guard with, the plating they wear)?
+  function owns(p, item) {
+    if (p.owned && p.owned.has(item)) return true;
+    if (Date.now() - (p.ownedAt || 0) > OWNED_RETRY) refreshOwned(p);
+    return false;
+  }
+  const health = createHealth({ send: (p, m) => send(p, m), owns });
   const worlds = new Map(); // world -> Map(id -> player)
   const mobsOf = new Map(); // world -> Map(mob id -> { hp, by: Map(player id -> ms), at, down, deadUntil })
   function mobState(world, id, type, now, init) {
@@ -206,12 +237,30 @@ export function createGameServer(opts = {}) {
         }
         msg.dead = 1;
         msg.by = [...by];
+        if (pays) {
+          msg.paid = 1; // the server pays each of them itself (their screens don't ask)
+          payLoot(me.world, [...by], msg.both ? 'merge_twins' : type, at);
+        }
       }
     }
     if (sim) sims.get(me.world).sim.struck(id, msg.fx, msg.fz, s.hp);
     for (const k of ['x', 'y', 'z']) msg[k] = Math.round(msg[k] * 100) / 100;
     send(me, msg);
     relay(me, RANGE.mob, msg);
+  }
+  // the loot of a kill, for everyone who took part: Supabase rolls it (srv_loot_mob), each player is told
+  function payLoot(world, ids, type, at) {
+    const room = worlds.get(world);
+    for (const id of ids) {
+      const p = room && room.get(id),
+        where = p && p.pos ? p.pos : at;
+      srv('srv_loot_mob', { p_user: id, w: world, mob_type: type, ex: where.x, ey: where.y, ez: where.z })
+        .then(r => {
+          const q = worlds.get(world)?.get(id);
+          if (q) send(q, { t: 'loot', type, r });
+        })
+        .catch(e => cfg.log(`loot ${type} for ${id}: ${e.message}`));
+    }
   }
   // the worlds whose mobs run here: their terrain and their simulation, while someone plays there
   const sims = new Map(); // world -> { terrain, sim, last: Map(player id -> was empty) }
@@ -233,11 +282,24 @@ export function createGameServer(opts = {}) {
         (...a) => fetchArea(...a, world),
         m => cfg.log(world + ': ' + m),
       );
-      const sim = createMobSim({ terrain, ledger: id => mobsOf.get(world)?.get(id), send, log: cfg.log });
+      const sim = createMobSim({
+        terrain,
+        ledger: id => mobsOf.get(world)?.get(id),
+        send,
+        hurt: (p, dmg, x, z, kind) => health.hurt(p, dmg, x, z, kind),
+        open: (p, now) => health.open(p, now),
+        log: cfg.log,
+      });
       sims.set(world, (w = { terrain, sim, last: new Map() }));
     }
     return w;
   }
+  // Supabase is told the server is up for these worlds: while it is, the browsers can't claim loot
+  const beat = pays
+    ? setInterval(() => {
+        if (worlds.size) srv('srv_heartbeat', { worlds: [...worlds.keys()] }).catch(e => cfg.log('heartbeat: ' + e.message));
+      }, 60000)
+    : null;
   const simTick = setInterval(() => {
     const now = Date.now();
     for (const [world, w] of sims) {
@@ -248,6 +310,7 @@ export function createGameServer(opts = {}) {
         continue;
       }
       const players = [...room.values()];
+      for (const p of players) health.regen(p, now);
       try {
         w.sim.tick(players, TICK_MS / 1000, now);
       } catch (e) {
@@ -352,6 +415,7 @@ export function createGameServer(opts = {}) {
     };
     const leave = () => {
       if (!me) return;
+      health.leave(me);
       const m = worlds.get(me.world);
       if (m && m.get(me.id) === me) {
         m.delete(me.id);
@@ -411,11 +475,29 @@ export function createGameServer(opts = {}) {
           owned: null,
           lastHit: 0,
           lastMobHit: 0,
+          lastHitOn: new Map(),
+          armor: Number.isInteger(m.ar) ? m.ar : 0,
+          held: 0,
+          yaw: 0,
         };
+        health.join(me, m.hp);
         room.set(me.id, me);
         refreshOwned(me);
         // mobs: 1 — this server runs the world's mobs itself (the game then only draws them)
-        send(me, { t: 'welcome', id: me.id, name: me.name, color: me.color, protocol: PROTOCOL, mobs: simOf(world) ? 1 : 0 });
+        // mobs: 1 — this server runs the world's mobs itself (the game then only draws them); hp: your hearts
+        // live here; loot: it pays the loot (the game doesn't ask Supabase)
+        const sim = !!simOf(world);
+        send(me, {
+          t: 'welcome',
+          id: me.id,
+          name: me.name,
+          color: me.color,
+          protocol: PROTOCOL,
+          mobs: sim ? 1 : 0,
+          hp: sim ? me.hp : undefined,
+          loot: pays ? 1 : 0,
+        });
+        if (pays) srv('srv_heartbeat', { worlds: [world] }).catch(e => cfg.log('heartbeat: ' + e.message));
         sendPeers(world);
         return;
       }
@@ -426,6 +508,10 @@ export function createGameServer(opts = {}) {
         if (x === null || y === null || z === null) return;
         me.pos = { x, y, z };
         me.ward = !!m.wd; // under the Ward Incense: most mobs don't see you
+        me.yaw = num(m.yaw, 100) ?? me.yaw; // where you look: a guard only covers what's in front
+        me.held = Number.isInteger(m.h) ? m.h : 0;
+        if (Number.isInteger(m.ar) || m.ar === null) me.armor = m.ar || 0;
+        health.guard(me, !!m.gd);
         me.ladder = !!m.ld; // on a ladder: tower mobs hold their blows
         // what the others need to draw you: position and look, what you hold, mining, guard, hovercraft
         relay(me, RANGE.pos, {
@@ -456,7 +542,15 @@ export function createGameServer(opts = {}) {
         if (now - me.lastHit < (ranged ? COOLDOWN.ranged : COOLDOWN.melee)) return;
         if (Math.hypot(tgt.pos.x - me.pos.x, tgt.pos.z - me.pos.z) > (ranged ? RANGE.hitRanged : RANGE.hitMelee)) return;
         me.lastHit = now;
-        send(tgt, { t: 'hit', from: me.id, to: tgt.id, x: me.pos.x, y: me.pos.y, z: me.pos.z, item, dmg: pvpDamage(item) });
+        if (!sims.has(me.world)) {
+          // the hearts live on the screens (the server doesn't run this world's mobs): theirs settles it
+          send(tgt, { t: 'hit', from: me.id, to: tgt.id, x: me.pos.x, y: me.pos.y, z: me.pos.z, item, dmg: pvpDamage(item) });
+          return;
+        }
+        // no fighting in the sanctuary, and not twice in a row on the same player, whatever the weapon
+        if (MobsCore.sanctuary(tgt.pos.x, tgt.pos.z) || now - (me.lastHitOn.get(tgt.id) || 0) < PVP_FLOOR_MS) return;
+        me.lastHitOn.set(tgt.id, now);
+        health.hurt(tgt, pvpDamage(item), me.pos.x, me.pos.z, ranged ? 'bolt' : 'pvp', now, me.id);
       } else if (m.t === 'mob') {
         if ('item' in m) return mobBlow(me, m);
         // an older page (before step 3): its blow is only passed on, as before
@@ -493,6 +587,30 @@ export function createGameServer(opts = {}) {
         const s = { t: 'shot', id: me.id };
         for (const k of ['x', 'y', 'z', 'dx', 'dy', 'dz']) s[k] = num(m[k], 1e5) ?? 0;
         relay(me, RANGE.shot, s);
+      } else if (m.t === 'guard') {
+        // the guard up or down, the moment it happens (a parry is about timing)
+        health.guard(me, !!m.on);
+      } else if (m.t === 'heal') {
+        // a bed at night, a hunted animal; a tonic only when the server can't take it itself (no key)
+        const day = MobsCore.worldClock().day,
+          kind = str(m.kind, 8);
+        if (kind === 'tonic') {
+          if (pays || Date.now() - (me.healAt.tonicTrust || 0) < 20000) return;
+          me.healAt.tonicTrust = Date.now();
+          health.heal(me, 'tonic', false);
+        } else health.heal(me, kind, day <= 0.25 || day >= 0.78);
+      } else if (m.t === 'use') {
+        // an Ether Tonic: taken from the inventory by Supabase (srv_use_item), then it heals
+        if (!pays || m.item !== 303) return send(me, { t: 'used', item: m.item, r: { ok: false, err: 'not usable here' } });
+        srv('srv_use_item', { p_user: me.id, w: me.world, item: 303 })
+          .then(r => {
+            if (r && r.ok) health.heal(me, 'tonic', false);
+            send(me, { t: 'used', item: 303, r });
+          })
+          .catch(e => {
+            cfg.log('tonic: ' + e.message);
+            send(me, { t: 'used', item: 303, r: { ok: false, err: 'try again in a moment' } });
+          });
       } else if (m.t === 'parry') {
         // you parried a mob's blow: it reels back, stunned
         sims.get(me.world)?.sim.parry(me, str(m.id, 80));
@@ -529,6 +647,7 @@ export function createGameServer(opts = {}) {
         closed = true;
         clearInterval(tick);
         clearInterval(simTick);
+        clearInterval(beat);
         for (const w of sims.values()) w.terrain.close();
         clearInterval(pinger);
         for (const ws of wss.clients) ws.terminate();
