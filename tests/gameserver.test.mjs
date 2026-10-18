@@ -325,3 +325,31 @@ test('the Merge twins only stay down together', async () => {
   assert.deepEqual([end.hp, end.dead, end.both, end.by], [0, 1, 1, ['ta']]);
   a.close();
 });
+
+// step 4: the screen a mob is after leads it, the others follow
+test('the mobs a screen leads, and their bolts, reach the players nearby', async () => {
+  const a = await player('la1', 'A', 'w10'),
+    b = await player('lb1', 'B', 'w10'),
+    c = await player('lc1', 'C', 'w10');
+  a.send({ t: 'pos', x: 0, y: 30, z: 0 });
+  b.send({ t: 'pos', x: 10, y: 30, z: 0 });
+  c.send({ t: 'pos', x: 900, y: 30, z: 0 });
+  await wait(30);
+  const list = [
+    { id: '0,0|3|shadow', x: 1, y: 30, z: 0, r: 0.5, d: 1.2, f: 2 },
+    { id: 'nonsense', x: 1, y: 30, z: 0, r: 0, d: 1 },
+    { id: '0,0|4|bat', x: 'far', y: 30, z: 0, r: 0, d: 1 },
+    ...Array.from({ length: 30 }, (_, i) => ({ id: `0,0|${10 + i}|bat`, x: 1, y: 30, z: 0, r: 0, d: 1 })),
+  ];
+  a.send({ t: 'mobs', list });
+  a.send({ t: 'mobshot', id: '0,0|3|shadow', x: 1, y: 31, z: 0, vx: 8, vy: 0, vz: 0, c: 0x5fe8ff, s: 1.6 });
+  await wait(40);
+  const got = b.of('mobs')[0];
+  assert.equal(got.from, 'la1');
+  assert.deepEqual(got.list[0], { id: '0,0|3|shadow', x: 1, y: 30, z: 0, r: 0.5, d: 1.2, f: 2 });
+  assert.equal(got.list.length, 22, 'bad entries dropped, 24 at most looked at');
+  assert.equal(b.of('mobshot')[0]?.c, 0x5fe8ff);
+  assert.equal(c.of('mobs').length + c.of('mobshot').length, 0, 'too far: nothing');
+  assert.equal(a.of('mobs').length, 0, 'not back to the sender');
+  [a, b, c].forEach(p => p.close());
+});

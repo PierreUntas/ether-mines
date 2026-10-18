@@ -430,6 +430,57 @@ const served = await page.evaluate(async () => {
   return { waits, died, corrected, theirs, settled };
 });
 if (Object.values(served).some(v => !v)) await fail('mobs through the game server: ' + JSON.stringify(served));
+// one mob, one place: the screen it's after leads it and says where it is; another player's word makes
+// this screen follow instead, until that word stops coming
+const led = await page.evaluate(async () => {
+  const P = mines.P,
+    home = { x: P.x, y: P.y, z: P.z };
+  // out of the sanctuary (where no mob hunts), still among the loaded chunks
+  for (let r = 10; r < 60 && mobSafe(P.x, P.z); r += 2)
+    for (const [ox, oz] of [[r, 0], [-r, 0], [0, r], [0, -r]])
+      if (mobSafe(P.x, P.z) && !mobSafe(home.x + ox, home.z + oz) && MESH.has(ckey(cOf(home.x + ox), cOf(home.z + oz)))) {
+        P.x = home.x + ox;
+        P.z = home.z + oz;
+      }
+  const key = ckey(cOf(P.x), cOf(P.z)),
+    keep = mines.MOBS.get(key) || [],
+    a = mines.mkMob('shadow', key, 960, P.x + 3, P.y, P.z, null),
+    sent = [],
+    send = Net.sendMobs,
+    real = Object.getOwnPropertyDescriptor(Net, 'gameServer'),
+    fake = { t: 1, g: new THREE.Group() };
+  fake.g.position.set(P.x + 200, P.y, P.z);
+  others.set('far-friend', fake);
+  mines.MOBS.set(key, [...keep, a]);
+  Object.defineProperty(Net, 'gameServer', { get: () => true, configurable: true });
+  Net.sendMobs = p => sent.push(p);
+  updateMobs(0.2);
+  const leads = a.lead && sent.at(-1)?.list.some(e => e.id === `${key}|960|shadow`);
+  // a friend closer to it says it's after them, and where it stands: this screen follows
+  const id = `${key}|960|shadow`,
+    there = { x: P.x + 3, y: P.y, z: P.z + 2 };
+  mobsWord({ from: 'far-friend', list: [{ id, ...there, r: 1, d: 0.5, f: 0 }] });
+  for (let i = 0; i < 20; i++) updateMobs(0.05);
+  const p = a.g.position,
+    follows = !a.lead && Math.hypot(p.x - there.x, p.z - there.z) < 0.1;
+  // farther than this screen's own player: ignored
+  a.remote = null;
+  updateMobs(0.05);
+  mobsWord({ from: 'far-friend', list: [{ id, x: P.x + 9, y: P.y, z: P.z, r: 0, d: 50, f: 0 }] });
+  const kept = a.lead && !a.remote;
+  // the word stops: this screen takes it back
+  mobsWord({ from: 'far-friend', list: [{ id, ...there, r: 1, d: 0.5, f: 0 }] });
+  a.remote.t -= 1000;
+  updateMobs(0.05);
+  const back = !a.remote && a.lead;
+  Object.defineProperty(Net, 'gameServer', real);
+  Net.sendMobs = send;
+  others.delete('far-friend');
+  mines.MOBS.set(key, keep);
+  Object.assign(P, home);
+  return { leads, follows, kept, back };
+});
+if (Object.values(led).some(v => !v)) await fail('one mob, one place: ' + JSON.stringify(led));
 // the Front-Runner: shielded from outside its colosseum, blinks past you, calls two Sandwich Bots at half
 // health, and its fall mints the boots (which make you faster)
 const runner = await page.evaluate(async () => {

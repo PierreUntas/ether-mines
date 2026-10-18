@@ -20,6 +20,8 @@ window.Net = (() => {
     sign: [],
     mob: [],
     shot: [],
+    mobs: [], // where the mobs another screen leads stand (16-mobs.js)
+    mobshot: [],
   };
   const GS_PROTOCOL = 1; // must match server/src/server.js PROTOCOL
   let gs = null, // the game server's WebSocket
@@ -307,7 +309,7 @@ window.Net = (() => {
           const list = (m.list || []).map(p => ({ ...p, id: mine(p.id) }));
           peersNow = list;
           emit('peers', list);
-        } else if (m.t === 'pos' || m.t === 'hit' || m.t === 'mob' || m.t === 'shot') {
+        } else if (['pos', 'hit', 'mob', 'shot', 'mobs', 'mobshot'].includes(m.t)) {
           const t = m.t;
           delete m.t;
           for (const k of ['id', 'from', 'to', 'on']) if (k in m) m[k] = mine(m[k]);
@@ -427,6 +429,9 @@ window.Net = (() => {
   const sendShot = p => {
     if (anyoneNear(peersNow)) sendRegion('shot', p);
   };
+  // the mobs your screen leads, and their bolts (16-mobs.js): through the game server only
+  const sendMobs = p => gsReady && gsSend({ ...p, t: 'mobs' });
+  const sendMobShot = p => gsReady && gsSend({ ...p, t: 'mobshot' });
   // is anyone else close enough to receive your moves?
   // (through the game server: anyone else in the world, the server itself keeps it to the players nearby)
   const anyoneNear = peers =>
@@ -541,6 +546,8 @@ window.Net = (() => {
     sendPos,
     sendHit,
     sendMob,
+    sendMobs,
+    sendMobShot,
     sendShot,
     setRegion,
     setLook,

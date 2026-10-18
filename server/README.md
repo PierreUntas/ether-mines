@@ -28,6 +28,10 @@ the game falls back to those channels on its own and tries the server again ever
   own loot from Supabase, as before), and keeps it dead for 2 minutes (25 s for a network attack's node).
   The Merge twins only stay down if both fall within 12 s. `MOB_HP` must match `MK` in
   `src/game/16-mobs.js` (a test checks). An older page (blows without `item`) is only relayed, as before.
+- **One mob, one place.** The screen of the player a mob is after leads it: about 8 times a second it
+  sends where the mobs it leads stand (`mobs`, 24 at most), and the bolts they fire (`mobshot`). The server
+  passes them on to the players nearby, whose screens stop moving their own copy and follow. If two
+  screens both lead the same mob, the one whose player stands closer keeps it.
 - **The list of players.** Every two seconds, everyone in a world gets the list of the others with their
   position (the online badge, `/join`).
 - **One connection per account.** A second tab or a reconnection replaces the older connection.

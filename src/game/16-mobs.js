@@ -1108,6 +1108,7 @@ function remoteMobHit(m) {
 }
 // the mob is put back where the striker sees it
 function nudgeMob(a, m) {
+  if (a.lead) return; // your screen leads this one: the others follow you, not the other way round
   const p = a.g.position;
   if (Math.hypot(p.x - m.x, p.z - m.z) > 1.5) p.set(m.x, m.y, m.z);
   else {
@@ -1296,7 +1297,33 @@ function fireMobBolt(a, R) {
     oz: z,
   });
   Sound.hit('pierre');
+  // the players nearby see it fly too (harmless on their screens: it's aimed at you)
+  if (a.lead && typeof Net !== 'undefined' && Net.gameServer && Net.sendMobShot)
+    Net.sendMobShot({
+      id: mobId(a),
+      x: +x.toFixed(2),
+      y: +y.toFixed(2),
+      z: +z.toFixed(2),
+      vx: +(((tx - x) / dd) * R.speed).toFixed(2),
+      vy: +(((ty - y) / dd) * R.speed).toFixed(2),
+      vz: +(((tz - z) / dd) * R.speed).toFixed(2),
+      c: R.color,
+      s: R.size || 1.6,
+    });
 }
+// a mob's bolt fired at another player: drawn here, harmless (GHOST_BOLTS)
+Net.on('mobshot', s => {
+  if (!s || ![s.x, s.y, s.z, s.vx, s.vy, s.vz, s.c, s.s].every(Number.isFinite)) return;
+  if (Math.hypot(s.x - P.x, s.y - P.y, s.z - P.z) > 80) return;
+  const color = s.c & 0xffffff;
+  if (!mobBoltMats.has(color)) mobBoltMats.set(color, new THREE.MeshBasicMaterial({ color }));
+  const m = new THREE.Mesh(boltGeo, mobBoltMats.get(color));
+  m.scale.setScalar(clamp(s.s, 0.5, 3));
+  m.position.set(s.x, s.y, s.z);
+  scene.add(m);
+  GHOST_BOLTS.push({ m, vx: s.vx, vy: s.vy, vz: s.vz, life: MOB_BOLT_LIFE });
+  if (Math.hypot(s.x - P.x, s.z - P.z) < 30) Sound.hit('pierre');
+});
 function rangedAttack(a, K, aggro, d, dt) {
   const R = K.ranged;
   if (a.shots > 0) {
@@ -1659,11 +1686,91 @@ function frontRun(a, K, tg, d, aggro, dt) {
   clayBurst(nx - 0.5, p.y + 1, nz - 0.5, etherMats[1]);
   Sound.shoot();
 }
+// legs, wings, rings and the rest: how a mob looks alive, whoever moves it
+function animateMob(a, dt, moving, aggro) {
+  const p = a.g.position;
+  a.walk = (a.walk || 0) + dt * (moving ? 8 : 1.5);
+  if (a.parts.legs.length) a.parts.legs.forEach((l, i2) => (l.rotation.x = (i2 % 2 ? -1 : 1) * Math.sin(a.walk) * 0.5));
+  else if (a.parts.wings) {
+    const T = Date.now() / 1000;
+    a.parts.wings.forEach((w, i2) => (w.rotation.z = (i2 ? 1 : -1) * (0.3 + Math.sin(T * 8 + a.ph) * 0.5)));
+  } else if (a.parts.tail) a.parts.tail.rotation.y = Math.sin((Date.now() / 1000) * 4 + a.ph) * 0.4;
+  else if (a.parts.ring)
+    a.parts.ring.rotation.y += dt * 2.2; // the staked cubes orbit the crystal
+  else if (a.parts.rings)
+    a.parts.rings.forEach((r, i2) => (r.rotation.y += dt * (1.2 + i2 * 0.7))); // the Plasma Core's cage spins
+  else p.y += Math.sin(a.walk) * 0.01; // the shadow floats, no legs
+  if (a.parts.drill) a.parts.drill.rotation.y += dt * (aggro ? 14 : 3); // the rig's drill never stops
+  if (a.parts.crown) a.parts.crown.rotation.y += dt * (a.frenzy ? 5 : 2); // the priority-fee coins
+  if (a.parts.scan) a.parts.scan.position.x = Math.sin((Date.now() / 1000) * (aggro ? 7 : 2.5) + a.ph) * 0.22; // the visor sweeps
+}
 let mobT = 0;
 // who a mob goes after: the closest player within its reach, you or one of the others nearby (their
 // avatars, 14-startup.js). Every screen runs the same choice, so a mob chases the same person
 // everywhere. A little stickiness (1.5 blocks) keeps it from flipping between two players side by side.
 // The Ward Incense hides only you, and only from the mobs it fools.
+// ---------- one mob, one place: whoever it's after leads it ----------
+// Through the game server, the screen of the player a mob is after moves it (its own simulation, as
+// before) and sends where it stands about 8 times a second; the other screens nearby stop moving their
+// copy and follow it, a little behind. Its blows land on its target's screen, as before; its bolts are
+// shown to the others (harmless there). If two screens both think the mob is after them, the one whose
+// player stands closer keeps it. No word for FOLLOW_MS: this screen takes it back.
+const FOLLOW_MS = 700,
+  MOB_SYNC_S = 0.12;
+let mobSyncT = 0;
+function sendLedMobs(dt) {
+  mobSyncT -= dt;
+  if (mobSyncT > 0) return;
+  mobSyncT = MOB_SYNC_S;
+  if (typeof Net === 'undefined' || !Net.gameServer || !Net.sendMobs || !others.size) return;
+  const list = [];
+  for (const l of MOBS.values())
+    for (const a of l)
+      if (a.lead && a.hp > 0 && list.length < 24) {
+        const p = a.g.position;
+        list.push({
+          id: mobId(a),
+          x: +p.x.toFixed(2),
+          y: +p.y.toFixed(2),
+          z: +p.z.toFixed(2),
+          r: +a.g.rotation.y.toFixed(2),
+          d: +a.leadD.toFixed(2),
+          f: (a.rushT > 0 ? 1 : 0) | (a.frenzy ? 2 : 0),
+        });
+      }
+  if (list.length) Net.sendMobs({ list });
+}
+Net.on('mobs', m => mobsWord(m));
+function mobsWord(m) {
+  if (!m || !Array.isArray(m.list) || m.from === ME.id) return;
+  for (const e of m.list) {
+    const a = e && typeof e.id === 'string' && findMob(e.id);
+    if (!a || a.hp <= 0 || ![e.x, e.y, e.z, e.r].every(Number.isFinite)) continue;
+    if (a.lead && a.leadD < (e.d ?? Infinity) - 0.5) continue; // you stand closer: you keep it
+    a.lead = false;
+    a.remote = { x: e.x, y: e.y, z: e.z, r: e.r, t: performance.now() };
+    if (e.f & 2) a.frenzy = true;
+  }
+}
+function followMob(a, dt) {
+  const p = a.g.position,
+    R = a.remote,
+    k = Math.min(1, dt * 10),
+    ox = p.x,
+    oz = p.z;
+  if (Math.hypot(R.x - p.x, R.y - p.y, R.z - p.z) > 4)
+    p.set(R.x, R.y, R.z); // a blink, a long gap: straight there
+  else {
+    p.x += (R.x - p.x) * k;
+    p.y += (R.y - p.y) * k;
+    p.z += (R.z - p.z) * k;
+  }
+  let dr = R.r - a.g.rotation.y;
+  dr = Math.atan2(Math.sin(dr), Math.cos(dr));
+  a.g.rotation.y += dr * k;
+  a.atkT = Math.max(0, (a.atkT || 0) - dt);
+  animateMob(a, dt, Math.hypot(p.x - ox, p.z - oz) > dt * 0.3, true);
+}
 function mobTarget(a, p) {
   const cands = [];
   if (!wardFools(a)) cands.push({ id: 'me', x: P.x, y: P.y, z: P.z, me: true });
@@ -1774,6 +1881,16 @@ function updateMobs(dt) {
         d = tg ? Math.hypot(p.x - tg.x, p.y - tg.y, p.z - tg.z) : Infinity, // in 3D: a buried mob doesn't bite through rock
         aggro = d < K.aggro && !mobSafe(p.x, p.z),
         ty0 = tg ? tg.y : P.y;
+      // another player leads it (it's after them): this screen only follows where their screen puts it
+      if (a.remote && performance.now() - a.remote.t < FOLLOW_MS) {
+        a.lead = false;
+        if (K.blink) frontRun(a, K, tg, d, false, dt); // its Sandwich Bots still come at half health
+        followMob(a, dt);
+        continue;
+      }
+      a.remote = null;
+      a.lead = !!(aggro && tg && tg.me); // it's after you: your screen leads it, the others follow
+      a.leadD = d;
       let tx, tz;
       if (aggro) {
         tx = tg.x;
@@ -1896,20 +2013,7 @@ function updateMobs(dt) {
         const gr = groundAt(nx, nz, p.y + 0.3, false, 1);
         if (gr && !gr.water) p.y += (gr.y - p.y) * Math.min(1, dt * 10);
       }
-      a.walk = (a.walk || 0) + dt * (dd > 0.1 && moved ? 8 : 1.5);
-      if (a.parts.legs.length) a.parts.legs.forEach((l, i2) => (l.rotation.x = (i2 % 2 ? -1 : 1) * Math.sin(a.walk) * 0.5));
-      else if (a.parts.wings) {
-        const T = Date.now() / 1000;
-        a.parts.wings.forEach((w, i2) => (w.rotation.z = (i2 ? 1 : -1) * (0.3 + Math.sin(T * 8 + a.ph) * 0.5)));
-      } else if (a.parts.tail) a.parts.tail.rotation.y = Math.sin((Date.now() / 1000) * 4 + a.ph) * 0.4;
-      else if (a.parts.ring)
-        a.parts.ring.rotation.y += dt * 2.2; // the staked cubes orbit the crystal
-      else if (a.parts.rings)
-        a.parts.rings.forEach((r, i2) => (r.rotation.y += dt * (1.2 + i2 * 0.7))); // the Plasma Core's cage spins
-      else p.y += Math.sin(a.walk) * 0.01; // the shadow floats, no legs
-      if (a.parts.drill) a.parts.drill.rotation.y += dt * (aggro ? 14 : 3); // the rig's drill never stops
-      if (a.parts.crown) a.parts.crown.rotation.y += dt * (a.frenzy ? 5 : 2); // the priority-fee coins
-      if (a.parts.scan) a.parts.scan.position.x = Math.sin((Date.now() / 1000) * (aggro ? 7 : 2.5) + a.ph) * 0.22; // the visor sweeps
+      animateMob(a, dt, dd > 0.1 && moved, aggro);
       a.atkT = Math.max(0, (a.atkT || 0) - dt);
       const holdFire = a.ladder && onLadderNow; // a tower mob waits while you climb
       // it only strikes on the screen of whoever it's after: another player's screen takes the hit for them
@@ -1933,4 +2037,5 @@ function updateMobs(dt) {
         }
       }
     }
+  sendLedMobs(dt);
 }

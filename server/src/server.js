@@ -429,6 +429,23 @@ export function createGameServer(opts = {}) {
           fx: num(m.fx, 1e5) ?? 0,
           fz: num(m.fz, 1e5) ?? 0,
         });
+      } else if (m.t === 'mobs') {
+        // where the mobs your screen leads stand (the ones after you): the players nearby follow them
+        if (!Array.isArray(m.list)) return;
+        const list = [];
+        for (const e of m.list.slice(0, 24)) {
+          if (!e || !MOB_ID_RE.test(str(e.id, 80))) continue;
+          const v = ['x', 'y', 'z', 'r', 'd'].map(k => num(e[k], 1e5));
+          if (v.some(n => n === null)) continue;
+          const [x, y, z, r, d] = v;
+          list.push({ id: e.id, x, y, z, r, d, f: Number.isInteger(e.f) ? e.f & 255 : 0 });
+        }
+        if (list.length) relay(me, RANGE.mob, { t: 'mobs', from: me.id, list });
+      } else if (m.t === 'mobshot') {
+        // a bolt one of those mobs fired at you: shown to the others
+        const s = { t: 'mobshot', from: me.id, id: str(m.id, 80) };
+        for (const k of ['x', 'y', 'z', 'vx', 'vy', 'vz', 'c', 's']) s[k] = num(m[k], 1e8) ?? 0;
+        relay(me, RANGE.shot, s);
       } else if (m.t === 'shot') {
         if (weaponOf(me, PISTOL) !== PISTOL) return; // no pistol, no bolt to show
         const s = { t: 'shot', id: me.id };
