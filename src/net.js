@@ -323,7 +323,18 @@ window.Net = (() => {
           emit('status', 'GAME_SERVER');
           resolve(true);
         } else if (m.t === 'bye') {
-          if (m.reason === 'version' || m.reason === 'world') gsOff = true;
+          if (m.reason === 'world') gsOff = true;
+          else if (m.reason === 'version') {
+            // a newer game server: this page is out of date (reload it); an older one: it's being updated,
+            // try again in a little while — meanwhile everyone else may be on it, out of sight from here
+            if (Number(m.protocol) > GS_PROTOCOL) {
+              gsOff = true;
+              emit('status', 'GAME_OUTDATED');
+            } else {
+              gsRetry = Math.max(gsRetry, 3);
+              emit('status', 'SERVER_OUTDATED');
+            }
+          }
           // another tab or device of yours took over: no automatic retry, but coming back to this page takes it back
           else if (m.reason === 'elsewhere') gsKicked = true;
         } else if (m.t === 'peers') {

@@ -339,7 +339,18 @@ export function createGameServer(opts = {}) {
       const players = [...worlds.values()].reduce((n, m) => n + m.size, 0);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       const mobs = [...sims.values()].reduce((n, w) => n + w.sim.count(), 0);
-      res.end(JSON.stringify({ ok: true, protocol: PROTOCOL, players, worlds: worlds.size, mobs, ...stats }));
+      // machine: which Fly machine answered (there must be only one: every player has to be on the same)
+      res.end(
+        JSON.stringify({
+          ok: true,
+          protocol: PROTOCOL,
+          machine: process.env.FLY_MACHINE_ID || null,
+          players,
+          worlds: worlds.size,
+          mobs,
+          ...stats,
+        }),
+      );
       return;
     }
     res.writeHead(404);
@@ -414,7 +425,7 @@ export function createGameServer(opts = {}) {
       last = Date.now();
     const bye = reason => {
       try {
-        ws.send(JSON.stringify({ t: 'bye', reason }));
+        ws.send(JSON.stringify({ t: 'bye', reason, protocol: PROTOCOL }));
       } catch {}
       ws.close(4000, reason);
     };

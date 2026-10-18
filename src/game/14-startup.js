@@ -547,12 +547,15 @@ let PEER_NAMES = [],
   minersStarted = false,
   minersTimer = 0;
 const fmtN = n => n.toLocaleString('en-US');
+let outdatedTold = false;
 function onlineBadge() {
   const n = PEER_NAMES,
     miners = MINERS === null ? 0 : Math.max(MINERS, 1), // you count before your first save reaches the server
     all = miners ? ` · ${fmtN(miners)} ${miners > 1 ? 'miners' : 'miner'}` : '',
     more = n.length > 3 ? ` +${n.length - 3}` : '';
-  $('onlineTxt').textContent = `${fmtN(n.length)} online${all} · ${n.slice(0, 3).join(', ')}${more}`;
+  // ⚡: through the game server (everyone on it sees each other); without it, through Supabase's relays
+  const via = CONFIG.GAME_SERVER ? (Net.gameServer ? ' ⚡' : ' · relay') : '';
+  $('onlineTxt').textContent = `${fmtN(n.length)} online${via}${all} · ${n.slice(0, 3).join(', ')}${more}`;
 }
 // asked when you join, then every minute; a failed request is tried again 10 seconds later
 async function refreshMiners() {
@@ -625,6 +628,17 @@ Net.on('status', s => {
     );
   }
   if (s === 'CLOSED' || s === 'CHANNEL_ERROR') $('onlineTxt').textContent = 'Connection lost · reconnecting…';
+  // the game server and this page don't speak the same version: say so, players can't see each other otherwise
+  if (s === 'GAME_OUTDATED' && !outdatedTold) {
+    outdatedTold = true;
+    logEv('burn', 'A new version of the game is out', 'reload the page to play with the others');
+    toastInfo('A new version of the game is out: reload the page to see the other players.');
+  }
+  if (s === 'SERVER_OUTDATED' && !outdatedTold) {
+    outdatedTold = true;
+    logEv('burn', 'The game server is being updated', 'the others may not see you for a moment');
+  }
+  if (s === 'GAME_SERVER' || s === 'GAME_SERVER_LOST') onlineBadge();
 });
 function updateOthers(dt) {
   const now = performance.now();
