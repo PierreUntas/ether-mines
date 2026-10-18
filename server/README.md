@@ -16,6 +16,11 @@ the game falls back to those channels on its own and tries the server again ever
 - **Who receives what.** Moves go to the players within 160 blocks, a blow on a mob within 64, a shot
   within 96. A PvP hit goes only to its target, and only if the target stands within reach (8 blocks,
   40 with the Plasma Pistol) by the server's own positions.
+- **PvP is settled here.** The server reads which weapons each player really owns (their `inventory` and
+  `uniques` rows, with their own token, refreshed every minute; the browser sends its renewed token as
+  `token`). A blow with a weapon you don't have counts as bare hands; blows faster than the weapon's pace
+  (450 ms, 300 ms for the pistol) are dropped; the damage (`dmg`) is computed here from `WEAPONS`, which a
+  test keeps equal to `rules.js`. A plasma shot is only shown to others if you own the pistol.
 - **The list of players.** Every two seconds, everyone in a world gets the list of the others with their
   position (the online badge, `/join`).
 - **One connection per account.** A second tab or a reconnection replaces the older connection.

@@ -26,7 +26,8 @@ window.Net = (() => {
     gsReady = false, // welcomed by it: real time goes through it
     gsOff = false, // it turned us away for good (an older or newer protocol): don't insist
     gsRetry = 0,
-    gsSelf = null; // your id on the game server (your account's)
+    gsSelf = null, // your id on the game server (your account's)
+    gsTokenWatch = false;
   let sb = null,
     ch = null,
     world = 'principal',
@@ -281,6 +282,15 @@ window.Net = (() => {
         // the server names players by their account; the game knows itself by its own id (me.id)
         const mine = v => (v === gsSelf ? me.id : v);
         if (m.t === 'welcome') {
+          if (!gsTokenWatch) {
+            // the session token is renewed every hour: the game server keeps the fresh one (to check your weapons)
+            gsTokenWatch = true;
+            try {
+              sb.auth.onAuthStateChange((ev, session) => {
+                if (session && session.access_token && ev === 'TOKEN_REFRESHED') gsSend({ t: 'token', token: session.access_token });
+              });
+            } catch (err) {}
+          }
           gsSelf = m.id;
           welcomed = true;
           gsReady = true;

@@ -559,7 +559,9 @@ Net.on('hit', p => {
   // plausibility, not a trust boundary: melee range, or the Plasma Pistol's bolt range plus slack
   if (Math.hypot(P.x - p.x, P.y - p.y, P.z - p.z) > (ITEM[p.item]?.ranged ? 30 : 6.5)) return;
   lastHitFrom.set(p.from, performance.now());
-  hurtPlayer(pvpDamage(p.item), p.x, p.z, ITEM[p.item]?.ranged ? 'bolt' : 'pvp');
+  // through the game server, the damage is its own (it checked the weapon you really have); otherwise, from the weapon named
+  const dmg = Net.gameServer && Number.isFinite(p.dmg) ? clamp(Math.round(p.dmg), 1, 10) : pvpDamage(p.item);
+  hurtPlayer(dmg, p.x, p.z, ITEM[p.item]?.ranged ? 'bolt' : 'pvp');
 });
 // weapons are tuned against mobs (10 to 60 hp): against a player's 10 hearts they'd kill in two blows.
 // Between players a hit does 40% of it, at least one heart: a fight takes several clean hits.

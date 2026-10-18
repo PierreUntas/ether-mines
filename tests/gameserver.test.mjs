@@ -112,7 +112,7 @@ test('a blow on a player reaches only that player, and only within reach', async
   assert.equal(b.of('hit')[0].from, 'a4');
   assert.equal(c.of('hit').length, 0);
   b.send({ t: 'pos', x: 30, y: 30, z: 0 });
-  await wait(30);
+  await wait(500);
   a.send({ t: 'hit', to: 'b4', item: 107 });
   a.send({ t: 'hit', to: 'b4', item: 206 }); // the pistol reaches further
   await wait(30);
@@ -209,4 +209,55 @@ test('only the game pages may connect', () => {
   assert.ok(!originOk(list, 'https://ethermines.org.evil.example'));
   assert.ok(!originOk(list, undefined));
   assert.ok(originOk([], 'anything'), 'no list: open (local tests)');
+});
+
+// step 2: PvP settled by the server: the weapon you really have, its pace, the damage
+import { WEAPONS, pvpDamage } from '../server/src/server.js';
+import { readFileSync } from 'node:fs';
+test("the server's weapons match the rules", () => {
+  new Function(readFileSync(new URL('../supabase/functions/_shared/rules.js', import.meta.url), 'utf8'))();
+  const { ITEM } = globalThis.Rules;
+  for (const [id, dmg] of Object.entries(WEAPONS)) assert.equal(ITEM[id].dmg, dmg, ITEM[id].n);
+  const known = Object.entries(ITEM)
+    .filter(([, it]) => it.dmg)
+    .map(([id]) => +id);
+  assert.deepEqual(known.sort(), Object.keys(WEAPONS).map(Number).sort(), 'every weapon of the rules is known here');
+});
+test('a blow does the damage of the real weapon, at its own pace', async () => {
+  const own = createGameServer({
+      port: 0,
+      authMode: 'test',
+      log: () => {},
+      owned: p => Promise.resolve(new Set(p.id === 'arm' ? [301] : [])),
+    }),
+    port = await own.listen();
+  const saved = url;
+  url = `ws://127.0.0.1:${port}`;
+  try {
+    const a = await player('arm', 'Armed', 'w7'),
+      b = await player('bare', 'Bare', 'w7'),
+      c = await player('vic', 'Victim', 'w7');
+    for (const [p, x] of [
+      [a, 0],
+      [b, 1],
+      [c, 2],
+    ])
+      p.send({ t: 'pos', x, y: 30, z: 0 });
+    await wait(50);
+    a.send({ t: 'hit', to: 'vic', item: 301 });
+    a.send({ t: 'hit', to: 'vic', item: 301 }); // too soon: dropped
+    await wait(50);
+    b.send({ t: 'hit', to: 'vic', item: 301 }); // claims a Genesis Blade it doesn't have: bare hands
+    b.send({ t: 'shot', x: 1, y: 31, z: 0, dx: 1, dy: 0, dz: 0 }); // no pistol: no bolt shown
+    await wait(50);
+    const hits = c.of('hit');
+    assert.equal(hits.length, 2);
+    assert.deepEqual([hits[0].from, hits[0].item, hits[0].dmg], ['arm', 301, pvpDamage(301)]);
+    assert.deepEqual([hits[1].from, hits[1].item, hits[1].dmg], ['bare', 0, 1]);
+    assert.equal(c.of('shot').length, 0);
+    [a, b, c].forEach(p => p.close());
+  } finally {
+    url = saved;
+    await own.close();
+  }
 });

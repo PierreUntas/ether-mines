@@ -26,6 +26,14 @@ const PEERS_EVERY = 2000; // ms between two lists of players with their position
 const MAX_MSG = 2048; // bytes
 const RATE = { perSec: 40, burst: 80 }; // messages a connection may send
 const WORLD_RE = /^[a-z0-9-]{1,32}$/;
+// PvP, settled here (step 2): the weapons' damage (ITEM[id].dmg in supabase/functions/_shared/rules.js; a
+// test checks they match), 40% of it between players and at least one heart, like the game always did
+export const WEAPONS = { 106: 2.5, 107: 5, 301: 7.5, 206: 4 };
+export const pvpDamage = item => Math.max(1, Math.round((WEAPONS[item] || 1) * 0.4));
+const PISTOL = 206;
+const COOLDOWN = { melee: 450, ranged: 300 }; // ms between two blows (the game's own: 0.45 s, 0.35 s)
+const OWNED_EVERY = 60000; // ms between two looks at a player's weapons
+const OWNED_RETRY = 10000; // ...or sooner when they use one we didn't know about (just crafted)
 
 const num = (v, lim = 1e6) => (Number.isFinite(v) && Math.abs(v) <= lim ? v : null);
 const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
@@ -46,6 +54,21 @@ async function verifySupabase(cfg, token, world) {
   if (!row || !row.name) return null;
   return { id: user.id, name: row.name, color: row.color || '#8a7bef' };
 }
+// which weapons this player really has: blades in the inventory, the Plasma Pistol among the uniques
+async function ownedSupabase(cfg, token, id, world) {
+  const h = { apikey: cfg.anonKey, Authorization: 'Bearer ' + token },
+    base = `${cfg.supabaseUrl}/rest/v1`,
+    who = `user_id=eq.${encodeURIComponent(id)}&world=eq.${encodeURIComponent(world)}`;
+  const [inv, uni] = await Promise.all([
+    fetch(`${base}/inventory?select=item,n&${who}&item=in.(106,107,301)`, { headers: h }),
+    fetch(`${base}/uniques?select=item&${who}&item=eq.${PISTOL}`, { headers: h }),
+  ]);
+  if (!inv.ok || !uni.ok) return null;
+  const set = new Set();
+  for (const r of await inv.json()) if (r.n > 0) set.add(r.item);
+  for (const r of await uni.json()) set.add(r.item);
+  return set;
+}
 function verifyTest(token) {
   const m = /^test:([\w-]{1,64}):(.{1,20})$/.exec(token || '');
   return m ? { id: m[1], name: m[2], color: '#8a7bef' } : null;
@@ -56,7 +79,11 @@ export function originOk(list, origin) {
   if (!list.length) return true;
   if (!origin) return false;
   return list.some(o =>
-    o.startsWith('*.') ? origin.startsWith('https://') && origin.endsWith(o.slice(1)) : o.endsWith(':*') ? origin.startsWith(o.slice(0, -1)) : origin === o,
+    o.startsWith('*.')
+      ? origin.startsWith('https://') && origin.endsWith(o.slice(1))
+      : o.endsWith(':*')
+        ? origin.startsWith(o.slice(0, -1))
+        : origin === o,
   );
 }
 export function createGameServer(opts = {}) {
@@ -72,6 +99,31 @@ export function createGameServer(opts = {}) {
     log: opts.log ?? (m => console.log(new Date().toISOString(), m)),
   };
   const verify = cfg.authMode === 'test' ? (t, w) => Promise.resolve(verifyTest(t, w)) : (t, w) => verifySupabase(cfg, t, w);
+  // tests: opts.owned(id) gives a player's weapons; by default in test mode, every weapon
+  const owned =
+    opts.owned ??
+    (cfg.authMode === 'test'
+      ? () => Promise.resolve(new Set(Object.keys(WEAPONS).map(Number)))
+      : p => ownedSupabase(cfg, p.token, p.id, p.world));
+  async function refreshOwned(p) {
+    if (p.ownedBusy) return;
+    p.ownedBusy = true;
+    p.ownedAt = Date.now();
+    try {
+      const set = await owned(p);
+      if (set) p.owned = set;
+    } catch (e) {
+      cfg.log('weapons of ' + p.id + ': ' + e.message);
+    }
+    p.ownedBusy = false;
+  }
+  // the weapon a blow is really struck with: the one claimed if this player has it, bare hands otherwise
+  function weaponOf(p, item) {
+    if (!Number.isInteger(item) || !WEAPONS[item]) return 0;
+    if (p.owned && p.owned.has(item)) return item;
+    if (Date.now() - (p.ownedAt || 0) > OWNED_RETRY) refreshOwned(p);
+    return 0;
+  }
   const worlds = new Map(); // world -> Map(id -> player)
   const stats = { connections: 0, messages: 0 };
 
@@ -122,7 +174,10 @@ export function createGameServer(opts = {}) {
     }
   }
   const tick = setInterval(() => {
-    for (const w of worlds.keys()) sendPeers(w);
+    for (const [w, room] of worlds) {
+      sendPeers(w);
+      for (const p of room.values()) if (Date.now() - (p.ownedAt || 0) > OWNED_EVERY) refreshOwned(p);
+    }
   }, PEERS_EVERY);
   // a dead connection (a closed laptop) is dropped after a missed ping
   const pinger = setInterval(() => {
@@ -200,8 +255,19 @@ export function createGameServer(opts = {}) {
           send(old, { t: 'bye', reason: 'elsewhere' });
           old.ws.close(4001, 'elsewhere');
         }
-        me = { ...who, world, ws, title: str(m.title, 40), look: str(m.look, 200), pos: null };
+        me = {
+          ...who,
+          world,
+          ws,
+          token: str(m.token, 4096),
+          title: str(m.title, 40),
+          look: str(m.look, 200),
+          pos: null,
+          owned: null,
+          lastHit: 0,
+        };
         room.set(me.id, me);
+        refreshOwned(me);
         send(me, { t: 'welcome', id: me.id, name: me.name, color: me.color, protocol: PROTOCOL });
         sendPeers(world);
         return;
@@ -233,10 +299,15 @@ export function createGameServer(opts = {}) {
         // only to its target, and only if the target really stands within reach of you here
         const room = worlds.get(me.world),
           tgt = room && room.get(str(m.to, 64));
-        if (!tgt || !tgt.pos || !me.pos) return;
-        const reach = m.item === 206 ? RANGE.hitRanged : RANGE.hitMelee;
-        if (Math.hypot(tgt.pos.x - me.pos.x, tgt.pos.z - me.pos.z) > reach) return;
-        send(tgt, { t: 'hit', from: me.id, to: tgt.id, x: me.pos.x, y: me.pos.y, z: me.pos.z, item: Number.isInteger(m.item) ? m.item : 0 });
+        if (!tgt || tgt === me || !tgt.pos || !me.pos) return;
+        // the weapon you really have, its pace, its reach: then the damage, decided here
+        const item = weaponOf(me, m.item),
+          ranged = item === PISTOL,
+          now = Date.now();
+        if (now - me.lastHit < (ranged ? COOLDOWN.ranged : COOLDOWN.melee)) return;
+        if (Math.hypot(tgt.pos.x - me.pos.x, tgt.pos.z - me.pos.z) > (ranged ? RANGE.hitRanged : RANGE.hitMelee)) return;
+        me.lastHit = now;
+        send(tgt, { t: 'hit', from: me.id, to: tgt.id, x: me.pos.x, y: me.pos.y, z: me.pos.z, item, dmg: pvpDamage(item) });
       } else if (m.t === 'mob') {
         relay(me, RANGE.mob, {
           t: 'mob',
@@ -250,9 +321,13 @@ export function createGameServer(opts = {}) {
           fz: num(m.fz, 1e5) ?? 0,
         });
       } else if (m.t === 'shot') {
+        if (weaponOf(me, PISTOL) !== PISTOL) return; // no pistol, no bolt to show
         const s = { t: 'shot', id: me.id };
         for (const k of ['x', 'y', 'z', 'dx', 'dy', 'dz']) s[k] = num(m[k], 1e5) ?? 0;
         relay(me, RANGE.shot, s);
+      } else if (m.t === 'token') {
+        // the browser's session token, renewed every hour: kept to look at the weapons again later
+        me.token = str(m.token, 4096) || me.token;
       } else if (m.t === 'look') {
         me.title = str(m.title, 40);
         me.look = str(m.look, 200);
