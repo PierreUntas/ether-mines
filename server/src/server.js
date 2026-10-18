@@ -548,6 +548,7 @@ export function createGameServer(opts = {}) {
           rd: Number.isInteger(m.rd) ? m.rd : 0,
           on: typeof m.on === 'string' ? m.on.slice(0, 64) : 0,
           bt: m.bt ? 1 : 0, // the Front-Runner Boots on their feet
+          ar: Number.isInteger(m.ar) ? m.ar : 0, // the plating they wear (only drawn: its protection is settled here)
         });
       } else if (m.t === 'hit') {
         // only to its target, and only if the target really stands within reach of you here

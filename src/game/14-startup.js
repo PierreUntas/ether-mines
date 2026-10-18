@@ -104,7 +104,8 @@ function makeAvatar(name, color, horsScene) {
   body.castShadow = true;
   g.add(body);
   // armor plating: dark base + a glowing center seam, matching the item icon's look. Hidden unless worn;
-  // the glow color is set by updateArmorVisual() from S.armor. Faces -z, like the head's face texture.
+  // the glow color is set by updateArmorVisual(). Faces -z, like the head's face texture. Worn for the
+  // Merge Aegis; the other platings have a look of their own (ARMOR_LOOKS, below).
   const plate = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.4, 0.32), M(0x2a1838));
   plate.position.y = 1.08;
   const seam = new THREE.Mesh(
@@ -239,20 +240,106 @@ function updateAvatarHand(av, it = heldNow()) {
   hand.add(m);
   av.held = m;
 }
-// shows/hides and colors the avatar's chestplate to match the equipped armor (self only — armor isn't synced to other players)
-function updateArmorVisual(av) {
+// ---------- the platings on a character ----------
+// Each plating has its own look, built from boxes on the avatar's body and shoulders (front is -z):
+// the Genesis Plating, basalt and ember, a gorget, stepped shoulders with a spike and a burning core; the
+// Pure Ether Plating, a pale breastplate with a violet crystal and a validator node (a hexagon ring around
+// a glowing core) on the chest, crystal shards rising from the shoulders; the Volt Plating, the same in
+// blues. The Merge Aegis keeps the plate and its golden seam. A plating trim (17-looks.js) tints the glow.
+const ARMOR_LOOKS = {
+  302: { kind: 'genesis' },
+  109: { kind: 'node', plate: 0xe8e2ff, crystal: [0xd8ccff, 0x6a50d8], shard: [0xc9b8ff, 0x8a6cff], ring: 0x6a50d8, core: 0x9fe8ff },
+  108: { kind: 'node', plate: 0xdbe9ff, crystal: [0xbfe2ff, 0x2a7ad8], shard: [0x9fd8ff, 0x2a8ad8], ring: 0x2a6fd8, core: 0x7fe8ff },
+};
+function buildArmorLook(av, id) {
+  const L = ARMOR_LOOKS[id],
+    W = 0.5,
+    H = CLAY ? 0.54 : 0.66,
+    D = 0.28,
+    FZ = -D / 2 - 0.02,
+    root = new THREE.Group(),
+    arms = av.arms.map(a => {
+      const g = new THREE.Group();
+      a.add(g);
+      return g;
+    }),
+    glows = [];
+  av.body.add(root);
+  const mat = (c, em, extra) =>
+    new THREE.MeshLambertMaterial({ color: c, ...(em ? { emissive: em, emissiveIntensity: 0.6 } : {}), ...extra });
+  const box = (p, w, h, d, m, x, y, z, rz = 0, glow) => {
+    const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    o.position.set(x, y, z);
+    o.rotation.z = rz;
+    o.castShadow = true;
+    p.add(o);
+    if (glow) glows.push(o);
+    return o;
+  };
+  if (L.kind === 'genesis') {
+    const basalt = mat(0x3a2d3a),
+      dark = mat(0x2a1f2a),
+      ember = () => new THREE.MeshLambertMaterial({ color: 0xff7a3a, emissive: 0xff7a3a, emissiveIntensity: 0.7 }),
+      core = new THREE.MeshLambertMaterial({ color: 0xffb347, emissive: 0xffb347, emissiveIntensity: 1.2 });
+    box(root, W + 0.1, H * 0.7, D + 0.1, basalt, 0, H * 0.08, 0);
+    box(root, 0.36, 0.1, D + 0.14, dark, 0, H * 0.5, 0); // the gorget
+    box(root, 0.14, 0.14, 0.04, core, 0, H * 0.14, FZ - 0.05, 0, true); // the core
+    for (const x of [-0.16, 0.16]) box(root, 0.04, H * 0.5, 0.03, ember(), x, H * 0.06, FZ - 0.04, 0, true);
+    box(root, W + 0.12, 0.08, D + 0.12, dark, 0, -H * 0.27, 0);
+    arms.forEach((g, k) => {
+      const s = av.arms[k].position.x < 0 ? -1 : 1;
+      g.position.set(s * 0.03, 0.03, 0);
+      box(g, 0.3, 0.12, 0.3, basalt, 0, 0.02, 0);
+      box(g, 0.255, 0.084, 0.27, basalt, s * 0.02, -0.06, 0);
+      box(g, 0.31, 0.03, 0.31, ember(), 0, 0.08, 0, 0, true);
+      box(g, 0.05, 0.1, 0.05, dark, 0, 0.13, 0);
+    });
+  } else {
+    const plate = mat(L.plate),
+      cr = (c, e) => new THREE.MeshLambertMaterial({ color: c, emissive: e, emissiveIntensity: 0.6, transparent: true, opacity: 0.85 }),
+      ring = new THREE.MeshLambertMaterial({ color: L.ring, emissive: L.ring, emissiveIntensity: 0.6 }),
+      core = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: L.core, emissiveIntensity: 1.2 }),
+      y = H * 0.12,
+      z = FZ - 0.06;
+    box(root, W + 0.05, H * 0.66, D + 0.05, plate, 0, H * 0.1, 0);
+    box(root, 0.3, 0.28, 0.04, cr(...L.crystal), 0, y, FZ - 0.02);
+    // the validator node: a hexagon ring around a glowing core
+    for (let i = 0; i < 6; i++) {
+      const a = (i * Math.PI) / 3 + Math.PI / 6;
+      box(root, 0.09, 0.025, 0.03, ring, Math.cos(a) * 0.085, y + Math.sin(a) * 0.085, z, a + Math.PI / 2, true);
+    }
+    box(root, 0.06, 0.06, 0.035, core, 0, y, z - 0.005, Math.PI / 4, true);
+    arms.forEach((g, k) => {
+      const s = av.arms[k].position.x < 0 ? -1 : 1;
+      g.position.set(s * 0.06, 0.03, 0);
+      box(g, 0.32, 0.14, 0.32, plate, 0, 0.02, 0);
+      box(g, 0.27, 0.1, 0.28, plate, s * 0.05, -0.09, 0);
+      box(g, 0.07, 0.24, 0.07, cr(...L.shard), s * -0.03, 0.13, 0, s * -0.3, true);
+      box(g, 0.05, 0.16, 0.05, cr(...L.shard), s * 0.04, 0.09, 0.06, s * -0.6, true);
+    });
+  }
+  return { parts: [root, ...arms], glows, base: glows.map(o => o.material.emissive.getHex()) };
+}
+// shows the plating an avatar wears (yours from S.armor; another player's from `ar`), with your trim
+function updateArmorVisual(av, id = S.armor, trim = av === SELF ? platingTrimColor() : null) {
   if (!av) return;
-  const it = ITEM[S.armor];
-  av.plate.visible = !!it;
-  if (it) {
-    const c =
-      platingTrimColor() ?? // a plating trim (17-looks.js) wins
-      ({ 108: 0x00eaff, 209: 0xffd166, 302: 0xffb347 }[+S.armor] || 0xc9a6ff);
+  id = id ? +id : 0;
+  const it = ITEM[id];
+  // the Merge Aegis, and any plating without a look of its own: the plate and its glowing seam
+  av.plate.visible = !!it && !ARMOR_LOOKS[id];
+  if (av.plate.visible) {
+    const c = trim ?? ({ 108: 0x00eaff, 209: 0xffd166, 302: 0xffb347 }[id] || 0xc9a6ff);
     for (const child of av.plate.children) {
       child.material.color.setHex(c);
       child.material.emissive.setHex(c);
     }
   }
+  av.armorLooks ||= {};
+  for (const [k, look] of Object.entries(av.armorLooks)) if (+k !== id) for (const p of look.parts) p.visible = false;
+  if (!it || !ARMOR_LOOKS[id]) return;
+  const look = (av.armorLooks[id] ||= buildArmorLook(av, id));
+  for (const p of look.parts) p.visible = true;
+  look.glows.forEach((o, i) => o.material.emissive.setHex(trim ?? look.base[i]));
 }
 // shows/hides the Front-Runner Boots on an avatar's feet
 function updateBootsVisual(av, on) {
@@ -411,7 +498,7 @@ function previewBox() {
   }
   // the shop's "Try" puts a piece on this character without buying it (PREVIEW.tryLook)
   applyLook(p.av, p.tryLook || myLook(), true);
-  updateArmorVisual(p.av);
+  updateArmorVisual(p.av, S.armor, platingTrimColor());
   updateCapeVisual(p.av);
   updateAvatarHand(p.av);
   p.box.querySelector('.pname').textContent = ME.name;
@@ -576,6 +663,7 @@ Net.on('pos', p => {
   o.t = p;
   o.tAt = performance.now();
   updateBootsVisual(o, !!p.bt); // the boots they wear
+  if ((p.ar || 0) !== (o.ar || 0)) updateArmorVisual(o, (o.ar = Number.isInteger(p.ar) && ITEM[p.ar]?.armor ? p.ar : 0)); // their plating
   // what they hold: a tool or weapon id (older clients send nothing), anything unknown shows an empty hand
   const h = Number.isInteger(p.h) && ITEM[p.h] && !B[p.h] ? p.h : 0;
   if (o.heldId !== h) {

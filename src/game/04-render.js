@@ -746,7 +746,8 @@ function clayModel(it) {
       g.add(m);
       return m;
     };
-  const PICK = { 102: ['#b07a52', '#e2c39b', '#000000'], 201: ['#4a3b7a', '#a99cff', '#3a2d8a'], 202: ['#3b4f7a', '#8ff0ff', '#1f7f90'] },
+  // the Crystal Pickaxe in the Ether Crystals' cyan, the Pure Ether one in the Pure Shards' violet (their icons)
+  const PICK = { 102: ['#b07a52', '#e2c39b', '#000000'], 201: ['#3b4f7a', '#8ff0ff', '#1f7f90'], 202: ['#4a3b7a', '#a99cff', '#3a2d8a'] },
     // blades: [steel, glowing edge, guard and pommel, grip]
     BLADE = {
       106: ['#fff4cc', '#ffd166', '#c98a20', '#4a3b7a'],
