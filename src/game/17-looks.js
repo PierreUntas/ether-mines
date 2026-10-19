@@ -252,14 +252,22 @@ function buildBack(c, anim) {
       bx(g, 0.08, 0.1, 0.03, 0xffd166, 0, 1.08, 0.4, 0.5);
       break;
     case 'banner': {
+      // the flag flies above the head (the clay look's big head hid it); a Prime banner has a gilded pole
       const col = new THREE.Color(c.color).getHex(),
         acc = new THREE.Color(c.accent).getHex();
-      bx(g, 0.05, 1.3, 0.05, 0xd9d9e3, 0.16, 1.25, 0.2);
+      bx(g, 0.05, 1.7, 0.05, c.prime ? 0xffd166 : 0xd9d9e3, 0.16, 1.45, 0.2, c.prime ? 0.3 : 0);
       const flag = new THREE.Group();
-      flag.position.set(0.16, 1.82, 0.2);
+      flag.position.set(0.16, 2.22, 0.2);
       bx(flag, 0.4, 0.42, 0.03, col, 0.21, -0.2, 0);
       bx(flag, 0.12, 0.12, 0.04, acc, 0.21, -0.18, 0, 0.8);
       bx(flag, 0.4, 0.05, 0.035, acc, 0.21, -0.4, 0, 0.4);
+      if (c.prime) {
+        bx(flag, 0.42, 0.04, 0.04, 0xffd166, 0.21, 0.02, 0, 0.5);
+        const d = new THREE.Mesh(new THREE.OctahedronGeometry(0.06), lookMat(0xffd166, 0.8));
+        d.position.set(0, 0.08, 0);
+        d.scale.y = 1.4;
+        flag.add(d);
+      }
       g.add(flag);
       anim.push(t => (flag.rotation.y = Math.sin(t * 2.4) * 0.18));
       break;
@@ -295,6 +303,26 @@ function buildBack(c, anim) {
       anim.push(t => (cape.rotation.x = 0.08 + Math.sin(t * 1.7) * 0.05));
       break;
     }
+    case 'crystalwings':
+      // shards fanned out like a validator's crystals, violet and cyan
+      for (const side of [-1, 1]) {
+        const w = new THREE.Group();
+        w.position.set(side * 0.12, 1.0, 0.24);
+        [
+          [0.32, 0.5, 0.36],
+          [0.26, 0.3, 0.6],
+          [0.2, 0.12, 0.85],
+        ].forEach(([r, y, a], i) => {
+          const m = new THREE.Mesh(new THREE.OctahedronGeometry(r * 0.55), lookMat(i % 2 ? 0x9fe8ff : 0xb48cff, 0.6));
+          m.position.set(side * (0.18 + i * 0.12), y - 0.15, 0);
+          m.scale.y = 1.8;
+          m.rotation.z = -side * a;
+          w.add(m);
+        });
+        g.add(w);
+        anim.push(t => (w.rotation.y = side * (0.35 + Math.sin(t * 2.2) * 0.12)));
+      }
+      break;
     case 'wings': {
       // three feathers per wing, fanned upward, the top one edged in light
       const col = new THREE.Color(c.color),
@@ -731,11 +759,24 @@ const tickLookAnims = (av, t) => {
 
 // ---------- trails: little glowing cubes left behind while moving ----------
 const TRAIL = { pool: [], next: 0, max: 160 };
+const TRAIL_COLORS = {
+  ember: [0xff6b3d, 0xffb347],
+  frost: [0x9fe8ff, 0xffffff, 0x5fb8ff],
+  shadow: [0x3a2a5a, 0x8a6cff, 0x1a1a22],
+  gwei: [0xffd95e, 0xffd95e, 0xfff3c0],
+  silver: [0xe8eef6, 0xb8c4d6, 0xffffff],
+  coins: [0xffd166, 0xc89a2e],
+  neon: [0xff2bd6, 0x00eaff, 0xb6ff00],
+  bubbles: [0x3fd2c7],
+  pinkbubbles: [0xff9ec7, 0xffd6e7],
+  deepbubbles: [0x2a6fd8, 0x7fd0ff, 0x1d5c63],
+};
+const BUBBLES = new Set(['bubbles', 'pinkbubbles', 'deepbubbles']);
 function trailColor(style, t) {
   if (style === 'spectrum') return new THREE.Color().setHSL((t * 0.4) % 1, 0.85, 0.65);
-  if (style === 'ember') return new THREE.Color(Math.random() < 0.5 ? 0xff6b3d : 0xffb347);
-  if (style === 'gwei') return new THREE.Color(Math.random() < 0.7 ? 0xffd95e : 0xfff3c0);
-  return new THREE.Color(0x3fd2c7); // bubbles
+  if (style === 'pastel') return new THREE.Color().setHSL((t * 0.4) % 1, 0.7, 0.86);
+  const l = TRAIL_COLORS[style] || TRAIL_COLORS.bubbles;
+  return new THREE.Color(l[Math.floor(Math.random() * l.length)]);
 }
 function emitTrail(style, x, y, z, t) {
   let p = TRAIL.pool[TRAIL.next];
@@ -745,12 +786,14 @@ function emitTrail(style, x, y, z, t) {
     scene.add(p);
   }
   TRAIL.next = (TRAIL.next + 1) % TRAIL.max;
-  const big = style === 'bubbles';
+  const big = BUBBLES.has(style);
+  p.flat = style === 'coins'; // the Coin Rain: little flat coins
   p.material.color.copy(trailColor(style, t));
   p.material.opacity = big ? 0.45 : 0.9;
   p.position.set(x + (Math.random() - 0.5) * 0.4, y + 0.15 + Math.random() * 0.3, z + (Math.random() - 0.5) * 0.4);
   p.size = big ? 0.13 : 0.09;
   p.scale.setScalar(p.size);
+  if (p.flat) p.scale.y = 0.025;
   p.life = p.max = big ? 1.4 : 0.9;
   p.vy = big ? 0.7 : 0.35;
   p.visible = true;
@@ -765,7 +808,8 @@ function updateTrail(dt) {
     }
     const k = p.life / p.max;
     p.position.y += p.vy * dt;
-    p.scale.setScalar(p.size * (0.4 + 0.6 * k));
+    p.scale.setScalar(p.size * (0.4 + 0.6 * k) * (p.flat ? 1.6 : 1));
+    if (p.flat) p.scale.y = 0.025;
     p.material.opacity = k * 0.9;
   }
 }
@@ -819,16 +863,42 @@ function dropFollower(ownerKey) {
   if (f && f.g) scene.remove(f.g);
   followers.delete(ownerKey);
 }
-// the held item's glow (first person and your own avatar): a trim tints it
+// the held item's glow (first person and your own avatar): a trim tints it. The pixel look's items share one
+// material; the clay look's are models of their own, tinted mesh by mesh (their materials copied first, so
+// another player's pickaxe keeps its colors)
+const TRIM_GLOW = { gold: 0xffb000, rose: 0xff7a8a, obsidian: 0x6a3cff, frost: 0x7fe0ff, emerald: 0x2ad07a };
+const trimTmp = new THREE.Color();
+function tintModel(g, col) {
+  if (!g || !g.isGroup) return;
+  g.traverse(m => {
+    if (!m.isMesh || !m.material || !m.material.emissive || (!col && !m.userData.trim)) return;
+    if (!m.userData.trim) {
+      m.material = m.material.clone();
+      m.userData.trim = { e: m.material.emissive.clone(), k: m.material.emissiveIntensity };
+    }
+    if (col) {
+      m.material.emissive.copy(col);
+      m.material.emissiveIntensity = 0.55;
+    } else {
+      m.material.emissive.copy(m.userData.trim.e);
+      m.material.emissiveIntensity = m.userData.trim.k;
+    }
+  });
+}
 function toolTrim(look, t) {
   if (typeof heldVoxelMat === 'undefined' || !heldVoxelMat) return;
   const c = look.tool && COSMETICS[look.tool];
-  if (!c) {
-    heldVoxelMat.emissive.setHex(0);
-    return;
+  const col = !c
+    ? null
+    : c.style === 'prism'
+      ? trimTmp.setHSL((t * 0.25) % 1, 0.9, 0.45)
+      : trimTmp.setHex(TRIM_GLOW[c.style] ?? TRIM_GLOW.gold);
+  if (col) heldVoxelMat.emissive.copy(col).multiplyScalar(0.6);
+  else heldVoxelMat.emissive.setHex(0);
+  if (CLAY) {
+    if (typeof handMesh !== 'undefined') tintModel(handMesh, col);
+    if (SELF) tintModel(SELF.held, col);
   }
-  if (c.style === 'prism') heldVoxelMat.emissive.setHSL((t * 0.25) % 1, 0.9, 0.35);
-  else heldVoxelMat.emissive.setHex(0x7a5a00);
 }
 // the armor's glow, when a plating trim is worn (updateArmorVisual, 14-startup.js)
 const platingTrimColor = () => {
