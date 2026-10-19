@@ -565,6 +565,34 @@ const srvHp = await page.evaluate(async () => {
   return { shown, noRegen, fell, paid, noMobs };
 });
 if (Object.values(srvHp).some(v => !v)) await fail('your hearts on the game server: ' + JSON.stringify(srvHp));
+// a plating traded away: the next read of the inventory takes it off your back
+const tradedArmor = await page.evaluate(async () => {
+  const S = mines.S,
+    keep = { inv: { ...S.inv }, nfts: [...S.nfts], armor: S.armor, bar: [...S.bar], cos: S.cosmetics },
+    on = Object.getOwnPropertyDescriptor(Net, 'online'),
+    uid = Object.getOwnPropertyDescriptor(Net, 'userId'),
+    li = Net.loadInventory,
+    lc = Net.loadCosmetics;
+  Object.defineProperty(Net, 'online', { get: () => true, configurable: true });
+  Object.defineProperty(Net, 'userId', { get: () => 'test', configurable: true });
+  let owned = [{ serial: 9902, item: 209, place: '', mined: 0, created_at: new Date().toISOString() }];
+  Net.loadInventory = async () => ({ inv: [], uniques: owned });
+  Net.loadCosmetics = async () => null;
+  S.armor = '209';
+  await syncInventory();
+  const keptWhileOwned = S.armor === '209';
+  owned = [];
+  await syncInventory();
+  const off = !S.armor;
+  Net.loadInventory = li;
+  Net.loadCosmetics = lc;
+  Object.defineProperty(Net, 'online', on);
+  Object.defineProperty(Net, 'userId', uid);
+  Object.assign(S, { inv: keep.inv, nfts: keep.nfts, armor: keep.armor, bar: keep.bar, cosmetics: keep.cos });
+  ui();
+  return { keptWhileOwned, off };
+});
+if (!tradedArmor.keptWhileOwned || !tradedArmor.off) await fail('plating traded away: ' + JSON.stringify(tradedArmor));
 // the Front-Runner Boots: worn from the chest, they show on your feet, make you faster, and Q dodges
 const boots = await page.evaluate(async () => {
   const P = mines.P,

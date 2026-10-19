@@ -171,6 +171,8 @@ function syncInventory() {
         const [x, y, z] = n.where.split(',').map(v => parseInt(v));
         S.relitAt[coordKey(x, y, z)] = 1;
       }
+      // a plating you no longer own (traded away, given to a chest): off your back
+      if (S.armor && !(+S.armor >= 200 ? S.nfts.some(n => n.id === +S.armor) : S.inv[S.armor] > 0)) S.armor = null;
       for (let i = 0; i < 9; i++) {
         const b = S.bar[i];
         if (b && (String(b).startsWith('nft') ? !nftOf(b) : !(S.inv[b] > 0))) S.bar[i] = null;

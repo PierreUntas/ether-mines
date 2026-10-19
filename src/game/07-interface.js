@@ -1136,8 +1136,14 @@ async function updateOffers() {
         logEv('nft', `${o.from} offers you a trade`, 'open your chest, Trade tab');
         Sound.chime();
       }
+    // an offer of yours gone from the list: accepted (or declined) on the other side. Your inventory is read
+    // again, in case the live notice of it never reached this screen
+    const left = TRADE.offers.filter(o => o.mine && !r.offers.some(x => x.id === o.id));
     TRADE.offers = r.offers;
     TRADE.loaded = true;
+    if (left.length) syncInventory();
+    // while one of yours is waiting, look again sooner
+    if (r.offers.some(o => o.mine)) TRADE.t = 20;
   } catch (e) {
     console.error(e);
   }
