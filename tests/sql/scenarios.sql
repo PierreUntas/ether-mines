@@ -185,9 +185,16 @@ reset role;
 -- back to a normal in-world spot: this row (position included) later becomes B's via claim_recovery,
 -- and a stray far-away position would otherwise break B's own position checks much further down
 update players set pos_x = 20.5, pos_y = :gy + 1, pos_z = 6.5, pos_at = null where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
--- silence for 25 hours (past the 24h health-check grace window): production still pays out in full
+-- attested 6 days ago (043: the health check's window is a week): still healthy
+begin;
+update validators set last_cycle_at = now() - interval '25 hours', last_attested_at = now() - interval '6 days' where id = :vid;
+select _tick_validator('w', :vid) \g /dev/null
+select pg_temp.ok('a validator attested 6 days ago is still healthy',
+  (select state || ',' || missed_cycles from validators where id = :vid) = 'active,0');
+rollback;
+-- silence for 8 days (past the week's health-check grace window): production still pays out in full
 -- (24h catch-up cap -> 288 cycles), only the health check is missed and the validator degrades
-update validators set last_cycle_at = now() - interval '25 hours', last_attested_at = now() - interval '25 hours' where id = :vid;
+update validators set last_cycle_at = now() - interval '25 hours', last_attested_at = now() - interval '8 days' where id = :vid;
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 select pg_temp.ok('neglect past the grace window still pays out production (288 cycles x 10 net)',

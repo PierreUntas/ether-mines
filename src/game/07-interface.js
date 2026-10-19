@@ -1791,7 +1791,7 @@ function renderValidators(body) {
   }
   body.insertAdjacentHTML(
     'beforeend',
-    '<p class="qintro">Each validator earns Gwei every cycle (5 minutes), whether you’re watching or not — attest anytime (from anywhere — no need to stand next to it) to collect it. But it also needs a check-in at least once a day: go longer without attesting and it degrades — damaged first, then corrupted (needs a Validator Heart to repair).</p>',
+    '<p class="qintro">Each validator earns Gwei every cycle (5 minutes), whether you’re watching or not — attest anytime (from anywhere — no need to stand next to it) to collect it. But it also needs a check-in at least once a week: go longer without attesting and it degrades — damaged first, then corrupted (needs a Validator Heart to repair).</p>',
   );
   if (!VALIDATORS.loaded) {
     body.insertAdjacentHTML('beforeend', '<p class="qintro">Loading your validators…</p>');

@@ -226,8 +226,8 @@ Player finds a dormant validator (a "Dark Validator" in the ruins)
    ▼
 Validator, active: earns Gwei every cycle (5 minutes) net of its own upkeep, always — attest anytime
 to collect it, whether you've checked in once a minute or once a week (24h catch-up cap)
-   │ act_maintain_validator ("attest") — pays out, then separately checks the last 24h
-   │ attested within the last 24h: healthy, no degradation
+   │ act_maintain_validator ("attest") — pays out, then separately checks the last 7 days
+   │ attested within the last 7 days (043): healthy, no degradation
    │ longer than that: a missed health check — degrades, income keeps accruing regardless
    ▼
 active ──(3 missed checks)──> damaged ──(8 missed checks)──> corrupted
@@ -241,8 +241,8 @@ active ──(3 missed checks)──> damaged ──(8 missed checks)──> cor
 - **Production and health are independent**: a validator earns its net Gwei for every elapsed cycle no
   matter how long it's been since you last attested (24h catch-up cap) — neglect never claws back Gwei
   already earned. Attesting is a separate, remote health check (no reach check, unlike mining, placing,
-  or relighting — attest from the Validators tab, wherever the validator is): go more than 24h without
-  one and it degrades, which still doesn't touch past earnings, just needs repairing (free from damaged,
+  or relighting — attest from the Validators tab, wherever the validator is): go more than a week without
+  one (`043_weekly_attest.sql`; it was 24h) and it degrades, which still doesn't touch past earnings, just needs repairing (free from damaged,
   a Validator Heart from corrupted) to stop racking up missed checks.
 - **Seal** (item 203): bound to one validator (`uniques.validator_id`), minted once, never traded
   (already enforced before the pivot) — a keepsake, not a credential anyone else can use.
