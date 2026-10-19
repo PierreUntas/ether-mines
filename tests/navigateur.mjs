@@ -693,6 +693,20 @@ const hover = await page.evaluate(() => {
   const riding = !!RIDE && RIDE.mesh.parent === scene;
   const glides = collides(P.x, y - 3, P.z);
   const lifted = rideLift() > 0.3;
+  // up a steep slope at speed: a step every move, the eye never sinks into the hill
+  const home = { x: P.x, y: P.y, z: P.z }, steps = [];
+  stepUp = 0;
+  for (let i = 0; i < 8; i++) {
+    const k = `${Math.floor(P.x) + 1},${Math.floor(P.y)},${Math.floor(P.z)}`;
+    mines.commit(k, 3, null);
+    steps.push(k);
+    P.on = true;
+    moveAxis('x', 0.6);
+  }
+  const climbs = P.y > home.y + 4 && stepUp <= 0.6;
+  for (const k of steps) mines.commit(k, 0, null);
+  Object.assign(P, home);
+  stepUp = 0;
   // a hard turn at speed: the old speed carries on sideways for a while (a drift), then fades
   const y0 = yaw;
   yaw = 0;
@@ -725,7 +739,7 @@ const hover = await page.evaluate(() => {
   scene.remove(o.g);
   S.nfts = S.nfts.filter(n => n.serial !== 9901);
   mines.playing = wasPlaying;
-  return { sinksOnFoot, riding, glides, lifted, drifts, grips, offWhenPutAway, craft, boarded, behind, off };
+  return { sinksOnFoot, riding, glides, lifted, climbs, drifts, grips, offWhenPutAway, craft, boarded, behind, off };
 });
 if (Object.values(hover).some(v => !v)) await fail('hovercraft: ' + JSON.stringify(hover));
 // a plasma bolt fired by another player shows up here too (drawn only), and yours is sent to the others

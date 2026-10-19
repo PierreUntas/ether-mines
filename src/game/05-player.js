@@ -56,7 +56,9 @@ function moveAxis(ax, amt) {
         }
       if (up) {
         P.y += up;
-        stepUp += up;
+        // the eye catches up smoothly, but never trails far behind: a hovercraft climbing a mountain at
+        // speed takes a step every few frames, and the camera would sink into the slope under it
+        stepUp = Math.min(stepUp + up, 0.6);
         continue;
       }
     } // marche automatique : dalles, escaliers
