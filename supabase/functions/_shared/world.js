@@ -50,7 +50,7 @@
     CH = 16,
     CV = CH * CH * SY,
     DEEP = 20; // DEEP: below this layer, geodes and large caves
-  const GEN = 26; // generator version: bump it on every terrain change (already-frozen chunks don't move); history in docs/generator-history.md
+  const GEN = 27; // generator version: bump it on every terrain change (already-frozen chunks don't move); history in docs/generator-history.md
   const SPAWN = { x: 8, z: 8, y: 0 };
   const ckey = (cx, cz) => cx + ',' + cz,
     coordKey = (x, y, z) => x + ',' + y + ',' + z,
@@ -269,9 +269,19 @@
     const rg = ruinAt(Math.floor(x / RUIN), Math.floor(z / RUIN));
     if (rg && Math.hypot(rg.x - x, rg.z - z) < 14) return null;
     if (islandZone(x, z) || inCity(x, z, 16)) return null;
+    // clear of the towers (GEN 27: they grew to 21x21, and a garden drawn over one would cut into it)
+    for (let tz = Math.floor((z - 24) / TOWER); tz <= Math.floor((z + 24) / TOWER); tz++)
+      for (let tx = Math.floor((x - 24) / TOWER); tx <= Math.floor((x + 24) / TOWER); tx++) {
+        const t = towerAt(tx, tz);
+        if (t && Math.hypot(t.x - x, t.z - z) < TR + 10) return null;
+      }
     return { x, z, y };
   }
-  const TOWER = 96;
+  const TOWER = 96,
+    TR = 10, // a tower's half width (21x21)
+    TC = 15, // its chamfered corners: |dx| + |dz| <= TC
+    TOWER_LADDER = [7, -7], // the ladder's column, against the north-east chamfer (mobs-core.js keeps clear of it)
+    TOWER_CHEST = [-6, -6]; // the treasure chest on the boss's platform (ty + 20)
   // tower of a 96x96 region (or null): guarded by hostile mobs, a boss at the top — rarer than a
   // garden or a ruin, so sparser spacing and a tighter hash gate
   function towerAt(tx, tz) {
@@ -290,6 +300,15 @@
       if (Math.abs(heightAt(x + dx, z + dz) - y) > 5) return null;
     const rg = ruinAt(Math.floor(x / RUIN), Math.floor(z / RUIN));
     if (rg && Math.hypot(rg.x - x, rg.z - z) < 20) return null;
+    // (GEN 27, 21x21) no ruin under the tower's corners or its entrance stair, whichever region it's in
+    for (let rz = Math.floor((z - 40) / RUIN); rz <= Math.floor((z + 40) / RUIN); rz++)
+      for (let rx = Math.floor((x - 40) / RUIN); rx <= Math.floor((x + 40) / RUIN); rx++) {
+        const r = ruinAt(rx, rz);
+        if (!r) continue;
+        const ax = Math.abs(r.x - x),
+          dz = r.z - z;
+        if ((ax <= TR + 4 && Math.abs(dz) <= TR + 4) || (ax <= 4 && dz <= 3 - TR && dz >= -TR - 11)) return null;
+      }
     if (islandZone(x, z) || inCity(x, z, 20) || inCircuits(x, z, 20)) return null;
     return { x, z, y };
   }
@@ -299,7 +318,7 @@
   // stands at MERGE_Y + 1; the stair's foot at the returned (sx, sz).
   const MERGE = 192,
     MERGE_Y = DY + 36,
-    MERGE_R = 12;
+    MERGE_R = 18; // the disc's radius (was 12: too tight to fight two bosses at once)
   function mergeAt(mx, mz) {
     if (hash(mx * 13 + 5, mz * 17 + 9, 300) > 0.8) return null;
     const x = mx * MERGE + 40 + Math.floor(hash(mx, mz, 301) * (MERGE - 80)),
@@ -315,6 +334,12 @@
       sz = z + MERGE_R + 5,
       g = heightAt(sx, sz);
     if (g >= MERGE_Y - 3) return null;
+    // the Beacon Stair's landing clear of any tower
+    for (let tz = Math.floor((sz - 24) / TOWER); tz <= Math.floor((sz + 24) / TOWER); tz++)
+      for (let tx = Math.floor((sx - 24) / TOWER); tx <= Math.floor((sx + 24) / TOWER); tx++) {
+        const t = towerAt(tx, tz);
+        if (t && Math.hypot(t.x - sx, t.z - sz) < TR + 8) return null;
+      }
     return { x, z, y: MERGE_Y, sx, sz, g: Math.max(g, SEA) };
   }
   // the Mempool (one per 224x224 region, or none): an open-air colosseum where pending transactions
@@ -585,40 +610,43 @@
       }
     // towers: a 96x96 region each, guarded by hostile mobs with a boss at the top; the boss always
     // drops a Plasma Pistol (supabase/migrations/016_tower_boss_loot.sql). Mob placement mirrors
-    // this loop in src/game/16-mobs.js's spawnMobChunk, keyed off the same towerAt() position.
-    // 13x13 footprint, 6-tall floors (was 9x9/5-tall, then 7x7/4-tall originally — still too tight).
-    for (let tz = Math.floor((z0 - 7) / TOWER); tz <= Math.floor((z0 + CH + 7) / TOWER); tz++)
-      for (let tx = Math.floor((x0 - 7) / TOWER); tx <= Math.floor((x0 + CH + 7) / TOWER); tx++) {
+    // this loop in src/mobs-core.js's spawnChunk, keyed off the same towerAt() position.
+    // 21x21 footprint, 6-tall floors (was 13x13, 9x9/5-tall, then 7x7/4-tall originally — still too tight
+    // to fight in). TR: the half width; TC: where the chamfers cut the corners (|dx| + |dz|).
+    for (let tz = Math.floor((z0 - TR - 12) / TOWER); tz <= Math.floor((z0 + CH + TR + 12) / TOWER); tz++)
+      for (let tx = Math.floor((x0 - TR - 12) / TOWER); tx <= Math.floor((x0 + CH + TR + 12) / TOWER); tx++) {
         const t = towerAt(tx, tz);
         if (!t) continue;
         const { x: tx0, z: tz0, y: ty } = t,
-          LADX = 4,
-          LADZ = -4; // the climbing ladder's fixed interior column, against the north-east chamfer
+          LADX = TOWER_LADDER[0],
+          LADZ = TOWER_LADDER[1]; // the climbing ladder's fixed interior column, against the north-east chamfer
         // The validator beacon: an octagonal lighthouse in the City's palette — a checkered-marble base,
         // a lavender body ringed with cyan neon at each floor, stained-glass slits, an open loggia at the
         // top where the Plasma Core waits, and the Ether diamond crowning the roof as a beacon seen from afar.
-        // Footprint: the 13x13 square with chamfered corners (an octagon), the corners left as a low plinth.
-        const inOct = (dx, dz) => Math.max(Math.abs(dx), Math.abs(dz)) <= 6 && Math.abs(dx) + Math.abs(dz) <= 9;
-        for (let dx = -6; dx <= 6; dx++)
-          for (let dz = -6; dz <= 6; dz++) {
+        // Footprint: the square with chamfered corners (an octagon), the corners left as a low plinth.
+        const inOct = (dx, dz) => Math.max(Math.abs(dx), Math.abs(dz)) <= TR && Math.abs(dx) + Math.abs(dz) <= TC;
+        for (let dx = -TR; dx <= TR; dx++)
+          for (let dz = -TR; dz <= TR; dz++) {
             const ax = Math.abs(dx),
               az = Math.abs(dz);
             for (let k = 1; k <= 30; k++) put(tx0 + dx, ty + k, tz0 + dz, 0);
+            // a foundation down to the ground: on a slope, the wider floor never hangs in the air
+            for (let y = ty - 1, g = heightAt(tx0 + dx, tz0 + dz); y > g && y > ty - 12; y--) put(tx0 + dx, y, tz0 + dz, 81);
             if (!inOct(dx, dz)) {
               // the corners outside the octagon: a two-step marble plinth
               put(tx0 + dx, ty, tz0 + dz, 15);
-              if (ax + az <= 10) put(tx0 + dx, ty + 1, tz0 + dz, 34);
+              if (ax + az <= TC + 1) put(tx0 + dx, ty + 1, tz0 + dz, 34);
               continue;
             }
             put(tx0 + dx, ty, tz0 + dz, dx % 3 === 0 || dz % 3 === 0 ? 128 : 80); // neon grid floor
-            const ring = ax === 6 || az === 6 || ax + az === 9;
+            const ring = ax === TR || az === TR || ax + az === TC;
             if (!ring) continue;
-            const vertex = (ax === 6 && az === 3) || (ax === 3 && az === 6),
-              faceMid = (ax === 6 && dz === 0) || (az === 6 && dx === 0),
-              face = (ax === 6 && az < 3) || (az === 6 && ax < 3), // the four flat faces, between their corner columns
-              along = ax === 6 ? dz : dx,
-              chamfer = ax + az === 9 && ax !== 6 && az !== 6,
-              front = dz === -6; // the entrance faces north, toward the way players arrive from the sanctuary
+            const vertex = (ax === TR && az === TC - TR) || (ax === TC - TR && az === TR),
+              faceMid = (ax === TR && dz === 0) || (az === TR && dx === 0),
+              face = (ax === TR && az < TC - TR) || (az === TR && ax < TC - TR), // the four flat faces, between their corner columns
+              along = ax === TR ? dz : dx,
+              chamfer = ax + az === TC && ax !== TR && az !== TR,
+              front = dz === -TR; // the entrance faces north, toward the way players arrive from the sanctuary
             for (let k = 1; k <= 24; k++) {
               let id;
               if (front && dx === 0 && k <= 2)
@@ -636,7 +664,7 @@
                 id = 128; // a neon ring at each floor line
               else if (k <= 5)
                 id = faceMid && (k === 3 || k === 4) ? 30 : 81; // checkered-marble base
-              else if (face && Math.abs(along) / 2.5 + Math.abs(k - 12) / 5.5 <= 1)
+              else if (face && Math.abs(along) / 4 + Math.abs(k - 12) / 5.5 <= 1)
                 id = 22; // the Ether diamond on each face, split by the neon ring like the logo
               else if (chamfer && k % 6 === 3)
                 id = 29; // pink glass on the chamfers
@@ -655,17 +683,17 @@
               for (let k = 1; k <= 3; k++) put(x, top + k, z, 0); // head room through trees or a slope
             }
           };
-          step(tz0 - 7, ty, 15);
+          step(tz0 - TR - 1, ty, 15);
           // a stair at level L climbs from standing height L to L + 1: going out from the door, each next stair is a
           // block lower (ground falling away) or higher (ground rising), until the ground beyond can be walked
           // onto; a slope too steep for six steps gets a level passage cut into it instead
           const stand = z => heightAt(tx0, z) + 1,
-            dir = Math.sign(stand(tz0 - 8) - (ty + 1));
-          if (Math.abs(stand(tz0 - 13) - (ty + 1)) > 6 && dir > 0)
-            for (let i = 8; i <= 13; i++) step(tz0 - i, ty, 15); // a level passage into the hillside
+            dir = Math.sign(stand(tz0 - TR - 2) - (ty + 1));
+          if (Math.abs(stand(tz0 - TR - 7) - (ty + 1)) > 6 && dir > 0)
+            for (let i = TR + 2; i <= TR + 7; i++) step(tz0 - i, ty, 15); // a level passage into the hillside
           else if (dir)
             for (let j = 0; j < 6; j++) {
-              const z = tz0 - 8 - j,
+              const z = tz0 - TR - 2 - j,
                 L = dir < 0 ? ty - j : ty + 1 + j;
               step(z, L, dir < 0 ? 42 : 40);
               const beyond = stand(z - 1);
@@ -674,81 +702,77 @@
         }
         // floor platforms (floors 1-3) and the boss's platform, a gap left for the ladder; the roof above
         for (const k of [7, 13, 19, 24])
-          for (let dx = -5; dx <= 5; dx++)
-            for (let dz = -5; dz <= 5; dz++) {
-              if (!inOct(dx, dz) || Math.abs(dx) + Math.abs(dz) === 9 || (dx === LADX && dz === LADZ)) continue;
+          for (let dx = -TR + 1; dx <= TR - 1; dx++)
+            for (let dz = -TR + 1; dz <= TR - 1; dz++) {
+              if (!inOct(dx, dz) || Math.abs(dx) + Math.abs(dz) === TC || (dx === LADX && dz === LADZ)) continue;
               put(tx0 + dx, ty + k, tz0 + dz, k === 24 ? 15 : dx === 0 || dz === 0 ? 128 : 80);
             }
         for (let k = 1; k <= 24; k++) put(tx0 + LADX, ty + k, tz0 + LADZ, 94);
-        // pink lanterns hanging under each ceiling, at the four diagonals
+        // pink lanterns hanging under each ceiling, at the diagonals
         for (const k of [6, 12, 18])
           for (const [dx, dz] of [
-            [-3, -3],
-            [3, 3],
-            [-3, 3],
+            [-5, -5],
+            [5, 5],
+            [-5, 5],
           ])
             put(tx0 + dx, ty + k, tz0 + dz, 84);
         // the crown: a stepped lavender pyramid on the roof, a golden Radiant Diamond at its tip
         // (kept low: the world stops at 64 blocks, and a tower can stand high on a hill)
         for (let k = 25; k <= 27; k++) {
-          const r = 28 - k; // 3, 2, 1
+          const r = 5 - 2 * (k - 25); // 5, 3, 1
           for (let dx = -r; dx <= r; dx++)
             for (let dz = -r; dz <= r; dz++) if (Math.abs(dx) + Math.abs(dz) <= r) put(tx0 + dx, ty + k, tz0 + dz, k === 27 ? 145 : 22);
         }
         // beacon lights: a pink lantern atop each of the eight corner columns
         for (const [dx, dz] of [
-          [6, 3],
-          [6, -3],
-          [-6, 3],
-          [-6, -3],
-          [3, 6],
-          [-3, 6],
-          [3, -6],
-          [-3, -6],
+          [TR, TC - TR],
+          [TR, TR - TC],
+          [-TR, TC - TR],
+          [-TR, TR - TC],
+          [TC - TR, TR],
+          [TR - TC, TR],
+          [TC - TR, -TR],
+          [TR - TC, -TR],
         ])
           put(tx0 + dx, ty + 25, tz0 + dz, 84);
-        // a treasure chest on the boss's platform, clear of both the ladder and the boss's own spawn
-        // spot at the tower's center (src/game/16-mobs.js) — seeded with better-than-average loot the
-        // first time it's opened (025_tower_treasure.sql)
-        put(tx0 - 3, ty + 20, tz0 - 3, 98);
+        // a treasure chest on the boss's platform, clear of both the ladder and the Plasma Core's arena
+        // at the tower's center (src/mobs-core.js) — seeded with better-than-average loot the first time
+        // it's opened (025_tower_treasure.sql)
+        put(tx0 + TOWER_CHEST[0], ty + 20, tz0 + TOWER_CHEST[1], 98);
       }
     // the Merge Sanctum (mergeAt()): a floating disc split down the middle, proof-of-work forge to the
     // west (granite, coral, lanterns), proof-of-stake crystal to the east (marble, lavender, crystal),
     // a cyan neon seam where they meet, and over its center a two-tone diamond merging into one.
-    // The twin bosses' spots (16-mobs.js) are 6 blocks west and east of the center, on the floor.
-    for (let mz = Math.floor((z0 - 24) / MERGE); mz <= Math.floor((z0 + CH + 24) / MERGE); mz++)
-      for (let mx = Math.floor((x0 - 24) / MERGE); mx <= Math.floor((x0 + CH + 24) / MERGE); mx++) {
+    // The twin bosses' spots (mobs-core.js) are 9 blocks west and east of the center, on the floor.
+    for (let mz = Math.floor((z0 - MERGE_R - 14) / MERGE); mz <= Math.floor((z0 + CH + MERGE_R + 14) / MERGE); mz++)
+      for (let mx = Math.floor((x0 - MERGE_R - 14) / MERGE); mx <= Math.floor((x0 + CH + MERGE_R + 14) / MERGE); mx++) {
         const m = mergeAt(mx, mz);
         if (!m) continue;
         const { x: X, z: Z, y: Y } = m;
-        for (let dx = -14; dx <= 14; dx++)
-          for (let dz = -14; dz <= 14; dz++) {
+        for (let dx = -MERGE_R - 2; dx <= MERGE_R + 2; dx++)
+          for (let dz = -MERGE_R - 2; dz <= MERGE_R + 2; dz++) {
             const r = Math.hypot(dx, dz),
               x = X + dx,
               z = Z + dz,
               pow = dx < 0;
-            if (r > 13.5) continue;
+            if (r > MERGE_R + 1.5) continue;
             for (let y = Y + 1; y < SY; y++) put(x, y, z, 0);
             if (r > MERGE_R + 0.4) continue;
-            // the floor: two halves, a cyan seam, an accent ring, a rim
-            const rim = r > MERGE_R - 0.6;
-            put(
-              x,
-              Y,
-              z,
-              dx === 0 ? 128 : rim ? (pow ? 80 : 15) : r >= 6.5 && r < 7.5 ? (pow ? 27 : 22) : r < 3 && !pow ? 81 : pow ? 80 : 15,
-            );
+            // the floor: two halves, a cyan seam, two accent rings, a rim
+            const rim = r > MERGE_R - 0.6,
+              accent = (r >= 6.5 && r < 7.5) || (r >= 12.5 && r < 13.5);
+            put(x, Y, z, dx === 0 ? 128 : rim ? (pow ? 80 : 15) : accent ? (pow ? 27 : 22) : r < 3 && !pow ? 81 : pow ? 80 : 15);
             // the underside: a rock cone with ether veins and a crystal tip
-            const depth = Math.floor((MERGE_R + 0.4 - r) * 0.6) + 1;
+            const depth = Math.floor((MERGE_R + 0.4 - r) * 0.45) + 1;
             for (let k = 1; k <= depth; k++) put(x, Y - k, z, k === depth && r < 1 ? 83 : hash(x * 3 + k, z, 303) < 0.08 ? 8 : 3);
             // a low rail around the rim, open to the south where the bridge arrives
             if (rim && !(dz > 0 && Math.abs(dx) <= 1)) put(x, Y + 1, z, pow ? 35 : 34);
           }
-        // eight columns, lanterns on top: plain lanterns on the forge side, pink ones on the crystal side
-        for (let k = 0; k < 8; k++) {
-          const an = ((k + 0.5) * Math.PI) / 4,
-            dx = Math.round(Math.cos(an) * 10),
-            dz = Math.round(Math.sin(an) * 10);
+        // twelve columns, lanterns on top: plain lanterns on the forge side, pink ones on the crystal side
+        for (let k = 0; k < 12; k++) {
+          const an = ((k + 0.5) * Math.PI) / 6,
+            dx = Math.round(Math.cos(an) * (MERGE_R - 3)),
+            dz = Math.round(Math.sin(an) * (MERGE_R - 3));
           for (let h = 1; h <= 6; h++) put(X + dx, Y + h, Z + dz, h === 3 ? (dx < 0 ? 27 : 22) : dx < 0 ? 80 : 127);
           put(X + dx, Y + 7, Z + dz, dx < 0 ? 14 : 84);
         }
@@ -758,11 +782,11 @@
           [0, 1],
           [0, -1],
         ]) {
-          put(X - 9 + ddx, Y + 1, Z + ddz, 27);
-          put(X - 9 + ddx, Y + 2, Z + ddz, ddz ? 80 : 14);
-          put(X + 9 + ddx, Y + 1, Z + ddz, 22);
+          put(X - 13 + ddx, Y + 1, Z + ddz, 27);
+          put(X - 13 + ddx, Y + 2, Z + ddz, ddz ? 80 : 14);
+          put(X + 13 + ddx, Y + 1, Z + ddz, 22);
         }
-        for (let h = 2; h <= 5; h++) put(X + 9, Y + h, Z, 83);
+        for (let h = 2; h <= 5; h++) put(X + 13, Y + h, Z, 83);
         // the merging diamond, floating above the center: peach west, lavender east, a diamond-block seam
         // and a radiant heart where the two halves meet (its tip at Y + 14 = 62, under the world's ceiling)
         for (let dy = -3; dy <= 3; dy++)
@@ -806,7 +830,7 @@
           for (let k = 1; k <= 3; k++) put(x, y + k, z, 0);
         }
         // the bridge from the last step to the platform's open rim
-        for (let dz = 13; dz <= 14; dz++)
+        for (let dz = MERGE_R + 1; dz <= MERGE_R + 2; dz++)
           for (let dx = -1; dx <= 1; dx++) {
             put(X + dx, Y, Z + dz, dx ? 15 : 128);
             for (let k = 1; k <= 3; k++) put(X + dx, Y + k, Z + dz, 0);
@@ -1438,6 +1462,9 @@
     gardenAt,
     towerAt,
     TOWER,
+    TR,
+    TOWER_LADDER,
+    TOWER_CHEST,
     mergeAt,
     MERGE,
     MERGE_R,

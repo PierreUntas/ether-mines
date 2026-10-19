@@ -998,4 +998,12 @@ select _seed_tower_chest('rw', 800, 50, 800) \g /dev/null
 select pg_temp.ok('... a broken tower chest comes back empty', not exists (select 1 from chests where world = 'rw' and x = 800));
 select _seed_tower_chest('rw', 810, 50, 810) \g /dev/null
 select pg_temp.ok('... an untouched one still holds its treasure', exists (select 1 from chests where world = 'rw' and x = 810));
+-- regen (045): the frozen chunks outside the claims go too, to be frozen again by the new generator
+insert into chunks (world, cx, cz, gen, sy, data) values ('rw', 40, 40, 1, 64, ''), ('rw', 50, 50, 1, 64, '');
+select admin_restore_world('rw', false, true) as regenp \gset
+select pg_temp.ok('regen preview: counts the chunks, drops nothing',
+  (:'regenp'::jsonb ->> 'terrain_to_regenerate')::int = 1 and (select count(*) from chunks where world = 'rw') = 2);
+select admin_restore_world('rw', true, true) as regen \gset
+select pg_temp.ok('regen: the unclaimed chunk is dropped, the claimed one kept', (:'regen'::jsonb ->> 'terrain_regenerated')::int = 1
+  and exists (select 1 from chunks where world = 'rw' and cx = 40) and not exists (select 1 from chunks where world = 'rw' and cx = 50));
 \echo World restore scenarios pass.

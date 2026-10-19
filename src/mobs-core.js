@@ -7,7 +7,7 @@
 // Script with no import or export, like world.js: loaded via <script> in the game, evaluated by the server.
 (function (root) {
   'use strict';
-  const { CH, SY, DEEP, SPAWN, CITY, RUIN, TOWER, MERGE, MERGE_R, ARENA, ARENA_R, ARENA_W } = root.World,
+  const { CH, SY, DEEP, SPAWN, CITY, RUIN, TOWER, TOWER_LADDER, MERGE, MERGE_R, ARENA, ARENA_R, ARENA_W } = root.World,
     { hash, ckey, cOf, onPath, ruinAt, gardenAt, towerAt, mergeAt, arenaAt, islandTop, heightAt, SEA } = root.World,
     clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   // the mobs that fly or swim: they don't walk on the ground, so walls don't stop them
@@ -404,16 +404,16 @@
     {
       const t = towerAt(Math.floor((x0 + 8) / TOWER), Math.floor((z0 + 8) / TOWER));
       if (t && cOf(t.x) === cx && cOf(t.z) === cz) {
-        // the climbing ladder's column (world.js LADX/LADZ = 4, -4): tower mobs keep clear of it and wait
+        // the climbing ladder's column (world.js TOWER_LADDER): tower mobs keep clear of it and wait
         // for you to step off before striking — no more being hit from above while you can't fight back
-        const towerLadder = { x: t.x + 4.5, z: t.z - 3.5 };
+        const towerLadder = { x: t.x + TOWER_LADDER[0] + 0.5, z: t.z + TOWER_LADDER[1] + 0.5 };
         [1, 7, 13].forEach((fy, fi) => {
-          // the floors are tight: one warden on the ground floor, one or two above (playtest: three at once in
-          // that space, plus a turret, left no room to fight back)
+          // one warden on the ground floor, one or two above (playtest: three at once, plus a turret, left
+          // no room to fight back); spread over the floor, which is 21 blocks across
           const n = fi === 0 ? 1 : hash(t.x + fi, t.z, 280 + fi) < 0.5 ? 2 : 1;
           for (let i = 0; i < n; i++) {
             const an = hash(t.x + fi * 3 + i, t.z, 281 + fi * 2 + i) * Math.PI * 2,
-              rr = 1.5 + hash(t.x, t.z + fi * 3 + i, 282 + fi * 2 + i) * 3,
+              rr = 2 + hash(t.x, t.z + fi * 3 + i, 282 + fi * 2 + i) * 5,
               hx = t.x + 0.5 + Math.cos(an) * rr,
               hz = t.z + 0.5 + Math.sin(an) * rr;
             const wd = mob('warden', k, 140 + fi * 3 + i, hx, t.y + fy, hz, null);
@@ -423,11 +423,11 @@
         });
         const core = mob('plasma_core', k, 150, t.x + 0.5, t.y + 21, t.z + 0.5, null);
         core.ladder = towerLadder;
-        core.arena = { x: t.x + 0.5, z: t.z + 0.5, r: 4.5, y: t.y + 20 }; // floats over the loggia (under its roof at t.y + 24), never leaves it
+        core.arena = { x: t.x + 0.5, z: t.z + 0.5, r: 7.5, y: t.y + 20 }; // floats over the loggia (under its roof at t.y + 24), never leaves it
         list.push(core);
-        // a turret on the first and second floors, in the corner across from the ladder (world.js LADX/LADZ)
-        const tu1 = mob('turret', k, 155, t.x - 3.5, t.y + 7, t.z + 4.5, null);
-        const tu2 = mob('turret', k, 156, t.x + 4.5, t.y + 13, t.z + 4.5, null);
+        // a turret on the first and second floors, in the corners away from the ladder
+        const tu1 = mob('turret', k, 155, t.x - 5.5, t.y + 7, t.z + 6.5, null);
+        const tu2 = mob('turret', k, 156, t.x + 6.5, t.y + 13, t.z + 6.5, null);
         tu1.ladder = tu2.ladder = towerLadder;
         list.push(tu1, tu2);
       }
@@ -438,8 +438,8 @@
       const m = mergeAt(Math.floor((x0 + 8) / MERGE), Math.floor((z0 + 8) / MERGE));
       if (m && cOf(m.x) === cx && cOf(m.z) === cz) {
         const arena = { x: m.x + 0.5, z: m.z + 0.5, r: MERGE_R - 1.5, y: m.y + 1 },
-          pw = mob('pow_twin', k, 160, m.x - 5.5, m.y + 1, m.z + 0.5, null),
-          ps = mob('pos_twin', k, 161, m.x + 6.5, m.y + 2.5, m.z + 0.5, null);
+          pw = mob('pow_twin', k, 160, m.x - 8.5, m.y + 1, m.z + 0.5, null),
+          ps = mob('pos_twin', k, 161, m.x + 9.5, m.y + 2.5, m.z + 0.5, null);
         pw.arena = ps.arena = arena;
         pw.twin = ps;
         ps.twin = pw;
