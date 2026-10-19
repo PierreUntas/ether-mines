@@ -20,10 +20,12 @@ function myLook() {
   const out = {};
   for (const s of LOOK_SLOTS) {
     const id = S.look && S.look[s];
-    if (id && COSMETICS[id] && COSMETICS[id].slot === s && S.cosmetics.includes(+id)) out[s] = +id;
+    if (id && COSMETICS[id] && COSMETICS[id].slot === s && ownsCosmetic(id)) out[s] = +id;
   }
   return out;
 }
+// what you can wear: what you bought or earned, and the free plain outfits
+const ownsCosmetic = id => !!(COSMETICS[id] && COSMETICS[id].free) || S.cosmetics.includes(+id);
 const lookCode = look => SHARED_SLOTS.map(s => look[s] || 0).join('.');
 function parseLook(code) {
   const out = {};
@@ -185,7 +187,7 @@ function buildBack(c, anim) {
         acc = new THREE.Color(c.accent).getHex();
       for (const side of [-1, 1]) {
         const w = new THREE.Group();
-        w.position.set(side * 0.1, 1.28, 0.2);
+        w.position.set(side * 0.1, 1.12, 0.2); // between the shoulder blades, not above the shoulders
         [
           [0.78, 0.26, 0.5, 1],
           [0.66, 0.1, 0.28, 0.85],
@@ -256,6 +258,285 @@ function buildCompanion(c, anim) {
   return g;
 }
 
+// ---------- outfit variants: the details sewn on a plain outfit (rules.js COSMETICS `detail`) ----------
+// Built from boxes on the body, the arms and the legs, like everything else; all of them are look parts,
+// taken off with the outfit. The body's front is -z.
+function buildOutfit(av, key) {
+  const parts = [],
+    box = (p, w, h, d, c, x, y, z, em) => {
+      const m = bx(p, w, h, d, c, x, y, z, em);
+      parts.push(m);
+      return m;
+    };
+  const W = CLAY ? 0.47 : 0.5,
+    H = CLAY ? 0.54 : 0.66,
+    D = 0.28,
+    AL = CLAY ? 0.62 * 0.8 : 0.62, // an arm's length, from the shoulder down
+    LL = CLAY ? 0.62 * 0.76 : 0.62, // a leg's
+    FZ = -D / 2 - 0.012, // just in front of the body
+    BZ = D / 2 + 0.012; // just behind it
+  // a band all around the body, an arm or a leg; a whole sleeve or trouser leg in another color
+  const ring = (p, w, d, h, c, y, em) => box(p, w + 0.02, h, d + 0.02, c, 0, y, 0, em);
+  const armRing = (a, h, c, y, em) => box(a, 0.2, h, 0.24, c, 0, y, 0, em);
+  const legRing = (l, h, c, y, em) => box(l, 0.26, h, 0.28, c, 0, y, 0, em);
+  const sleeve = (a, c) => box(a, 0.19, AL + 0.005, 0.23, c, 0, -AL / 2, 0);
+  const trouser = (l, c) => box(l, 0.25, LL + 0.005, 0.27, c, 0, -LL / 2, 0);
+  const front = (b, w, h, c, x, y, em) => box(b, w, h, 0.02, c, x, y, FZ, em);
+  const back = (b, w, h, c, x, y, em) => box(b, w, h, 0.02, c, x, y, BZ, em);
+  // an Ethereum diamond from stacked slabs, flat on the front
+  const diamond = (p, s, c, x, y, z, em) => {
+    for (let i = 0; i < 5; i++) box(p, s * (1 - Math.abs(i - 2) / 2.6), s / 5, 0.02, c, x, y + (i - 2) * (s / 5), z, em);
+  };
+  const top = H / 2,
+    bot = -H / 2;
+  const OUTFIT_DETAIL = {};
+
+  // ---------- Ember Outfit ----------
+  // A: the Forge Apron — a leather apron, ember-glowing hem, rolled sleeves over bare forearms
+  OUTFIT_DETAIL['1A'] = av => {
+    const b = av.body;
+    front(b, W * 0.8, H * 0.95, 0x5a2e22, 0, -H * 0.02);
+    box(b, W * 0.8, 0.03, 0.03, 0xff8a3d, 0, bot + 0.03, FZ - 0.01, 0.9);
+    front(b, 0.14, 0.08, 0x3a1c14, 0, -H * 0.12); // the pocket
+    box(b, W + 0.03, 0.04, D + 0.03, 0x3a1c14, 0, top - H * 0.42, 0); // the apron's tie
+    av.arms.forEach(a => {
+      armRing(a, 0.07, 0xc84a4a, -AL * 0.45);
+      box(a, 0.185, AL * 0.4, 0.225, 0xf6d3b8, 0, -AL * 0.78, 0); // bare forearms
+    });
+    av.legs.forEach(l => legRing(l, 0.06, 0x3a1c14, -LL + 0.05));
+  };
+  // B: the Ember Coat — red above, dark below, glowing cracks rising from the hem like coals
+  OUTFIT_DETAIL['1B'] = av => {
+    const b = av.body;
+    ring(b, W, D, H * 0.45, 0x3a1416, bot + H * 0.22);
+    for (const [x, h] of [
+      [-0.17, 0.2],
+      [-0.06, 0.12],
+      [0.05, 0.24],
+      [0.16, 0.14],
+    ])
+      box(b, 0.025, h, 0.025, 0xff7a2e, x, bot + h / 2, FZ - 0.01, 1);
+    box(b, W + 0.03, 0.03, D + 0.03, 0xffb347, 0, bot + H * 0.45, 0, 0.8);
+    av.arms.forEach(a => {
+      armRing(a, AL * 0.3, 0x3a1416, -AL * 0.85);
+      armRing(a, 0.025, 0xffb347, -AL * 0.7, 0.8);
+    });
+  };
+
+  // ---------- Void Outfit ----------
+  // A: Starfield — tiny stars scattered over the dark cloth
+  OUTFIT_DETAIL['2A'] = av => {
+    const star = (p, x, y, z, big) => box(p, big ? 0.035 : 0.022, big ? 0.035 : 0.022, 0.012, big ? 0xffffff : 0xc9b8ff, x, y, z, 1.2);
+    const pts = [
+      [-0.18, 0.2],
+      [-0.05, 0.12],
+      [0.12, 0.22],
+      [0.19, -0.02],
+      [-0.12, -0.08],
+      [0.03, -0.2],
+      [-0.2, -0.22],
+      [0.15, -0.15],
+      [0.02, 0.02],
+    ];
+    pts.forEach(([x, y], i) => star(av.body, x * W * 2, y * H * 1.6, FZ - 0.006, i % 3 === 0));
+    pts.slice(0, 5).forEach(([x, y]) => star(av.body, -x * W * 2, y * H * 1.6, BZ + 0.006));
+    av.arms.forEach((a, k) => [-0.15, -0.4, -0.7].forEach((y, i) => star(a, (i + k) % 2 ? 0.04 : -0.04, y * AL, -0.118, i === 1)));
+    av.legs.forEach((l, k) => [-0.2, -0.55].forEach((y, i) => star(l, (i + k) % 2 ? 0.05 : -0.05, y * LL, -0.138, i === 0)));
+  };
+  // B: the Void Mantle — a high collar, a violet V trim, a glowing rune on the belt
+  OUTFIT_DETAIL['2B'] = av => {
+    const b = av.body;
+    box(b, W + 0.06, 0.1, D + 0.06, 0x120a1c, 0, top - 0.02, 0); // the collar
+    for (let i = 0; i < 5; i++) {
+      const y = top - 0.06 - i * 0.045;
+      box(b, 0.03, 0.05, 0.02, 0xb48cff, -0.035 - i * 0.022, y, FZ - 0.005, 0.9);
+      box(b, 0.03, 0.05, 0.02, 0xb48cff, 0.035 + i * 0.022, y, FZ - 0.005, 0.9);
+    }
+    ring(b, W, D, 0.06, 0x120a1c, bot + H * 0.28);
+    diamond(b, 0.08, 0xb48cff, 0, bot + H * 0.28, FZ - 0.02, 1.2);
+    back(b, W * 0.9, H * 1.15, 0x120a1c, 0, -0.05); // a short mantle at the back
+    av.arms.forEach(a => armRing(a, 0.03, 0xb48cff, -AL * 0.88, 0.9));
+  };
+
+  // ---------- Aurum Outfit ----------
+  // A: the Royal — deep gold borders at the collar, the hem and the cuffs, the Ether diamond on the chest
+  OUTFIT_DETAIL['3A'] = av => {
+    const b = av.body;
+    ring(b, W, D, 0.05, 0xc89a2e, top - 0.025);
+    ring(b, W, D, 0.06, 0xc89a2e, bot + 0.03);
+    box(b, 0.05, H * 0.85, 0.02, 0xc89a2e, 0, 0, FZ);
+    diamond(b, 0.16, 0x8a5cff, -0.12, H * 0.12, FZ - 0.012, 0.4);
+    av.arms.forEach(a => armRing(a, 0.06, 0xc89a2e, -AL + 0.04));
+    av.legs.forEach(l => box(l, 0.03, LL * 0.9, 0.27, 0xffe9a8, 0.12, -LL / 2, 0)); // a gold stripe down each leg
+  };
+  // B: Gilded Plate — gold shoulders, a belt with a violet gem
+  OUTFIT_DETAIL['3B'] = av => {
+    const b = av.body;
+    ring(b, W, D, 0.07, 0x9c7424, bot + H * 0.3);
+    box(b, 0.08, 0.08, 0.03, 0x8a5cff, 0, bot + H * 0.3, FZ - 0.015, 0.6);
+    av.arms.forEach(a => {
+      const s = a.position.x < 0 ? -1 : 1;
+      box(a, 0.26, 0.1, 0.28, 0xd4a83a, s * 0.03, 0.0, 0);
+      box(a, 0.24, 0.06, 0.26, 0xb08a2e, s * 0.04, -0.07, 0);
+    });
+    front(b, W * 0.55, H * 0.3, 0xfff5d6, 0, top - H * 0.2);
+  };
+
+  // ---------- Frontier Duster ----------
+  // A: the long coat — tails hanging down over the legs, a wide belt, a turned-up collar
+  OUTFIT_DETAIL['21A'] = av => {
+    const b = av.body;
+    box(b, W + 0.04, 0.08, D + 0.06, 0x5c3a1c, 0, top, 0); // the collar
+    ring(b, W, D, 0.06, 0x2a1a0e, bot + H * 0.3);
+    box(b, 0.07, 0.06, 0.03, 0xd4a83a, 0, bot + H * 0.3, FZ - 0.015);
+    // the tails, front and back, parted in the middle
+    for (const x of [-0.13, 0.13]) {
+      box(b, 0.22, LL * 0.7, 0.02, 0x8b5a2b, x, bot - LL * 0.35, FZ);
+      box(b, 0.24, LL * 0.75, 0.02, 0x8b5a2b, x, bot - LL * 0.37, BZ);
+    }
+    av.arms.forEach(a => armRing(a, 0.08, 0x5c3a1c, -AL + 0.06));
+  };
+  // B: the Poncho — a striped blanket over the shoulders, fringe at the bottom
+  OUTFIT_DETAIL['21B'] = av => {
+    const b = av.body;
+    const stripes = [0xc8562e, 0xe8c27a, 0x2e6b8a, 0xe8c27a, 0xc8562e];
+    stripes.forEach((c, i) => box(b, W + 0.12, 0.07, D + 0.08, c, 0, top - 0.04 - i * 0.07, 0));
+    for (let i = -4; i <= 4; i++) box(b, 0.02, 0.05, 0.02, 0xe8c27a, i * 0.06, top - 0.4, FZ - 0.03);
+    av.arms.forEach(a => box(a, 0.24, 0.16, 0.27, 0xc8562e, 0, -0.06, 0));
+  };
+
+  // ---------- Homestead Overalls ----------
+  // A: plaid shirt under denim — the bib and straps, brass buttons, checkered sleeves
+  OUTFIT_DETAIL['24A'] = av => {
+    const b = av.body,
+      plaid = (p, w, h, x0, y0, z) => {
+        for (let i = 0; i < 4; i++)
+          for (let j = 0; j < 4; j++)
+            if ((i + j) % 2) box(p, w / 4, h / 4, 0.012, 0xb83a3a, x0 - w / 2 + (i + 0.5) * (w / 4), y0 - h / 2 + (j + 0.5) * (h / 4), z);
+      };
+    front(b, W, H * 0.5, 0xe8dcc0, 0, top - H * 0.25); // the shirt's top
+    plaid(b, W, H * 0.5, 0, top - H * 0.25, FZ - 0.008);
+    front(b, W * 0.56, H * 0.42, 0x4a6fa5, 0, -H * 0.02); // the bib
+    for (const x of [-0.17, 0.17]) {
+      box(b, 0.05, H * 0.5, 0.02, 0x2c3e66, x, top - H * 0.25, FZ - 0.012); // the straps
+      box(b, 0.035, 0.035, 0.02, 0xd4a83a, x, top - H * 0.42, FZ - 0.025);
+    }
+    av.arms.forEach(a => {
+      box(a, 0.19, AL, 0.23, 0xe8dcc0, 0, -AL / 2, 0);
+      for (let j = 0; j < 4; j++) box(a, 0.192, AL / 8, 0.232, 0xb83a3a, 0, -AL * (j / 4 + 0.06), 0);
+    });
+  };
+  // B: white tee and denim, a patch pocket and a wrench
+  OUTFIT_DETAIL['24B'] = av => {
+    const b = av.body;
+    front(b, W, H * 0.4, 0xf4f1e8, 0, top - H * 0.2);
+    front(b, W * 0.6, H * 0.45, 0x4a6fa5, 0, -H * 0.05);
+    front(b, 0.14, 0.1, 0x3a5a8a, 0.05, -H * 0.02);
+    box(b, 0.03, 0.14, 0.03, 0x9aa4b0, -0.09, -H * 0.02, FZ - 0.02); // the wrench in the pocket
+    box(b, 0.06, 0.035, 0.03, 0x9aa4b0, -0.09, -H * 0.02 + 0.08, FZ - 0.02);
+    for (const x of [-0.18, 0.18]) box(b, 0.05, H * 0.45, 0.02, 0x2c3e66, x, top - H * 0.22, FZ - 0.008);
+    av.arms.forEach(a => {
+      box(a, 0.19, AL * 0.35, 0.23, 0xf4f1e8, 0, -AL * 0.17, 0);
+      box(a, 0.185, AL * 0.65, 0.225, 0xf6d3b8, 0, -AL * 0.67, 0);
+    });
+  };
+
+  // ---------- Staker Jacket ----------
+  // A: the validator's suit — lapels, a white shirt, a cyan tie, a 32 ETH pin
+  OUTFIT_DETAIL['27A'] = av => {
+    const b = av.body;
+    for (let i = 0; i < 6; i++) front(b, 0.2 - i * 0.03, 0.05, 0xf4f1ff, 0, top - 0.025 - i * 0.05);
+    box(b, 0.045, H * 0.5, 0.02, 0x00c8e0, 0, top - H * 0.28, FZ - 0.008, 0.4);
+    for (const s of [-1, 1])
+      for (let i = 0; i < 4; i++) box(b, 0.04, 0.06, 0.02, 0x2c3f6a, s * (0.08 + i * 0.03), top - 0.04 - i * 0.06, FZ - 0.012);
+    diamond(b, 0.07, 0xd4a83a, -0.15, H * 0.12, FZ - 0.016, 0.5);
+    av.arms.forEach(a => armRing(a, 0.04, 0xf4f1ff, -AL + 0.03));
+  };
+  // B: the bomber — glowing stripes down the sleeves, a ribbed hem and collar, a beacon on the back
+  OUTFIT_DETAIL['27B'] = av => {
+    const b = av.body;
+    ring(b, W, D, 0.07, 0x0e1626, top - 0.03);
+    ring(b, W, D, 0.08, 0x0e1626, bot + 0.04);
+    box(b, 0.025, H * 0.85, 0.02, 0x9aa4b0, 0, 0, FZ); // the zip
+    diamond(b, 0.22, 0x00eaff, 0, 0.02, BZ + 0.012, 1);
+    av.arms.forEach(a => {
+      const s = a.position.x < 0 ? -1 : 1;
+      box(a, 0.03, AL * 0.9, 0.235, 0x00eaff, s * 0.09, -AL * 0.47, 0, 0.9);
+      armRing(a, 0.06, 0x0e1626, -AL + 0.04);
+    });
+  };
+
+  // ---------- Merge Suit ----------
+  // A: the Merge — work on one side, stake on the other: half black, half white, a cyan seam
+  OUTFIT_DETAIL['31A'] = av => {
+    const b = av.body;
+    box(b, W / 2 + 0.01, H + 0.01, D + 0.02, 0x1a1a22, -W / 4, 0, 0);
+    box(b, 0.03, H + 0.02, D + 0.03, 0x00eaff, 0, 0, 0, 0.9);
+    sleeve(av.arms[0], 0x1a1a22);
+    trouser(av.legs[1], 0xf4f1ff);
+    diamond(b, 0.12, 0x00eaff, 0.11, H * 0.12, FZ - 0.006, 1);
+  };
+  // B: the Panda — black arms and shoulders, a white chest, a round black patch
+  OUTFIT_DETAIL['31B'] = av => {
+    const b = av.body;
+    av.arms.forEach(a => sleeve(a, 0x1a1a22));
+    box(b, W + 0.02, 0.12, D + 0.02, 0x1a1a22, 0, top - 0.06, 0);
+    front(b, 0.14, 0.14, 0x1a1a22, 0, -H * 0.05);
+    front(b, 0.08, 0.08, 0xf4f1ff, 0, -H * 0.05);
+  };
+
+  // ---------- Blobspace Suit ----------
+  // A: bubbles — light round blobs floating up the suit
+  OUTFIT_DETAIL['35A'] = av => {
+    const bub = (p, s, x, y, z) => {
+      box(p, s, s * 0.6, 0.012, 0xa8fff6, x, y, z, 0.3);
+      box(p, s * 0.6, s, 0.012, 0xa8fff6, x, y, z, 0.3);
+    };
+    [
+      [-0.14, -0.18, 0.08],
+      [0.1, -0.06, 0.06],
+      [-0.04, 0.1, 0.05],
+      [0.15, 0.18, 0.04],
+      [-0.17, 0.2, 0.035],
+    ].forEach(([x, y, s]) => bub(av.body, s, x * W * 2, y * H * 1.6, FZ - 0.004));
+    av.arms.forEach(a => bub(a, 0.05, 0, -AL * 0.5, -0.118));
+    av.legs.forEach((l, k) => bub(l, 0.06, k ? 0.04 : -0.04, -LL * 0.4, -0.138));
+  };
+  // B: the dive suit — glowing seams, a collar ring, a blob tank on the back
+  OUTFIT_DETAIL['35B'] = av => {
+    const b = av.body;
+    ring(b, W, D, 0.05, 0x1d5c63, top - 0.02);
+    box(b, 0.025, H, 0.02, 0x7ffff0, -0.1, 0, FZ, 0.9);
+    box(b, 0.025, H, 0.02, 0x7ffff0, 0.1, 0, FZ, 0.9);
+    box(b, 0.16, H * 0.8, 0.12, 0x1d5c63, 0, 0, BZ + 0.06); // the tank
+    box(b, 0.12, 0.05, 0.13, 0x7ffff0, 0, H * 0.25, BZ + 0.06, 0.9);
+    av.arms.forEach(a => box(a, 0.025, AL * 0.9, 0.235, 0x7ffff0, 0, -AL * 0.47, 0, 0.9));
+    av.legs.forEach(l => box(l, 0.025, LL * 0.9, 0.275, 0x7ffff0, 0, -LL * 0.47, 0, 0.9));
+  };
+
+  // ---------- Lavender Outfit ----------
+  // A: the hoodie — the hood down on the back, a front pocket, drawstrings
+  OUTFIT_DETAIL['45A'] = av => {
+    const b = av.body;
+    box(b, W * 0.8, 0.14, 0.12, 0x9a86ee, 0, top - 0.02, BZ + 0.03); // the hood, down
+    front(b, W * 0.62, H * 0.28, 0x9a86ee, 0, bot + H * 0.22);
+    for (const x of [-0.05, 0.05]) box(b, 0.015, 0.14, 0.015, 0xffffff, x, top - 0.1, FZ - 0.01);
+    ring(b, W, D, 0.05, 0x8a76de, bot + 0.025);
+    av.arms.forEach(a => armRing(a, 0.06, 0x8a76de, -AL + 0.04));
+  };
+  // B: the knit — a diamond pattern across the chest, a ribbed collar
+  OUTFIT_DETAIL['45B'] = av => {
+    const b = av.body;
+    ring(b, W, D, 0.05, 0x8a76de, top - 0.025);
+    for (const x of [-0.15, 0, 0.15]) diamond(b, 0.12, 0xffffff, x, H * 0.05, FZ - 0.004, 0.1);
+    box(b, W, 0.025, 0.02, 0x6a58c0, 0, H * 0.18, FZ - 0.004);
+    box(b, W, 0.025, 0.02, 0x6a58c0, 0, -H * 0.08, FZ - 0.004);
+    av.arms.forEach(a => [0.3, 0.6].forEach(f => armRing(a, 0.025, 0xffffff, -AL * f)));
+  };
+  if (OUTFIT_DETAIL[key]) OUTFIT_DETAIL[key](av);
+  return parts;
+}
+
 // dresses an avatar (makeAvatar, 14-startup.js) in a look. preview: the companion is attached to the
 // avatar itself (the chest's spinning character) instead of following it around the world.
 function applyLook(av, look, preview) {
@@ -270,6 +551,7 @@ function applyLook(av, look, preview) {
   av.anim = [];
   const o = look.outfit && COSMETICS[look.outfit];
   av.legs[0].children[0].material.color.set(o && o.color === av.color ? o.pants : DEFAULT_PANTS);
+  if (o && o.detail && o.color === av.color) av.lookParts.push(...buildOutfit(av, o.detail));
   if (look.head) {
     const h = buildHead(COSMETICS[look.head], av.anim);
     av.head.add(h);
@@ -277,7 +559,8 @@ function applyLook(av, look, preview) {
   }
   if (look.back) {
     const b = buildBack(COSMETICS[look.back], av.anim);
-    av.g.add(b);
+    // on the body's own parent: with the clay look's shorter body, back pieces come down with it
+    (av.body.parent || av.g).add(b);
     av.lookParts.push(b);
   }
   av.backWorn = !!look.back;

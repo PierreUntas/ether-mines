@@ -565,6 +565,15 @@ const srvHp = await page.evaluate(async () => {
   return { shown, noRegen, fell, paid, noMobs };
 });
 if (Object.values(srvHp).some(v => !v)) await fail('your hearts on the game server: ' + JSON.stringify(srvHp));
+// outfits: the plain ones are free for everyone, their variants are sold and come with details sewn on
+const outfits = await page.evaluate(() => {
+  const av = makeAvatar('T', COSMETICS[46].color, true);
+  applyLook(av, { outfit: 46 }, true);
+  const sewn = av.lookParts.length;
+  applyLook(av, { outfit: 1 }, true);
+  return { free: ownsCosmetic(1) && !forSale(COSMETICS[1]), sold: forSale(COSMETICS[46]) && !COSMETICS[46].free, sewn, plain: av.lookParts.length === 0 };
+});
+if (!outfits.free || !outfits.sold || !(outfits.sewn > 3) || !outfits.plain) await fail('outfits: ' + JSON.stringify(outfits));
 // a plating traded away: the next read of the inventory takes it off your back
 const tradedArmor = await page.evaluate(async () => {
   const S = mines.S,
