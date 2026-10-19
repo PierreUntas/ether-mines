@@ -252,16 +252,6 @@ select pg_temp.ok('a block pack can be bought again', (act_buy_cosmetic('w', 5) 
 select pg_temp.ok('... and is paid again', (select gwei from players where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 550);
 select pg_temp.ok('a wearable is bought once', act_buy_cosmetic('w', 42) ->> 'ok' = 'true');
 select pg_temp.ok('... and never twice', act_buy_cosmetic('w', 42) ->> 'err' = 'already owned');
--- 046: the plain outfits are free (nothing to buy), their variants are sold
-select pg_temp.ok('a plain outfit is free: not for sale', act_buy_cosmetic('w', 1) ->> 'err' = 'not for sale');
-reset role;
-delete from rate_limits where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
-insert into cosmetics_owned (user_id, world, cosmetic_id) values ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 27);
-\i supabase/migrations/046_free_outfits.sql
-select pg_temp.ok('whoever paid for a plain outfit gets its first variant',
-  exists (select 1 from cosmetics_owned where user_id = 'aaaaaaaa-0000-0000-0000-000000000001' and cosmetic_id = 56));
-set role authenticated;
-select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 reset role;
 update players set gwei = 50 where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
 set role authenticated;

@@ -24,8 +24,8 @@ function myLook() {
   }
   return out;
 }
-// what you can wear: what you bought or earned, and the free plain outfits
-const ownsCosmetic = id => !!(COSMETICS[id] && COSMETICS[id].free) || S.cosmetics.includes(+id);
+// what you can wear: what you bought or earned
+const ownsCosmetic = id => S.cosmetics.includes(+id);
 const lookCode = look => SHARED_SLOTS.map(s => look[s] || 0).join('.');
 function parseLook(code) {
   const out = {};
@@ -81,10 +81,21 @@ function buildHead(c, anim) {
   const g = new THREE.Group();
   switch (c.style) {
     case 'prospector':
-      bx(g, 0.8, 0.05, 0.8, 0x6b4423, 0, 0.27, 0);
-      bx(g, 0.5, 0.22, 0.5, 0x7a4f2a, 0, 0.39, 0);
-      bx(g, 0.51, 0.05, 0.51, 0x3b2a1a, 0, 0.31, 0);
+    case 'sheriff':
+    case 'gambler': {
+      const [brim, crown, band, w] = {
+        prospector: [0x6b4423, 0x7a4f2a, 0x3b2a1a, 0.8],
+        sheriff: [0x8a6a40, 0x9c7a4a, 0x4a3420, 0.8],
+        gambler: [0x1a1a22, 0x22222c, 0xc0392b, 0.84],
+      }[c.style];
+      bx(g, w, 0.05, w, brim, 0, 0.27, 0);
+      bx(g, 0.5, 0.22, 0.5, crown, 0, 0.39, 0);
+      bx(g, 0.51, 0.05, 0.51, band, 0, 0.31, 0);
+      if (c.style === 'sheriff')
+        for (let i = 0; i < 2; i++) bx(g, 0.1, 0.1, 0.02, 0xffd166, 0, 0.4, -0.26, 0.5).rotation.z = (i * Math.PI) / 4; // the star
+      if (c.style === 'gambler') bx(g, 0.04, 0.26, 0.04, 0xf4f1ff, 0.22, 0.44, 0.05).rotation.z = -0.4; // the feather
       break;
+    }
     case 'straw':
       bx(g, 0.88, 0.04, 0.88, 0xe8c66a, 0, 0.26, 0);
       bx(g, 0.46, 0.2, 0.46, 0xf0d27a, 0, 0.37, 0);
@@ -95,30 +106,70 @@ function buildHead(c, anim) {
       bx(g, 0.1, 0.06, 0.58, 0xe0a800, 0, 0.43, 0);
       bx(g, 0.16, 0.12, 0.06, 0xfff6c0, 0, 0.3, -0.31, 1);
       break;
+    case 'crystalminer': {
+      bx(g, 0.56, 0.18, 0.58, 0x8a6cff, 0, 0.32, 0);
+      bx(g, 0.1, 0.06, 0.58, 0x6a50d8, 0, 0.43, 0);
+      const lamp = new THREE.Mesh(new THREE.OctahedronGeometry(0.08), lookMat(0x9fe8ff, 1.2));
+      lamp.position.set(0, 0.32, -0.32);
+      lamp.scale.y = 1.3;
+      g.add(lamp);
+      break;
+    }
     case 'beanie':
       bx(g, 0.54, 0.2, 0.54, 0xff6b6b, 0, 0.32, 0);
       bx(g, 0.56, 0.08, 0.56, 0xd94f4f, 0, 0.24, 0);
       bx(g, 0.12, 0.12, 0.12, 0xffffff, 0, 0.47, 0);
       break;
-    case 'visor': {
-      bx(g, 0.56, 0.11, 0.06, 0x00eaff, 0, 0.04, -0.27, 0.9);
-      bx(g, 0.06, 0.16, 0.16, 0x1b2a4a, -0.28, 0.04, -0.17);
-      bx(g, 0.06, 0.16, 0.16, 0x1b2a4a, 0.28, 0.04, -0.17);
+    case 'etherbeanie': {
+      bx(g, 0.54, 0.2, 0.54, 0x4a6fa5, 0, 0.32, 0);
+      bx(g, 0.56, 0.08, 0.56, 0x2c3e66, 0, 0.24, 0);
+      const patch = new THREE.Mesh(new THREE.OctahedronGeometry(0.05), lookMat(0xc9b8ff, 0.5));
+      patch.position.set(0, 0.32, -0.28);
+      patch.scale.y = 1.4;
+      g.add(patch);
+      break;
+    }
+    case 'pombeanie':
+      for (let i = 0; i < 3; i++) bx(g, 0.54 - i * 0.04, 0.08, 0.54 - i * 0.04, i % 2 ? 0xffffff : 0x7fe8a0, 0, 0.26 + i * 0.08, 0);
+      bx(g, 0.2, 0.22, 0.2, 0x7fe8a0, 0.08, 0.5, 0.12).rotation.z = -0.5; // the floppy tip
+      bx(g, 0.12, 0.12, 0.12, 0xffffff, 0.2, 0.58, 0.18);
+      break;
+    case 'visor':
+    case 'goldvisor': {
+      // at eye level, held by two side pieces
+      const gold = c.style === 'goldvisor';
+      bx(g, 0.56, 0.11, 0.06, gold ? 0xffb347 : 0x00eaff, 0, -0.04, -0.27, 0.9);
+      for (const x of [-0.28, 0.28]) {
+        bx(g, 0.06, 0.16, 0.16, gold ? 0x6b4a1a : 0x1b2a4a, x, -0.04, -0.17);
+        if (gold) bx(g, 0.07, 0.1, 0.1, 0xffd166, x, -0.04, 0, 0.4);
+      }
       break;
     }
     case 'panda':
-      bx(g, 0.56, 0.08, 0.56, 0xf4f1ff, 0, 0.29, 0);
-      bx(g, 0.56, 0.5, 0.06, 0xf4f1ff, 0, 0.04, 0.28);
-      bx(g, 0.06, 0.5, 0.5, 0xf4f1ff, -0.28, 0.04, 0.04);
-      bx(g, 0.06, 0.5, 0.5, 0xf4f1ff, 0.28, 0.04, 0.04);
-      bx(g, 0.15, 0.15, 0.08, 0x1a1a22, -0.2, 0.39, 0);
-      bx(g, 0.15, 0.15, 0.08, 0x1a1a22, 0.2, 0.39, 0);
+    case 'redpanda':
+    case 'polar': {
+      const [fur, ear, inner] = {
+        panda: [0xf4f1ff, 0x1a1a22],
+        redpanda: [0xd9622b, 0x7a2f1a, 0xf4f1ff],
+        polar: [0xf4f8ff, 0xf4f8ff, 0x9aa4b0],
+      }[c.style];
+      bx(g, 0.56, 0.08, 0.56, fur, 0, 0.29, 0);
+      bx(g, 0.56, 0.5, 0.06, fur, 0, 0.04, 0.28);
+      bx(g, 0.06, 0.5, 0.5, fur, -0.28, 0.04, 0.04);
+      bx(g, 0.06, 0.5, 0.5, fur, 0.28, 0.04, 0.04);
+      for (const x of [-0.2, 0.2]) {
+        bx(g, 0.15, 0.15, 0.08, ear, x, 0.39, 0);
+        if (inner) bx(g, 0.07, 0.07, 0.09, inner, x, 0.39, 0);
+      }
       break;
-    case 'halo': {
-      const ring = new THREE.Group();
+    }
+    case 'halo':
+    case 'prismhalo': {
+      const cols = c.style === 'prismhalo' ? [0xff6b6b, 0xffd166, 0x7fe8a0, 0x7fd0ff, 0xb48cff] : [0x3fd2c7],
+        ring = new THREE.Group();
       for (let i = 0; i < 12; i++) {
         const a = (i / 12) * Math.PI * 2;
-        bx(ring, 0.09, 0.05, 0.09, 0x3fd2c7, Math.cos(a) * 0.3, 0, Math.sin(a) * 0.3, 0.9);
+        bx(ring, 0.09, 0.05, 0.09, cols[i % cols.length], Math.cos(a) * 0.3, 0, Math.sin(a) * 0.3, 0.9);
       }
       ring.position.y = 0.46;
       g.add(ring);
@@ -128,8 +179,11 @@ function buildHead(c, anim) {
       });
       break;
     }
-    case 'crown': {
-      bx(g, 0.54, 0.1, 0.54, 0xffd166, 0, 0.3, 0, 0.25);
+    case 'crown':
+    case 'silvercrown': {
+      const silver = c.style === 'silvercrown',
+        metal = silver ? 0xd9e2ee : 0xffd166;
+      bx(g, 0.54, 0.1, 0.54, metal, 0, 0.3, 0, 0.25);
       for (const [x, z] of [
         [-0.22, -0.22],
         [0.22, -0.22],
@@ -140,8 +194,8 @@ function buildHead(c, anim) {
         [-0.24, 0],
         [0.24, 0],
       ])
-        bx(g, 0.08, 0.14, 0.08, 0xffd166, x, 0.41, z, 0.25);
-      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.08), lookMat(0x8a7bef, 0.8));
+        bx(g, 0.08, 0.14, 0.08, metal, x, 0.41, z, 0.25);
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.08), lookMat(silver ? 0x00eaff : 0x8a7bef, 0.8));
       gem.position.set(0, 0.31, -0.29);
       g.add(gem);
       break;
@@ -171,12 +225,33 @@ function buildBack(c, anim) {
       anim.push(t => (flag.rotation.y = Math.sin(t * 2.4) * 0.18));
       break;
     }
-    case 'cape2': {
-      const cape = new THREE.Group();
+    case 'cape2':
+    case 'royalcape':
+    case 'circuitcape': {
+      const [l, r, trim] = {
+          cape2: [0xff8a3d, 0x8a7bef, 0xffd166],
+          royalcape: [0x3a2266, 0x3a2266, 0xffd166],
+          circuitcape: [0x101418, 0x101418, 0x00eaff],
+        }[c.style],
+        cape = new THREE.Group();
       cape.position.set(0, 1.3, 0.17);
-      bx(cape, 0.23, 0.72, 0.04, 0xff8a3d, -0.115, -0.36, 0);
-      bx(cape, 0.23, 0.72, 0.04, 0x8a7bef, 0.115, -0.36, 0);
-      bx(cape, 0.46, 0.06, 0.05, 0xffd166, 0, -0.7, 0, 0.6);
+      bx(cape, 0.23, 0.72, 0.04, l, -0.115, -0.36, 0);
+      bx(cape, 0.23, 0.72, 0.04, r, 0.115, -0.36, 0);
+      bx(cape, 0.46, 0.06, 0.05, trim, 0, -0.7, 0, 0.6);
+      if (c.style === 'royalcape') {
+        const d = new THREE.Mesh(new THREE.OctahedronGeometry(0.09), lookMat(0xffd166, 0.5));
+        d.position.set(0, -0.3, 0.03);
+        d.scale.y = 1.4;
+        cape.add(d);
+      }
+      if (c.style === 'circuitcape')
+        for (const [x, y, w, h] of [
+          [-0.1, -0.2, 0.02, 0.3],
+          [-0.05, -0.35, 0.12, 0.02],
+          [0.08, -0.45, 0.02, 0.22],
+          [0.12, -0.15, 0.1, 0.02],
+        ])
+          bx(cape, w, h, 0.02, 0x00eaff, x, y, 0.025, 1);
       g.add(cape);
       anim.push(t => (cape.rotation.x = 0.08 + Math.sin(t * 1.7) * 0.05));
       break;
@@ -187,11 +262,11 @@ function buildBack(c, anim) {
         acc = new THREE.Color(c.accent).getHex();
       for (const side of [-1, 1]) {
         const w = new THREE.Group();
-        w.position.set(side * 0.1, 1.12, 0.2); // between the shoulder blades, not above the shoulders
+        w.position.set(side * 0.1, 0.98, 0.22); // low between the shoulder blades, clear of the head
         [
-          [0.78, 0.26, 0.5, 1],
-          [0.66, 0.1, 0.28, 0.85],
-          [0.52, -0.06, 0.08, 0.7],
+          [0.78, 0.16, 0.36, 1],
+          [0.66, 0.02, 0.18, 0.85],
+          [0.52, -0.12, 0.02, 0.7],
         ].forEach(([len, y, tilt, light], i) => {
           const f = new THREE.Group();
           f.position.set(0, y, 0);
@@ -215,41 +290,80 @@ function buildCompanion(c, anim) {
   g.add(body);
   switch (c.style) {
     case 'validator':
-      bx(body, 0.3, 0.3, 0.3, 0x2a1838, 0, 0, 0);
-      bx(body, 0.2, 0.07, 0.02, 0x00eaff, 0, 0.04, -0.16, 1);
+    case 'goldvalidator':
+    case 'legendvalidator': {
+      const [shell, light] = {
+        validator: [0x2a1838, 0x00eaff],
+        goldvalidator: [0xb08a2e, 0xffd166],
+        legendvalidator: [0xf4f1ff, 0xb48cff],
+      }[c.style];
+      bx(body, 0.3, 0.3, 0.3, shell, 0, 0, 0);
+      bx(body, 0.2, 0.07, 0.02, light, 0, 0.04, -0.16, 1);
       bx(body, 0.03, 0.12, 0.03, 0xd9d9e3, 0, 0.21, 0);
-      bx(body, 0.06, 0.06, 0.06, 0x00eaff, 0, 0.29, 0, 1);
+      bx(body, 0.06, 0.06, 0.06, light, 0, 0.29, 0, 1);
       break;
+    }
     case 'panda':
-      bx(body, 0.3, 0.22, 0.24, 0xf4f1ff, 0, 0, 0.04);
-      bx(body, 0.22, 0.2, 0.2, 0xf4f1ff, 0, 0.12, -0.14);
-      bx(body, 0.07, 0.07, 0.04, 0x1a1a22, -0.1, 0.25, -0.12);
-      bx(body, 0.07, 0.07, 0.04, 0x1a1a22, 0.1, 0.25, -0.12);
-      bx(body, 0.06, 0.05, 0.02, 0x1a1a22, -0.05, 0.14, -0.25);
-      bx(body, 0.06, 0.05, 0.02, 0x1a1a22, 0.05, 0.14, -0.25);
+    case 'redpanda':
+    case 'bamboopanda': {
+      const [fur, dark] = c.style === 'redpanda' ? [0xd9622b, 0x3a1c14] : [0xf4f1ff, 0x1a1a22];
+      bx(body, 0.3, 0.22, 0.24, fur, 0, 0, 0.04);
+      bx(body, 0.22, 0.2, 0.2, fur, 0, 0.12, -0.14);
+      bx(body, 0.07, 0.07, 0.04, dark, -0.1, 0.25, -0.12);
+      bx(body, 0.07, 0.07, 0.04, dark, 0.1, 0.25, -0.12);
+      bx(body, 0.06, 0.05, 0.02, dark, -0.05, 0.14, -0.25);
+      bx(body, 0.06, 0.05, 0.02, dark, 0.05, 0.14, -0.25);
       for (const [x, z] of [
         [-0.1, -0.06],
         [0.1, -0.06],
         [-0.1, 0.12],
         [0.1, 0.12],
       ])
-        bx(body, 0.08, 0.1, 0.08, 0x1a1a22, x, -0.14, z);
+        bx(body, 0.08, 0.1, 0.08, dark, x, -0.14, z);
+      if (c.style === 'redpanda') bx(body, 0.06, 0.06, 0.28, fur, 0, 0.02, 0.26); // the tail
+      if (c.style === 'bamboopanda') {
+        bx(body, 0.03, 0.4, 0.03, 0x7fbf5a, 0.16, 0.08, -0.16);
+        bx(body, 0.1, 0.03, 0.05, 0x9fdf7a, 0.2, 0.2, -0.16);
+      }
       break;
-    case 'blob': {
+    }
+    case 'blob':
+    case 'pinkblob':
+    case 'galaxyblob': {
+      const [col, eye] = { blob: [0x3fd2c7, 0x0b2b30], pinkblob: [0xff9ec7, 0x5a1a3a], galaxyblob: [0x3a2a6a, 0xffffff] }[c.style];
       const m = new THREE.Mesh(
         new THREE.BoxGeometry(0.3, 0.3, 0.3),
-        new THREE.MeshLambertMaterial({ color: 0x3fd2c7, emissive: 0x3fd2c7, emissiveIntensity: 0.35, transparent: true, opacity: 0.7 }),
+        new THREE.MeshLambertMaterial({ color: col, emissive: col, emissiveIntensity: 0.35, transparent: true, opacity: 0.7 }),
       );
       body.add(m);
-      bx(body, 0.05, 0.05, 0.02, 0x0b2b30, -0.06, 0.04, -0.16);
-      bx(body, 0.05, 0.05, 0.02, 0x0b2b30, 0.06, 0.04, -0.16);
+      bx(body, 0.05, 0.05, 0.02, eye, -0.06, 0.04, -0.16);
+      bx(body, 0.05, 0.05, 0.02, eye, 0.06, 0.04, -0.16);
+      if (c.style === 'galaxyblob')
+        for (const [x, y, z] of [
+          [-0.08, -0.06, -0.153],
+          [0.09, 0.1, -0.153],
+          [0.155, -0.05, 0.02],
+        ])
+          bx(body, 0.03, 0.03, 0.01, 0xffffff, x, y, z, 1.2);
       anim.push(t => body.scale.set(1 + Math.sin(t * 4) * 0.08, 1 - Math.sin(t * 4) * 0.1, 1 + Math.sin(t * 4) * 0.08));
       break;
     }
-    case 'diamond': {
-      const d = new THREE.Mesh(new THREE.OctahedronGeometry(0.18), lookMat(0x8a7bef, 0.7));
-      d.scale.y = 1.4;
-      body.add(d);
+    case 'diamond':
+    case 'golddiamond':
+    case 'twindiamond': {
+      const gems =
+        c.style === 'twindiamond'
+          ? [
+              [0x8a7bef, -0.14, 0.12],
+              [0x3fd2c7, 0.14, 0.12],
+            ]
+          : [[c.style === 'golddiamond' ? 0xffd166 : 0x8a7bef, 0, 0.18]];
+      for (const [col, x, r] of gems) {
+        const d = new THREE.Mesh(new THREE.OctahedronGeometry(r), lookMat(col, 0.7));
+        d.position.x = x;
+        d.scale.y = 1.4;
+        body.add(d);
+      }
       anim.push(t => (body.rotation.y = t * 1.5));
       break;
     }

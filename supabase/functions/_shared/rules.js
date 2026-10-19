@@ -469,9 +469,9 @@
   // "limited" pieces are only sold during their week in the shop's rotation (shopFeatured below).
   // Block packs (grantItem) can be bought again and again; everything else once.
   const COSMETICS = {
-    1: { n: 'Ember Outfit', category: 'character', price: 0, free: 1, slot: 'outfit', color: '#ff6b6b', pants: '#7a2f3a' },
-    2: { n: 'Void Outfit', category: 'character', price: 0, free: 1, slot: 'outfit', color: '#2a1838', pants: '#120a1c' },
-    3: { n: 'Aurum Outfit', category: 'character', price: 0, free: 1, slot: 'outfit', color: '#ffe9a8', pants: '#b08a2e' },
+    1: { n: 'Ember Outfit', category: 'character', price: 300, slot: 'outfit', color: '#ff6b6b', pants: '#7a2f3a' },
+    2: { n: 'Void Outfit', category: 'character', price: 300, slot: 'outfit', color: '#2a1838', pants: '#120a1c' },
+    3: { n: 'Aurum Outfit', category: 'character', price: 1200, slot: 'outfit', color: '#ffe9a8', pants: '#b08a2e' },
     4: { n: 'Prism Blockpack', category: 'block', price: 300, grantItem: 130, grantQty: 4 }, // Diamond Block
     5: { n: 'Neon Strip Pack', category: 'block', price: 200, grantItem: 128, grantQty: 8 }, // Cyan Neon
     6: { n: 'Holo Screen Pack', category: 'block', price: 250, grantItem: 129, grantQty: 4 }, // Holo Screen
@@ -504,23 +504,13 @@
     19: { n: 'Circuit Sage', category: 'title', price: 0 },
     20: { n: 'Merge Keeper', category: 'title', price: 0 }, // v18: chapter 5, the Merge (030_merge_twins.sql)
     // v19: wearables (032_shop.sql). Collections follow Ethereum's own history, one per era.
-    21: {
-      n: 'Frontier Duster',
-      category: 'character',
-      price: 0,
-      free: 1,
-      slot: 'outfit',
-      set: 'frontier',
-      color: '#8b5a2b',
-      pants: '#3b2a1a',
-    },
+    21: { n: 'Frontier Duster', category: 'character', price: 600, slot: 'outfit', set: 'frontier', color: '#8b5a2b', pants: '#3b2a1a' },
     22: { n: 'Prospector Hat', category: 'head', price: 800, slot: 'head', set: 'frontier', style: 'prospector' },
     23: { n: 'Pioneer Pack', category: 'back', price: 1000, slot: 'back', set: 'frontier', style: 'pack' },
     24: {
       n: 'Homestead Overalls',
       category: 'character',
-      price: 0,
-      free: 1,
+      price: 600,
       slot: 'outfit',
       set: 'homestead',
       color: '#4a6fa5',
@@ -528,7 +518,7 @@
     },
     25: { n: 'Straw Hat', category: 'head', price: 700, slot: 'head', set: 'homestead', style: 'straw' },
     26: { n: 'Miner Helmet', category: 'head', price: 900, slot: 'head', set: 'homestead', style: 'miner' },
-    27: { n: 'Staker Jacket', category: 'character', price: 0, free: 1, slot: 'outfit', set: 'staker', color: '#1b2a4a', pants: '#0e1626' },
+    27: { n: 'Staker Jacket', category: 'character', price: 1500, slot: 'outfit', set: 'staker', color: '#1b2a4a', pants: '#0e1626' },
     28: { n: 'Validator Visor', category: 'head', price: 2000, slot: 'head', set: 'staker', style: 'visor' },
     29: {
       n: 'Beacon Wings',
@@ -541,17 +531,17 @@
       accent: '#00eaff',
     },
     30: { n: 'Mini Validator', category: 'companion', price: 6000, slot: 'companion', set: 'staker', style: 'validator' },
-    31: { n: 'Merge Suit', category: 'character', price: 0, free: 1, slot: 'outfit', set: 'merge', color: '#f4f1ff', pants: '#1a1a22' },
+    31: { n: 'Merge Suit', category: 'character', price: 2500, slot: 'outfit', set: 'merge', color: '#f4f1ff', pants: '#1a1a22' },
     32: { n: 'Panda Hood', category: 'head', price: 3000, slot: 'head', set: 'merge', style: 'panda' },
     33: { n: 'Proof Cape', category: 'back', price: 4000, slot: 'back', set: 'merge', style: 'cape2' },
     34: { n: 'Merge Panda', category: 'companion', price: 9000, slot: 'companion', set: 'merge', style: 'panda' },
     35: {
       n: 'Blobspace Suit',
       category: 'character',
-      price: 0,
-      free: 1,
+      price: 3000,
       slot: 'outfit',
       set: 'dencun',
+      limited: 1,
       color: '#3fd2c7',
       pants: '#1d5c63',
     },
@@ -573,9 +563,9 @@
     42: { n: 'Builder Beanie', category: 'head', price: 250, slot: 'head', style: 'beanie' },
     43: { n: 'Gwei Sparks', category: 'effect', price: 1500, slot: 'trail', style: 'gwei' },
     44: { n: 'Golden Pickaxe Trim', category: 'tool', price: 3000, slot: 'tool', style: 'gold' },
-    45: { n: 'Lavender Outfit', category: 'character', price: 0, free: 1, slot: 'outfit', color: '#b6a4ff', pants: '#4a3a8a' },
-    // v20: the plain outfits are free for everyone (free: owned without buying); each has two variants with
-    // details sewn on (detail: 17-looks.js OUTFIT_DETAIL), sold in the shop. Same colors as the plain one.
+    45: { n: 'Lavender Outfit', category: 'character', price: 300, slot: 'outfit', color: '#b6a4ff', pants: '#4a3a8a' },
+    // v20: two variants of each plain outfit, with details sewn on (detail: 17-looks.js OUTFIT_DETAIL), sold
+    // in the shop beside it. Same colors as the plain one.
     46: { n: 'Forge Apron', category: 'character', price: 600, slot: 'outfit', color: '#ff6b6b', pants: '#7a2f3a', detail: '1A' },
     47: { n: 'Ember Coat', category: 'character', price: 600, slot: 'outfit', color: '#ff6b6b', pants: '#2a1012', detail: '1B' },
     48: { n: 'Starfield Outfit', category: 'character', price: 600, slot: 'outfit', color: '#2a1838', pants: '#120a1c', detail: '2A' },
@@ -686,6 +676,27 @@
     },
     62: { n: 'Lavender Hoodie', category: 'character', price: 600, slot: 'outfit', color: '#b6a4ff', pants: '#4a3a8a', detail: '45A' },
     63: { n: 'Lavender Knit', category: 'character', price: 600, slot: 'outfit', color: '#b6a4ff', pants: '#4a3a8a', detail: '45B' },
+    // v21: variants of the headwear, the Proof Cape and the companions, sold beside the original
+    64: { n: 'Sheriff Hat', category: 'head', price: 800, slot: 'head', set: 'frontier', style: 'sheriff' },
+    65: { n: 'Gambler Hat', category: 'head', price: 800, slot: 'head', set: 'frontier', style: 'gambler' },
+    66: { n: 'Crystal Miner Helmet', category: 'head', price: 900, slot: 'head', set: 'homestead', style: 'crystalminer' },
+    67: { n: 'Gold Visor', category: 'head', price: 2000, slot: 'head', set: 'staker', style: 'goldvisor' },
+    68: { n: 'Red Panda Hood', category: 'head', price: 3000, slot: 'head', set: 'merge', style: 'redpanda' },
+    69: { n: 'Polar Hood', category: 'head', price: 3000, slot: 'head', set: 'merge', style: 'polar' },
+    70: { n: 'Prism Halo', category: 'head', price: 5000, slot: 'head', set: 'dencun', limited: 1, style: 'prismhalo' },
+    71: { n: 'Silver Crown', category: 'head', price: 25000, slot: 'head', set: 'ether', style: 'silvercrown' },
+    72: { n: 'Ether Beanie', category: 'head', price: 250, slot: 'head', style: 'etherbeanie' },
+    73: { n: 'Long Pom Beanie', category: 'head', price: 250, slot: 'head', style: 'pombeanie' },
+    74: { n: 'Royal Cape', category: 'back', price: 4000, slot: 'back', set: 'merge', style: 'royalcape' },
+    75: { n: 'Circuit Cape', category: 'back', price: 4000, slot: 'back', set: 'merge', style: 'circuitcape' },
+    76: { n: 'Golden Validator', category: 'companion', price: 6000, slot: 'companion', set: 'staker', style: 'goldvalidator' },
+    77: { n: 'Legendary Validator', category: 'companion', price: 6000, slot: 'companion', set: 'staker', style: 'legendvalidator' },
+    78: { n: 'Red Panda Buddy', category: 'companion', price: 9000, slot: 'companion', set: 'merge', style: 'redpanda' },
+    79: { n: 'Bamboo Panda', category: 'companion', price: 9000, slot: 'companion', set: 'merge', style: 'bamboopanda' },
+    80: { n: 'Pink Blob', category: 'companion', price: 8000, slot: 'companion', set: 'dencun', limited: 1, style: 'pinkblob' },
+    81: { n: 'Galaxy Blob', category: 'companion', price: 8000, slot: 'companion', set: 'dencun', limited: 1, style: 'galaxyblob' },
+    82: { n: 'Golden Familiar', category: 'companion', price: 15000, slot: 'companion', set: 'ether', style: 'golddiamond' },
+    83: { n: 'Twin Familiars', category: 'companion', price: 15000, slot: 'companion', set: 'ether', style: 'twindiamond' },
   };
   // the collections, in shop order: name and a line of history
   const SETS = {
