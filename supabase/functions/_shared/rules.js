@@ -506,7 +506,8 @@
     // v19: wearables (032_shop.sql). Collections follow Ethereum's own history, one per era.
     21: { n: 'Frontier Duster', category: 'character', price: 600, slot: 'outfit', set: 'frontier', color: '#8b5a2b', pants: '#3b2a1a' },
     22: { n: 'Prospector Hat', category: 'head', price: 800, slot: 'head', set: 'frontier', style: 'prospector' },
-    23: { n: 'Pioneer Pack', category: 'back', price: 1000, slot: 'back', set: 'frontier', style: 'pack' },
+    // retired (v21): no longer sold; whoever has it keeps it, and sees it in the shop
+    23: { n: 'Pioneer Pack', category: 'back', price: 0, retired: 1, slot: 'back', set: 'frontier', style: 'pack' },
     24: {
       n: 'Homestead Overalls',
       category: 'character',
@@ -697,6 +698,11 @@
     81: { n: 'Galaxy Blob', category: 'companion', price: 8000, slot: 'companion', set: 'dencun', limited: 1, style: 'galaxyblob' },
     82: { n: 'Golden Familiar', category: 'companion', price: 15000, slot: 'companion', set: 'ether', style: 'golddiamond' },
     83: { n: 'Twin Familiars', category: 'companion', price: 15000, slot: 'companion', set: 'ether', style: 'twindiamond' },
+    // v21: the Pioneer Pack's successors
+    84: { n: 'Validator Rig', category: 'back', price: 1000, slot: 'back', set: 'frontier', style: 'rig' },
+    85: { n: 'Crystal Satchel', category: 'back', price: 1000, slot: 'back', set: 'frontier', style: 'satchel' },
+    86: { n: 'Rocket Pack', category: 'back', price: 1000, slot: 'back', set: 'frontier', style: 'rocket' },
+    87: { n: 'Treasure Pack', category: 'back', price: 1000, slot: 'back', set: 'frontier', style: 'treasure' },
   };
   // the collections, in shop order: name and a line of history
   const SETS = {

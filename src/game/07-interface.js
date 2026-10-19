@@ -1927,6 +1927,7 @@ function shopRow(id, ctx) {
   let sub;
   if (c.grantItem) sub = `grants ${c.grantQty} × ${nameOf(c.grantItem)} · buy as often as you like`;
   else if (owned) sub = `${SLOT_LABEL[c.slot] || 'Owned'} · ${worn ? 'worn' : 'owned'}`;
+  else if (!sellable && c.retired) sub = 'No longer sold';
   else if (!sellable) sub = c.category === 'title' ? 'Chapter reward' : c.category === 'event' ? 'Network attack reward' : 'Drop only';
   else if (limitedAway) {
     const lim = Object.keys(COSMETICS)
@@ -2017,7 +2018,7 @@ function renderShop(body) {
     .map(Number)
     .sort((a, b) => a - b);
   for (const [set, [name, line]] of Object.entries(SETS)) {
-    const mine = ids.filter(id => COSMETICS[id].set === set),
+    const mine = ids.filter(id => COSMETICS[id].set === set && (!COSMETICS[id].retired || ownsCosmetic(id))),
       have = mine.filter(id => ownsCosmetic(id)).length;
     section(`${name} collection · ${have}/${mine.length}`, line);
     for (const id of mine) list.appendChild(shopRow(id, ctx));
@@ -2034,7 +2035,7 @@ function renderShop(body) {
     section('Block packs', 'Decorative blocks straight into your chest. Buy them as often as you like.');
     for (const id of packs) list.appendChild(shopRow(id, ctx));
   }
-  const trophies = ids.filter(id => !forSale(COSMETICS[id]) && COSMETICS[id].category !== 'title');
+  const trophies = ids.filter(id => !forSale(COSMETICS[id]) && !COSMETICS[id].retired && COSMETICS[id].category !== 'title');
   section(
     `Trophies · ${trophies.filter(id => S.cosmetics.includes(id)).length}/${trophies.length}`,
     'Never sold: dropped by tough mobs, rarely, or earned by fighting off the network attack. Worn like the rest once you have them.',

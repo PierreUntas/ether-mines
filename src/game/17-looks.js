@@ -212,6 +212,45 @@ function buildBack(c, anim) {
       bx(g, 0.42, 0.12, 0.22, 0x5a3a20, 0, 1.2, 0.25);
       bx(g, 0.48, 0.12, 0.12, 0x3f6e4a, 0, 1.3, 0.27);
       break;
+    case 'rig': // the Validator Rig: a dark case, a cyan screen, status lights, an antenna
+      bx(g, 0.42, 0.48, 0.2, 0x2a1838, 0, 1.0, 0.25);
+      bx(g, 0.3, 0.06, 0.02, 0x00eaff, 0, 1.12, 0.36, 1);
+      for (const x of [-0.12, -0.04, 0.04, 0.12]) bx(g, 0.04, 0.04, 0.02, x < 0 ? 0x7fe8a0 : 0xffd166, x, 0.98, 0.36, 1);
+      bx(g, 0.03, 0.3, 0.03, 0xd9d9e3, 0.24, 1.3, 0.25);
+      bx(g, 0.06, 0.06, 0.06, 0x00eaff, 0.24, 1.47, 0.25, 1);
+      break;
+    case 'satchel': // the Crystal Satchel: leather, crystals sticking out
+      bx(g, 0.4, 0.4, 0.2, 0x7a5230, 0, 0.98, 0.25);
+      bx(g, 0.42, 0.14, 0.22, 0x5a3a20, 0, 1.12, 0.26);
+      bx(g, 0.08, 0.08, 0.03, 0xd4a83a, 0, 1.05, 0.37);
+      for (const [x, h, col, r] of [
+        [-0.2, 0.22, 0xb48cff, 0.5],
+        [0.2, 0.26, 0x9fe8ff, -0.5],
+        [0, 0.18, 0xb48cff, 0],
+      ]) {
+        const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.06), lookMat(col, 0.7));
+        m.position.set(x, 1.12 + h / 2, x ? 0.3 : 0.37);
+        m.scale.y = h / 0.08;
+        m.rotation.z = r;
+        g.add(m);
+      }
+      break;
+    case 'rocket': // the Rocket Pack: two canisters, a soft glow under them (only for show)
+      for (const x of [-0.11, 0.11]) {
+        bx(g, 0.16, 0.44, 0.16, 0xd9e2ee, x, 1.0, 0.27);
+        bx(g, 0.17, 0.06, 0.17, 0xff6b6b, x, 1.17, 0.27);
+        bx(g, 0.1, 0.06, 0.1, 0x3a3f4a, x, 0.75, 0.27);
+        bx(g, 0.08, 0.08, 0.08, 0xffb347, x, 0.68, 0.27, 1.2);
+      }
+      bx(g, 0.3, 0.08, 0.08, 0x3a3f4a, 0, 1.0, 0.2);
+      break;
+    case 'treasure': // the Treasure Pack: a little chest, gold trim and lock
+      bx(g, 0.42, 0.34, 0.24, 0x8a5a2b, 0, 0.98, 0.26);
+      bx(g, 0.44, 0.12, 0.26, 0x6b4423, 0, 1.2, 0.26);
+      bx(g, 0.45, 0.03, 0.27, 0xffd166, 0, 1.14, 0.26, 0.3);
+      for (const x of [-0.18, 0.18]) bx(g, 0.03, 0.44, 0.27, 0xffd166, x, 1.03, 0.26, 0.3);
+      bx(g, 0.08, 0.1, 0.03, 0xffd166, 0, 1.08, 0.4, 0.5);
+      break;
     case 'banner': {
       const col = new THREE.Color(c.color).getHex(),
         acc = new THREE.Color(c.accent).getHex();

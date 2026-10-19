@@ -429,7 +429,7 @@ insert into public.rule_cosmetics (id, name, price, category, grant_item, grant_
 (20,'Merge Keeper',0,'title',null,null,false),
 (21,'Frontier Duster',600,'character',null,null,false),
 (22,'Prospector Hat',800,'head',null,null,false),
-(23,'Pioneer Pack',1000,'back',null,null,false),
+(23,'Pioneer Pack',0,'back',null,null,false),
 (24,'Homestead Overalls',600,'character',null,null,false),
 (25,'Straw Hat',700,'head',null,null,false),
 (26,'Miner Helmet',900,'head',null,null,false),
@@ -489,5 +489,9 @@ insert into public.rule_cosmetics (id, name, price, category, grant_item, grant_
 (80,'Pink Blob',8000,'companion',null,null,true),
 (81,'Galaxy Blob',8000,'companion',null,null,true),
 (82,'Golden Familiar',15000,'companion',null,null,false),
-(83,'Twin Familiars',15000,'companion',null,null,false);
+(83,'Twin Familiars',15000,'companion',null,null,false),
+(84,'Validator Rig',1000,'back',null,null,false),
+(85,'Crystal Satchel',1000,'back',null,null,false),
+(86,'Rocket Pack',1000,'back',null,null,false),
+(87,'Treasure Pack',1000,'back',null,null,false);
 commit;
