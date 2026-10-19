@@ -694,17 +694,27 @@ const hover = await page.evaluate(() => {
   const glides = collides(P.x, y - 3, P.z);
   const lifted = rideLift() > 0.3;
   // up a steep slope at speed: a step every move, the eye never sinks into the hill
-  const home = { x: P.x, y: P.y, z: P.z }, steps = [];
+  // (a staircase of its own, with the air above each step cleared: whatever stands around the spawn)
+  const home = { x: P.x, y: P.y, z: P.z }, was = new Map();
+  const put = (cx, cy, cz, id) => {
+    const k = `${cx},${cy},${cz}`;
+    if (!was.has(k)) was.set(k, get(cx, cy, cz));
+    mines.commit(k, id, null);
+  };
   stepUp = 0;
+  let maxLag = 0;
   for (let i = 0; i < 8; i++) {
-    const k = `${Math.floor(P.x) + 1},${Math.floor(P.y)},${Math.floor(P.z)}`;
-    mines.commit(k, 3, null);
-    steps.push(k);
+    const sx = Math.floor(P.x) + 1, sy = Math.floor(P.y), sz = Math.floor(P.z);
+    for (let dz = -1; dz <= 1; dz++)
+      for (let dy = 0; dy <= 4; dy++) for (let dx = 0; dx <= 1; dx++) put(sx + dx, sy + dy, sz + dz, 0);
+    put(sx, sy, sz, 3);
     P.on = true;
     moveAxis('x', 0.6);
+    maxLag = Math.max(maxLag, stepUp);
   }
-  const climbs = P.y > home.y + 4 && stepUp <= 0.6;
-  for (const k of steps) mines.commit(k, 0, null);
+  const climbs = P.y > home.y + 4 && maxLag <= 0.6;
+  if (!climbs) console.log('climb', P.y - home.y, maxLag);
+  for (const [k, id] of [...was].reverse()) mines.commit(k, id, null);
   Object.assign(P, home);
   stepUp = 0;
   // a hard turn at speed: the old speed carries on sideways for a while (a drift), then fades
