@@ -452,7 +452,7 @@ function spawnMobChunk(cx, cz) {
 }
 // daytime rest: by day the hostile mobs are out of sight (Pierre: no mobs in daylight), and they come
 // back at dusk. Only the validators' guards stay on watch: the guardians and crawlers of the ruins, and the
-// network attack's nodes going for the Atrium's validator. The bosses (and the Front-Runner's bots) stay
+// network attack's nodes going for the Atrium's validator, the towers' wardens and turrets. The bosses (and the Front-Runner's bots) stay
 // too: a boss fight is something you go looking for. A resting mob leaves its chunk's list for
 // list.resting: every loop over MOBS (updates, aiming, bolts) skips it without knowing about the rule.
 const REST_FAR = 24; // never vanishes under your eyes: only once you are this far away, and unhurt

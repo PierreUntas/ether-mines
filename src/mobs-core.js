@@ -133,11 +133,14 @@
   // a killed mob stays dead this long (s); every other mob: 2 minutes
   const RESPAWN_S = { corrupted_node: 25 };
   // daytime rest: by day the hostile mobs are out of sight, and they come back at dusk. Only the validators'
-  // guards stay on watch (the guardians and crawlers of the ruins, the network attack's nodes), and the
-  // bosses with the Front-Runner's bots: a boss fight is something you go looking for
+  // guards stay on watch (the guardians and crawlers of the ruins, the network attack's nodes, the towers'
+  // wardens and turrets: a tower is a dungeon you climb on purpose), and the bosses with the Front-Runner's
+  // bots: a boss fight is something you go looking for
   const DAY_WATCH = new Set([
     'guardian',
     'crawler',
+    'warden',
+    'turret',
     'corrupted_node',
     'titan',
     'plasma_core',

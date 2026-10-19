@@ -120,6 +120,19 @@ test('by day the mobs rest out of sight, the guards stay; at night they come bac
   assert.ok(sim.find(s.id), 'back at night');
 });
 
+test("a tower's wardens and turrets keep watch by day", () => {
+  const day = findTime(false),
+    a = player('a', far.x, far.z);
+  const { sim } = setup([a], { now: day });
+  const k = chunkOf(far.x, far.z),
+    w = mob('warden', k, 906, far.x + 30, 30, far.z, null),
+    t = mob('turret', k, 907, far.x + 30, 30, far.z + 2, null);
+  sim.place(w);
+  sim.place(t);
+  sim.tick([a], 0.1, day);
+  assert.ok(sim.find(w.id) && sim.find(t.id));
+});
+
 test('the terrain: generated at once, then what Supabase holds, and edits laid over it', async () => {
   let reads = 0;
   const t = createTerrain(async () => {

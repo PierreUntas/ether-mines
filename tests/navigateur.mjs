@@ -775,9 +775,9 @@ const rest = await page.evaluate(() => {
 });
 if (!rest.nearStays || !rest.rests || !rest.back) await fail('daytime rest: ' + JSON.stringify(rest));
 const dayRule = await page.evaluate(() =>
-  ['shadow', 'bat', 'sentinel', 'golem', 'wraith', 'warden', 'turret', 'garden_guardian', 'water_lurker'].every(t => restsByDay({ type: t })) &&
-  ['guardian', 'crawler', 'corrupted_node', 'front_runner', 'plasma_core'].every(t => !restsByDay({ type: t })));
-if (!dayRule) await fail('daytime rest: only the validators guards and the bosses stay by day');
+  ['shadow', 'bat', 'sentinel', 'golem', 'wraith', 'garden_guardian', 'water_lurker'].every(t => restsByDay({ type: t })) &&
+  ['guardian', 'crawler', 'warden', 'turret', 'corrupted_node', 'front_runner', 'plasma_core'].every(t => !restsByDay({ type: t })));
+if (!dayRule) await fail('daytime rest: only the validators guards, the towers and the bosses stay by day');
 // the full screen button: shown where the browser supports it, toggles full screen, lit while on
 const fsShown = await page.evaluate(() => !document.getElementById('fsBtn').hidden);
 const fsState = () => page.evaluate(() => ({ title: !document.getElementById('title').hidden, panel: !document.getElementById('panel').hidden, locked: !!document.pointerLockElement, noLock, fs: !!document.fullscreenElement, playing }));
@@ -849,7 +849,8 @@ const looks = await page.evaluate(() => {
   const rows = document.querySelectorAll('#pbody .shoprow').length,
     weekly = document.querySelectorAll('#pbody .weekly .shoprow').length,
     sale = document.querySelectorAll('#pbody .weekly b.sale').length,
-    worn = document.querySelectorAll('#pbody .shoprow.worn').length;
+    // what you wear, in the catalog (one of them may also be among the week's picks, depending on the week)
+    worn = document.querySelectorAll('#pbody .shoprow.worn').length - document.querySelectorAll('#pbody .weekly .shoprow.worn').length;
   Object.defineProperty(Net, 'online', on);
   Object.defineProperty(Net, 'userId', uid);
   tab = 'inv';
