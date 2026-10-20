@@ -74,6 +74,13 @@ test('moves reach the players nearby only, with the sender named by the server',
   assert.equal(seen.h, 107);
   assert.equal(seen.rd, 213);
   assert.equal(c.of('pos').length, 0, 'far away: nothing');
+  // a blow they took is passed on (drawn on their avatar), anything else is not
+  a.send({ t: 'pos', x: 12, y: 30, z: 11, fx: 'hurt', fq: 7 });
+  await wait(50);
+  assert.deepEqual([b.of('pos').at(-1).fx, b.of('pos').at(-1).fq], ['hurt', 7]);
+  a.send({ t: 'pos', x: 12, y: 30, z: 11, fx: '<b>', fq: 8 });
+  await wait(50);
+  assert.equal(b.of('pos').at(-1).fx, 0);
   [a, b, c].forEach(p => p.close());
 });
 

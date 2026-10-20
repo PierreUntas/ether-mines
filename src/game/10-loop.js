@@ -485,6 +485,7 @@ function frame(now) {
     if (playing) updateQuest(dt);
   }
   updateOthers(dt);
+  tickFlashes(dt);
   // 17-looks.js, 18-potions.js, 19-signs.js load after this file: a first frame can come before them
   if (typeof updateSigns === 'function') {
     updateLooks(dt);

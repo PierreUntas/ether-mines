@@ -49,6 +49,25 @@ test('a mob hunts the closest player, walks up to them and strikes them, and onl
   assert.ok(hits.every(([to, msg]) => to === 'a' && msg.dmg === MK.shadow.dmg));
 });
 
+test('a mob winds up before its blow: the others see it coming, and the blow lands a moment later', () => {
+  const now = findTime(true),
+    a = player('a', far.x, far.z);
+  const { sim, sent } = setup([a], { now });
+  const m = mob('shadow', chunkOf(far.x, far.z), 901, far.x + 0.8, 30, far.z, null);
+  assert.ok(sim.place(m));
+  let wound = -1,
+    struck = -1;
+  for (let i = 1; i <= 20 && struck < 0; i++) {
+    sim.tick([a], 0.05, now + i * 50);
+    const v = sim.view(a).find(e => e[0] === m.id);
+    if (wound < 0 && v && v[6] & 32) wound = i;
+    if (sent.some(([, msg]) => msg.t === 'mhit' && msg.id === m.id)) struck = i;
+  }
+  assert.ok(wound > 0, 'its wind-up is flagged');
+  assert.ok(struck > wound, 'the blow comes after');
+  assert.ok((struck - wound) * 0.05 >= 0.25, 'a beat to react');
+});
+
 test('a player who turned hostile mobs off is never hunted nor hit, and keeps no mobs alive', () => {
   const now = findTime(true),
     a = player('a', far.x, far.z, { noMobs: true }),

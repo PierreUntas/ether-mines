@@ -21,7 +21,7 @@ const SEE = 48, // blocks: how far around you the mobs are sent
   BOLT_HIT = 0.4; // half a player's width (a little less than on the screen: what you saw was a moment ago)
 const r2 = v => Math.round(v * 100) / 100;
 // what a player's screen needs to draw a mob: its flags
-const F = { rush: 1, frenzy: 2, stun: 4, aggro: 8, down: 16 };
+const F = { rush: 1, frenzy: 2, stun: 4, aggro: 8, down: 16, wind: 32 };
 
 // ledger(id): the mob's entry in the server's ledger, if any ({ hp, down, deadUntil }), without creating it
 // hurt(p, dmg, x, z, kind): a blow landing on a player (health.js: their hearts live on the server too);
@@ -240,7 +240,8 @@ export function createMobSim({ terrain, ledger, send, hurt, open = () => true, l
           (a.frenzy ? F.frenzy : 0) |
           (a.stunT > 0 ? F.stun : 0) |
           (a.aggro ? F.aggro : 0) |
-          (a.down ? F.down : 0);
+          (a.down ? F.down : 0) |
+          (a.windT > 0 ? F.wind : 0);
         const charge = a.chargeT > 0 && MK[a.type].ranged ? r2(1 - a.chargeT / MK[a.type].ranged.charge) : 0;
         l.push([a.id, r2(a.p.x), r2(a.p.y), r2(a.p.z), r2(a.r.y), r2(a.hp), f, charge]);
       }

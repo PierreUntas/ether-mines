@@ -92,6 +92,7 @@ function makeAvatar(name, color, horsScene) {
     M = c => new THREE.MeshLambertMaterial({ color: c }),
     col = new THREE.Color(color),
     dark = col.clone().multiplyScalar(0.7);
+  g.rotation.order = 'YXZ'; // turned to where they look, then rocked back by a blow (joltPose)
   const skin = M(0xf6d3b8),
     hair = M(dark),
     face = new THREE.MeshLambertMaterial({ map: faceTex('#' + dark.getHexString()) });
@@ -446,6 +447,141 @@ function poseArms(o, g, s, a, idle, pitch) {
 }
 // a blow's thrust, as the first-person hand draws it (10-loop.js): out at once, then back, from `swing`
 const thrustOf = sw => (sw > 0 ? Math.min(1, (Math.sin((1 - sw) * Math.PI) * sw) / 0.57) : 0);
+// ---------- flashes and jolts: a blow landing on a character or a mob ----------
+// For a moment every part of the model takes a flash material (red for a character who's hurt, white for
+// a mob that's struck), then gets its own back. The materials are swapped, never edited: a mob's are
+// shared with every mob of its kind.
+const FLASH_MATS = {
+  hurt: new THREE.MeshLambertMaterial({ color: 0xff6060, emissive: 0x901010, emissiveIntensity: 0.45 }),
+  hit: new THREE.MeshBasicMaterial({ color: 0xffffff }),
+};
+const FLASHING = new Set();
+function flashModel(g, kind, t = 0.14) {
+  if (!g) return;
+  if (FLASHING.has(g)) {
+    g.userData.flashT = t;
+    return;
+  }
+  const keep = [];
+  g.traverse(m => {
+    if (m.isMesh && m.material && m.visible) {
+      keep.push([m, m.material]);
+      m.material = FLASH_MATS[kind];
+    }
+  });
+  g.userData.flashKeep = keep;
+  g.userData.flashT = t;
+  FLASHING.add(g);
+}
+function tickFlashes(dt) {
+  for (const g of FLASHING) {
+    g.userData.flashT -= dt;
+    if (g.userData.flashT > 0) continue;
+    for (const [m, mat] of g.userData.flashKeep) if (m.material === FLASH_MATS.hurt || m.material === FLASH_MATS.hit) m.material = mat;
+    g.userData.flashKeep = null;
+    FLASHING.delete(g);
+  }
+}
+// what happens to a character, drawn on its avatar: 'hurt' (a red flash, the body jolted back), 'parry'
+// and 'block' (sparks off the blade, in front of them: the first-person guardSpark, seen from outside)
+const AVATAR_FX = new Set(['hurt', 'parry', 'block']);
+function avatarFx(o, kind) {
+  if (!o || !o.g) return;
+  if (kind === 'hurt') {
+    flashModel(o.g, 'hurt');
+    o.jolt = 1;
+  } else if (kind === 'parry' || kind === 'block') {
+    const p = o.g.position,
+      r = o.g.rotation.y;
+    clayBurst(p.x - Math.sin(r) * 0.7 - 0.5, p.y + 0.75, p.z - Math.cos(r) * 0.7 - 0.5, etherMats[kind === 'parry' ? 0 : 1]);
+    if (o !== SELF) Sound.hit('pierre');
+  }
+}
+// the jolt of a blow: the body rocks back, the head with it, then straightens up
+function joltPose(o, dt) {
+  const j = (o.jolt = Math.max(0, (o.jolt || 0) - dt * 4));
+  const k = Math.sin(j * Math.PI * 0.5);
+  o.g.rotation.x += 0.28 * k; // (on top of movePose's lean)
+  o.head.rotation.x -= 0.35 * k;
+  if (j > 0) {
+    o.arms[0].rotation.z -= 0.5 * k;
+    o.arms[1].rotation.z += 0.5 * k;
+  }
+}
+// how a character moves, read from where its avatar goes: in the air (arms out, a leg forward), landing
+// from a fall (a dip), running (leaning into it), swimming (leaning forward, a crawl), on a ladder (hand over
+// hand). busy: the arms are on guard or striking, leave them be; riding: on board a hovercraft (rideSelf,
+// rideOther draw it)
+function movePose(o, dt, sp, busy, riding) {
+  const p = o.g.position,
+    x = Math.floor(p.x),
+    z = Math.floor(p.z),
+    vy = o.lastY === undefined ? 0 : (p.y - o.lastY) / Math.max(dt, 0.001),
+    ease = (v, to, r) => v + (to - v) * Math.min(1, dt * r);
+  o.lastY = p.y;
+  o.vy = ease(o.vy || 0, Math.max(-30, Math.min(30, vy)), 12);
+  const water = !riding && get(x, Math.floor(p.y + 0.5), z) === 11,
+    ladder = !riding && !water && [0, 1].some(d => B[get(x, Math.floor(p.y + 0.2 + d), z)]?.shape === 'ladder'),
+    air = !riding && !water && !ladder && Math.abs(o.vy) > 1.6;
+  if (o.air && !air && (o.fallV || 0) < -6) o.land = 1;
+  o.fallV = air ? Math.min(o.fallV || 0, o.vy) : 0;
+  o.air = air;
+  o.land = Math.max(0, (o.land || 0) - dt * 5);
+  o.airK = ease(o.airK || 0, air ? 1 : 0, 10);
+  o.swimK = ease(o.swimK || 0, water ? 1 : 0, 6);
+  o.climbK = ease(o.climbK || 0, ladder ? 1 : 0, 10);
+  const run = Math.max(0, Math.min(1, (sp - 4.2) / 2)) * (1 - o.swimK) * (1 - o.climbK);
+  o.g.rotation.x = -0.14 * run - 0.55 * o.swimK * Math.min(1, sp / 1.5);
+  if (riding) return;
+  // landing: the knees give, the body dips
+  const dip = 0.13 * Math.sin(o.land * Math.PI);
+  o.body.position.y -= dip;
+  o.head.position.y -= dip;
+  for (const a of o.arms) a.position.y -= dip;
+  if (o.airK > 0.01) {
+    const k = o.airK;
+    o.legs[0].rotation.x = o.legs[0].rotation.x * (1 - k) - 0.45 * k;
+    o.legs[1].rotation.x = o.legs[1].rotation.x * (1 - k) + 0.25 * k;
+    if (!busy) {
+      o.arms[1].rotation.z += 0.5 * k;
+      o.arms[0].rotation.z -= 0.5 * k;
+      o.arms[1].rotation.x += 0.35 * k;
+      o.arms[0].rotation.x += 0.35 * k;
+    }
+  }
+  if (o.swimK > 0.01) {
+    // a crawl: each arm goes round in turn, the legs flutter
+    o.stroke = (o.stroke || 0) + dt * (2.2 + Math.min(sp, 4) * 0.8);
+    const k = o.swimK;
+    o.legs[0].rotation.x = o.legs[0].rotation.x * (1 - k) + Math.sin(o.stroke * 3) * 0.3 * k;
+    o.legs[1].rotation.x = o.legs[1].rotation.x * (1 - k) - Math.sin(o.stroke * 3) * 0.3 * k;
+    if (!busy) {
+      o.arms[1].rotation.x = o.arms[1].rotation.x * (1 - k) + (1.6 + 1.6 * Math.sin(o.stroke)) * k;
+      o.arms[0].rotation.x = o.arms[0].rotation.x * (1 - k) + (1.6 - 1.6 * Math.sin(o.stroke)) * k;
+    }
+  }
+  if (o.climbK > 0.01) {
+    // hand over hand: the arms up on the rungs, the legs stepping, in time with the climb
+    o.climb = (o.climb || 0) + dt * Math.min(Math.abs(o.vy), 5) * 2.4;
+    const k = o.climbK,
+      s = Math.sin(o.climb);
+    o.legs[0].rotation.x = o.legs[0].rotation.x * (1 - k) + 0.5 * s * k;
+    o.legs[1].rotation.x = o.legs[1].rotation.x * (1 - k) - 0.5 * s * k;
+    if (!busy) {
+      o.arms[1].rotation.x = o.arms[1].rotation.x * (1 - k) + (2.7 + 0.35 * s) * k;
+      o.arms[0].rotation.x = o.arms[0].rotation.x * (1 - k) + (2.7 - 0.35 * s) * k;
+      o.arms[1].rotation.z = o.arms[1].rotation.z * (1 - k) - 0.1 * k;
+      o.arms[0].rotation.z = o.arms[0].rotation.z * (1 - k) + 0.1 * k;
+    }
+  }
+}
+// yours, told to the others with your next position (`fx`, numbered by `fq` so each is shown once)
+let FX_OUT = { k: 0, q: 0 };
+function selfFx(kind) {
+  if (kind === 'hurt' && SELF) avatarFx(SELF, kind); // your sparks are already drawn (guardSpark)
+  FX_OUT = { k: kind, q: (FX_OUT.q + 1) & 0xffff };
+  lastPos = null; // sent at once
+}
 // places the player's avatar and pulls the camera back (without crossing walls); returns a function that resets the camera to the eyes
 function viewFromOutside(dt) {
   if (!VIEW || !SELF) return null;
@@ -464,11 +600,14 @@ function viewFromOutside(dt) {
   o.legs[0].rotation.x = a;
   o.legs[1].rotation.x = -a;
   // on guard (16-mobs.js) or striking: poseArms
-  poseArms(o, guardAmt, thrustOf(swing), a, 0, pitch);
+  const th = thrustOf(swing);
+  poseArms(o, guardAmt, th, a, 0, pitch);
   o.body.scale.set(1 + br * 0.02, 1 + br * 0.012, 1 + br * 0.035);
   o.body.position.y = 0.94 + hop;
   o.head.position.y = 1.52 + hop + br * 0.012;
   o.arms[0].position.y = o.arms[1].position.y = 1.26 + hop;
+  movePose(o, dt, sp, guardAmt > 0.02 || th > 0, !!(RIDE || BOARD));
+  joltPose(o, dt);
   if (typeof rideSelf === 'function') rideSelf(o); // on board: seated on the craft
   viewFrom.copy(camera.position);
   viewDir.set(0, 0, VIEW === 1 ? 1 : -1).applyQuaternion(camera.quaternion);
@@ -725,6 +864,11 @@ Net.on('pos', p => {
     o.seen = true;
     o.g.position.set(p.x, p.y, p.z);
   }
+  // a blow they took, a parry: shown once (the first word from them only sets the count)
+  if (p.fq !== o.fq) {
+    if (o.fq !== undefined && AVATAR_FX.has(p.fx)) avatarFx(o, p.fx);
+    o.fq = p.fq;
+  }
 });
 Net.on('block', b => applyBlock(b));
 // the world was put back the way it was generated, outside the claims (042_world_restore.sql): read it again
@@ -825,8 +969,11 @@ function updateOthers(dt) {
     // the guard eases up and down; swinging (mining, striking): a blow every 0.45 s, as your own clicks go
     o.gdAmt = (o.gdAmt || 0) + ((o.t.gd ? 1 : 0) - (o.gdAmt || 0)) * Math.min(1, dt * 14);
     const sw = o.t.m ? Math.max(0, 0.6 - ((performance.now() / 450) % 1) * 1.35) : 0;
-    poseArms(o, o.gdAmt, thrustOf(sw), a, br * 0.03 * (1 - mv), o.t.pitch);
+    const th = thrustOf(sw);
+    poseArms(o, o.gdAmt, th, a, br * 0.03 * (1 - mv), o.t.pitch);
     o.arms[0].position.y = o.arms[1].position.y = 1.26 + hop;
+    movePose(o, dt, sp, o.gdAmt > 0.02 || th > 0, !!(o.t.rd || o.t.on));
+    joltPose(o, dt);
     o.tag.position.y = 2.1 + hop;
     if (typeof rideOther === 'function') rideOther(o); // on board a hovercraft, or in someone's back seat
   }
@@ -867,6 +1014,8 @@ setInterval(() => {
       ar: S.armor ? +S.armor : 0, // the plating you wear (the game server checks you own it)
       bt: bootsOn() ? 1 : 0, // the Front-Runner Boots on your feet: the others see them
       nm: mobsHere() ? 0 : 1, // hostile mobs turned off in this world: the game server's mobs leave you be
+      fx: FX_OUT.k, // the last blow you took or parried (avatarFx), and its number
+      fq: FX_OUT.q,
     };
   const L = lastPos,
     moved =
@@ -883,7 +1032,8 @@ setInterval(() => {
       p.ld !== L.ld ||
       p.ar !== L.ar ||
       p.bt !== L.bt ||
-      p.nm !== L.nm;
+      p.nm !== L.nm ||
+      p.fq !== L.fq;
   if (!moved && now - lastPosT < 4000) return;
   lastPos = p;
   lastPosT = now;

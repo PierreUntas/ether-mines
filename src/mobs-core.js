@@ -658,9 +658,11 @@
     if (canShoot && a.rangedT <= 0) a.chargeT = R.charge;
   }
   // struck by a parry: it reels back from (fx, fz), stunned, open to a riposte
-  const STUN_S = 1.3;
+  const STUN_S = 1.3,
+    WIND_S = 0.3; // a mob's wind-up before a melee blow
   function parried(a, fx, fz) {
     a.stunT = STUN_S;
+    a.windT = 0;
     const ux = a.p.x - fx,
       uz = a.p.z - fz,
       ul = Math.hypot(ux, uz) || 1;
@@ -825,11 +827,20 @@
     const may = !!(aggro && tg && (!ev.attacks || ev.attacks(tg))),
       holdFire = !!(a.ladder && tg && tg.ladder); // a tower mob waits while its target climbs
     if (K.ranged && !holdFire) rangedAttack(W, a, K, tg, may, d, dt, ev);
-    // no bite through a wall: the mob must actually reach its target
-    if (may && !holdFire && d < K.atk && tg.canHurt !== false && a.atkT <= 0 && lineClear(W, ...eye(a), tg.x, tg.y + 1, tg.z)) {
-      a.atkT = K.cd;
-      if (ev.melee(a, tg) === 'parry') parried(a, tg.x, tg.z);
-    }
+    // no bite through a wall: the mob must actually reach its target. It winds up first (WIND_S, drawn as
+    // a rear back on every screen): the blow lands only if its target is still within reach then (a little
+    // more: it lunges), which leaves a beat to raise a guard, step back or dodge
+    const canBite = reach => may && !holdFire && d < reach && tg.canHurt !== false && lineClear(W, ...eye(a), tg.x, tg.y + 1, tg.z);
+    if (a.windT > 0) {
+      a.windT -= dt;
+      if (a.windT <= 0) {
+        a.windT = 0;
+        if (canBite(K.atk + 0.5)) {
+          a.atkT = Math.max(0, K.cd - WIND_S); // the same pace of blows as without the wind-up
+          if (ev.melee(a, tg) === 'parry') parried(a, tg.x, tg.z);
+        } else a.atkT = 0.25; // it missed its moment
+      }
+    } else if (a.atkT <= 0 && canBite(K.atk)) a.windT = WIND_S;
     return { aggro, moving: dd > 0.1 && moved };
   }
 

@@ -702,6 +702,7 @@ function applyMobDamage(a, dmg, hpLeft, fromX, fromZ, paid, end) {
   a.provoked = 15;
   if (dmg > 0) {
     Sound.hit('pierre');
+    flashModel(a.g, 'hit', 0.12); // a white flash: the blow landed
     const K = MK[a.type],
       dx = a.g.position.x - fromX,
       dz = a.g.position.z - fromZ,
@@ -751,6 +752,20 @@ function setMobHp(a, hpLeft, paid, end) {
       dirty = true;
     }
   }
+}
+// a mob falls: it bursts into cubes of its own colors as it shrinks away (once)
+function mobBurst(a) {
+  if (a.burst) return;
+  a.burst = true;
+  const mats = [];
+  for (const [, mat] of a.g.userData.flashKeep || []) if (mat.color && !Array.isArray(mat)) mats.push(mat); // flashing as it fell
+  if (!mats.length) a.g.traverse(m => m.isMesh && m.material && m.material.color && !Array.isArray(m.material) && mats.push(m.material));
+  if (!mats.length) return;
+  mats.sort((x, y) => (y.emissiveIntensity || 0) - (x.emissiveIntensity || 0)); // its glow first, then its body
+  const p = a.g.position,
+    h = (MK[a.type].hit || [0.5, 1, 0.5])[1];
+  clayBurst(p.x - 0.5, p.y + h * 0.35, p.z - 0.5, mats[mats.length - 1]);
+  clayBurst(p.x - 0.5, p.y + h * 0.65, p.z - 0.5, mats[0]);
 }
 function attackMob(a) {
   if (guarding() || RIDE || BOARD) return false; // the blade is up, or you're on board a hovercraft: no strike
@@ -1163,6 +1178,7 @@ function guardSpark(parry) {
   clayBurst(fx - 0.5, P.y + 0.8, fz - 0.5, etherMats[parry ? 0 : 1]);
   Sound.hit('pierre');
   if (parry) Sound.click();
+  selfFx(parry ? 'parry' : 'block'); // the others see the sparks
 }
 // a blow that reaches you: 'parry' (none of it, the striker reels), 'block' (none or a quarter of it), or
 // undefined (a plain hit). kind: 'melee', 'bolt' or 'pvp'.
@@ -1200,6 +1216,7 @@ function hurtShown(hp, mx, mz, blocked) {
   moveAxis('x', (dx / dd) * (blocked ? 1.2 : 2.4));
   moveAxis('z', (dz / dd) * (blocked ? 1.2 : 2.4));
   if (!blocked) P.vy = Math.max(P.vy, 4);
+  if (!blocked) selfFx('hurt'); // your avatar flashes red: in a view from outside, and for the others
   Sound.hurt();
   $('vignette').classList.add('hurt');
   setTimeout(() => $('vignette').classList.remove('hurt'), 220);
@@ -1302,8 +1319,20 @@ const MOB_EV = {
   },
 };
 // legs, wings, rings and the rest: how a mob looks alive, whoever moves it
+// before a melee blow it rears back (the shared logic's wind-up, windT here, or the flag the game server
+// or the leading screen sends), then lunges forward as the blow comes
+function windPose(a, dt) {
+  const w = a.windT > 0 || !!a.windF;
+  if (a.wasWind && !w) a.lungeT = 0.2;
+  a.wasWind = w;
+  a.windK = (a.windK || 0) + ((w ? 1 : 0) - (a.windK || 0)) * Math.min(1, dt * 16);
+  a.lungeT = Math.max(0, (a.lungeT || 0) - dt);
+  a.g.rotation.order = 'YXZ'; // tipped about its own axis, whichever way it faces (+z is its front)
+  a.g.rotation.x = -0.38 * a.windK + 0.4 * Math.sin((a.lungeT / 0.2) * Math.PI);
+}
 function animateMob(a, dt, moving, aggro) {
   const p = a.g.position;
+  windPose(a, dt);
   a.walk = (a.walk || 0) + dt * (moving ? 8 : 1.5);
   if (a.parts.legs.length) a.parts.legs.forEach((l, i2) => (l.rotation.x = (i2 % 2 ? -1 : 1) * Math.sin(a.walk) * 0.5));
   else if (a.parts.wings) {
@@ -1386,6 +1415,7 @@ function serverMob(e) {
   a.srv = { x, y, z, r, t: performance.now() };
   a.frenzy = !!(f & 2);
   a.aggro = !!(f & 8);
+  a.windF = !!(f & 32); // winding up a blow
   a.stunT = f & 4 ? Math.max(a.stunT || 0, 0.2) : 0; // reeling from a parry: a riposte counts
   a.chargeT = c > 0 && K.ranged ? (1 - c) * K.ranged.charge : 0;
   if (f & 16) {
@@ -1451,6 +1481,7 @@ function drawServerMobs(dt) {
         continue;
       }
       if (a.hp <= 0) {
+        mobBurst(a);
         a.dying = (a.dying ?? 0.4) - dt;
         a.g.scale.setScalar(Math.max(0, a.dying / 0.4));
         if (a.dying <= 0) {
@@ -1518,7 +1549,7 @@ function sendLedMobs(dt) {
           z: +p.z.toFixed(2),
           r: +a.g.rotation.y.toFixed(2),
           d: +a.leadD.toFixed(2),
-          f: (a.rushT > 0 ? 1 : 0) | (a.frenzy ? 2 : 0),
+          f: (a.rushT > 0 ? 1 : 0) | (a.frenzy ? 2 : 0) | (a.windT > 0 ? 32 : 0),
         });
       }
   if (list.length) Net.sendMobs({ list });
@@ -1533,6 +1564,7 @@ function mobsWord(m) {
     a.lead = false;
     a.remote = { x: e.x, y: e.y, z: e.z, r: e.r, t: performance.now() };
     if (e.f & 2) a.frenzy = true;
+    a.windF = !!(e.f & 32);
   }
 }
 function followMob(a, dt) {
@@ -1625,6 +1657,7 @@ function updateMobs(dt) {
         continue;
       }
       if (a.hp <= 0) {
+        mobBurst(a);
         a.dying -= dt;
         a.g.scale.setScalar(Math.max(0, a.dying / 0.4));
         if (a.dying <= 0) {
@@ -1648,6 +1681,7 @@ function updateMobs(dt) {
         continue;
       }
       a.remote = null;
+      a.windF = false; // this screen runs it again: its own wind-up (windT) counts
       a.lead = !!(aggro && tg && tg.me); // it's after you: your screen leads it, the others follow
       a.leadD = d;
       // the shared logic moves it, and strikes or fires at you through MOB_EV

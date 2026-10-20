@@ -62,6 +62,7 @@ const TWIN_DOWN_MS = 12000; // a Merge twin struck down only sleeps this long, u
 const MOB_SLACK = 0.8; // the pace of blows on a mob, with room for the network's jitter
 const RIPOSTE = 1.5; // the most a blow can be raised (a riposte after a parry)
 // the Merge twins come as a pair, side by side in their chunk (16-mobs.js: slots 160 and 161)
+const FX = new Set(['hurt', 'parry', 'block']); // what a position may say happened to a player
 const twinOf = (k, i, type) => (type === 'pow_twin' ? `${k}|${i + 1}|pos_twin` : type === 'pos_twin' ? `${k}|${i - 1}|pow_twin` : null);
 
 const num = (v, lim = 1e6) => (Number.isFinite(v) && Math.abs(v) <= lim ? v : null);
@@ -594,6 +595,8 @@ export function createGameServer(opts = {}) {
           on: typeof m.on === 'string' ? m.on.slice(0, 64) : 0,
           bt: m.bt ? 1 : 0, // the Front-Runner Boots on their feet
           ar: Number.isInteger(m.ar) ? m.ar : 0, // the plating they wear (only drawn: its protection is settled here)
+          fx: FX.has(m.fx) ? m.fx : 0, // the last blow they took or parried, drawn on their avatar
+          fq: Number.isInteger(m.fq) ? m.fq & 0xffff : 0, // ...and its number: each is drawn once
         });
       } else if (m.t === 'hit') {
         // only to its target, and only if the target really stands within reach of you here
