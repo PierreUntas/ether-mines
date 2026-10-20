@@ -172,7 +172,10 @@ function frame(now) {
     if ((inW || feetWet) && bumped && l > 0.1 && (jump || touch) && !sneak && P.vy < 6) {
       P.vy = 7.6;
     } else if (inW) {
-      P.vy = jump ? 2.6 : sneak ? -3 : Math.max(P.vy - 9 * dt, -2.2);
+      // holding jump swims you up until the water is at your waist: there you float, half in the water,
+      // bobbing a little (the chest out, sinking back slowly; in again, up again)
+      const chestWet = get(Math.floor(P.x), Math.floor(P.y + 1), Math.floor(P.z)) === 11;
+      P.vy = jump ? (chestWet ? 2.6 : Math.max(Math.min(P.vy, 0.6) - 9 * dt, -0.6)) : sneak ? -3 : Math.max(P.vy - 9 * dt, -2.2);
     } else if (feetWet && P.dryT < 0.5) {
       // just come up from a swim, the head above the surface: still afloat. Holding jump keeps you bobbing
       // at the surface (no hop off the water: falling onto it from a jump, you go in); to climb out, swim
