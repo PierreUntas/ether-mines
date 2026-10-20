@@ -787,6 +787,11 @@ function clayModel(it) {
     add(new THREE.OctahedronGeometry(0.075), gem('#7fe8ff', '#7fe8ff', 0.9), 0.06, 0.06, 0.07);
     clayModels[it] = g;
     return g.clone();
+  } else if (clayItem(it, g, add, gem, matte)) {
+    // the other items (materials, platings, keepsakes, the hovercraft keys, potions): held upright
+    g.userData.upright = true;
+    clayModels[it] = g;
+    return g.clone();
   }
   if (!g.children.length) {
     clayModels[it] = null;
@@ -798,6 +803,212 @@ function clayModel(it) {
   d.add(g);
   clayModels[it] = d;
   return d.clone();
+}
+// ---------- the clay look's items: each one a small model in the pickaxe's style ----------
+// Faceted gems that glow a little, matte metal and stone, built from the item's own icon colors. Built
+// standing up around the origin, about 0.6 to 1 tall (setHand and updateAvatarHand scale them). Returns
+// false for an item with no model here (it keeps the voxels of its icon).
+const ethDiamond = (() => {
+  // the Ethereum diamond: a tall pyramid up, a shorter one down, a hair apart (like the pickaxe's head)
+  const up = new THREE.ConeGeometry(0.5, 0.62, 4, 1),
+    down = new THREE.ConeGeometry(0.5, 0.42, 4, 1);
+  up.translate(0, 0.31 + 0.02, 0);
+  down.rotateX(Math.PI);
+  down.translate(0, -0.21, 0);
+  return { up, down };
+})();
+function clayItem(it, g, add, gem, matte) {
+  const glow = c => new THREE.MeshBasicMaterial({ color: c }),
+    glass = new THREE.MeshPhongMaterial({ color: '#e8f4ff', transparent: true, opacity: 0.32, shininess: 120, depthWrite: false }),
+    oct = (r, mat, x, y, z, sy = 1, sz = 0.7) => {
+      const m = add(new THREE.OctahedronGeometry(r), mat, x, y, z);
+      m.scale.set(1, sy, sz);
+      return m;
+    },
+    diamond = (s, top, bottom, x = 0, y = 0, z = 0) => {
+      const a = add(ethDiamond.up, top, x, y, z),
+        b = add(ethDiamond.down, bottom, x, y, z);
+      for (const m of [a, b]) m.scale.set(s, s, s * 0.62);
+      return [a, b];
+    };
+  // a cluster of crystals on a little rock: the Ether Crystal, the Pure Shard
+  const CRYSTAL = { 101: ['#8ff0ff', '#1f9fb0', '#3b4f7a'], 103: ['#c4b5ff', '#5a3fd0', '#3a2d52'] };
+  // a breastplate: [plate, glow, trim]
+  const PLATE = {
+    108: ['#2a1838', '#00eaff', '#4a3b7a'],
+    109: ['#2a1838', '#c2b8ff', '#e8e2ff'],
+    302: ['#1d1418', '#ffb347', '#3a2228'],
+    209: ['#2a2236', '#ffd166', '#f4f0ff'],
+  };
+  // the hovercraft keys: two diamonds on a gold bridge, a base in the craft's color [diamond, glow, base]
+  const TWIN = {
+    213: ['#8ff0ff', '#1f9fb0', '#8ff0ff'],
+    214: ['#c4b5ff', '#6a58e0', '#b9a8ff'],
+    215: ['#4a3b5a', '#ffb347', '#ffb347'],
+    216: ['#ffe9a8', '#ffb347', '#ffe9a8'],
+  };
+  // the neon gliders: a flat diamond wing, dark in the middle, a glowing rim [rim, glow]
+  const GLIDER = { 217: ['#8ff0ff', '#3fc8e8'], 218: ['#c4b5ff', '#8a7bef'], 219: ['#ffb347', '#ff8a3d'], 220: ['#ffe9a8', '#ffd166'] };
+  // potions: [liquid, glow]
+  const POTION = { 303: ['#ff6f9c', '#ff3d7f'], 304: ['#ffd84a', '#ffb000'], 305: ['#8fb4ff', '#4f7fff'] };
+  if (CRYSTAL[it]) {
+    const [c, e, rock] = CRYSTAL[it],
+      m = gem(c, e, 0.45),
+      lt = gem(new THREE.Color(c).lerp(new THREE.Color('#ffffff'), 0.4), e, 0.5);
+    add(new THREE.DodecahedronGeometry(0.2), matte(rock), 0, -0.28, 0).scale.set(1.3, 0.55, 1);
+    oct(0.16, m, 0, 0.08, 0, 2.4, 0.8);
+    oct(0.1, lt, -0.15, -0.08, 0.04, 1.9, 0.8).rotation.z = 0.45;
+    oct(0.09, m, 0.14, -0.1, -0.03, 1.7, 0.8).rotation.z = -0.5;
+  } else if (it === 104) {
+    // the Genesis Fragment: a jagged lump of basalt split open by an ember seam
+    const rock = matte('#2a1a22');
+    add(new THREE.DodecahedronGeometry(0.24), rock, -0.05, 0, 0).scale.set(0.8, 1.15, 0.7);
+    add(new THREE.DodecahedronGeometry(0.17), rock, 0.12, 0.1, 0.02).scale.set(0.8, 1.2, 0.7);
+    oct(0.12, gem('#ffb347', '#ff7a1a', 1), 0.03, 0.04, 0.1, 2.4, 0.6).rotation.z = -0.25;
+    oct(0.07, gem('#ffd166', '#ff9a3d', 1), -0.13, -0.12, 0.1, 1.6, 0.6).rotation.z = 0.5;
+    add(new THREE.BoxGeometry(0.14, 0.025, 0.03), glow('#ff8a3d'), -0.07, 0.14, 0.15, 0.9);
+    add(new THREE.BoxGeometry(0.14, 0.025, 0.03), glow('#ff8a3d'), 0.12, -0.1, 0.15, -0.7);
+  } else if (it === 105) {
+    // the Validator Heart: a golden diamond floating over a glowing rose cradle
+    diamond(0.4, gem('#ffe9a8', '#ffb347', 0.6), gem('#ffd166', '#c98a20', 0.5), 0, 0.12, 0);
+    add(new THREE.TorusGeometry(0.15, 0.035, 6, 16), gem('#ff7aa8', '#ff3d7f', 0.7), 0, -0.2, 0).rotation.x = Math.PI / 2;
+    add(new THREE.CylinderGeometry(0.1, 0.14, 0.12, 8), matte('#4a2a3a'), 0, -0.29, 0);
+  } else if (it === 110) {
+    // the Diamond Shard: a slender Ethereum diamond, pale gold
+    const [a, b] = diamond(0.42, gem('#fff4cc', '#ffd166', 0.7), gem('#ffd166', '#c98a20', 0.5));
+    a.scale.y = b.scale.y = 0.62;
+    a.scale.x = b.scale.x = 0.36;
+  } else if (PLATE[it]) {
+    // a breastplate, its shoulders, and the glowing seam (as worn: ARMOR_LOOKS, 14-startup.js)
+    const [plate, e, trim] = PLATE[it],
+      pm = new THREE.MeshPhongMaterial({ color: plate, shininess: 50, flatShading: true }),
+      tm = matte(trim),
+      gm = glow(e);
+    add(new THREE.BoxGeometry(0.5, 0.52, 0.16), pm, 0, 0, 0);
+    add(new THREE.BoxGeometry(0.36, 0.16, 0.18), pm, 0, -0.26, 0);
+    for (const s of [-1, 1]) {
+      add(new THREE.BoxGeometry(0.2, 0.08, 0.24), tm, s * 0.3, 0.27, 0).rotation.z = s * -0.25;
+      add(new THREE.BoxGeometry(0.04, 0.3, 0.02), gm, s * 0.15, 0.02, 0.085);
+    }
+    add(new THREE.BoxGeometry(0.06, 0.44, 0.02), gm, 0, -0.02, 0.085);
+    oct(0.07, gem(e, e, 0.9), 0, 0.08, 0.1, 1.3, 0.6);
+    if (it === 209) for (const s of [-1, 1]) add(new THREE.BoxGeometry(0.08, 0.36, 0.02), matte('#f4f0ff'), s * 0.21, -0.02, 0.083);
+  } else if (it === 203) {
+    // the Validator Seal: a gold medallion, the Ethereum diamond in violet on both faces
+    add(new THREE.CylinderGeometry(0.3, 0.3, 0.07, 24), gem('#ffd166', '#c98a20', 0.35), 0, 0, 0).rotation.x = Math.PI / 2;
+    add(new THREE.TorusGeometry(0.3, 0.025, 6, 24), gem('#ffe9a8', '#c98a20', 0.4), 0, 0, 0);
+    for (const s of [-1, 1]) diamond(0.24, gem('#a99cff', '#6a58e0', 0.6), gem('#8a7bef', '#4a3bd0', 0.5), 0, 0.02, s * 0.04);
+  } else if (it === 204) {
+    // the Validator Star: four golden points around a bright heart
+    const m = gem('#ffd166', '#ffb347', 0.6);
+    for (const r of [0, Math.PI / 2]) oct(0.42, m, 0, 0, 0, 0.18, 0.18).rotation.z = r;
+    oct(0.12, gem('#fff4cc', '#ffe9a8', 1), 0, 0, 0, 1, 1);
+  } else if (it === 205) {
+    // the Genesis Titan Fang: a long curved fang, basalt with an ember edge, set in a dark root
+    const { body, edges } = bladeGeos({ len: 0.8, bend: -0.3, w0: 0.3, narrow: 0.7, tip: 0.45, single: true, edgeW: 0.02 });
+    const f = new THREE.Group();
+    f.add(new THREE.Mesh(body, new THREE.MeshPhongMaterial({ color: '#4a3b5a', shininess: 40, flatShading: true })));
+    for (const eg of edges) f.add(new THREE.Mesh(eg, glow('#ffb347')));
+    f.position.set(0.05, -0.38, 0);
+    f.scale.z = 3;
+    g.add(f);
+    add(new THREE.CylinderGeometry(0.09, 0.07, 0.12, 6), matte('#2a1a22'), 0.05, -0.42, 0);
+  } else if (it === 207) {
+    // the Titan Core Shard: a tall stone shard, an ember vein running up it
+    oct(0.2, new THREE.MeshPhongMaterial({ color: '#7a6b8a', flatShading: true, shininess: 30 }), 0, 0, 0, 2.3, 0.55);
+    add(new THREE.BoxGeometry(0.035, 0.7, 0.02), glow('#ffb347'), 0, 0, 0.1);
+  } else if (it === 208) {
+    // the Plasma Conduit Core: a burning magenta orb in a dark cage of two rings
+    add(new THREE.IcosahedronGeometry(0.17, 1), gem('#ff7ae8', '#ff3dd0', 1), 0, 0, 0);
+    const cage = matte('#3a2252');
+    add(new THREE.TorusGeometry(0.26, 0.03, 6, 20), cage, 0, 0, 0);
+    add(new THREE.TorusGeometry(0.26, 0.03, 6, 20), cage, 0, 0, 0).rotation.y = Math.PI / 2;
+    for (const s of [-1, 1]) add(new THREE.CylinderGeometry(0.05, 0.06, 0.08, 8), cage, 0, s * 0.3, 0);
+  } else if (it === 210) {
+    // the Difficulty Bomb Fragment: a dark cracked shell, embers showing through, a fuse with a spark
+    add(new THREE.DodecahedronGeometry(0.24, 0), new THREE.MeshPhongMaterial({ color: '#1d1626', flatShading: true }), 0, -0.04, 0);
+    for (const [x, y, r] of [
+      [-0.06, 0.02, 0.8],
+      [0.06, -0.08, 0.9],
+      [0.0, -0.13, -0.6],
+    ])
+      add(new THREE.BoxGeometry(0.16, 0.025, 0.03), glow('#ff8a3d'), x, y, 0.2, r);
+    add(new THREE.CylinderGeometry(0.02, 0.025, 0.14, 6), matte('#8a6a52'), 0.06, 0.24, 0, -0.4);
+    oct(0.04, gem('#ffe9a8', '#ffb347', 1), 0.1, 0.32, 0, 1, 1);
+  } else if (it === 211) {
+    // the Front-Runner Boots: the pair, dark shells, a glowing stripe across the toe and a little thruster
+    const shell = matte('#21161a'),
+      gl = new THREE.MeshLambertMaterial({ color: 0x3fc8e8, emissive: 0x2aa8d0, emissiveIntensity: 0.6 });
+    for (const s of [-1, 1]) {
+      const x = s * 0.15;
+      add(new THREE.BoxGeometry(0.2, 0.32, 0.2), shell, x, 0.04, -0.05);
+      add(new THREE.BoxGeometry(0.22, 0.14, 0.38), shell, x, -0.14, 0.02);
+      add(new THREE.BoxGeometry(0.23, 0.035, 0.035), gl, x, -0.12, 0.21);
+      add(new THREE.BoxGeometry(0.22, 0.03, 0.22), gl, x, 0.15, -0.05);
+      add(new THREE.BoxGeometry(0.08, 0.05, 0.03), gl, x, -0.17, -0.18);
+    }
+  } else if (it === 212) {
+    // the Flashbots Bundle: three glowing bars, lilac, peach and cyan, strapped together in gold
+    [
+      ['#c4b5ff', '#8a7bef'],
+      ['#ffc8a8', '#ff9a6a'],
+      ['#8ff0ff', '#3fc8e8'],
+    ].forEach(([c, e], i) => add(new THREE.BoxGeometry(0.46, 0.12, 0.14), gem(c, e, 0.6), 0, 0.15 - i * 0.15, 0));
+    add(new THREE.BoxGeometry(0.07, 0.5, 0.17), gem('#ffd166', '#c98a20', 0.4), 0, 0, 0);
+  } else if (TWIN[it]) {
+    // the hovercraft keys: two Ethereum diamonds on a gold bridge, over a base of the craft's color
+    const [c, e, base] = TWIN[it],
+      top = gem(new THREE.Color(c).lerp(new THREE.Color('#ffffff'), 0.3), e, 0.6),
+      bot = gem(c, e, 0.5);
+    for (const s of [-1, 1]) diamond(0.36, top, bot, s * 0.2, 0.08, 0);
+    add(new THREE.BoxGeometry(0.22, 0.045, 0.045), gem('#ffd166', '#c98a20', 0.4), 0, 0.16, 0);
+    add(new THREE.BoxGeometry(0.66, 0.05, 0.16), gem(base, e, 0.5), 0, -0.16, 0);
+  } else if (GLIDER[it]) {
+    // the neon gliders: a flat diamond wing, dark at its heart, its rim glowing, over a glowing keel
+    const [c, e] = GLIDER[it];
+    oct(0.36, gem(c, e, 0.8), 0, 0.04, 0, 1, 0.12);
+    oct(0.27, new THREE.MeshPhongMaterial({ color: '#1d1626', flatShading: true }), 0, 0.04, 0.012, 1, 0.12);
+    oct(0.27, new THREE.MeshPhongMaterial({ color: '#1d1626', flatShading: true }), 0, 0.04, -0.012, 1, 0.12);
+    add(new THREE.BoxGeometry(0.44, 0.035, 0.05), glow(e), 0, -0.1, 0);
+  } else if (POTION[it]) {
+    // a potion: a round glass flask, the glowing liquid inside, a neck and a cork
+    const [c, e] = POTION[it];
+    add(new THREE.SphereGeometry(0.16, 12, 10), gem(c, e, 0.7), 0, -0.14, 0).scale.y = 0.95;
+    add(new THREE.SphereGeometry(0.2, 14, 12), glass, 0, -0.12, 0);
+    add(new THREE.CylinderGeometry(0.06, 0.07, 0.16, 10), glass, 0, 0.13, 0);
+    add(new THREE.CylinderGeometry(0.065, 0.06, 0.08, 10), matte('#8a6a52'), 0, 0.24, 0);
+  } else if (it === 306) {
+    // the Ward Incense: a stick in a little dish, its tip glowing, a lilac curl of smoke
+    add(new THREE.CylinderGeometry(0.2, 0.14, 0.09, 12), matte('#4a3b5a'), 0, -0.28, 0);
+    add(new THREE.CylinderGeometry(0.022, 0.022, 0.42, 6), matte('#6a4a36'), 0, -0.04, 0);
+    oct(0.035, gem('#ffb347', '#ff7a1a', 1), 0, 0.18, 0, 1, 1);
+    const smoke = new THREE.MeshLambertMaterial({
+      color: '#c4b5ff',
+      transparent: true,
+      opacity: 0.55,
+      emissive: '#6a58e0',
+      emissiveIntensity: 0.4,
+    });
+    [
+      [0.02, 0.26, 0.05],
+      [-0.04, 0.34, 0.045],
+      [0.03, 0.41, 0.04],
+    ].forEach(([x, y, r]) => add(new THREE.IcosahedronGeometry(r, 0), smoke, x, y, 0));
+  } else if (it === 307) {
+    // the Home Beacon: a little lantern, a warm light behind four dark posts
+    const frame = matte('#3a2d52');
+    add(new THREE.BoxGeometry(0.2, 0.3, 0.2), gem('#ffb347', '#ff8a3d', 1), 0, 0, 0);
+    for (const y of [-0.19, 0.19]) add(new THREE.BoxGeometry(0.3, 0.06, 0.3), frame, 0, y, 0);
+    for (const [x, z] of [
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+      [1, 1],
+    ])
+      add(new THREE.BoxGeometry(0.04, 0.34, 0.04), frame, x * 0.12, 0, z * 0.12);
+    add(new THREE.TorusGeometry(0.07, 0.015, 6, 12), frame, 0, 0.27, 0);
+  } else return false;
+  return true;
 }
 function setHand() {
   const key = S.bar[S.sel] || 'main',
@@ -832,6 +1043,12 @@ function setHand() {
     handMesh.scale.setScalar(0.42); // the models fill their square more than the sprites did
     handMesh.position.set(0.24, -0.3, -0.68);
     handMesh.rotation.set(0, -0.5, 0.2);
+    if (handMesh.userData.upright) {
+      // standing in the palm, a little to the right and up, turned to show its face
+      handMesh.scale.setScalar(0.3);
+      handMesh.position.set(0.32, -0.2, -0.66);
+      handMesh.rotation.set(0.12, -0.45, 0.06);
+    }
     if (ITEM[it]?.ranged) {
       handMesh.scale.setScalar(0.34);
       handMesh.position.set(0.275, -0.275, -0.7);
