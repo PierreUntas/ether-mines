@@ -406,11 +406,11 @@ function changeView(quiet) {
   if (!quiet) logEv('nft', ['Through your eyes', 'View from behind', 'View from the front'][VIEW], touch ? '' : 'press V to change');
 }
 // the arms of a character (yours seen from outside, another player's), drawing the same gestures as the
-// first-person hand (10-loop.js): on guard, the sword arm comes up in front, the blade flat across the face,
-// pointing to the left; a blow, a quick thrust toward where the character looks, the blade's tip leaning
+// first-person hand (10-loop.js): on guard, the sword arm comes up in front of the chest, the blade across
+// the body, its tip to the left, ahead and a little up; a blow, a quick thrust toward where the character looks, the blade's tip leaning
 // in, the shoulders turning into it; otherwise the arms swing with the walk. g: the guard, 0..1; s: how far
 // out the thrust is, 0..1; a: the walk's swing; idle: the breathing; pitch: where the character looks
-const GUARD_HELD = [-0.4, 3.14, 1.57]; // the blade's turn in the hand, on guard (x, y, z)
+const GUARD_HELD = [0, 0.1, 2.74]; // the blade's turn in the hand, on guard (x, y, z)
 function poseArms(o, g, s, a, idle, pitch) {
   const up = Math.max(-0.6, Math.min(0.8, pitch || 0));
   let rx = a,
@@ -420,8 +420,8 @@ function poseArms(o, g, s, a, idle, pitch) {
     tw = 0;
   // (an arm's +x turn brings it forward: the body faces -z; a -z turn brings the right arm inward)
   if (g > 0.02) {
-    rx = (1.55 + up * 0.5) * g + a * (1 - g);
-    rz = -0.35 * g + rz * (1 - g);
+    rx = (1.25 + up * 0.5) * g + a * (1 - g);
+    rz = -0.45 * g + rz * (1 - g);
     lx = lx * (1 - g);
     lz = lz * (1 - g) - 0.04 * g;
     tw = 0.12 * g;
