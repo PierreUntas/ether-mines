@@ -1415,7 +1415,7 @@ $('play').onclick = async () => {
     KEY = 'ether-mines:' + world;
     loadState();
     $('play').disabled = true;
-    $('play').textContent = Net.enabled ? 'Connecting…' : 'Generating the world…';
+    $('play').textContent = 'Loading…';
     $('pseudo').disabled = $('monde').disabled = true;
     try {
       history.replaceState(null, '', '?monde=' + world);
@@ -1424,6 +1424,7 @@ $('play').onclick = async () => {
       await boot(world);
     } catch (e) {
       console.error(e);
+      bootDone();
       $('netStatus').textContent = 'Connection failed: ' + (e.message || e) + '. Check src/config.js and the schema.';
       $('play').disabled = false;
       $('play').textContent = 'Retry';
@@ -1498,12 +1499,38 @@ $('reset').onclick = async () => {
   booted = false;
   location.reload();
 };
+// what the title screen says while the game starts: the step, how far along (the bar), and a word after a
+// while that nothing is stuck (a first connection of the day wakes the servers up, which takes a moment)
+let bootStep = { t: 0, slow: null };
+function bootSay(text, pct) {
+  $('netStatus').textContent = text;
+  if (pct !== undefined) $('progBar').style.width = pct + '%';
+  $('progBar').parentNode.classList.add('busy');
+  clearTimeout(bootStep.slow);
+  bootStep = {
+    t: performance.now(),
+    slow: setTimeout(() => {
+      if (!booted)
+        $('netStatus').textContent =
+          text +
+          (Net.enabled ? ' — still going: the first connection of the day can take a few seconds' : ' — still going, nothing is stuck');
+    }, 7000),
+  };
+}
+function bootDone() {
+  clearTimeout(bootStep.slow);
+  $('progBar').parentNode.classList.remove('busy');
+  $('netStatus').textContent = '';
+}
+const sideLoads = [];
 async function boot(world) {
+  bootSay(Net.enabled ? 'Connecting to your account…' : 'Generating the world…', 3);
   if (Net.enabled) {
     if (!Net.userId) await accountReady;
     if (Net.userId) {
       ME.id = Net.userId;
       // the server's save is authoritative; otherwise we push this browser's save to it
+      bootSay('Loading your save…', 8);
       try {
         const row = await Net.loadPlayer(world),
           here = S.pos && S.posBy === Net.userId ? { pos: S.pos, at: S.posAt || 0 } : null; // this browser's
@@ -1526,14 +1553,16 @@ async function boot(world) {
     } else setTimeout(() => logEv('burn', 'Account unavailable', 'progress kept in this browser'), 1500);
     // your hearts and plating, for the game server (it keeps the hearts from then on)
     Net.setHello(() => ({ hp: S.hp, ar: S.armor ? +S.armor : 0, bt: bootsOn() ? 1 : 0, nm: mobsHere() ? 0 : 1 }));
+    bootSay('Joining the world and the other players…', 14);
     await Net.join(world, ME);
     if (Net.userId) {
-      await syncInventory();
-      try {
-        for (const c of await Net.loadClaims()) CLAIMS.set(ckey(c.cx, c.cz), c);
-      } catch (e) {
-        console.warn(e);
-      }
+      // your chest and the claimed plots come in while the land loads
+      sideLoads.push(
+        syncInventory().catch(e => console.warn(e)),
+        Net.loadClaims()
+          .then(l => l.forEach(c => CLAIMS.set(ckey(c.cx, c.cz), c)))
+          .catch(e => console.warn(e)),
+      );
       serverAct('rewards', {}).then(r => {
         if (r && r.gwei !== undefined) S.gwei = r.gwei;
       });
@@ -1551,12 +1580,17 @@ async function boot(world) {
     P.y = SPAWN.y + 0.1;
     P.z = SPAWN.z + 2.5;
   }
-  const list = wanted(),
-    total = list.length;
-  for (let i = 0; i < total; i += 12) {
-    await loadChunks(list.slice(i, i + 12));
-    $('progBar').style.width = (Math.min(total, i + 12) / total) * 60 + '%';
+  // only the land around you before you're in (about 2 chunks out, in one request online): the rest
+  // comes in from there while you play, nearest first (stream, 13-chunks.js), as it does when you walk
+  const list = wanted().filter(c => c[2] <= 8),
+    total = list.length,
+    per = Net.online ? total : 6;
+  bootSay('Loading the land around you…', 25);
+  for (let i = 0; i < total; i += per) {
+    await loadChunks(list.slice(i, i + per));
+    $('progBar').style.width = 25 + (Math.min(total, i + per) / total) * 35 + '%';
   }
+  bootSay('Building the world…', 60);
   const q = [...meshQ];
   meshQ.clear();
   let m = 0;
@@ -1576,7 +1610,7 @@ async function boot(world) {
       }),
     );
     m = Math.min(q.length, i + 4);
-    $('progBar').style.width = 60 + (m / q.length) * 40 + '%';
+    $('progBar').style.width = 60 + (m / q.length) * 35 + '%';
     await new Promise(r => setTimeout(r, 0));
   }
   updatePosHud();
@@ -1591,6 +1625,12 @@ async function boot(world) {
     P.y = SPAWN.y + 0.1;
     P.z = SPAWN.z + 2.5;
   }
+  if (sideLoads.length) {
+    bootSay('Opening your chest…', 96);
+    await Promise.all(sideLoads.splice(0));
+  }
+  $('progBar').style.width = '100%';
+  bootDone();
   ui();
 }
 requestAnimationFrame(frame);

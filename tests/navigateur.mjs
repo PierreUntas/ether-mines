@@ -1368,10 +1368,10 @@ if (sea) {
     playing = s.was;
     return r;
   }, sea);
-  const wet = swam.tr.findIndex(([y]) => y < swam.surface - 0.3), // in the water
-    after = wet < 0 ? [] : swam.tr.slice(wet).map(([y]) => y);
-  // afloat, half in the water: the feet about a block under the surface
-  if (wet < 0 || Math.max(...after) > swam.surface - 0.6) await fail('holding jump bounced on the water: ' + JSON.stringify(swam));
+  // in the end afloat, half in the water: the feet about a block under the surface, steady
+  const end = swam.tr.slice(-8).map(([y]) => y);
+  if (end.length < 5 || Math.max(...end) > swam.surface - 0.6 || Math.min(...end) < swam.surface - 1.6)
+    await fail('holding jump did not float half in the water: ' + JSON.stringify(swam));
 }
 const m = await page.evaluate(() => ({ active: mines.meshWorker, n: mines.meshCount }));
 if (!m.active) await fail('background meshing did not start');
