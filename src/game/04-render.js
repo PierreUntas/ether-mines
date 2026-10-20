@@ -1010,6 +1010,64 @@ function clayItem(it, g, add, gem, matte) {
   } else return false;
   return true;
 }
+// A block that isn't a plain cube (a door, a ladder, a fence, a pane, furniture, a lever, a plate, a plant,
+// a lily pad...), held in the clay look: drawn as it stands in the world, with the world's own materials
+// (the chunk mesher, Mesh.meshChunk, on a world holding only it). The door stands on its two halves, the
+// fence as a short run of two posts. Centered on the origin, scaled to fit a unit (userData.fit).
+const blockModels = {},
+  HELD_BLOCKS = {
+    48: [
+      [0, 0, 48],
+      [0, 1, 49],
+    ],
+    92: [
+      [0, 0, 92],
+      [1, 0, 92],
+    ],
+  };
+function blockModel(id) {
+  id = +id;
+  if (!CLAY) return null;
+  if (blockModels[id] !== undefined) return blockModels[id] && blockModels[id].clone();
+  const cells = new Map((HELD_BLOCKS[id] || [[0, 0, id]]).map(([x, y, b]) => [x + ',' + (y + 1), b])),
+    get = (x, y, z) => (z !== 0 ? 0 : cells.get(x + ',' + y) || 0);
+  let M = null;
+  try {
+    M = Mesh.pack(Mesh.meshChunk(0, 0, get, () => false));
+  } catch (e) {
+    console.warn(e);
+  }
+  const g = new THREE.Group();
+  for (const [k, mat] of [
+    ['op', opMat],
+    ['gl', glMat],
+    ['pl', plMat],
+  ]) {
+    const G = M && M[k];
+    if (!G || !G.idx || !G.idx.length) continue;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(G.pos, 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(G.nor, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(G.uv, 2));
+    if (G.col) geo.setAttribute('color', new THREE.BufferAttribute(G.col, 3));
+    geo.setIndex(new THREE.BufferAttribute(G.idx, 1));
+    g.add(new THREE.Mesh(geo, mat));
+  }
+  if (!g.children.length) {
+    blockModels[id] = null;
+    return null;
+  }
+  const box = new THREE.Box3().setFromObject(g),
+    c = box.getCenter(new THREE.Vector3()),
+    size = box.getSize(new THREE.Vector3());
+  for (const m of g.children) {
+    m.geometry.translate(-c.x, -c.y, -c.z);
+    m.geometry.computeBoundingSphere();
+  }
+  g.userData.fit = 1 / Math.max(size.x, size.y, size.z, 0.3);
+  blockModels[id] = g;
+  return g.clone();
+}
 function setHand() {
   const key = S.bar[S.sel] || 'main',
     it = S.bar[S.sel] ? itemId(S.bar[S.sel]) : null;
@@ -1054,6 +1112,13 @@ function setHand() {
       handMesh.position.set(0.275, -0.275, -0.7);
       handMesh.rotation.set(0.02, 1.76, 0.11);
     }
+  } else if (B[it] && blockModel(it)) {
+    // a door, a ladder, furniture, a plant...: as it stands in the world, in the palm, turned to show it
+    handMesh = blockModel(it);
+    handMesh.userData.shared = true;
+    handMesh.scale.setScalar(0.36 * handMesh.userData.fit);
+    handMesh.position.set(0.32, -0.22, -0.66);
+    handMesh.rotation.set(0.25, 0.65, 0);
   } else {
     const ti = B[it] ? (B[it].icon ?? B[it].x) : ITEM[it].icon;
     handMesh = new THREE.Mesh(heldVoxelGeo(ti), heldVoxelMat);
