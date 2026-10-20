@@ -88,6 +88,7 @@ function frame(now) {
     }
     const inW = get(Math.floor(P.x), Math.floor(P.y + 0.5), Math.floor(P.z)) === 11;
     P.inWater = inW;
+    P.dryT = inW ? 0 : (P.dryT ?? 9) + dt; // how long since you were swimming
     const sneak = sneakHeld || keys.has('KeyC') || keys.has('ControlLeft');
     if (sprintOn) {
       if (l > 0.1) sprintMv = true;
@@ -172,9 +173,11 @@ function frame(now) {
       P.vy = 7.6;
     } else if (inW) {
       P.vy = jump ? 2.6 : sneak ? -3 : Math.max(P.vy - 9 * dt, -2.2);
-    } else if (feetWet && jump && P.vy <= 0) {
-      P.vy = 5; // at the surface, jumping is still possible
-      P.vy = Math.max(P.vy - 24 * dt, -30);
+    } else if (feetWet && P.dryT < 0.5) {
+      // just come up from a swim, the head above the surface: still afloat. Holding jump keeps you bobbing
+      // at the surface (no hop off the water: falling onto it from a jump, you go in); to climb out, swim
+      // into the bank (above)
+      P.vy = Math.max(P.vy - 9 * dt, -2.2);
     } else if (onLadder) {
       P.vy = jump || (bumped && l > 0.1) || (l > 0.1 && fz > 0) ? 3.2 : sneak ? 0 : Math.max(P.vy - 24 * dt, -2.4);
     } else {

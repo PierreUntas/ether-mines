@@ -1325,6 +1325,53 @@ const walk = await page.evaluate(() => {
   return { kept: s && s.pos && Math.abs(s.pos[0] - (x0 + 3)) < 0.01, at: s && s.posAt > Date.now() - 5000 };
 });
 if (!walk.kept || !walk.at) await fail('a walk was not kept in the save: ' + JSON.stringify(walk));
+// holding jump over the sea: you fall in and swim, you don't bounce on the water
+const sea = await page.evaluate(() => {
+  const P = mines.P;
+  for (let r = 4; r < 120; r += 2)
+    for (let a = 0; a < 6.28; a += 0.4) {
+      const x = Math.floor(P.x + Math.cos(a) * r),
+        z = Math.floor(P.z + Math.sin(a) * r);
+      for (let y = 40; y > 2; y--) {
+        const id = mines.get(x, y, z);
+        if (id === 0) continue;
+        if (id === 11 && mines.get(x, y - 1, z) === 11 && mines.get(x, y - 2, z) === 11) return { x: x + 0.5, y: y + 1, z: z + 0.5, back: [P.x, P.y, P.z], was: playing };
+        break;
+      }
+    }
+  return null;
+});
+if (sea) {
+  await page.evaluate(s => {
+    const P = mines.P;
+    playing = true;
+    s.panel = $('panel').hidden;
+    $('panel').hidden = true;
+    [P.x, P.y, P.z, P.vy] = [s.x, s.y + 1.5, s.z, 0];
+    keys.add('Space');
+    window.__sea = s;
+    s.render = renderer.render;
+    renderer.render = () => {}; // no drawing: the frames come fast enough to fall and swim
+    window.__tr = [];
+    const iv = setInterval(() => window.__tr.push([+P.y.toFixed(2)]), 100);
+    setTimeout(() => clearInterval(iv), 2400);
+  }, sea);
+  await new Promise(r => setTimeout(r, 2500));
+  const swam = await page.evaluate(s => {
+    const P = mines.P,
+      r = { y: P.y, surface: s.y, inWater: P.inWater, tr: window.__tr };
+    keys.delete('Space');
+    $('panel').hidden = window.__sea.panel;
+    renderer.render = window.__sea.render;
+    [P.x, P.y, P.z] = s.back;
+    P.vy = 0;
+    playing = s.was;
+    return r;
+  }, sea);
+  const wet = swam.tr.findIndex(([y]) => y < swam.surface - 0.3), // in the water
+    after = wet < 0 ? [] : swam.tr.slice(wet).map(([y]) => y);
+  if (wet < 0 || Math.max(...after) > swam.surface + 0.3) await fail('holding jump bounced on the water: ' + JSON.stringify(swam));
+}
 const m = await page.evaluate(() => ({ active: mines.meshWorker, n: mines.meshCount }));
 if (!m.active) await fail('background meshing did not start');
 if (m.n < 20) await fail('too few chunks displayed: ' + m.n);
