@@ -147,10 +147,32 @@ function save() {
   if (!dirty) return;
   dirty = false;
   cloudDirty = true;
-  S.pos = [P.x, P.y, P.z, yaw, pitch];
+  keepPos();
   try {
     localStorage.setItem(KEY, JSON.stringify(S));
   } catch (e) {}
+}
+// where you stand, with when (so the newest of this browser's save and the server's wins, boot in
+// 14-startup.js) and whose (this browser may have held another account's save)
+function keepPos() {
+  S.pos = [P.x, P.y, P.z, yaw, pitch];
+  S.posAt = Date.now();
+  S.posBy = Net.userId || ME.id;
+}
+// Walking alone changes nothing else in the save: where you stand is still kept, in this browser every
+// 5 s, on the server every 20 s at most (the whole save goes up each time: no more often than that)
+let posKept = null,
+  posCloud = false,
+  cloudAt = 0;
+function keepWalk() {
+  if (typeof playing === 'undefined' || !playing || !booted) return;
+  if (posKept && Math.hypot(P.x - posKept[0], P.y - posKept[1], P.z - posKept[2]) < 1) return;
+  posKept = [P.x, P.y, P.z];
+  keepPos();
+  try {
+    localStorage.setItem(KEY, JSON.stringify(S));
+  } catch (e) {}
+  posCloud = true;
 }
 // server-side save (online): without the solo-mode terrain, with a shortened log
 const cloudState = () => {
@@ -170,12 +192,18 @@ async function cloudSave(force) {
   cloudDirty = false;
   try {
     if (!(await Net.savePlayer(Net.world, ME.name, ME.color, cloudState()))) cloudDirty = true;
+    else {
+      cloudAt = Date.now();
+      posCloud = false;
+    }
   } finally {
     cloudBusy = false;
   }
 }
 setInterval(() => {
   save();
+  keepWalk();
+  if (posCloud && Date.now() - cloudAt > 20000) cloudDirty = true;
   cloudSave();
 }, 5000);
 addEventListener('pagehide', () => {

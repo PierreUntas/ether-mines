@@ -1505,9 +1505,18 @@ async function boot(world) {
       ME.id = Net.userId;
       // the server's save is authoritative; otherwise we push this browser's save to it
       try {
-        const row = await Net.loadPlayer(world);
-        if (row && row.state && Object.keys(row.state).length) useState(row.state);
-        else cloudDirty = true;
+        const row = await Net.loadPlayer(world),
+          here = S.pos && S.posBy === Net.userId ? { pos: S.pos, at: S.posAt || 0 } : null; // this browser's
+        if (row && row.state && Object.keys(row.state).length) {
+          useState(row.state);
+          // where you last stood: this browser's word when it's newer (the server's copy of a walk may
+          // lag 20 s behind, and a save sent as the page closed may never have arrived)
+          const srvAt = Math.max(row.state.posAt || 0, Date.parse(row.updated_at) || 0);
+          if (here && here.at > srvAt) {
+            S.pos = here.pos;
+            S.posAt = here.at;
+          }
+        } else cloudDirty = true;
         if (row) S.gwei = row.gwei || 0; // server-authoritative, never part of state jsonb
       } catch (e) {
         console.warn(e);

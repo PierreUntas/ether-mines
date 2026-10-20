@@ -1311,6 +1311,20 @@ const combat2 = await page.evaluate(() => {
 if (!combat2.sentinel || !combat2.wraith) await fail('new mob types did not take damage: ' + JSON.stringify(combat2));
 if (combat2.withArmor <= combat2.noArmor) await fail('armor did not reduce incoming damage: ' + JSON.stringify(combat2));
 if (errors.length) await fail('errors with the new mobs/armor');
+// walking alone (nothing else changed) still keeps where you stand: what reopening the game puts you back at
+const walk = await page.evaluate(() => {
+  const P = mines.P,
+    x0 = P.x,
+    was = playing;
+  playing = true;
+  P.x += 3;
+  keepWalk();
+  playing = was;
+  const s = JSON.parse(localStorage.getItem(KEY) || 'null');
+  P.x = x0;
+  return { kept: s && s.pos && Math.abs(s.pos[0] - (x0 + 3)) < 0.01, at: s && s.posAt > Date.now() - 5000 };
+});
+if (!walk.kept || !walk.at) await fail('a walk was not kept in the save: ' + JSON.stringify(walk));
 const m = await page.evaluate(() => ({ active: mines.meshWorker, n: mines.meshCount }));
 if (!m.active) await fail('background meshing did not start');
 if (m.n < 20) await fail('too few chunks displayed: ' + m.n);
