@@ -405,30 +405,32 @@ function changeView(quiet) {
   if (SELF) SELF.g.visible = VIEW > 0;
   if (!quiet) logEv('nft', ['Through your eyes', 'View from behind', 'View from the front'][VIEW], touch ? '' : 'press V to change');
 }
-// the arms of a character (yours seen from outside, another player's): on guard, the sword arm comes up across
-// the chest, the other hand to support it, the blade held flat in front; a strike, raised then brought down
-// with the shoulders turning into it; otherwise they swing with the walk. g: the guard, 0..1; chop: how far
-// into a strike (0..1), or -1; a: the walk's swing; idle: the breathing
+// the arms of a character (yours seen from outside, another player's), drawing the same gestures as the
+// first-person hand (10-loop.js): on guard, the sword arm comes up in front, the blade flat across the face,
+// pointing to the left; a blow, a quick thrust toward where the character looks, the blade's tip leaning
+// in, the shoulders turning into it; otherwise the arms swing with the walk. g: the guard, 0..1; s: how far
+// out the thrust is, 0..1; a: the walk's swing; idle: the breathing; pitch: where the character looks
 const GUARD_HELD = [-0.4, 3.14, 1.57]; // the blade's turn in the hand, on guard (x, y, z)
-function poseArms(o, g, chop, a, idle) {
+function poseArms(o, g, s, a, idle, pitch) {
+  const up = Math.max(-0.6, Math.min(0.8, pitch || 0));
   let rx = a,
     rz = 0.06 + idle,
     lx = -a,
     lz = -0.06 - idle,
     tw = 0;
-  // (an arm's +x turn brings it forward: the body faces -z)
+  // (an arm's +x turn brings it forward: the body faces -z; a -z turn brings the right arm inward)
   if (g > 0.02) {
-    rx = 0.9 * g + a * (1 - g);
-    rz = -0.15 * g + rz * (1 - g);
-    lx = 0.8 * g + lx * (1 - g);
-    lz = 0.45 * g + lz * (1 - g);
-    tw = 0.2 * g;
-  } else if (chop >= 0) {
-    // raised high behind the head, then brought down in front
-    const e = 1 - (1 - chop) * (1 - chop);
-    rx = 2.7 - 2.1 * e;
-    rz = -0.1 - 0.2 * e;
-    tw = -0.3 * Math.sin(chop * Math.PI);
+    rx = (1.55 + up * 0.5) * g + a * (1 - g);
+    rz = -0.35 * g + rz * (1 - g);
+    lx = lx * (1 - g);
+    lz = lz * (1 - g) - 0.04 * g;
+    tw = 0.12 * g;
+  }
+  if (s > 0) {
+    // the thrust, on top of the walk or the guard: the arm reaches out level with the eyes
+    rx += (1.55 + up - rx) * s;
+    rz += (-0.28 - rz) * s;
+    tw += (-0.3 - tw) * s;
   }
   o.arms[1].rotation.x = rx;
   o.arms[1].rotation.z = rz;
@@ -437,9 +439,13 @@ function poseArms(o, g, chop, a, idle) {
   o.body.rotation.y = tw;
   if (o.held) {
     const h = o.guardHeld || GUARD_HELD;
-    o.held.rotation.set(h[0] * g, -0.3 + h[1] * g, 0.3 + h[2] * g);
+    // a thrust turns the blade along the arm, its tip out ahead and a little up
+    const k = s * (1 - g);
+    o.held.rotation.set(h[0] * g - 2.64 * k, -0.3 + h[1] * g, 0.3 + h[2] * g + 0.48 * k);
   }
 }
+// a blow's thrust, as the first-person hand draws it (10-loop.js): out at once, then back, from `swing`
+const thrustOf = sw => (sw > 0 ? Math.min(1, (Math.sin((1 - sw) * Math.PI) * sw) / 0.57) : 0);
 // places the player's avatar and pulls the camera back (without crossing walls); returns a function that resets the camera to the eyes
 function viewFromOutside(dt) {
   if (!VIEW || !SELF) return null;
@@ -458,7 +464,7 @@ function viewFromOutside(dt) {
   o.legs[0].rotation.x = a;
   o.legs[1].rotation.x = -a;
   // on guard (16-mobs.js) or striking: poseArms
-  poseArms(o, guardAmt, swing > 0 ? 1 - swing : -1, a, 0);
+  poseArms(o, guardAmt, thrustOf(swing), a, 0, pitch);
   o.body.scale.set(1 + br * 0.02, 1 + br * 0.012, 1 + br * 0.035);
   o.body.position.y = 0.94 + hop;
   o.head.position.y = 1.52 + hop + br * 0.012;
@@ -816,9 +822,10 @@ function updateOthers(dt) {
     o.body.position.y = 0.94 + hop;
     o.head.position.y = 1.52 + hop + br * 0.012;
     o.head.rotation.z = Math.sin(o.walk) * 0.06 * mv;
-    // the guard eases up and down; swinging (mining, striking): a strike every 0.45 s
+    // the guard eases up and down; swinging (mining, striking): a blow every 0.45 s, as your own clicks go
     o.gdAmt = (o.gdAmt || 0) + ((o.t.gd ? 1 : 0) - (o.gdAmt || 0)) * Math.min(1, dt * 14);
-    poseArms(o, o.gdAmt, o.t.m && !o.t.gd ? (performance.now() / 450) % 1 : -1, a, br * 0.03 * (1 - mv));
+    const sw = o.t.m ? Math.max(0, 0.6 - ((performance.now() / 450) % 1) * 1.35) : 0;
+    poseArms(o, o.gdAmt, thrustOf(sw), a, br * 0.03 * (1 - mv), o.t.pitch);
     o.arms[0].position.y = o.arms[1].position.y = 1.26 + hop;
     o.tag.position.y = 2.1 + hop;
     if (typeof rideOther === 'function') rideOther(o); // on board a hovercraft, or in someone's back seat
