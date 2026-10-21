@@ -642,7 +642,7 @@ const pick = await page.evaluate(() => {
   const publicZone = !PICK.ok && /public zone/.test($('claimTxt').textContent);
   P.x += 64;
   updatePosHud();
-  const free = PICK.ok && /2 crystals/.test($('claimTxt').textContent),
+  const free = PICK.ok && /500 Gwei/.test($('claimTxt').textContent),
     q = [PICK.qx, PICK.qz];
   CLAIMS.set(ckey(q[0], q[1]), { cx: q[0], cz: q[1], owner: 'someone', owner_name: 'Alice' });
   updatePosHud();

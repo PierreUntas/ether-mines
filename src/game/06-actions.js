@@ -294,8 +294,13 @@ function pickState(qx, qz) {
     [x0 + CH - 1, z0 + CH - 1],
   ])
     if (sanctuary(x, z) || inCircuits(x, z)) return ['bad', 'a public zone: it belongs to everyone'];
-  return ['free', '2 crystals'];
+  // 048_claim_price.sql: 500 Gwei for your first plot, twice as much for each one after, 9 at most
+  const held = [...CLAIMS.values()].filter(c => c.owner === ME.id).length;
+  if (held >= 9) return ['bad', '9 plots at most: give one up first (/unclaim)'];
+  const price = claimPrice(held);
+  return ['free', `${fmtN(price)} Gwei` + ((S.gwei || 0) < price ? ` (you have ${fmtN(S.gwei || 0)})` : '')];
 }
+const claimPrice = held => 500 * 2 ** held;
 function drawClaimPick() {
   if (!PICK.on) return;
   const qx = cOf(Math.floor(P.x)),
@@ -395,7 +400,15 @@ async function confirmClaimPick() {
   if (cOf(Math.floor(P.x)) !== qx || cOf(Math.floor(P.z)) !== qz) return drawClaimPick(); // (you just walked off it)
   clearClaimPick();
   const r = await serverAct('claim', { qx, qz }, null, 'claim');
-  if (r) addChat('World', '#7fe8ff', `Plot ${qx}, ${qz} claimed (2 crystals). Only you and your invites can build there.`);
+  if (!r) return;
+  if (r.total_gwei !== undefined) S.gwei = r.total_gwei;
+  ui();
+  addChat(
+    'World',
+    '#7fe8ff',
+    `Plot ${qx}, ${qz} claimed (${fmtN(r.gwei || 0)} Gwei). Only you and your invites can build there.` +
+      (r.next_price ? ` Your next plot: ${fmtN(r.next_price)} Gwei.` : ' That makes 9: the most you can hold.'),
+  );
 }
 $('claimOk').addEventListener('click', e => {
   e.preventDefault();

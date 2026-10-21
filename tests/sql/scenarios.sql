@@ -117,8 +117,21 @@ update players set pos_at = now() - interval '1 minute';
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 select pg_temp.ok('claim a chunk from a distance', act_claim('w', 2, 0, 20.5, :gy + 1, 6.5) ->> 'err' = 'must be inside the claim');
-select pg_temp.ok('claim a chunk', (act_claim('w', 1, 0, 20.5, :gy + 1, 6.5) ->> 'ok')::boolean);
-select pg_temp.ok('the claim costs 2 crystals', (select n from inventory where item = 101) = 5);
+select pg_temp.ok('a plot costs gwei: none, no plot', act_claim('w', 1, 0, 20.5, :gy + 1, 6.5) ->> 'err' = 'needs 500 gwei');
+reset role;
+update players set gwei = 1200 where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+delete from rate_limits;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+select act_claim('w', 1, 0, 20.5, :gy + 1, 6.5) as claimed \gset
+select pg_temp.ok('claim a chunk: the first plot costs 500 gwei, the next one twice as much', (:'claimed'::jsonb ->> 'ok')::boolean
+  and (:'claimed'::jsonb ->> 'total_gwei')::int = 700 and (:'claimed'::jsonb ->> 'next_price')::int = 1000);
+reset role;
+update players set gwei = 0 where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+select pg_temp.ok('a plot costs no crystals any more', (select n from inventory where item = 101 and user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 7);
+update inventory set n = 5 where item = 101 and user_id = 'aaaaaaaa-0000-0000-0000-000000000001'; -- (the counts further down)
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 select pg_temp.ok('claim the sanctuary', act_claim('w', 0, 0, 8.5, 33, 10.5) ->> 'ok' = 'false');
 reset role;
 update players set pos_at = now() - interval '1 minute';
@@ -1107,3 +1120,18 @@ select pg_temp.refused('admin: a player can''t give passwords', $q$select * from
 select pg_temp.refused('admin: ... nor list the players', $q$select * from admin_players()$q$);
 reset role;
 \echo Nickname and password scenarios pass.
+
+-- ---------- plots (048): 9 at most, the price doubling ----------
+reset role;
+insert into auth.users values ('a3000000-0000-0000-0000-000000000001');
+insert into players (user_id, world, name, gwei) values ('a3000000-0000-0000-0000-000000000001', 'w', 'Lander', 0);
+insert into claims (world, cx, cz, owner, owner_name, members)
+  select 'w', 300 + i, 300, 'a3000000-0000-0000-0000-000000000001', 'Lander', '{}' from generate_series(1, 8) i;
+update players set gwei = 128000 where user_id = 'a3000000-0000-0000-0000-000000000001';
+select set_config('request.jwt.claim.sub', 'a3000000-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('the prices: 500, then twice as much each time', _claim_price(0) = 500 and _claim_price(3) = 4000 and _claim_price(8) = 128000);
+select _core_claim('w', 400, 400) as ninth \gset
+select pg_temp.ok('the 9th plot, for 128 000 gwei', (:'ninth'::jsonb ->> 'ok')::boolean and (:'ninth'::jsonb ->> 'total_gwei')::int = 0);
+update players set gwei = 999999 where user_id = 'a3000000-0000-0000-0000-000000000001';
+select pg_temp.ok('no 10th plot', _core_claim('w', 401, 400) ->> 'err' = '9 plots at most');
+\echo Plot price scenarios pass.
