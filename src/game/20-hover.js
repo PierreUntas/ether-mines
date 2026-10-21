@@ -221,7 +221,7 @@ function mountHover() {
     S.seen.hoverTip = 1;
     dirty = true;
     toastInfo(
-      `On board the ${ITEM[id].n}: twice as fast, over water too. Right-click to step off${hoverOf(id).model === 'twin' ? ' · a friend can take the back seat by right-clicking you' : ''}.`,
+      `On board the ${ITEM[id].n}: twice as fast, over water too. ${touch ? 'The craft button' : 'Right-click'} to step off${hoverOf(id).model === 'twin' ? ` · a friend can take the back seat by ${touch ? 'tapping' : 'right-clicking'} you` : ''}.`,
     );
   }
 }
@@ -315,6 +315,11 @@ function driftFx(m, ro, dt, color) {
 function updateRide(dt) {
   const t = performance.now() / 1000;
   if (RIDE && playing && heldHover() !== RIDE.id) dismountHover(); // put away: you step off
+  // on a touch screen, the button to get on and off, while a craft is in hand (or you're on board)
+  const rb = $('tRide'),
+    showRide = !!(heldHover() || RIDE || BOARD);
+  if (rb && rb.hidden === showRide) rb.hidden = !showRide;
+  if (rb) rb.classList.toggle('on', !!(RIDE || BOARD));
   if (RIDE) {
     const m = RIDE.mesh;
     m.position.set(P.x, P.y + HOVER_GAP, P.z);

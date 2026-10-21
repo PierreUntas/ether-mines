@@ -196,7 +196,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .tbtn,.abtn,.slot.more{border:2px solid rgba(255,255,255,.28);background:var(--glass);color:var(--text);border-radius:10px;display:grid;place-items:center;touch-action:none;-webkit-touch-callout:none;padding:0}
 .tbtn{width:44px;height:44px}
 .tbtn svg{width:22px;height:22px}
-#actBtns{position:absolute;right:calc(env(safe-area-inset-right,0px) + 22px);top:calc(50% - 90px);width:148px;height:180px;pointer-events:none}
+#actBtns{position:absolute;right:calc(env(safe-area-inset-right,0px) + 22px);top:calc(50% - 101px);width:152px;height:202px;pointer-events:none}
 .abtn{pointer-events:auto}
 .abtn{position:absolute;width:62px;height:62px}
 .abtn svg{width:28px;height:28px}
@@ -204,8 +204,9 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .abtn:active{transform:scale(.94)}
 #tJump{right:0;top:0}
 #tSneak{right:0;bottom:0}
-#tSprint{left:0;top:59px}
-#tGuard{left:0;top:118px}
+#tSprint{left:0;top:70px}
+#tGuard,#tRide{left:0;top:140px}
+#tRide[hidden]{display:none}
 #tGuard[hidden]{display:none}
 #tDash{left:0;top:0}
 #tDash[hidden]{display:none}

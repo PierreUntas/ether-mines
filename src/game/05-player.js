@@ -451,6 +451,13 @@ hold(
   () => setGuard(true),
   () => setGuard(false),
 );
+// a hovercraft in hand: on board or off (20-hover.js), the same as a tap
+$('tRide').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (typeof toggleRide !== 'function' || !playing) return;
+  if (BOARD) unboard();
+  else toggleRide();
+});
 $('tDash').addEventListener('pointerdown', e => {
   e.preventDefault();
   dodge();
