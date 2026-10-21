@@ -1292,7 +1292,7 @@ async function showLogin() {
   }
 }
 const ENTER_ERRS = {
-  'wrong password': 'Wrong password for this nickname. Forgot it? Write to pierre.untas@gmail.com.',
+  'wrong password': 'Wrong password for this nickname. Forgot it? Write to contact@ethermines.org.',
   'bad nickname': 'A nickname is 2 to 16 letters, digits, spaces or - _ .',
   'bad password': 'The password needs 6 characters or more.',
   'too many attempts': 'Too many attempts: wait a few seconds.',
@@ -1495,7 +1495,7 @@ $('play').onclick = async () => {
       $('netStatus').textContent = '';
       if (taken || failure) {
         $('netStatus').textContent = taken
-          ? `The nickname "${name}" is already taken in this world by another account. Write to pierre.untas@gmail.com to sort it out.`
+          ? `The nickname "${name}" is already taken in this world by another account. Write to contact@ethermines.org to sort it out.`
           : 'Connection failed: ' + (failure.message || failure) + '. Check src/config.js and the schema.';
         $('pseudo').focus();
         return;

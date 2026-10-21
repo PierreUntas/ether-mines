@@ -255,7 +255,7 @@ ${crafting}
 <ul>
   <li>You enter with your nickname and a password. A free nickname makes your account; on another device, the same nickname and password bring your game there.</li>
   <li>On your usual device the game remembers you. Account (in the menu) lets you change your password or log out.</li>
-  <li>Forgot your password? Write to <a href="mailto:pierre.untas@gmail.com">pierre.untas@gmail.com</a> with your nickname and what you own in the game.</li>
+  <li>Forgot your password? Write to <a href="mailto:contact@ethermines.org">contact@ethermines.org</a> with your nickname and what you own in the game.</li>
 </ul>
 
 <h2 id="news">What's new</h2>
