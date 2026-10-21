@@ -1065,3 +1065,45 @@ set role service_role;
 select pg_temp.refused('admin: ... nor the game server', $q$select admin_reset_password('pierre', 'hacked1')$q$);
 reset role;
 \echo Login scenarios pass.
+
+-- ---------- entering with a nickname and a password (047) ----------
+reset role;
+insert into auth.users values ('a2000000-0000-0000-0000-000000000001'), ('a2000000-0000-0000-0000-000000000002'), ('a2000000-0000-0000-0000-000000000003'),
+  ('a2000000-0000-0000-0000-000000000004'), ('a2000000-0000-0000-0000-000000000005'), ('a2000000-0000-0000-0000-000000000006'), ('a2000000-0000-0000-0000-000000000007');
+-- two games started before passwords
+insert into players (user_id, world, name) values ('a2000000-0000-0000-0000-000000000004', 'w', 'Legacy'), ('a2000000-0000-0000-0000-000000000006', 'w', 'Oldie');
+delete from rate_limits;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'a2000000-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('enter: a free nickname and a short password', act_enter('Newbie', 'abc') ->> 'err' = 'bad password');
+select pg_temp.ok('enter: a bad nickname', act_enter('x', 'pass123') ->> 'err' = 'bad nickname');
+select pg_temp.ok('enter: a free nickname makes the account', (act_enter('Newbie', 'pass123') ->> 'created')::boolean);
+select set_config('request.jwt.claim.sub', 'a2000000-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('enter: a wrong password', act_enter('NEWBIE', 'nope123') ->> 'err' = 'wrong password');
+select pg_temp.ok('enter: the same nickname, any case, on another device', act_enter('newbie', 'pass123') ->> 'login' = 'Newbie');
+select set_config('request.jwt.claim.sub', 'a2000000-0000-0000-0000-000000000005', false) \g /dev/null
+select pg_temp.ok('enter: someone else''s game without a password is not up for grabs', act_enter('legacy', 'pass123') ->> 'err' = 'nickname taken');
+select set_config('request.jwt.claim.sub', 'a2000000-0000-0000-0000-000000000004', false) \g /dev/null
+select pg_temp.ok('enter: an old game gets its password on its own device', (act_enter('Legacy', 'mypass1') ->> 'ok')::boolean
+  and act_my_login() ->> 'login' = 'Legacy');
+reset role;
+select pg_temp.ok('admin: the list of players says who has a password',
+  (select has_password from admin_players() where nickname = 'Legacy') and not (select has_password from admin_players() where nickname = 'Oldie'));
+select temporary_password as tp from admin_temp_passwords() where nickname = 'Oldie' \gset
+select pg_temp.ok('admin: a temporary password for the games without one', :'tp' like 'ether-%'
+  and (select temporary from admin_players() where nickname = 'Oldie'));
+select pg_temp.ok('admin: what a player owns', admin_player_info('oldie') -> 0 -> 'worlds' -> 0 ->> 'name' = 'Oldie');
+delete from rate_limits;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'a2000000-0000-0000-0000-000000000004', false) \g /dev/null
+select pg_temp.ok('enter: a device holding another game opens a fresh session first', act_enter('Oldie', :'tp') ->> 'err' = 'fresh');
+select set_config('request.jwt.claim.sub', 'a2000000-0000-0000-0000-000000000007', false) \g /dev/null
+select act_enter('oldie', :'tp') as oldie \gset
+select pg_temp.ok('enter: with the temporary password, the game comes, to be changed', (:'oldie'::jsonb ->> 'must_change')::boolean
+  and (:'oldie'::jsonb ->> 'moved')::int = 1 and (act_my_login() ->> 'must_change')::boolean);
+select pg_temp.ok('enter: the password changed, no longer temporary', (act_set_password('mine123') ->> 'ok')::boolean
+  and not (act_my_login() ->> 'must_change')::boolean);
+select pg_temp.refused('admin: a player can''t give passwords', $q$select * from admin_temp_passwords()$q$);
+select pg_temp.refused('admin: ... nor list the players', $q$select * from admin_players()$q$);
+reset role;
+\echo Nickname and password scenarios pass.

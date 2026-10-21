@@ -94,8 +94,14 @@
     <span class="beta">Beta</span>
     <p>A block world in Ethereum's colors, built with friends. Every block remembers who placed it: the world keeps a ledger of everything you build.</p>
     <div class="fields">
-      <label>Your nickname<input id="pseudo" maxlength="16" autocomplete="nickname" placeholder="Pierre"></label>
-      <label>World<input id="monde" maxlength="32" autocomplete="off" placeholder="principal"></label>
+      <label>Your nickname<input id="pseudo" maxlength="16" autocomplete="username" placeholder="Pierre" spellcheck="false" autocapitalize="off"></label>
+      <label id="passLbl" hidden>Password<input id="pass" type="password" maxlength="72" autocomplete="current-password" placeholder="6 characters or more"></label>
+      <label id="mondeLbl">World<input id="monde" maxlength="32" autocomplete="off" placeholder="principal"></label>
+    </div>
+    <p id="passHint" class="hint" hidden>New here? Pick a nickname and a password: they're your account. Coming back on another device? The same nickname and password bring your game.</p>
+    <div id="mustChg" class="mustchg" hidden>
+      <p>This password was given to you: choose your own to keep your game safe.</p>
+      <div class="arow"><input id="newPw" type="password" maxlength="72" autocomplete="new-password" placeholder="Your new password"><button class="b" id="newPwBtn">Save my password</button></div>
     </div>
     <p id="netStatus" class="status"></p>
     <p id="hintIos" class="hint" hidden>Fullscreen on iPhone: Safari's Share button, then "Add to Home Screen," and launch the game from the icon.</p>
@@ -129,23 +135,10 @@
     </details>
     <details class="acct" id="acct" hidden>
       <summary>Account · <span id="acctTxt">connecting…</span></summary>
-      <div id="loginNone">
-        <p>Secure your game with a login and a password, to find it on any device. No email needed: a login is 3 to 20 letters, digits or - _ . and a password 6 characters or more.</p>
-        <div class="arow"><input id="newLogin" placeholder="Choose a login" maxlength="20" autocomplete="username" spellcheck="false" autocapitalize="off"><input id="newPass" type="password" placeholder="Choose a password" maxlength="72" autocomplete="new-password"><button class="b" id="saveLogin">Secure my game</button></div>
-      </div>
-      <div id="loginHave" hidden>
-        <p>Your game is secured with the login <b id="loginName"></b>. On another device: Account, then Log in.</p>
-        <div class="arow"><input id="chgPass" type="password" placeholder="New password" maxlength="72" autocomplete="new-password"><button class="b" id="saveChg">Change my password</button></div>
-      </div>
-      <p>Already have a login? Log in to bring your game to this device.</p>
-      <div class="arow"><input id="inLogin" placeholder="Login" maxlength="20" autocomplete="username" spellcheck="false" autocapitalize="off"><input id="inPass" type="password" placeholder="Password" maxlength="72" autocomplete="current-password"><button class="b" id="doLogin">Log in</button></div>
-      <p class="hint">Forgot your password? Write to <a href="mailto:pierre.untas@gmail.com">pierre.untas@gmail.com</a> with your login and what you own in the game.</p>
-      <details class="oldcode">
-        <summary>Recovery code</summary>
-        <p>The older way: a code to write down, that brings your game to another device.</p>
-        <div class="arow"><button class="b" id="showCode">Show my recovery code</button><code id="myCode" hidden></code></div>
-        <div class="arow"><input id="codeIn" placeholder="Code from another device" maxlength="19" autocomplete="off" spellcheck="false"><button class="b" id="useCode">Recover my progress</button></div>
-      </details>
+      <p>On another device, enter with the same nickname and password to find your game there.</p>
+      <div class="arow"><input id="chgPass" type="password" placeholder="New password" maxlength="72" autocomplete="new-password"><button class="b" id="saveChg">Change my password</button></div>
+      <div class="arow"><button class="b" id="logOut">Not you? Log out</button></div>
+      <p class="hint">Forgot your password? Write to <a href="mailto:pierre.untas@gmail.com">pierre.untas@gmail.com</a> with your nickname and what you own in the game.</p>
       <p id="acctMsg" class="status"></p>
     </details>
     <div class="share" id="shareRow" hidden><span>Invite your friends:</span><code id="shareUrl"></code><button class="b" id="copyUrl">Copy the link</button></div>

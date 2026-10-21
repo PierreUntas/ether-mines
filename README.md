@@ -196,13 +196,11 @@ When a chunk loads: frozen terrain if it exists, otherwise the generator; then m
 3. **Test**: push to a branch. Vercel gives a preview URL, to test on a throwaway world (`?monde=test`). The database is the same as production: never test on `principal`.
 4. **Publish**: run the SQL migration if there is one, then merge into `main`. Players already connected need to reload the page.
 
-## Accounts, logins and recovery codes
+## Accounts: a nickname and a password
 
-- On first visit, the game creates a guest account and saves progress to it every 5 seconds, on pause, and when leaving the page.
-- On the title screen, *Account → Secure my game* sets a login (3 to 20 letters, digits, `-`, `_`, `.`; case-insensitive) and a password (6 characters or more) on that account: no email, nothing personal. On another device, *Log in* checks the password, gives the device a fresh guest session and moves the game over to it (`046_logins.sql`, the same move as a recovery code); the device the game left is told so and asks to log in again. Five wrong passwords in a row lock a login for ten minutes.
-- A player who forgot their password writes to the address shown under *Log in*. Check it's them (`select admin_login_info('their login');` in the SQL Editor: their worlds, nickname, items, plots), then `select admin_reset_password('their login', 'a new password');` and send it to them.
-- On the title screen, *Account → Show my recovery code* gives a code like `4FC0-B18D-A98D-75EF`. On another device (or after clearing the browser), entering it in *Recover my progress* attaches the save and the signed blocks to this new device.
-- The code attaches everything the old account owns: saves, chests, unique items, signed blocks, plots.
+- You enter with your nickname and a password. A free nickname (one in the whole game, case-insensitive) makes your account; your nickname and password on another device bring your game there (`047_nickname_password.sql`: the game moves to that device's session, the way a recovery code did); on your usual device the browser remembers you and asks for nothing. No email, nothing personal. Five wrong passwords in a row lock a nickname for ten minutes.
+- Under the hood the session is still a Supabase guest account (`ether-mines:session`); the `logins` table ties a nickname and a bcrypt hash of its password to it. The recovery codes (`recovery` table) still work on the server, the screen no longer offers them.
+- A game started before passwords gets one when its player enters on the device they played on, with a password of their choosing; or from the owner. By hand, in the SQL Editor: `select * from admin_players();` (every nickname: worlds, last played, password or not), `select * from admin_temp_passwords();` (a temporary password for every game that has none, to send to each player: they choose their own at their first entry), `select admin_set_password('nickname', 'temp-password');` (one player, e.g. a forgotten password, after checking it's them with `select admin_player_info('nickname');`).
 
 ## Testing
 

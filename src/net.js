@@ -144,6 +144,24 @@ window.Net = (() => {
     movedLogin = r && r.moved != null ? r.moved : null;
     return r;
   }
+  // entering with a nickname and a password (047_nickname_password.sql). When this device holds another
+  // game, the server asks for a fresh session first ('fresh'), so that game isn't overwritten
+  async function freshSession() {
+    const sbc = client();
+    await sbc.auth.signOut({ scope: 'local' }).catch(() => {});
+    const { data, error } = await sbc.auth.signInAnonymously();
+    if (error) throw new Error(error.message);
+    userId = data.user.id;
+  }
+  async function enter(nick, password) {
+    let r = await rpc('act_enter', { nick, password });
+    if (r && r.err === 'fresh') {
+      await freshSession();
+      r = await rpc('act_enter', { nick, password });
+    }
+    return r;
+  }
+  const setPassword = password => rpc('act_set_password', { password });
   // the password is checked first; then this device takes a fresh guest session (the game it held stays
   // with its old account, and its login if it had one) and the login's game comes over to it
   async function logIn(login, password) {
@@ -602,6 +620,9 @@ window.Net = (() => {
     setLogin,
     myLogin,
     logIn,
+    enter,
+    setPassword,
+    freshSession,
     get movedLogin() {
       return movedLogin;
     },

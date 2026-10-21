@@ -1257,157 +1257,92 @@ let acctErr = '';
 const accountReady = Net.enabled
   ? Net.auth()
       .then(async id => {
-        $('acctTxt').textContent = 'saved online';
-        $('acct').hidden = false;
         await showLogin();
         return id;
       })
       .catch(e => {
         acctErr = e.message || String(e);
-        $('acctTxt').textContent = 'unavailable';
-        $('acctMsg').textContent = acctErr;
-        $('acct').hidden = false;
+        $('netStatus').textContent = 'Account unavailable: ' + acctErr;
       })
   : Promise.resolve(null);
-// ---------- a login and a password (046_logins.sql) ----------
-let LOGIN = null; // yours, once your game is secured
-// the account panel: secure your game, or change your password; and whether this device's game left
+// ---------- your nickname and your password (046_logins.sql, 047_nickname_password.sql) ----------
+// You enter with your nickname and a password: a free nickname makes your account, yours on another device
+// brings your game there. On your usual device the browser remembers you: no password to type.
+let LOGIN = null, // your nickname, once you're in with a password
+  MUST_CHANGE = false; // a password the game's owner gave you: to be changed before playing
 async function showLogin() {
   try {
     const r = await Net.myLogin();
     LOGIN = (r && r.login) || null;
+    MUST_CHANGE = !!(r && r.must_change);
   } catch (e) {
     console.warn(e);
-    return;
   }
-  $('loginNone').hidden = !!LOGIN;
-  $('loginHave').hidden = !LOGIN;
-  $('loginName').textContent = LOGIN || '';
-  $('acctTxt').textContent = LOGIN ? 'logged in as ' + LOGIN : 'saved online · not secured';
-  if (Net.movedLogin !== null && !LOGIN) {
+  const known = !!LOGIN;
+  $('passLbl').hidden = $('passHint').hidden = known;
+  $('pseudo').readOnly = known;
+  if (known) $('pseudo').value = LOGIN;
+  $('acct').hidden = !known;
+  $('acctTxt').textContent = known ? 'logged in as ' + LOGIN : '';
+  $('mustChg').hidden = !MUST_CHANGE;
+  if (!known && Net.movedLogin) {
     // this device's game was opened on another one: it's there now
-    $('acct').open = true;
-    $('inLogin').value = Net.movedLogin;
-    $('acctMsg').textContent =
-      'Your game was opened on another device' +
-      (Net.movedLogin ? ` with the login ${Net.movedLogin}` : '') +
-      '. Log in to bring it back here.';
+    $('pseudo').value = Net.movedLogin;
+    $('netStatus').textContent = 'Your game was opened on another device: enter your password to bring it back here.';
   }
 }
-const LOGIN_ERRS = {
-  'bad login': 'A login is 3 to 20 letters, digits or - _ . (no spaces).',
+const ENTER_ERRS = {
+  'wrong password': 'Wrong password for this nickname. Forgot it? Write to pierre.untas@gmail.com.',
+  'bad nickname': 'A nickname is 2 to 16 letters, digits, spaces or - _ .',
   'bad password': 'The password needs 6 characters or more.',
-  'login taken': 'This login is already taken: pick another one.',
-  'wrong login or password': 'Wrong login or password.',
   'too many attempts': 'Too many attempts: wait a few seconds.',
+  'no account': 'Enter the game first.',
 };
-const loginErr = r =>
+const enterErr = (r, name) =>
   r && r.err === 'locked'
     ? `Too many wrong passwords: try again in ${Math.ceil((r.wait || 600) / 60)} min.`
-    : LOGIN_ERRS[r && r.err] || 'Failed: ' + ((r && r.err) || 'unknown error');
-async function saveLogin(login, pass, btn, done) {
+    : r && r.err === 'nickname taken'
+      ? `The nickname "${name}" belongs to a game started before passwords. If it's yours, enter from the device you played on; otherwise, pick another nickname.`
+      : ENTER_ERRS[r && r.err] || 'Failed: ' + ((r && r.err) || 'unknown error');
+// your password, changed: a temporary one before playing (mustChg), or any time (Account)
+async function changePassword(input, btn, done) {
   if (!Net.userId) return;
   btn.disabled = true;
   try {
-    const r = await Net.setLogin(login.trim(), pass);
-    if (!r || !r.ok) $('acctMsg').textContent = loginErr(r);
+    const r = await Net.setPassword(input.value);
+    if (!r || !r.ok) $('acctMsg').textContent = $('netStatus').textContent = enterErr(r);
     else {
+      input.value = '';
+      MUST_CHANGE = false;
+      $('mustChg').hidden = true;
       done();
-      await showLogin();
     }
   } catch (e) {
-    $('acctMsg').textContent = 'Failed: ' + e.message;
+    $('netStatus').textContent = 'Failed: ' + e.message;
   }
   btn.disabled = false;
 }
-$('saveLogin').onclick = () =>
-  saveLogin($('newLogin').value, $('newPass').value, $('saveLogin'), () => {
-    $('newPass').value = '';
-    $('acctMsg').textContent = 'Your game is secured. On another device, log in with this login and password.';
-  });
-$('saveChg').onclick = () =>
-  saveLogin(LOGIN || '', $('chgPass').value, $('saveChg'), () => {
-    $('chgPass').value = '';
-    $('acctMsg').textContent = 'Password changed.';
-  });
-$('doLogin').onclick = async () => {
-  const login = $('inLogin').value.trim(),
-    pass = $('inPass').value;
-  if (!login || !pass || !Net.userId) return;
-  if (LOGIN && LOGIN.toLowerCase() === login.toLowerCase()) {
-    $('acctMsg').textContent = 'You are already logged in with this login on this device.';
-    return;
-  }
-  // a game on this device that isn't secured would stay behind, out of reach
-  if (!LOGIN && booted && !confirm('The game on this device is not secured with a login: it will be left behind. Log in anyway?')) return;
-  $('doLogin').disabled = true;
-  $('acctMsg').textContent = 'Logging in…';
+$('newPwBtn').onclick = () =>
+  changePassword($('newPw'), $('newPwBtn'), () => ($('netStatus').textContent = 'Your password is saved: you can enter the world.'));
+$('saveChg').onclick = () => changePassword($('chgPass'), $('saveChg'), () => ($('acctMsg').textContent = 'Password changed.'));
+$('logOut').onclick = async () => {
+  if (!confirm('Log out of this device? Your game stays safe with your nickname and password.')) return;
   try {
-    const r = await Net.logIn(login, pass);
-    if (!r || !r.ok) {
-      $('acctMsg').textContent = loginErr(r);
-      $('doLogin').disabled = false;
-      return;
-    }
-    $('acctMsg').textContent = `Logged in as ${r.login}: your game is coming to this device. Reloading…`;
-    clearLocalSaves();
-    setTimeout(() => location.reload(), 900);
+    await Net.freshSession();
   } catch (e) {
-    $('acctMsg').textContent = 'Failed: ' + e.message;
-    $('doLogin').disabled = false;
+    console.warn(e);
   }
+  clearLocalSaves();
+  location.reload();
 };
-for (const id of ['inLogin', 'inPass']) $(id).addEventListener('keydown', e => e.key === 'Enter' && $('doLogin').click());
+$('pass').addEventListener('keydown', e => e.key === 'Enter' && $('play').click());
+$('newPw').addEventListener('keydown', e => e.key === 'Enter' && $('newPwBtn').click());
 // this browser's copies of the games (the server keeps them): dropped when a game comes from elsewhere
 function clearLocalSaves() {
   for (const k of Object.keys(localStorage))
     if (k.startsWith('ether-mines:') && k !== PKEY && k !== 'ether-mines:son' && k !== 'ether-mines:session' && k !== 'ether-mines:saison')
       localStorage.removeItem(k);
 }
-$('showCode').onclick = async () => {
-  if (!Net.userId) return;
-  $('showCode').disabled = true;
-  try {
-    const c = await Net.recoveryCode();
-    $('myCode').textContent = c;
-    $('myCode').hidden = false;
-    $('acctMsg').textContent =
-      'Write down this code: it replaces the old one and will not be shown again. It is used to find your progress on another device.';
-  } catch (e) {
-    $('acctMsg').textContent = 'Failed: ' + e.message;
-  }
-  $('showCode').disabled = false;
-};
-$('useCode').onclick = async () => {
-  const c = $('codeIn').value.trim().toUpperCase();
-  if (!/^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/.test(c)) {
-    $('acctMsg').textContent = 'The code looks like 4FC0-B18D-A98D-75EF.';
-    return;
-  }
-  if (!Net.userId) return;
-  $('useCode').disabled = true;
-  try {
-    const n = await Net.claimRecovery(c);
-    if (n < 0) throw new Error('unknown code');
-    $('acctMsg').textContent = `Progress recovered (${n} world${n > 1 ? 's' : ''}). Reloading…`;
-    clearLocalSaves();
-    setTimeout(() => location.reload(), 900);
-  } catch (e) {
-    $('acctMsg').textContent = /unknown/.test(e.message)
-      ? 'Unknown code.'
-      : /attempts/.test(e.message)
-        ? 'Too many attempts: wait a few seconds.'
-        : 'Failed: ' + e.message;
-    $('useCode').disabled = false;
-  }
-};
-$('codeIn').addEventListener('input', e => {
-  let v = e.target.value
-    .toUpperCase()
-    .replace(/[^0-9A-F]/g, '')
-    .slice(0, 16);
-  e.target.value = v.replace(/(.{4})(?=.)/g, '$1-');
-});
 $('netStatus').textContent = Net.enabled
   ? 'Multiplayer ready: invite your friends with the world link.'
   : 'Solo mode: add your Supabase keys in src/config.js to play online.';
@@ -1458,13 +1393,48 @@ $('play').onclick = async () => {
   Sound.init();
   if (!booted) {
     // same characters as the server (005_usernames.sql): letters, digits, space, _ . -
-    const name = $('pseudo')
+    let name = $('pseudo')
       .value.replace(/[^A-Za-z0-9À-ÖØ-öø-ÿ _.-]/g, '')
       .trim()
       .slice(0, 16);
     if (!name) {
       $('pseudo').focus();
       $('netStatus').textContent = 'Pick a nickname so your friends recognize you.';
+      return;
+    }
+    // online: your nickname and your password (a free nickname makes your account), unless this device
+    // already knows you
+    if (Net.enabled && !LOGIN) {
+      const pass = $('pass').value;
+      if (!pass) {
+        $('pass').focus();
+        $('netStatus').textContent = 'Enter your password (new here? choose one: 6 characters or more).';
+        return;
+      }
+      $('play').disabled = true;
+      $('netStatus').textContent = 'Checking your nickname and password…';
+      let r;
+      try {
+        await accountReady;
+        r = await Net.enter(name, pass);
+      } catch (e) {
+        r = { err: e.message };
+      }
+      $('play').disabled = false;
+      if (!r || !r.ok) {
+        $('netStatus').textContent = enterErr(r, name);
+        return;
+      }
+      $('pass').value = '';
+      if (r.moved) clearLocalSaves(); // your game came from another device: this browser's copy is stale
+      $('netStatus').textContent = '';
+      await showLogin();
+    }
+    if (LOGIN) name = LOGIN;
+    if (MUST_CHANGE) {
+      $('mustChg').hidden = false;
+      $('newPw').focus();
+      $('netStatus').textContent = 'Choose your own password first.';
       return;
     }
     const world =
@@ -1489,7 +1459,7 @@ $('play').onclick = async () => {
       $('netStatus').textContent = '';
       if (taken || failure) {
         $('netStatus').textContent = taken
-          ? `The nickname "${name}" is already taken in this world. Pick another one. If it's yours on another device, use your recovery code.`
+          ? `The nickname "${name}" is already taken in this world by another account. Write to pierre.untas@gmail.com to sort it out.`
           : 'Connection failed: ' + (failure.message || failure) + '. Check src/config.js and the schema.';
         $('pseudo').focus();
         return;
@@ -1520,12 +1490,6 @@ $('play').onclick = async () => {
       return;
     }
     booted = true;
-    // after a while, a word for a game not secured yet: once
-    if (Net.enabled)
-      setTimeout(() => {
-        if (!LOGIN && Net.userId)
-          toastInfo('Secure your game with a login and a password, to find it on any device: Escape, then Account.');
-      }, 10 * 60000);
     loadSoloSigns(); // solo: the signs' text kept in the save (19-signs.js)
     cloudSave(true);
     $('play').disabled = false;
