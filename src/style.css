@@ -109,7 +109,6 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .title .box{margin:auto;max-width:480px;width:100%;display:grid;gap:14px;text-align:center}
 .title h1{margin:0;font-size:clamp(44px,9vw,72px);line-height:.95;letter-spacing:.01em;text-shadow:0 4px 0 #4f40bf,0 0 30px rgba(127,232,255,.5)}
 .title h1 em{font-style:normal;color:var(--cyan)}
-.title .beta{justify-self:center;margin-top:-6px;padding:3px 10px;border-radius:999px;border:1px solid var(--cyan);color:var(--cyan);font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase}
 .title p{margin:0;font-size:16px;color:var(--muted);line-height:1.45}
 .prog{height:10px;border-radius:5px;background:rgba(255,255,255,.1);overflow:hidden;border:1px solid var(--line)}
 .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--mint),var(--cyan),var(--violet))}
@@ -137,7 +136,6 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 #newsList li{margin:3px 0}
 #play{font-size:22px;padding:12px 26px;border-radius:12px;border:0;background:var(--violet);box-shadow:0 5px 0 #4f40bf}
 #play:disabled{opacity:.5}
-#reset{border:0;background:none;color:var(--muted);text-decoration:underline;font-size:14px}
 
 .touch{display:none}
 @media (pointer:coarse){
@@ -155,6 +153,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .fields input{font-family:var(--pixel);font-size:18px;color:var(--text);background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:10px;padding:9px 12px;width:100%}
 .fields input:focus{outline:2px solid var(--cyan);outline-offset:1px}
 .fields input:disabled{opacity:.6}
+#pass::placeholder{color:var(--muted);opacity:.6}
 .fields:has(#passLbl:not([hidden])) #mondeLbl{grid-column:1/-1}
 #passHint{font-size:12px;color:var(--muted);margin:0}
 .mustchg{border:1px solid var(--gold,#ffd95e);border-radius:12px;padding:8px 12px;text-align:left}

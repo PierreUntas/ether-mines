@@ -1563,36 +1563,6 @@ $('copyUrl').onclick = async () => {
     s.addRange(r);
   }
 };
-let arm = false;
-if (Net.enabled) $('reset').textContent = 'Start my progress over in this world';
-$('reset').onclick = async () => {
-  if (!arm) {
-    arm = true;
-    $('reset').textContent = 'Your whole chest and objectives in this world will be erased. Click to confirm';
-    return;
-  }
-  const w = booted
-    ? Net.world
-    : ($('monde').value.trim() || 'principal')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
-        .replace(/[^a-z0-9-]+/g, '-')
-        .slice(0, 32) || 'principal';
-  try {
-    localStorage.removeItem('ether-mines:' + w);
-  } catch (e) {}
-  if (Net.enabled) {
-    try {
-      await accountReady;
-      if (Net.userId) await Net.deletePlayer(w);
-    } catch (e) {
-      console.error(e);
-    }
-  }
-  booted = false;
-  location.reload();
-};
 // what the title screen says while the game starts: the step, how far along (the bar), and a word after a
 // while that nothing is stuck (a first connection of the day wakes the servers up, which takes a moment)
 let bootStep = { t: 0, slow: null };
