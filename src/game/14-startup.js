@@ -1380,7 +1380,7 @@ function clearLocalSaves() {
       localStorage.removeItem(k);
 }
 $('netStatus').textContent = Net.enabled
-  ? 'Multiplayer ready: invite your friends with the world link.'
+  ? 'Multiplayer ready: your friends join you at ethermines.org, in the same world.'
   : 'Solo mode: add your Supabase keys in src/config.js to play online.';
 function pause() {
   playing = false;
