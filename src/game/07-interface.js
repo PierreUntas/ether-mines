@@ -202,9 +202,12 @@ function ui() {
   armorEl.hidden = !S.armor || !ITEM[S.armor];
   if (!armorEl.hidden) armorEl.textContent = `🛡 ${ITEM[S.armor].n} · -${Math.round(ITEM[S.armor].armor * 100)}% dmg`;
   if (bootsOn()) {
+    // the boots on a line of their own on a touch screen (the chip stays narrow), dodge by the button there
     armorEl.hidden = false;
     armorEl.textContent =
-      (armorEl.textContent && S.armor ? armorEl.textContent + '  ·  ' : '') + `👢 +${Math.round(ITEM[211].boots * 100)}% speed · Q: dodge`;
+      (armorEl.textContent && S.armor ? armorEl.textContent + (touch ? '\n' : '  ·  ') : '') +
+      `👢 +${Math.round(ITEM[211].boots * 100)}% speed` +
+      (touch ? '' : ' · Q: dodge');
   }
   $('tDash').hidden = !bootsOn();
   const gweiEl = $('gwei');

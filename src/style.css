@@ -28,7 +28,7 @@ body{background:#1c163a;color:var(--text);font-family:var(--pixel);-webkit-user-
 #hp{position:absolute;left:16px;top:calc(env(safe-area-inset-top,0px) + 198px);padding:5px 9px;display:flex;gap:3px;font-size:14px;line-height:1}
 #hp span{color:var(--burn)}
 #hp span.empty{color:var(--muted);opacity:.35}
-#armor{position:absolute;left:16px;top:calc(env(safe-area-inset-top,0px) + 238px);padding:4px 9px;font-size:12px;color:var(--cyan)}
+#armor{position:absolute;left:16px;top:calc(env(safe-area-inset-top,0px) + 238px);padding:4px 9px;font-size:12px;color:var(--cyan);white-space:pre-line}
 #buffs{position:absolute;left:16px;top:calc(env(safe-area-inset-top,0px) + 276px);padding:4px 9px;font-size:12px;color:var(--gold)}
 #gwei{position:absolute;right:16px;top:calc(env(safe-area-inset-top,0px) + 12px);padding:5px 10px;font-size:14px;color:var(--gold,#ffd95e);display:flex;align-items:center;gap:5px}
 .ethIcon{width:13px;height:13px;flex:none;vertical-align:-2px}
