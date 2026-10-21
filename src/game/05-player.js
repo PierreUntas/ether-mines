@@ -354,6 +354,15 @@ cv.addEventListener('pointermove', e => {
       aim = null;
       ring.hidden = true;
     }
+    // firing a ranged weapon: its bolts go down the crosshair, so the finger turns the view instead
+    if (pr && pr.mine && ITEM[itemId(S.bar[S.sel])]?.ranged) {
+      aim = null;
+      ring.style.left = e.clientX + 'px';
+      ring.style.top = e.clientY + 'px';
+      look(e.clientX - lookL[0], e.clientY - lookL[1], 0.005);
+      lookL = [e.clientX, e.clientY];
+      return;
+    }
     if (pr && pr.mine) {
       aim = ndcOf(e.clientX, e.clientY);
       ring.style.left = e.clientX + 'px';

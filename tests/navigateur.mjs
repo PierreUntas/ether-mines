@@ -809,6 +809,27 @@ const shots = await page.evaluate(() => {
   return { drawn, gone, sent: sent.length === 1 && Number.isFinite(sent[0].dx) };
 });
 if (Object.values(shots).some(v => !v)) await fail('plasma bolts shown to the others: ' + JSON.stringify(shots));
+// on a touch screen, a long press with the pistol fires, and dragging the finger meanwhile turns the view
+const touchFire = await page.evaluate(async () => {
+  const S = mines.S, keep = S.bar[S.sel], wasPlaying = mines.playing, ev = (t, x, y) =>
+    (t === 'pointerdown' ? cv : window).dispatchEvent(new PointerEvent(t, { pointerId: 77, pointerType: 'touch', clientX: x, clientY: y, bubbles: true }));
+  mines.playing = true;
+  S.nfts.push({ serial: 9912, id: 206, place: null, date: '', mined: 0 });
+  S.bar[S.sel] = 'nft9912';
+  const x0 = innerWidth * 0.7, y0 = innerHeight * 0.5, yaw0 = yaw;
+  ev('pointerdown', x0, y0);
+  await new Promise(r => setTimeout(r, 450));
+  const firing = mining;
+  for (let i = 1; i <= 10; i++) { cv.dispatchEvent(new PointerEvent('pointermove', { pointerId: 77, pointerType: 'touch', clientX: x0 + i * 12, clientY: y0, bubbles: true })); }
+  const turned = Math.abs(yaw - yaw0) > 0.2, stillFiring = mining;
+  ev('pointerup', x0 + 120, y0);
+  const stopped = !mining;
+  S.bar[S.sel] = keep;
+  S.nfts = S.nfts.filter(n => n.serial !== 9912);
+  mines.playing = wasPlaying;
+  return { firing, turned, stillFiring, stopped };
+});
+if (Object.values(touchFire).some(v => !v)) await fail('firing the pistol on a touch screen: ' + JSON.stringify(touchFire));
 // daytime rest: by day a sky raider slips out of sight once you're far, a ruin guardian never does
 // (validators keep their full guard), and the raider is back at night
 const rest = await page.evaluate(() => {

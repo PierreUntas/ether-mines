@@ -12,6 +12,7 @@
         'Plots cost Gwei: 500 for the first, twice as much for each next one, 9 at most per world.',
         'A wiki, linked from this screen: controls, chapters, crafting, mobs, validators, plots, the shop.',
         'On a phone: spaced action buttons, a button to ride a hovercraft, and the character stays in view in the shop while you try things on.',
+        'On a phone, drag your finger while firing the pistol to turn and aim.',
         'This update log, right here.',
       ],
     },
