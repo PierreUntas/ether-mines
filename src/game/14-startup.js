@@ -1335,12 +1335,48 @@ $('logOut').onclick = async () => {
   clearLocalSaves();
   location.reload();
 };
+// What's new (src/news.js): the update log on the title screen, with a dot until its newest entry is read
+const NEWS_KEY = 'ether-mines:nouveautes';
+(function showNews() {
+  const news = window.NEWS || [];
+  if (!news.length) return void ($('news').hidden = true);
+  const list = $('newsList');
+  for (const n of news) {
+    const h = document.createElement('h4'),
+      d = document.createElement('small'),
+      ul = document.createElement('ul');
+    h.textContent = n.title;
+    d.textContent = new Date(n.date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    h.append(d);
+    for (const t of n.items) ul.append(Object.assign(document.createElement('li'), { textContent: t }));
+    list.append(h, ul);
+  }
+  let seen = '';
+  try {
+    seen = localStorage.getItem(NEWS_KEY) || '';
+  } catch (e) {}
+  $('newsDot').hidden = seen >= news[0].date;
+  $('news').addEventListener('toggle', () => {
+    if (!$('news').open) return;
+    $('newsDot').hidden = true;
+    try {
+      localStorage.setItem(NEWS_KEY, news[0].date);
+    } catch (e) {}
+  });
+})();
 $('pass').addEventListener('keydown', e => e.key === 'Enter' && $('play').click());
 $('newPw').addEventListener('keydown', e => e.key === 'Enter' && $('newPwBtn').click());
 // this browser's copies of the games (the server keeps them): dropped when a game comes from elsewhere
 function clearLocalSaves() {
   for (const k of Object.keys(localStorage))
-    if (k.startsWith('ether-mines:') && k !== PKEY && k !== 'ether-mines:son' && k !== 'ether-mines:session' && k !== 'ether-mines:saison')
+    if (
+      k.startsWith('ether-mines:') &&
+      k !== PKEY &&
+      k !== 'ether-mines:son' &&
+      k !== 'ether-mines:session' &&
+      k !== 'ether-mines:saison' &&
+      k !== NEWS_KEY
+    )
       localStorage.removeItem(k);
 }
 $('netStatus').textContent = Net.enabled

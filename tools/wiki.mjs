@@ -1,5 +1,5 @@
 // The players' wiki (wiki.html), built from the game's own data so it never drifts from it: the recipes,
-// items and cosmetics (rules.js), the mobs (mobs-core.js), the objectives and chapters (07-interface.js).
+// items and cosmetics (rules.js), the mobs (mobs-core.js), the objectives and chapters (07-interface.js), the update log (src/news.js).
 // The rest is written here, by hand. Run after a change to any of them:  node tools/wiki.mjs > wiki.html
 // (a test checks that wiki.html is up to date).
 import { readFileSync } from 'node:fs';
@@ -11,6 +11,7 @@ globalThis.window = globalThis;
 require('../supabase/functions/_shared/world.js');
 require('../supabase/functions/_shared/rules.js');
 require('../src/mobs-core.js');
+require('../src/news.js');
 const { B, ITEM, RECIPES, COSMETICS } = globalThis.Rules;
 const { MK } = globalThis.MobsCore;
 const { DEEP } = globalThis.World;
@@ -120,6 +121,10 @@ const cosmList = Object.entries(cats)
   .map(([k, n]) => `${n} ${CAT[k] || k}`)
   .join(', ');
 
+const news = globalThis.NEWS.map(
+  n => `<div class="card"><h3>${esc(n.title)} <span class="tag">${esc(n.date)}</span></h3><ul>${n.items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`,
+).join('\n');
+
 const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -165,7 +170,7 @@ const html = `<!doctype html>
 <nav>
   <a href="#start">Getting started</a><a href="#controls">Controls</a><a href="#chapters">Chapters</a><a href="#crafting">Crafting</a>
   <a href="#gear">Tools &amp; weapons</a><a href="#mobs">Mobs</a><a href="#validators">Validators &amp; Gwei</a><a href="#plots">Plots</a>
-  <a href="#chests">Chests &amp; trading</a><a href="#hover">Hovercrafts</a><a href="#shop">Shop</a><a href="#account">Your account</a>
+  <a href="#chests">Chests &amp; trading</a><a href="#hover">Hovercrafts</a><a href="#shop">Shop</a><a href="#account">Your account</a><a href="#news">What's new</a>
 </nav>
 
 <h2 id="start">Getting started</h2>
@@ -252,6 +257,9 @@ ${crafting}
   <li>On your usual device the game remembers you. Account (in the menu) lets you change your password or log out.</li>
   <li>Forgot your password? Write to <a href="mailto:pierre.untas@gmail.com">pierre.untas@gmail.com</a> with your nickname and what you own in the game.</li>
 </ul>
+
+<h2 id="news">What's new</h2>
+${news}
 
 <p class="muted" style="margin-top:48px"><a href="legal.html">Terms, legal notice &amp; privacy</a> · <a href="./">Back to the game</a></p>
 </main>

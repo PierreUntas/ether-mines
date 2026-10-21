@@ -135,7 +135,8 @@ const SEASON = '10'; // public beta launch: reset.sql + installation.sql run tog
 try {
   if (localStorage.getItem('ether-mines:saison') !== SEASON) {
     for (const k of Object.keys(localStorage))
-      if (k.startsWith('ether-mines:') && !['ether-mines:profil', 'ether-mines:son'].includes(k)) localStorage.removeItem(k);
+      if (k.startsWith('ether-mines:') && !['ether-mines:profil', 'ether-mines:son', 'ether-mines:nouveautes'].includes(k))
+        localStorage.removeItem(k);
     localStorage.setItem('ether-mines:saison', SEASON);
   }
 } catch (e) {}
