@@ -364,6 +364,19 @@ body.cine .hud{opacity:0;transition:opacity .6s}
 .weekly{padding:12px;border:1px solid rgba(255,209,102,.35);border-radius:14px;background:rgba(255,209,102,.05);margin-bottom:6px}
 .weekly .cat{margin-top:0;color:var(--gold)}
 @media (pointer:coarse){.shopside{position:static}.shop .side{order:-1}}
+/* a phone held sideways: the character beside the catalog, staying in view as you scroll and try things on */
+@media (pointer:coarse) and (min-width:600px){
+  .inv.shop{grid-template-columns:minmax(0,1fr) 210px}
+  .shop .side{order:0}
+  .shopside{position:sticky;top:0}
+  .shopside .avatar canvas{max-height:min(46vh,190px);width:auto;max-width:100%}
+  .shopside .note{font-size:12px;margin:4px 0}
+}
+/* held upright: the character pinned small at the top of the catalog */
+@media (pointer:coarse) and (max-width:599px){
+  .shopside{position:sticky;top:0;z-index:2;background:#2b2457;border-radius:14px;padding-bottom:6px;box-shadow:0 8px 16px rgba(0,0,0,.35)}
+  .shopside .avatar canvas{max-height:150px;width:auto}
+}
 /* sign editor (19-signs.js) */
 .signedit{position:fixed;inset:0;display:grid;place-items:center;background:rgba(20,16,44,.55);z-index:20}
 .signedit .box{width:min(420px,calc(100% - 32px));padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--glass-2)}
