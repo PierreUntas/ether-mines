@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ether Mines · Wiki</title>
+<meta name="description" content="How to play Ether Mines: controls, chapters, crafting, tools, mobs, validators, plots, hovercrafts, the shop.">
+<meta name="theme-color" content="#1c163a">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+  :root{--bg:#1c163a;--card:rgba(46,38,92,.6);--line:rgba(190,178,255,.28);--text:#f4f1ff;--muted:#b8b0e6;--violet:#a99cff;--mint:#9fe3c4;--gold:#ffd95e;--cyan:#7fe8ff}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 Fredoka,system-ui,sans-serif}
+  main{max-width:860px;margin:0 auto;padding:32px 16px 64px}
+  a{color:var(--mint)}
+  h1,h2,h3{font-weight:600;line-height:1.2}
+  h1{font-size:40px;margin:0}
+  h2{font-size:26px;margin:44px 0 12px;color:var(--gold);scroll-margin-top:12px}
+  h3{font-size:19px;margin:22px 0 8px;color:var(--violet)}
+  .muted{color:var(--muted);font-size:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 16px;margin:12px 0}
+  .card h3{margin:8px 0}
+  .reward{font-size:13px;color:var(--gold);font-weight:400;margin-left:6px}
+  .tag{font-size:12px;color:var(--cyan);border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-weight:400}
+  ol,ul{padding-left:22px}
+  li{margin:5px 0}
+  nav{display:flex;gap:8px 14px;flex-wrap:wrap;margin:18px 0 0;font-size:15px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  td,th{border-bottom:1px solid var(--line);padding:7px 6px;text-align:left;vertical-align:top}
+  th{color:var(--muted);font-weight:500}
+  kbd{font-family:"IBM Plex Mono",monospace;font-size:12px;border:1px solid var(--line);border-radius:5px;padding:1px 6px;white-space:nowrap}
+  .back{display:inline-block;margin-top:18px;font-size:15px}
+  .wrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="./">← Back to the game</a>
+<h1>Ether Mines · Wiki</h1>
+<p class="muted">A block world in Ethereum's colors, built with friends. Everything you need to know, in one page.</p>
+<nav>
+  <a href="#start">Getting started</a><a href="#controls">Controls</a><a href="#chapters">Chapters</a><a href="#crafting">Crafting</a>
+  <a href="#gear">Tools &amp; weapons</a><a href="#mobs">Mobs</a><a href="#validators">Validators &amp; Gwei</a><a href="#plots">Plots</a>
+  <a href="#chests">Chests &amp; trading</a><a href="#hover">Hovercrafts</a><a href="#shop">Shop</a><a href="#account">Your account</a>
+</nav>
+
+<h2 id="start">Getting started</h2>
+<ul>
+  <li>You arrive at the <b>Atrium</b>, the sanctuary around the first validator. Nobody can build or fight there. Thea, its guardian, gives you your first objectives.</li>
+  <li>Mine a tree trunk by hand, turn the logs into planks, then craft a <b>wooden pickaxe</b>: stone can only be cut with a pickaxe.</li>
+  <li>Every block you mine becomes a token in your chest; every block you place remembers who placed it (tap it, or press <kbd>I</kbd>, to see its history).</li>
+  <li>The <b>objective bar</b> at the top of the screen shows what to do next, and the compass beside it points the way.</li>
+  <li>The world turns from day to night in 8 minutes. Nights are darker and more dangerous: a bed lets you sleep through them and heals you.</li>
+</ul>
+
+<h2 id="controls">Controls</h2>
+<div class="wrap"><table>
+<tr><th>Computer</th><th>Phone or tablet</th><th></th></tr>
+<tr><td><kbd>W A S D</kbd> · <kbd>Shift</kbd> · <kbd>Space</kbd></td><td>Stick on the left · buttons on the right</td><td>Walk · run · jump</td></tr>
+<tr><td>Mouse</td><td>Drag</td><td>Look around</td></tr>
+<tr><td>Left click (hold)</td><td>Long press</td><td>Mine, strike</td></tr>
+<tr><td>Right click</td><td>Short tap</td><td>Place a block, open, use, get on a hovercraft</td></tr>
+<tr><td>Right click held, with a blade</td><td>Shield button</td><td>Guard; raised just before a blow: a parry</td></tr>
+<tr><td><kbd>Q</kbd></td><td>Lightning button</td><td>Dodge (with the Front-Runner Boots)</td></tr>
+<tr><td><kbd>1</kbd>–<kbd>9</kbd> · scroll</td><td>The bar at the bottom</td><td>Choose what you hold</td></tr>
+<tr><td><kbd>E</kbd></td><td>Chest button</td><td>Chest, crafting, objectives, validators, shop, trade, settings</td></tr>
+<tr><td><kbd>Enter</kbd></td><td>Chat button</td><td>Chat</td></tr>
+<tr><td><kbd>V</kbd> · <kbd>F</kbd> · <kbd>T</kbd> · <kbd>I</kbd></td><td></td><td>View from behind or in front · full screen · ledger view · block explorer</td></tr>
+</table></div>
+<h3>Chat commands</h3>
+<ul>
+  <li><kbd>/join nickname</kbd> — teleport to an online friend · <kbd>/sanctuary</kbd> — back to the Atrium</li>
+  <li><kbd>/claim</kbd> · <kbd>/unclaim</kbd> · <kbd>/claims</kbd> — take, release, list your plots</li>
+  <li><kbd>/invite nickname</kbd> · <kbd>/kick nickname</kbd> — let a friend build on your plots, or not</li>
+  <li><kbd>/trade nickname</kbd> — open a trade with a player</li>
+  <li><kbd>/ignore</kbd> · <kbd>/listen</kbd> · <kbd>/report nickname</kbd> — hide, unhide or report a player</li>
+</ul>
+
+<h2 id="chapters">Chapters</h2>
+<p>The story comes in chapters: finish every objective of one to earn its Gwei and a title, and open the next. The objectives of a chapter can be done in any order.</p>
+<div class="card"><h3>Genesis <span class="reward">+50 Gwei · a title</span></h3>
+
+<ol><li><b>Harvest wood</b> — Mine a tree trunk, by hand.</li><li><b>Craft a wooden pickaxe</b> — Crafting (E): 3 planks. A log gives 4 planks.</li><li><b>Mine an ether crystal</b> — The blue ore in the rock. Stone is cut with a pickaxe.</li><li><b>Pet an animal</b> — Right-click (or tap) a friendly creature.</li><li><b>Reach the City</b> — Follow the validators path from the Atrium to the great diamond.</li><li><b>Sleep in a bed</b> — Place a bed, then use it after dusk: it rests you, and it becomes your home.</li></ol></div>
+<div class="card"><h3>The Forge <span class="reward">+100 Gwei · a title</span></h3>
+<p class="muted">Crystal answers to crystal. Forge a pickaxe from it, and the geodes deep below will open for you.</p>
+<ol><li><b>Forge the crystal pickaxe</b> — 2 planks + 3 crystals. Unique item, ×5 mining.</li><li><b>Open a geode</b> — Below layer 20, in the large caves. Only the crystal pickaxe opens them.</li><li><b>Forge the pure ether pickaxe</b> — 4 pure shards + 4 crystals + 2 planks.</li><li><b>Forge a weapon</b> — Craft a Volt Blade or a Pure Ether Blade to fight back.</li><li><b>Defeat a hostile mob</b> — Shadows lurk in caves, guardians watch dark validators. Fight one off.</li></ol></div>
+<div class="card"><h3>The Awakening <span class="reward">+200 Gwei · a title</span></h3>
+<p class="muted">Under everything lies the genesis rock. Break it, forge a validator heart, and give a dark validator its light back.</p>
+<ol><li><b>Reach the genesis rock</b> — Right at the bottom of the world, just above the bedrock. Only the pure ether pickaxe can break it.</li><li><b>Craft a validator heart</b> — 1 genesis fragment + 2 pure shards + 4 crystals.</li><li><b>Relight an old validator</b> — Follow the compass to the ruins, then right-click (or tap) the dark validator.</li><li><b>Attest a validator</b> — Objectives tab → Validators: visit one of your validators and attest it to collect its Gwei and keep it active.</li></ol></div>
+<div class="card"><h3>The Network <span class="reward">+400 Gwei · a title</span></h3>
+<p class="muted">One validator is a spark. A network is a fire. Relight more, defend the Atrium, and face the guardians of the towers and the depths.</p>
+<ol><li><b>Relight three validators</b> — One dark validator sleeps in each ruin. The compass in the Objectives tab points to the nearest.</li><li><b>Trade with another player</b> — Open Trade, offer something, and have them accept.</li><li><b>Defend the Atrium</b> — Every hour, for its first 10 minutes, corrupted nodes converge on the Atrium. Destroy one.</li><li><b>Defeat the Plasma Core</b> — Climb a tower past the wardens on each floor: the Plasma Core waits at the top, next to its treasure.</li><li><b>Earn a Genesis Titan Fang</b> — Defeat the Genesis Titan in the depths.</li></ol></div>
+<div class="card"><h3>The Merge <span class="reward">+600 Gwei · a title</span></h3>
+<p class="muted">Up in the sky floats a sanctum where work and stake were made one. Its twin guardians never fall alone: strike them down together.</p>
+<ol><li><b>Climb to the Merge Sanctum</b> — A floating arena far from the Atrium: the compass points to the nearest. Its Beacon Stair spirals up from the ground.</li><li><b>Bring down the twins together</b> — Proof-of-Work and Proof-of-Stake guard the sanctum. One struck down rises again after 12 s unless the other falls too.</li><li><b>Wear the Merge Aegis</b> — Open your chest, pick the Aegis, and equip it.</li></ol></div>
+<div class="card"><h3>Circuits <span class="tag">side chapter</span> <span class="reward">+100 Gwei · a title</span></h3>
+<p class="muted">When you have a moment: the Circuits Complex, east of here, has a working example of every gate trick. Copy them, then make your own.</p>
+<ol><li><b>Light a lamp through a gate</b> — Craft an AND, OR or NOT gate (Crafting, Circuits), then wire it with cable so its output powers a lamp.</li><li><b>Build a two-key door</b> — Wire two pressure plates into an AND gate, its output into a door: it only opens when both are pressed at once.</li><li><b>Build a self-oscillating blinker</b> — Loop a NOT gate's own output back into its own input with cable: no clock needed, it blinks on its own.</li><li><b>Build a latch that remembers</b> — Wire an OR gate: one input from a plate, another looped back from its own output, into a lamp. Tap the plate once — it stays lit. A working example stands in the Circuits Complex.</li><li><b>Build a coin flip</b> — Feed a self-oscillating NOT loop and a plate into an AND gate, its output into a latch. A quick tap lands on whichever phase the loop was in — too fast to call.</li><li><b>Leave your mark: three gates</b> — Keep an AND, an OR and a NOT gate of your own standing somewhere in the world (on your plot: the Circuits Complex is public, nothing can be built there).</li></ol></div>
+
+<h2 id="crafting">Crafting</h2>
+<p>Open your chest (<kbd>E</kbd>), then the Crafting tab.</p>
+<h3>Resources and tools</h3><table><tr><th>Makes</th><th>From</th><th></th></tr><tr><td><b>Planks</b> ×4</td><td>1 Wood</td><td class="muted">Cut up a log</td></tr><tr><td><b>Wooden Pickaxe</b></td><td>3 Planks</td><td class="muted">Fungible tool · mining x2 · cuts stone</td></tr><tr><td><b>Marble</b></td><td>2 Granite</td><td class="muted">Cut granite</td></tr><tr><td><b>Glass</b></td><td>2 Sand</td><td class="muted">Melt sand</td></tr><tr><td><b>Lantern</b></td><td>1 Glass, 1 Ether Crystal</td><td class="muted">Light for the tunnels</td></tr><tr><td><b>Crystal Pickaxe</b></td><td>2 Planks, 3 Ether Crystal</td><td class="muted">Unique item, never traded · mining x5 · opens geodes</td></tr><tr><td><b>Pure Ether Block</b></td><td>4 Pure Shard</td><td class="muted">Pure ether from the depths, glowing</td></tr><tr><td><b>Pure Ether Pickaxe</b></td><td>2 Planks, 4 Ether Crystal, 4 Pure Shard</td><td class="muted">Unique item, never traded · mining x8 · cuts genesis rock</td></tr><tr><td><b>Validator Heart</b></td><td>4 Ether Crystal, 2 Pure Shard, 1 Genesis Fragment</td><td class="muted">Relights an old validator (right-click it)</td></tr></table>
+<h3>Construction</h3><table><tr><th>Makes</th><th>From</th><th></th></tr><tr><td><b>Plank Slab</b> ×4</td><td>2 Planks</td><td class="muted">Half-block</td></tr><tr><td><b>Plank Stairs</b> ×4</td><td>3 Planks</td><td class="muted">Orients to where you look</td></tr><tr><td><b>Marble Slab</b> ×4</td><td>2 Marble</td><td class="muted">Half-block</td></tr><tr><td><b>Marble Stairs</b> ×4</td><td>3 Marble</td><td class="muted">Orients to where you look</td></tr><tr><td><b>Granite Slab</b> ×4</td><td>2 Granite</td><td class="muted">Half-block</td></tr><tr><td><b>Granite Stairs</b> ×4</td><td>3 Granite</td><td class="muted">Orients to where you look</td></tr><tr><td><b>Door</b></td><td>4 Planks</td><td class="muted">Right-click to open</td></tr><tr><td><b>Fence</b> ×3</td><td>3 Planks</td><td class="muted">Connects to neighboring fences and walls</td></tr><tr><td><b>Pane</b> ×8</td><td>3 Glass</td><td class="muted">Thin glass, connects to neighboring panes</td></tr><tr><td><b>Ladder</b> ×3</td><td>4 Planks</td><td class="muted">Walk into it to climb</td></tr><tr><td><b>Chest</b></td><td>8 Planks</td><td class="muted">Stores your items (right-click) ; shared with your claim guests</td></tr></table>
+<h3>Colors</h3><table><tr><th>Makes</th><th>From</th><th></th></tr><tr><td><b>Pink Concrete</b> ×4</td><td>1 Granite, 2 Sand, 1 Pink Flower</td><td class="muted">Colored concrete</td></tr><tr><td><b>Lavender Concrete</b> ×4</td><td>1 Granite, 2 Sand, 1 Pink Leaves</td><td class="muted">Colored concrete</td></tr><tr><td><b>Mint Concrete</b> ×4</td><td>1 Granite, 2 Sand, 1 Leaves</td><td class="muted">Colored concrete</td></tr><tr><td><b>Sky Concrete</b> ×4</td><td>1 Granite, 2 Sand, 1 Blue Flower</td><td class="muted">Colored concrete</td></tr><tr><td><b>Peach Concrete</b> ×4</td><td>1 Granite, 3 Sand</td><td class="muted">Colored concrete</td></tr><tr><td><b>Lemon Concrete</b> ×4</td><td>1 Granite, 2 Sand, 1 Golden Flower</td><td class="muted">Colored concrete</td></tr><tr><td><b>Coral Concrete</b> ×4</td><td>1 Granite, 2 Sand, 1 Pink Flower, 1 Golden Flower</td><td class="muted">Colored concrete</td></tr><tr><td><b>White Concrete</b> ×4</td><td>1 Granite, 2 Sand, 1 Marble</td><td class="muted">Colored concrete</td></tr><tr><td><b>Pink Stained Glass</b> ×2</td><td>2 Glass, 1 Pink Flower</td><td class="muted">Tinted glass</td></tr><tr><td><b>Sky Stained Glass</b> ×2</td><td>2 Glass, 1 Blue Flower</td><td class="muted">Tinted glass</td></tr><tr><td><b>Mint Stained Glass</b> ×2</td><td>1 Leaves, 2 Glass</td><td class="muted">Tinted glass</td></tr><tr><td><b>Lavender Stained Glass</b> ×2</td><td>1 Pink Leaves, 2 Glass</td><td class="muted">Tinted glass</td></tr></table>
+<h3>Circuits</h3><table><tr><th>Makes</th><th>From</th><th></th></tr><tr><td><b>Lever</b></td><td>1 Granite, 1 Planks</td><td class="muted">Source: right-click to flip</td></tr><tr><td><b>Pressure Plate</b> ×2</td><td>2 Marble</td><td class="muted">Source: activates when stepped on</td></tr><tr><td><b>Ether Cable</b> ×8</td><td>1 Ether Crystal</td><td class="muted">Carries the signal, block by block</td></tr><tr><td><b>Lamp</b></td><td>1 Glass, 2 Ether Crystal</td><td class="muted">Lights up when powered</td></tr><tr><td><b>AND Gate</b></td><td>1 Granite, 2 Ether Cable, 1 Ether Crystal</td><td class="muted">Activates ahead of it if both sides are powered</td></tr><tr><td><b>OR Gate</b></td><td>1 Granite, 2 Ether Cable, 1 Ether Crystal</td><td class="muted">Activates ahead of it if one side or the back is powered</td></tr><tr><td><b>NOT Gate</b></td><td>1 Granite, 1 Ether Cable, 1 Ether Crystal</td><td class="muted">Activates ahead of it as long as the back isn’t</td></tr><tr><td><b>Clock</b></td><td>1 Marble, 2 Ether Cable, 2 Ether Crystal</td><td class="muted">Source that pulses every second</td></tr></table>
+<h3>Combat</h3><table><tr><th>Makes</th><th>From</th><th></th></tr><tr><td><b>Volt Blade</b></td><td>3 Planks, 2 Ether Crystal</td><td class="muted">Energy blade · fight back the mobs</td></tr><tr><td><b>Pure Ether Blade</b></td><td>2 Planks, 3 Ether Crystal, 3 Pure Shard</td><td class="muted">Sharper, from pure ether</td></tr><tr><td><b>Volt Plating</b></td><td>4 Planks, 3 Ether Crystal</td><td class="muted">Wear it from your inventory · reduces damage taken</td></tr><tr><td><b>Pure Ether Plating</b></td><td>3 Planks, 4 Ether Crystal, 4 Pure Shard</td><td class="muted">Stronger resistance, from pure ether</td></tr><tr><td><b>Genesis Blade</b></td><td>2 Planks, 2 Pure Shard, 3 Genesis Fragment, 4 Diamond Shard</td><td class="muted">Forged with the Titan’s own fang: the strongest blade</td></tr><tr><td><b>Genesis Plating</b></td><td>4 Pure Shard, 4 Genesis Fragment, 4 Diamond Shard</td><td class="muted">Shaped around the Plasma Core’s pistol: strong genesis-rock plating</td></tr></table>
+<h3>Decoration</h3><table><tr><th>Makes</th><th>From</th><th></th></tr><tr><td><b>Ether Bricks</b> ×4</td><td>2 Granite, 1 Sand</td><td class="muted">Granite fired with sand</td></tr><tr><td><b>Brick Slab</b> ×4</td><td>2 Ether Bricks</td><td class="muted">Half-block</td></tr><tr><td><b>Brick Stairs</b> ×4</td><td>3 Ether Bricks</td><td class="muted">Orients to where you look</td></tr><tr><td><b>Polished Granite</b> ×4</td><td>4 Granite</td><td class="muted">Cut and smoothed granite</td></tr><tr><td><b>Checkered Marble</b> ×4</td><td>2 Granite, 2 Marble</td><td class="muted">Black-and-white flooring</td></tr><tr><td><b>Mossy Stone</b> ×2</td><td>2 Granite, 1 Reeds</td><td class="muted">Granite covered in moss</td></tr><tr><td><b>Reed Mat</b> ×2</td><td>4 Reeds</td><td class="muted">Woven reeds</td></tr><tr><td><b>Bookshelf</b></td><td>6 Planks, 3 Reeds</td><td class="muted">Logs bound with reed</td></tr><tr><td><b>Crystal Block</b></td><td>9 Ether Crystal</td><td class="muted">Pure crystal, glows softly</td></tr><tr><td><b>Pink Lantern</b></td><td>1 Lantern, 1 Pink Flower</td><td class="muted">Pink light</td></tr><tr><td><b>Mushroom Lantern</b></td><td>1 Glass, 2 Ether Mushroom</td><td class="muted">Blue light of the caves</td></tr><tr><td><b>Marble Column</b> ×2</td><td>3 Marble</td><td class="muted">For halls and gardens</td></tr><tr><td><b>Cyan Neon</b> ×4</td><td>2 Granite, 1 Glass, 1 Ether Crystal</td><td class="muted">Light strip, like the city at night</td></tr><tr><td><b>Holo Screen</b> ×2</td><td>2 Glass, 1 Ether Crystal</td><td class="muted">Glowing pane that displays code</td></tr><tr><td><b>Diamond Block</b></td><td>1 Glass, 4 Ether Crystal</td><td class="muted">The Ether Diamond, in glowing glass</td></tr><tr><td><b>Lavender Game Brick</b> ×4</td><td>2 Lavender Concrete</td><td class="muted">Studded brick, for building the diamond</td></tr><tr><td><b>Mint Game Brick</b> ×4</td><td>2 Mint Concrete</td><td class="muted">Studded brick, for building the diamond</td></tr><tr><td><b>Blue Game Brick</b> ×4</td><td>2 Sky Concrete</td><td class="muted">Studded brick, for building the diamond</td></tr><tr><td><b>Peach Game Brick</b> ×4</td><td>2 Peach Concrete</td><td class="muted">Studded brick, for building the diamond</td></tr><tr><td><b>Table</b></td><td>4 Planks</td><td class="muted">Right-click to eat: a brief speed boost</td></tr><tr><td><b>Bed</b></td><td>2 Planks, 2 Ether Wool</td><td class="muted">Right-click to sleep and skip to dawn</td></tr><tr><td><b>Radiant Diamond</b></td><td>2 Ether Crystal, 4 Diamond Shard</td><td class="muted">A piece of the great diamond, once the network is fully awake</td></tr></table>
+<h3>Potions</h3><table><tr><th>Makes</th><th>From</th><th></th></tr><tr><td><b>Ether Tonic</b> ×2</td><td>2 Ether Mushroom, 1 Ether Crystal</td><td class="muted">Drink it: restores 5 hearts</td></tr><tr><td><b>Swift Elixir</b> ×2</td><td>2 Golden Flower, 1 Ether Crystal</td><td class="muted">Drink it: you run faster for 2 minutes</td></tr><tr><td><b>Owl Draught</b> ×2</td><td>2 Blue Flower, 1 Ether Mushroom</td><td class="muted">Drink it: you see in the dark for 3 minutes</td></tr><tr><td><b>Ward Incense</b></td><td>3 Reeds, 1 Pure Shard</td><td class="muted">Burn it: ordinary mobs ignore you for 2 minutes, unless you strike them. Guardians and bosses aren’t fooled</td></tr><tr><td><b>Home Beacon</b></td><td>1 Lantern, 2 Ether Crystal</td><td class="muted">Light it: back to the last bed you slept in</td></tr></table>
+<h3>Furniture</h3><table><tr><th>Makes</th><th>From</th><th></th></tr><tr><td><b>Chair</b> ×2</td><td>3 Planks</td><td class="muted">Turns to face you as you place it</td></tr><tr><td><b>Lavender Sofa</b></td><td>2 Planks, 3 Ether Wool</td><td class="muted">Soft and lavender, faces you as you place it</td></tr><tr><td><b>Pink Carpet</b> ×4</td><td>1 Pink Flower, 2 Ether Wool</td><td class="muted">A thin rug you walk over</td></tr><tr><td><b>Lavender Carpet</b> ×4</td><td>1 Pink Leaves, 2 Ether Wool</td><td class="muted">A thin rug you walk over</td></tr><tr><td><b>Mint Carpet</b> ×4</td><td>1 Leaves, 2 Ether Wool</td><td class="muted">A thin rug you walk over</td></tr><tr><td><b>Sky Carpet</b> ×4</td><td>1 Blue Flower, 2 Ether Wool</td><td class="muted">A thin rug you walk over</td></tr><tr><td><b>Potted Plant</b></td><td>1 Granite, 1 Sand, 2 Leaves</td><td class="muted">A bush in a terracotta pot</td></tr><tr><td><b>Potted Flower</b></td><td>1 Granite, 1 Sand, 1 Pink Flower</td><td class="muted">A flower in a terracotta pot</td></tr><tr><td><b>Sign</b> ×2</td><td>3 Planks</td><td class="muted">Right-click it to write a line that everyone can read</td></tr></table>
+<h3>Travel</h3><table><tr><th>Makes</th><th>From</th><th></th></tr><tr><td><b>Ether Twin Diamond</b></td><td>2 Marble, 18 Ether Crystal, 4 Cyan Neon</td><td class="muted">Unique hovercraft · right-click to ride: twice as fast, glides over water · a back seat for a friend</td></tr><tr><td><b>Ether Neon Glider</b></td><td>2 Marble, 12 Ether Crystal, 4 Cyan Neon</td><td class="muted">Unique hovercraft · right-click to ride: twice as fast, glides over water</td></tr><tr><td><b>Pure Twin Diamond</b></td><td>2 Marble, 9 Pure Shard, 4 Cyan Neon</td><td class="muted">Unique hovercraft · right-click to ride: twice as fast, glides over water · a back seat for a friend</td></tr><tr><td><b>Pure Neon Glider</b></td><td>2 Marble, 6 Pure Shard, 4 Cyan Neon</td><td class="muted">Unique hovercraft · right-click to ride: twice as fast, glides over water</td></tr><tr><td><b>Genesis Twin Diamond</b></td><td>2 Marble, 6 Genesis Fragment, 4 Cyan Neon</td><td class="muted">Unique hovercraft · right-click to ride: twice as fast, glides over water · a back seat for a friend</td></tr><tr><td><b>Genesis Neon Glider</b></td><td>2 Marble, 4 Genesis Fragment, 4 Cyan Neon</td><td class="muted">Unique hovercraft · right-click to ride: twice as fast, glides over water</td></tr><tr><td><b>Radiant Twin Diamond</b></td><td>2 Marble, 5 Diamond Shard, 4 Cyan Neon</td><td class="muted">Unique hovercraft · right-click to ride: twice as fast, glides over water · a back seat for a friend</td></tr><tr><td><b>Radiant Neon Glider</b></td><td>2 Marble, 3 Diamond Shard, 4 Cyan Neon</td><td class="muted">Unique hovercraft · right-click to ride: twice as fast, glides over water</td></tr></table>
+
+<h2 id="gear">Tools, weapons and platings</h2>
+<p>A better pickaxe mines faster and opens harder rock: the crystal pickaxe opens the geodes below layer 20, the pure ether pickaxe breaks the genesis rock at the bottom of the world. Unique items are numbered: each one is a single token with its own serial.</p>
+<div class="wrap"><table><tr><th>Item</th><th>What it does</th><th></th></tr><tr><td><b>Wooden Pickaxe</b></td><td>Pickaxe · mines ×2.2</td><td class="muted"></td></tr><tr><td><b>Volt Blade</b></td><td>Blade · 2.5 damage</td><td class="muted"></td></tr><tr><td><b>Pure Ether Blade</b></td><td>Blade · 5 damage</td><td class="muted"></td></tr><tr><td><b>Volt Plating</b></td><td>Plating · −25% damage taken</td><td class="muted"></td></tr><tr><td><b>Pure Ether Plating</b></td><td>Plating · −45% damage taken</td><td class="muted"></td></tr><tr><td><b>Crystal Pickaxe</b></td><td>Pickaxe · mines ×5</td><td class="muted">unique</td></tr><tr><td><b>Pure Ether Pickaxe</b></td><td>Pickaxe · mines ×8</td><td class="muted">unique</td></tr><tr><td><b>Plasma Pistol</b></td><td>Ranged weapon · 4 damage</td><td class="muted">unique</td></tr><tr><td><b>Merge Aegis</b></td><td>Plating · −60% damage taken</td><td class="muted">unique</td></tr><tr><td><b>Front-Runner Boots</b></td><td>Boots · +12% speed, a dodge</td><td class="muted">unique</td></tr><tr><td><b>Genesis Blade</b></td><td>Blade · 7.5 damage</td><td class="muted"></td></tr><tr><td><b>Genesis Plating</b></td><td>Plating · −55% damage taken</td><td class="muted"></td></tr></table></div>
+
+<h2 id="mobs">Mobs</h2>
+<p>Hostile mobs wind up before they strike: raise your guard right then to parry, and the mob reels, open to a riposte. Some worlds can turn hostile mobs off (Settings), not the main one.</p>
+<div class="wrap"><table><tr><th>Mob</th><th>Health</th><th>Damage</th><th>Where</th></tr><tr><td><b>Rift Shadow</b></td><td>10</td><td>2</td><td class="muted">the caves</td></tr><tr><td><b>Corrupted Guardian</b></td><td>19</td><td>3.2</td><td class="muted">around the dark validators in the ruins</td></tr><tr><td><b>Geode Sentinel</b></td><td>14</td><td>2.6</td><td class="muted">the geodes, deep below</td></tr><tr><td><b>Genesis Wraith</b></td><td>22</td><td>3.8</td><td class="muted">beside the genesis rock, at the bottom of the world</td></tr><tr><td><b>Genesis Titan</b></td><td>120</td><td>7.5 (bolts)</td><td class="muted">a boss in the depths (the compass points to it)</td></tr><tr><td><b>Tower Warden</b></td><td>16</td><td>2.6</td><td class="muted">every floor of the towers</td></tr><tr><td><b>Tower Turret</b></td><td>12</td><td>0 (bolts)</td><td class="muted">tower floors: it fires bolts</td></tr><tr><td><b>Plasma Core</b></td><td>45</td><td>5.5 (bolts)</td><td class="muted">the top of each tower: a boss</td></tr><tr><td><b>Garden Guardian</b></td><td>15</td><td>2.9</td><td class="muted">the Ether Gardens</td></tr><tr><td><b>Night Prowler</b></td><td>11</td><td>2.6</td><td class="muted">the open surface, after dark</td></tr><tr><td><b>Sky Raider</b></td><td>12</td><td>2.9</td><td class="muted">the floating islands</td></tr><tr><td><b>Deep Lurker</b></td><td>17</td><td>3.5</td><td class="muted">the water</td></tr><tr><td><b>Rift Bat</b></td><td>9</td><td>2.4</td><td class="muted">the caves</td></tr><tr><td><b>Rust Crawler</b></td><td>15</td><td>2.8</td><td class="muted">the ruins</td></tr><tr><td><b>Geode Golem</b></td><td>26</td><td>4.2</td><td class="muted">the geodes, deep below</td></tr><tr><td><b>Corrupted Node</b></td><td>20</td><td>3.4</td><td class="muted">around the Atrium during a network attack</td></tr><tr><td><b>Proof-of-Work</b></td><td>60</td><td>6</td><td class="muted">the Merge Sanctum: a boss, with its twin</td></tr><tr><td><b>Proof-of-Stake</b></td><td>40</td><td>4 (bolts)</td><td class="muted">the Merge Sanctum: a boss, with its twin</td></tr><tr><td><b>The Front-Runner</b></td><td>170</td><td>5.5 (bolts)</td><td class="muted">the Mempool arena: a boss for two or three players</td></tr><tr><td><b>Sandwich Bot</b></td><td>16</td><td>2.5</td><td class="muted">the Front-Runner calls them in</td></tr></table></div>
+
+<h2 id="validators">Validators and Gwei</h2>
+<ul>
+  <li><b>Gwei</b> is the game's currency, kept by the server. You earn it from chapters, mobs, the defense of the Atrium and, above all, your validators.</li>
+  <li>Dark validators sleep in the ruins (the compass points to the nearest). Craft a validator heart and relight one: it becomes yours and produces Gwei every 5 minutes, even when you're offline.</li>
+  <li>A common validator earns about 120 Gwei an hour; rare, epic and legendary ones earn 2 to 8 times more. Upgrading adds 15% per level, up to level 10 (Validators tab).</li>
+  <li><b>Attest</b> your validators at least once every 8 days (Validators tab): past that, they turn corrupted and stop producing until you attest again.</li>
+  <li>Every hour, for its first 10 minutes, corrupted nodes attack the Atrium: destroy them for Gwei, and a bonus when the network holds.</li>
+</ul>
+
+<h2 id="plots">Plots</h2>
+<ul>
+  <li>The world is cut into plots of 16 × 16 blocks. <kbd>/claim</kbd> shows the one you stand in: gold when free, green when yours, red when someone else's or public.</li>
+  <li>Your first plot costs 500 Gwei, then twice as much for each one you hold (1,000, 2,000, 4,000…), 9 at most per world. Giving one up lowers the next price; nothing is refunded.</li>
+  <li>On your plots, only you and the friends you invite can mine, build, open doors and chests.</li>
+  <li>The Atrium, the City and the Circuits Complex belong to everyone: nobody can claim them.</li>
+</ul>
+
+<h2 id="chests">Chests and trading</h2>
+<ul>
+  <li>A chest you place keeps its items on the server. On your plot, only you and your invites can open it; anywhere else, anyone can.</li>
+  <li>Each tower holds a treasure chest near its top, guarded by the wardens and the Plasma Core.</li>
+  <li>To trade, open the Trade tab (or <kbd>/trade nickname</kbd>): choose what you give and what you want; the other player accepts or not.</li>
+</ul>
+
+<h2 id="hover">Hovercrafts</h2>
+<p>Ether Twin Diamond, Pure Twin Diamond, Genesis Twin Diamond, Radiant Twin Diamond, Ether Neon Glider, Pure Neon Glider, Genesis Neon Glider, Radiant Neon Glider. Hold one and right-click (on a phone: the hovercraft button) to get on board: twice as fast, over water too. A Twin Diamond has a back seat for a friend.</p>
+
+<h2 id="shop">Shop and cosmetics</h2>
+<p>105 cosmetics: 27 outfits, 4 block packs, 6 tool trims, 1 validator skins, 9 trails, 8 combat trophies, 2 event trophies, 6 titles, 18 hats and helmets, 12 capes, wings and packs, 12 companions. Prices go from 180 to 25,000 Gwei, and a few picks are on sale each week. Press Try on any piece to see it on your character before you buy it. Trophies can't be bought: they're won in combat and during events.</p>
+
+<h2 id="account">Your account</h2>
+<ul>
+  <li>You enter with your nickname and a password. A free nickname makes your account; on another device, the same nickname and password bring your game there.</li>
+  <li>On your usual device the game remembers you. Account (in the menu) lets you change your password or log out.</li>
+  <li>Forgot your password? Write to <a href="mailto:pierre.untas@gmail.com">pierre.untas@gmail.com</a> with your nickname and what you own in the game.</li>
+</ul>
+
+<p class="muted" style="margin-top:48px"><a href="legal.html">Terms, legal notice &amp; privacy</a> · <a href="./">Back to the game</a></p>
+</main>
+</body>
+</html>

@@ -122,6 +122,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .k-touch{display:none}
 .go{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 .morekeys{text-align:center}
+.wikilink{color:var(--mint);font-size:15px;text-align:center}
 .morekeys summary{cursor:pointer;font-family:var(--mono);font-size:12px;color:var(--cyan);list-style:none;display:inline-block;padding:4px 10px;border:1px solid var(--line);border-radius:999px}
 .morekeys summary::-webkit-details-marker{display:none}
 .morekeys summary::after{content:' ▸'}
