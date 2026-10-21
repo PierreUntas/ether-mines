@@ -159,6 +159,7 @@ To wipe everything and start over:
 | Chat | Supabase (the `chat` table, delivered through Realtime) |
 | Guest account | Supabase Auth; the session is kept by the browser (`ether-mines:session`) |
 | Recovery codes | Supabase, `recovery` table (SHA-256 hash only, never the code) |
+| Logins and passwords | Supabase, `logins` table (bcrypt hash only, never the password; the login in lower case for the lookup) |
 | Nickname, color, id | Browser (`ether-mines:profil`) |
 | Sound on or off | Browser (`ether-mines:son`) |
 | Current in cables, lamps, and doors | Nowhere: recomputed from the levers and plates |
@@ -195,9 +196,11 @@ When a chunk loads: frozen terrain if it exists, otherwise the generator; then m
 3. **Test**: push to a branch. Vercel gives a preview URL, to test on a throwaway world (`?monde=test`). The database is the same as production: never test on `principal`.
 4. **Publish**: run the SQL migration if there is one, then merge into `main`. Players already connected need to reload the page.
 
-## Accounts and recovery codes
+## Accounts, logins and recovery codes
 
 - On first visit, the game creates a guest account and saves progress to it every 5 seconds, on pause, and when leaving the page.
+- On the title screen, *Account → Secure my game* sets a login (3 to 20 letters, digits, `-`, `_`, `.`; case-insensitive) and a password (6 characters or more) on that account: no email, nothing personal. On another device, *Log in* checks the password, gives the device a fresh guest session and moves the game over to it (`046_logins.sql`, the same move as a recovery code); the device the game left is told so and asks to log in again. Five wrong passwords in a row lock a login for ten minutes.
+- A player who forgot their password writes to the address shown under *Log in*. Check it's them (`select admin_login_info('their login');` in the SQL Editor: their worlds, nickname, items, plots), then `select admin_reset_password('their login', 'a new password');` and send it to them.
 - On the title screen, *Account → Show my recovery code* gives a code like `4FC0-B18D-A98D-75EF`. On another device (or after clearing the browser), entering it in *Recover my progress* attaches the save and the signed blocks to this new device.
 - The code attaches everything the old account owns: saves, chests, unique items, signed blocks, plots.
 

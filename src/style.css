@@ -246,6 +246,9 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .acct summary{cursor:pointer;color:var(--muted)}
 .acct summary span{color:var(--mint,#9fe3c4)}
 .acct p{font-size:13px;color:var(--muted);margin:8px 0;line-height:1.45}
+.acct .hint a{color:var(--cyan)}
+.acct .oldcode{margin-top:6px}
+.acct .oldcode summary{font-size:13px}
 .arow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
 .arow input{flex:1;min-width:190px;font-family:var(--mono);font-size:15px;letter-spacing:.5px;color:var(--text);background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:9px;padding:7px 10px}
 .arow code{font-family:var(--mono);font-size:15px;letter-spacing:1px;background:rgba(255,255,255,.08);border:1px solid var(--gold,#ffd95e);color:var(--gold,#ffd95e);border-radius:8px;padding:6px 10px;-webkit-user-select:all;user-select:all}

@@ -136,6 +136,26 @@ window.Net = (() => {
     return data;
   }
   const recoveryCode = () => rpc('set_recovery_code');
+  // a login and a password (046_logins.sql): set or change yours, see yours, log in on this device
+  let movedLogin = null; // this session's game left for another device, with this login
+  const setLogin = (login, password) => rpc('act_set_login', { login, password });
+  async function myLogin() {
+    const r = await rpc('act_my_login');
+    movedLogin = r && r.moved != null ? r.moved : null;
+    return r;
+  }
+  // the password is checked first; then this device takes a fresh guest session (the game it held stays
+  // with its old account, and its login if it had one) and the login's game comes over to it
+  async function logIn(login, password) {
+    const c = await rpc('act_check_login', { login, password });
+    if (!c || !c.ok) return c;
+    const sbc = client();
+    await sbc.auth.signOut({ scope: 'local' }).catch(() => {});
+    const { data, error } = await sbc.auth.signInAnonymously();
+    if (error) throw new Error(error.message);
+    userId = data.user.id;
+    return rpc('act_login', { login, password });
+  }
   const claimRecovery = code => rpc('claim_recovery', { code });
   // how many nicknames this world has (035_player_count.sql)
   const playerCount = () => rpc('world_player_count', { w: world });
@@ -579,6 +599,12 @@ window.Net = (() => {
     savePlayer,
     deletePlayer,
     recoveryCode,
+    setLogin,
+    myLogin,
+    logIn,
+    get movedLogin() {
+      return movedLogin;
+    },
     playerCount,
     blockInfo,
     claimRecovery,

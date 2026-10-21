@@ -1256,9 +1256,10 @@ $('monde').value = qs.get('monde') || 'principal';
 let acctErr = '';
 const accountReady = Net.enabled
   ? Net.auth()
-      .then(id => {
+      .then(async id => {
         $('acctTxt').textContent = 'saved online';
         $('acct').hidden = false;
+        await showLogin();
         return id;
       })
       .catch(e => {
@@ -1268,6 +1269,101 @@ const accountReady = Net.enabled
         $('acct').hidden = false;
       })
   : Promise.resolve(null);
+// ---------- a login and a password (046_logins.sql) ----------
+let LOGIN = null; // yours, once your game is secured
+// the account panel: secure your game, or change your password; and whether this device's game left
+async function showLogin() {
+  try {
+    const r = await Net.myLogin();
+    LOGIN = (r && r.login) || null;
+  } catch (e) {
+    console.warn(e);
+    return;
+  }
+  $('loginNone').hidden = !!LOGIN;
+  $('loginHave').hidden = !LOGIN;
+  $('loginName').textContent = LOGIN || '';
+  $('acctTxt').textContent = LOGIN ? 'logged in as ' + LOGIN : 'saved online · not secured';
+  if (Net.movedLogin !== null && !LOGIN) {
+    // this device's game was opened on another one: it's there now
+    $('acct').open = true;
+    $('inLogin').value = Net.movedLogin;
+    $('acctMsg').textContent =
+      'Your game was opened on another device' +
+      (Net.movedLogin ? ` with the login ${Net.movedLogin}` : '') +
+      '. Log in to bring it back here.';
+  }
+}
+const LOGIN_ERRS = {
+  'bad login': 'A login is 3 to 20 letters, digits or - _ . (no spaces).',
+  'bad password': 'The password needs 6 characters or more.',
+  'login taken': 'This login is already taken: pick another one.',
+  'wrong login or password': 'Wrong login or password.',
+  'too many attempts': 'Too many attempts: wait a few seconds.',
+};
+const loginErr = r =>
+  r && r.err === 'locked'
+    ? `Too many wrong passwords: try again in ${Math.ceil((r.wait || 600) / 60)} min.`
+    : LOGIN_ERRS[r && r.err] || 'Failed: ' + ((r && r.err) || 'unknown error');
+async function saveLogin(login, pass, btn, done) {
+  if (!Net.userId) return;
+  btn.disabled = true;
+  try {
+    const r = await Net.setLogin(login.trim(), pass);
+    if (!r || !r.ok) $('acctMsg').textContent = loginErr(r);
+    else {
+      done();
+      await showLogin();
+    }
+  } catch (e) {
+    $('acctMsg').textContent = 'Failed: ' + e.message;
+  }
+  btn.disabled = false;
+}
+$('saveLogin').onclick = () =>
+  saveLogin($('newLogin').value, $('newPass').value, $('saveLogin'), () => {
+    $('newPass').value = '';
+    $('acctMsg').textContent = 'Your game is secured. On another device, log in with this login and password.';
+  });
+$('saveChg').onclick = () =>
+  saveLogin(LOGIN || '', $('chgPass').value, $('saveChg'), () => {
+    $('chgPass').value = '';
+    $('acctMsg').textContent = 'Password changed.';
+  });
+$('doLogin').onclick = async () => {
+  const login = $('inLogin').value.trim(),
+    pass = $('inPass').value;
+  if (!login || !pass || !Net.userId) return;
+  if (LOGIN && LOGIN.toLowerCase() === login.toLowerCase()) {
+    $('acctMsg').textContent = 'You are already logged in with this login on this device.';
+    return;
+  }
+  // a game on this device that isn't secured would stay behind, out of reach
+  if (!LOGIN && booted && !confirm('The game on this device is not secured with a login: it will be left behind. Log in anyway?')) return;
+  $('doLogin').disabled = true;
+  $('acctMsg').textContent = 'Logging in…';
+  try {
+    const r = await Net.logIn(login, pass);
+    if (!r || !r.ok) {
+      $('acctMsg').textContent = loginErr(r);
+      $('doLogin').disabled = false;
+      return;
+    }
+    $('acctMsg').textContent = `Logged in as ${r.login}: your game is coming to this device. Reloading…`;
+    clearLocalSaves();
+    setTimeout(() => location.reload(), 900);
+  } catch (e) {
+    $('acctMsg').textContent = 'Failed: ' + e.message;
+    $('doLogin').disabled = false;
+  }
+};
+for (const id of ['inLogin', 'inPass']) $(id).addEventListener('keydown', e => e.key === 'Enter' && $('doLogin').click());
+// this browser's copies of the games (the server keeps them): dropped when a game comes from elsewhere
+function clearLocalSaves() {
+  for (const k of Object.keys(localStorage))
+    if (k.startsWith('ether-mines:') && k !== PKEY && k !== 'ether-mines:son' && k !== 'ether-mines:session' && k !== 'ether-mines:saison')
+      localStorage.removeItem(k);
+}
 $('showCode').onclick = async () => {
   if (!Net.userId) return;
   $('showCode').disabled = true;
@@ -1294,15 +1390,7 @@ $('useCode').onclick = async () => {
     const n = await Net.claimRecovery(c);
     if (n < 0) throw new Error('unknown code');
     $('acctMsg').textContent = `Progress recovered (${n} world${n > 1 ? 's' : ''}). Reloading…`;
-    for (const k of Object.keys(localStorage))
-      if (
-        k.startsWith('ether-mines:') &&
-        k !== PKEY &&
-        k !== 'ether-mines:son' &&
-        k !== 'ether-mines:session' &&
-        k !== 'ether-mines:saison'
-      )
-        localStorage.removeItem(k);
+    clearLocalSaves();
     setTimeout(() => location.reload(), 900);
   } catch (e) {
     $('acctMsg').textContent = /unknown/.test(e.message)
@@ -1432,6 +1520,12 @@ $('play').onclick = async () => {
       return;
     }
     booted = true;
+    // after a while, a word for a game not secured yet: once
+    if (Net.enabled)
+      setTimeout(() => {
+        if (!LOGIN && Net.userId)
+          toastInfo('Secure your game with a login and a password, to find it on any device: Escape, then Account.');
+      }, 10 * 60000);
     loadSoloSigns(); // solo: the signs' text kept in the save (19-signs.js)
     cloudSave(true);
     $('play').disabled = false;
@@ -1526,7 +1620,7 @@ const sideLoads = [];
 async function boot(world) {
   bootSay(Net.enabled ? 'Connecting to your account…' : 'Generating the world…', 3);
   if (Net.enabled) {
-    if (!Net.userId) await accountReady;
+    await accountReady; // the account, and whether its game left for another device (showLogin)
     if (Net.userId) {
       ME.id = Net.userId;
       // the server's save is authoritative; otherwise we push this browser's save to it
@@ -1543,7 +1637,9 @@ async function boot(world) {
             S.pos = here.pos;
             S.posAt = here.at;
           }
-        } else cloudDirty = true;
+        } else if (Net.movedLogin !== null)
+          useState(null); // this account's game left for another device: start afresh, don't push this browser's old copy
+        else cloudDirty = true;
         if (row) S.gwei = row.gwei || 0; // server-authoritative, never part of state jsonb
       } catch (e) {
         console.warn(e);

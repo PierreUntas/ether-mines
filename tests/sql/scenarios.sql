@@ -1007,3 +1007,61 @@ select admin_restore_world('rw', true, true) as regen \gset
 select pg_temp.ok('regen: the unclaimed chunk is dropped, the claimed one kept', (:'regen'::jsonb ->> 'terrain_regenerated')::int = 1
   and exists (select 1 from chunks where world = 'rw' and cx = 40) and not exists (select 1 from chunks where world = 'rw' and cx = 50));
 \echo World restore scenarios pass.
+
+-- ---------- logins (046): a login and a password, case-insensitive, to find your game on another device ----------
+reset role;
+insert into auth.users values ('a1000000-0000-0000-0000-000000000001'), ('a1000000-0000-0000-0000-000000000002'), ('a1000000-0000-0000-0000-000000000003');
+delete from rate_limits;
+select count(*) as b_worlds from players where user_id = 'bbbbbbbb-0000-0000-0000-000000000002' \gset
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('login: a bad login is refused', act_set_login('a b', 'secret1') ->> 'err' = 'bad login');
+select pg_temp.ok('login: a short password is refused', act_set_login('Pierre_B', 'abc') ->> 'err' = 'bad password');
+select pg_temp.ok('login: set', (act_set_login('Pierre_B', 'secret1') ->> 'ok')::boolean);
+select pg_temp.ok('login: it''s mine', act_my_login() ->> 'login' = 'Pierre_B');
+select pg_temp.refused('login: nobody reads the passwords', $q$select admin_login_info('pierre_b')$q$);
+select pg_temp.ok('login: the table shows nothing to a player', (select count(*) from logins) = 0);
+select set_config('request.jwt.claim.sub', 'a1000000-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('login: taken, whatever the case', act_set_login('PIERRE_b', 'other12') ->> 'err' = 'login taken');
+select pg_temp.ok('login: a wrong password is refused', act_login('pierre_b', 'nope!!') ->> 'err' = 'wrong login or password');
+select pg_temp.ok('login: an unknown login says the same', act_login('nobody', 'secret1') ->> 'err' = 'wrong login or password');
+select pg_temp.ok('login: the check says yes, any case', (act_check_login('PIERRE_B', 'secret1') ->> 'ok')::boolean);
+reset role;
+select pg_temp.ok('login: a check moves nothing', (select count(*) from players where user_id = 'bbbbbbbb-0000-0000-0000-000000000002') = :b_worlds);
+delete from rate_limits;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'a1000000-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('login: logged in on another device, any case', (act_login('pierre_B', 'secret1') ->> 'worlds')::int = :b_worlds);
+reset role;
+select pg_temp.ok('login: the game came over', (select count(*) from players where user_id = 'a1000000-0000-0000-0000-000000000001') = :b_worlds
+  and not exists (select 1 from players where user_id = 'bbbbbbbb-0000-0000-0000-000000000002')
+  and exists (select 1 from inventory where user_id = 'a1000000-0000-0000-0000-000000000001'));
+select pg_temp.ok('login: ... and the login with it', (select user_id from logins where login_key = 'pierre_b') = 'a1000000-0000-0000-0000-000000000001');
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('login: the old device is told its game left', act_my_login() ->> 'moved' = 'Pierre_B' and act_my_login() -> 'login' = 'null'::jsonb);
+-- five wrong passwords in a row: locked for a while, even with the right one
+select set_config('request.jwt.claim.sub', 'a1000000-0000-0000-0000-000000000002', false) \g /dev/null
+select count(*) from generate_series(1, 5) i where act_check_login('pierre_b', 'wrong' || i) ->> 'err' = 'wrong login or password' \g /dev/null
+reset role;
+delete from rate_limits;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'a1000000-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('login: locked after five wrong passwords', act_login('pierre_b', 'secret1') ->> 'err' = 'locked');
+select pg_temp.ok('login: guessing is throttled too', (select count(*) filter (where act_check_login('x' || i, 'y') ->> 'err' = 'too many attempts') from generate_series(1, 8) i) >= 3);
+reset role;
+-- the owner helps a player who forgot their password
+select pg_temp.ok('admin: who it is', admin_login_info('PIERRE_B') -> 'worlds' -> 0 ->> 'name' = 'Pierre');
+select pg_temp.ok('admin: a new password', (admin_reset_password('pierre_b', 'newpass1') ->> 'ok')::boolean);
+delete from rate_limits;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'a1000000-0000-0000-0000-000000000003', false) \g /dev/null
+select pg_temp.ok('login: the old password no longer works', act_check_login('pierre_b', 'secret1') ->> 'ok' = 'false');
+select pg_temp.ok('login: the new one does, and the lock is lifted', (act_login('Pierre_B', 'newpass1') ->> 'ok')::boolean);
+select pg_temp.ok('login: renamed, the old one is free', (act_set_login('Pierre', 'newpass1') ->> 'ok')::boolean and act_my_login() ->> 'login' = 'Pierre');
+select pg_temp.refused('admin: a player can''t reset a password', $q$select admin_reset_password('pierre', 'hacked1')$q$);
+reset role;
+set role service_role;
+select pg_temp.refused('admin: ... nor the game server', $q$select admin_reset_password('pierre', 'hacked1')$q$);
+reset role;
+\echo Login scenarios pass.
