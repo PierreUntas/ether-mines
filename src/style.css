@@ -251,6 +251,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .acct .oldcode summary{font-size:13px}
 .arow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
 .arow input{flex:1;min-width:190px;font-family:var(--mono);font-size:15px;letter-spacing:.5px;color:var(--text);background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:9px;padding:7px 10px}
+.arow input::placeholder{color:var(--muted);opacity:.85}
 .arow code{font-family:var(--mono);font-size:15px;letter-spacing:1px;background:rgba(255,255,255,.08);border:1px solid var(--gold,#ffd95e);color:var(--gold,#ffd95e);border-radius:8px;padding:6px 10px;-webkit-user-select:all;user-select:all}
 /* settings, fps counter */
 #fps{font-family:var(--mono);font-size:11px;color:var(--mint,#9fe3c4);border-left:1px solid var(--line);padding-left:8px}
