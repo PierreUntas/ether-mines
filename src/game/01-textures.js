@@ -1535,21 +1535,15 @@ tile(134, (P, E) => {
     ag.putImageData(img, ox, oy);
   }
 }
-// ---------- the "clay" look (the default; ?style=pixel or Settings → Look for the original pixel art) ----------
+// ---------- the "clay" look (the game's look; ?style=pixel for the original pixel art) ----------
 // The same atlas, repainted for the world: each 16 px tile is smoothed 4x (bilinear, clamped to its own
 // tile so nothing bleeds from the neighbour) and its pixel noise pulled toward the tile's mean colour,
 // with a soft light-from-above gradient. The patterns stay readable (ore specks, bricks, planks) but
 // the surfaces read as painted clay rather than pixel art. The 16 px atlas itself is kept untouched:
 // icons and the voxel models of held items are still drawn from it, crisp.
-const STYLE = (() => {
-  const q = new URLSearchParams(location.search).get('style');
-  try {
-    if (q) localStorage.setItem('ether-mines:style', q);
-    return q || localStorage.getItem('ether-mines:style') || 'clay';
-  } catch (e) {
-    return q || 'clay';
-  }
-})();
+// The clay look is the game's only one now: the Settings choice is gone, and a choice of pixel art kept by
+// a browser (ether-mines:style) no longer applies. ?style=pixel still shows it, for checking the old look.
+const STYLE = new URLSearchParams(location.search).get('style') === 'pixel' ? 'pixel' : 'clay';
 const CLAY = STYLE === 'clay';
 // the clay look's rounded font (fonts/fonts.css): the page's text, and the name tags and signs drawn on canvases
 if (CLAY) {
