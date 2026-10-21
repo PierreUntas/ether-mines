@@ -320,6 +320,10 @@ function updateRide(dt) {
     showRide = !!(heldHover() || RIDE || BOARD);
   if (rb && rb.hidden === showRide) rb.hidden = !showRide;
   if (rb) rb.classList.toggle('on', !!(RIDE || BOARD));
+  // no dodge on board: its button goes while you ride
+  const db = $('tDash'),
+    showDash = bootsOn() && !RIDE && !BOARD;
+  if (db && db.hidden === showDash) db.hidden = !showDash;
   if (RIDE) {
     const m = RIDE.mesh;
     m.position.set(P.x, P.y + HOVER_GAP, P.z);
