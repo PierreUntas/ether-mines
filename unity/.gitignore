@@ -1,0 +1,22 @@
+# Unity: generated on open, never committed
+/Library/
+/Temp/
+/Obj/
+/Build/
+/Builds/
+/Logs/
+/UserSettings/
+/MemoryCaptures/
+/*.csproj
+!CoreTests/*.csproj
+*.sln
+*.pidb
+*.userprefs
+.vs/
+.idea/
+# the parity tests' build output
+CoreTests/bin/
+CoreTests/obj/
+CoreTests/golden/
+CompileCheck/bin/
+CompileCheck/obj/

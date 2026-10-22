@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Type-checks every script under Assets/Scripts against a small stand-in for the Unity API
+       (UnityStubs.cs: only signatures, nothing runs), so typos are caught without the Unity editor.
+       dotnet build -c Release            (new Input System branch)
+       dotnet build -c Release -p:Legacy=1 (old Input Manager branch) -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <NoWarn>CS0067;CS0649;CS0414;CS1998</NoWarn>
+    <DefineConstants Condition="'$(Legacy)' != '1'">$(DefineConstants);ENABLE_INPUT_SYSTEM</DefineConstants>
+    <DefineConstants Condition="'$(Legacy)' == '1'">$(DefineConstants);ENABLE_LEGACY_INPUT_MANAGER</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Assets/Scripts/**/*.cs" />
+  </ItemGroup>
+</Project>
