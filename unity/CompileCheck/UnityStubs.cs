@@ -49,7 +49,7 @@ namespace UnityEngine
         public float x, y, z;
         public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
         public Vector3 normalized => this;
-        public float magnitude => 0;
+        public float magnitude => 0; public static Vector3 operator *(Vector3 a, double b) => a;
         public static Vector3 zero => default; public static Vector3 up => default; public static Vector3 forward => default;
         public static Vector3 operator +(Vector3 a, Vector3 b) => a;
         public static Vector3 operator -(Vector3 a, Vector3 b) => a;
@@ -71,21 +71,24 @@ namespace UnityEngine
     {
         public float r, g, b, a;
         public Color(float r, float g, float b, float a = 1) { this.r = r; this.g = g; this.b = b; this.a = a; }
-        public static Color white => default; public static Color black => default; public static Color clear => default;
+        public static Color white => default; public Color(float r, float g, float b) : this(r, g, b, 1) { } public static Color black => default; public static Color clear => default;
         public static Color Lerp(Color a, Color b, float t) => a;
         public static Color operator *(Color a, float b) => a;
     }
     public struct Color32 { public byte r, g, b, a; }
     public static class ColorUtility { public static bool TryParseHtmlString(string s, out Color c) { c = default; return true; } }
-    public struct Rect { public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; } public float x, y, width, height; }
+    public struct Rect { public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; } public float x, y, width, height; public float xMax => x + width; public float yMax => y + height; }
     public class RectOffset { public RectOffset(int l, int r, int t, int b) { } }
-    public enum TextAnchor { UpperLeft, MiddleCenter, MiddleLeft }
+    public enum TextAnchor { UpperLeft, UpperCenter, UpperRight, MiddleLeft, MiddleCenter, MiddleRight, LowerLeft, LowerCenter, LowerRight }
     public enum FontStyle { Normal, Bold }
-    public class GUIStyle { public GUIStyle(GUIStyle s) { } public GUIStyle() { } public int fontSize; public TextAnchor alignment; public FontStyle fontStyle; public RectOffset padding; public bool wordWrap; }
+    public class GUIStyle { public GUIStyle(GUIStyle s) { } public GUIStyle() { } public bool richText; public int fontSize; public TextAnchor alignment; public FontStyle fontStyle; public RectOffset padding; public bool wordWrap; }
     public class GUISkin { public GUIStyle box, label, button, textField; }
     public static class GUI
     {
         public static GUISkin skin;
+        public static Color color;
+        public static void DrawTexture(Rect r, Texture t) { }
+        public static void DrawTextureWithTexCoords(Rect r, Texture t, Rect uv) { }
         public static void Box(Rect r, string s) { }
         public static void Box(Rect r, string s, GUIStyle st) { }
         public static void Label(Rect r, string s) { }
@@ -96,12 +99,14 @@ namespace UnityEngine
     }
     public static class Screen { public static int width, height; }
     public static class Time { public static float deltaTime, time, unscaledDeltaTime; }
+    public static class Random { public static int Range(int a, int b) => a; public static float Range(float a, float b) => a; }
     public static class Mathf
     {
         public const float PI = 3.14159265f, Rad2Deg = 57.29578f, Deg2Rad = 0.0174533f;
         public static float Min(float a, float b) => a; public static float Max(float a, float b) => a;
         public static float Lerp(float a, float b, float t) => a; public static float Clamp(float v, float a, float b) => v;
         public static float Clamp01(float v) => v;
+        public static int Clamp(int v, int a, int b) => v;
         public static float Sin(float a) => a; public static float Cos(float a) => a; public static float Abs(float a) => a;
         public static float Floor(float a) => a; public static int FloorToInt(float a) => 0;
     }
@@ -111,7 +116,7 @@ namespace UnityEngine
     {
         public static string GetString(string k, string d) => d; public static void SetString(string k, string v) { }
         public static int GetInt(string k, int d) => d; public static void SetInt(string k, int v) { }
-        public static void Save() { }
+        public static void Save() { } public static void DeleteKey(string k) { }
     }
     public static class SystemInfo { public static int processorCount; }
     public enum CursorLockMode { None, Locked, Confined }
@@ -137,10 +142,11 @@ namespace UnityEngine
     public static class QualitySettings { public static float shadowDistance; }
     public class Shader : Object { public static Shader Find(string n) => null; }
     public class Texture : Object { public FilterMode filterMode; public TextureWrapMode wrapMode; public int anisoLevel, width, height; }
+    public enum MeshTopology { Triangles, Lines }
     public enum FilterMode { Point, Bilinear, Trilinear }
     public enum TextureWrapMode { Repeat, Clamp }
     public enum TextureFormat { RGBA32, ARGB32 }
-    public class Texture2D : Texture { public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void Apply() { } }
+    public class Texture2D : Texture { public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void Apply() { } public static Texture2D whiteTexture; }
     public static class ImageConversion { public static bool LoadImage(this Texture2D t, byte[] data) => true; }
     public class Material : Object
     {
@@ -153,7 +159,7 @@ namespace UnityEngine
     public static class Resources { public static T Load<T>(string p) where T : Object => null; }
     public class Mesh : Object
     {
-        public Rendering.IndexFormat indexFormat; public Vector3[] vertices, normals; public Vector2[] uv; public Color[] colors; public int[] triangles;
+        public void SetIndices(int[] i, MeshTopology t, int sub) { } public Rendering.IndexFormat indexFormat; public Vector3[] vertices, normals; public Vector2[] uv; public Color[] colors; public int[] triangles;
         public void RecalculateBounds() { } public void RecalculateNormals() { }
     }
     public class MeshFilter : Component { public Mesh sharedMesh, mesh; }
@@ -165,7 +171,7 @@ namespace UnityEngine
     public enum KeyCode { Space, LeftShift, C, LeftControl, V, F, Escape, E, T, I, Return, Alpha1 }
     public static class Input
     {
-        public static float GetAxisRaw(string a) => 0; public static bool GetKey(KeyCode k) => false; public static bool GetKeyDown(KeyCode k) => false;
+        public static float GetAxisRaw(string a) => 0; public static Vector2 mouseScrollDelta; public static bool GetKey(KeyCode k) => false; public static bool GetKeyDown(KeyCode k) => false;
         public static bool GetMouseButtonDown(int b) => false; public static bool GetMouseButton(int b) => false;
     }
 }
@@ -199,7 +205,7 @@ namespace UnityEngine.InputSystem
     public class Keyboard
     {
         public static Keyboard current;
-        public ButtonControl wKey, aKey, sKey, dKey, zKey, qKey, cKey, vKey, fKey, eKey, tKey, iKey, spaceKey, leftShiftKey, rightShiftKey, leftCtrlKey, escapeKey, enterKey, upArrowKey, downArrowKey, leftArrowKey, rightArrowKey, digit1Key;
+        public ButtonControl digit2Key, digit3Key, digit4Key, digit5Key, digit6Key, digit7Key, digit8Key, digit9Key, wKey, aKey, sKey, dKey, zKey, qKey, cKey, vKey, fKey, eKey, tKey, iKey, spaceKey, leftShiftKey, rightShiftKey, leftCtrlKey, escapeKey, enterKey, upArrowKey, downArrowKey, leftArrowKey, rightArrowKey, digit1Key;
     }
     public class Mouse { public static Mouse current; public Vector2Control delta, scroll, position; public ButtonControl leftButton, rightButton, middleButton; }
     public class Gamepad { public static Gamepad current; public Vector2Control leftStick, rightStick; public ButtonControl buttonSouth, buttonEast, buttonWest, buttonNorth, leftStickButton, rightTrigger, leftTrigger; }

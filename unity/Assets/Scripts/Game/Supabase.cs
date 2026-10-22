@@ -117,6 +117,65 @@ namespace EtherMines.Game
             }
         }
 
+        // a new guest session, forgetting the kept one (net.js freshSession): when this device holds
+        // another game than the one you're entering, the server asks for one so that game isn't overwritten
+        public async Task FreshSession()
+        {
+            PlayerPrefs.DeleteKey(SessionKey);
+            AccessToken = null;
+            UserId = null;
+            using (var r = Json("POST", Config.SupabaseUrl + "/auth/v1/signup", "{\"data\":{}}"))
+            {
+                await Send(r);
+                if (r.result != UnityWebRequest.Result.Success)
+                    throw new Exception("guest sign-in: " + r.responseCode + " " + r.downloadHandler.text);
+                KeepSession((Dictionary<string, object>)MiniJson.Parse(r.downloadHandler.text));
+            }
+        }
+
+        // a game action arbitrated by the server (net.js act): act_<name>(w, ...args). A chunk nobody froze
+        // yet is frozen first (the freeze Edge Function), then the action is tried again.
+        public async Task<Dictionary<string, object>> Act(string world, string name, Dictionary<string, object> args)
+        {
+            var a = new Dictionary<string, object> { ["w"] = world };
+            foreach (var kv in args) a[kv.Key] = kv.Value;
+            for (int attempt = 0; ; attempt++)
+            {
+                try { return await Rpc("act_" + name, MiniJson.Write(a)) as Dictionary<string, object>; }
+                catch (Exception e)
+                {
+                    var m = System.Text.RegularExpressions.Regex.Match(e.Message, @"freeze:(-?\d+),(-?\d+)");
+                    if (!m.Success || attempt > 0) throw;
+                    await Freeze(world, int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value));
+                }
+            }
+        }
+
+        public async Task<Dictionary<string, object>> Freeze(string world, int cx, int cz)
+        {
+            await Fresh();
+            using (var r = Json("POST", Config.SupabaseUrl + "/functions/v1/freeze", MiniJson.Write(new Dictionary<string, object> { ["world"] = world, ["cx"] = cx, ["cz"] = cz })))
+            {
+                r.SetRequestHeader("Authorization", "Bearer " + AccessToken);
+                await Send(r);
+                if (r.result != UnityWebRequest.Result.Success) throw new Exception("freeze: " + r.responseCode + " " + r.downloadHandler.text);
+                return MiniJson.Parse(r.downloadHandler.text) as Dictionary<string, object>;
+            }
+        }
+
+        // insert or update a row (supabase-js upsert): players, keyed by (user_id, world)
+        public async Task Upsert(string table, string onConflict, Dictionary<string, object> row)
+        {
+            await Fresh();
+            using (var r = Json("POST", Config.SupabaseUrl + "/rest/v1/" + table + "?on_conflict=" + onConflict, MiniJson.Write(new List<object> { row })))
+            {
+                r.SetRequestHeader("Authorization", "Bearer " + AccessToken);
+                r.SetRequestHeader("Prefer", "resolution=merge-duplicates,return=minimal");
+                await Send(r);
+                if (r.result != UnityWebRequest.Result.Success) throw new Exception(table + ": " + r.responseCode + " " + r.downloadHandler.text);
+            }
+        }
+
         public static string Q(string s) => Uri.EscapeDataString(s);
     }
 }

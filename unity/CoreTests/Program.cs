@@ -20,6 +20,7 @@ namespace EtherMines.CoreTests
             if (only == null || only == "world") WorldParity.Run();
             if (only == null || only == "mesh") MeshParity.Run();
             if (only == null || only == "physics") PhysicsCheck.Run();
+            if (only == null || only == "step2") Step2Check.Run();
             Console.WriteLine(failures.Count == 0 ? "ALL PASS" : failures.Count + " FAILED");
             return failures.Count == 0 ? 0 : 1;
         }

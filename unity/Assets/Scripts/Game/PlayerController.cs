@@ -19,6 +19,7 @@ namespace EtherMines.Game
         public bool Fly; // F: flying freely (exploring, debugging)
         public int View; // 0 first person, 1 from behind, 2 from the front
         public float Sensitivity = 1f;
+        public bool Sneaking; // crouching: place against a door instead of opening it
         readonly double[] boxBuf = new double[64 * 6];
         double eyeLag;
         bool ready;
@@ -55,6 +56,7 @@ namespace EtherMines.Game
             if (Body == null) return;
             float dt = Mathf.Min(Time.deltaTime, 0.05f);
             ReadInput(out float fx, out float fz, out float lookX, out float lookY, out bool jump, out bool run, out bool sneak, out bool toggleView, out bool toggleFly, out bool unlock);
+            Sneaking = sneak;
             if (unlock) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
             if (Cursor.lockState != CursorLockMode.Locked && ClickedIn()) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
             Yaw -= lookX * 0.0025 * Sensitivity;

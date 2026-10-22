@@ -188,5 +188,84 @@ namespace EtherMines.Core
             if (v is string s) return s.Length > 0;
             return true;
         }
+
+        // ---------- writing (the save, the server's arguments) ----------
+        public static string Write(object v)
+        {
+            var sb = new StringBuilder();
+            WriteTo(sb, v);
+            return sb.ToString();
+        }
+
+        static void WriteTo(StringBuilder sb, object v)
+        {
+            switch (v)
+            {
+                case null: sb.Append("null"); return;
+                case bool b: sb.Append(b ? "true" : "false"); return;
+                case string s: Str(sb, s); return;
+                case double d: Num(sb, d); return;
+                case float f: Num(sb, f); return;
+                case int i: sb.Append(i.ToString(CultureInfo.InvariantCulture)); return;
+                case long l: sb.Append(l.ToString(CultureInfo.InvariantCulture)); return;
+                case System.Collections.IDictionary dict:
+                    {
+                        sb.Append('{');
+                        bool first = true;
+                        foreach (System.Collections.DictionaryEntry e in dict)
+                        {
+                            if (!first) sb.Append(',');
+                            first = false;
+                            Str(sb, Convert.ToString(e.Key, CultureInfo.InvariantCulture));
+                            sb.Append(':');
+                            WriteTo(sb, e.Value);
+                        }
+                        sb.Append('}');
+                        return;
+                    }
+                case System.Collections.IEnumerable list:
+                    {
+                        sb.Append('[');
+                        bool first = true;
+                        foreach (var e in list)
+                        {
+                            if (!first) sb.Append(',');
+                            first = false;
+                            WriteTo(sb, e);
+                        }
+                        sb.Append(']');
+                        return;
+                    }
+                default: Str(sb, Convert.ToString(v, CultureInfo.InvariantCulture)); return;
+            }
+        }
+
+        static void Num(StringBuilder sb, double d)
+        {
+            if (double.IsNaN(d) || double.IsInfinity(d)) { sb.Append("null"); return; }
+            if (d == Math.Floor(d) && Math.Abs(d) < 1e15) sb.Append(((long)d).ToString(CultureInfo.InvariantCulture));
+            else sb.Append(d.ToString("R", CultureInfo.InvariantCulture));
+        }
+
+        static void Str(StringBuilder sb, string s)
+        {
+            sb.Append('"');
+            foreach (var c in s)
+            {
+                switch (c)
+                {
+                    case '"': sb.Append("\\\""); break;
+                    case '\\': sb.Append("\\\\"); break;
+                    case '\n': sb.Append("\\n"); break;
+                    case '\r': sb.Append("\\r"); break;
+                    case '\t': sb.Append("\\t"); break;
+                    default:
+                        if (c < 0x20) sb.Append("\\u").Append(((int)c).ToString("x4"));
+                        else sb.Append(c);
+                        break;
+                }
+            }
+            sb.Append('"');
+        }
     }
 }
