@@ -17,6 +17,7 @@ namespace EtherMines.Game
     {
         public Session Session; // null offline
         public Interaction Act;
+        public Progress Progress; // null offline
         public string Tab = "bag";
         Vector2 scroll;
         string selKey, craftCat = "";
@@ -53,11 +54,12 @@ namespace EtherMines.Game
             if (Chat.Typing) return;
 #if ENABLE_INPUT_SYSTEM
             var k = Keyboard.current;
-            bool e = k != null && k.eKey.wasPressedThisFrame, esc = k != null && k.escapeKey.wasPressedThisFrame;
+            bool e = k != null && k.eKey.wasPressedThisFrame, esc = k != null && k.escapeKey.wasPressedThisFrame, o = k != null && k.oKey.wasPressedThisFrame;
 #else
-            bool e = Input.GetKeyDown(KeyCode.E), esc = Input.GetKeyDown(KeyCode.Escape);
+            bool e = Input.GetKeyDown(KeyCode.E), esc = Input.GetKeyDown(KeyCode.Escape), o = Input.GetKeyDown(KeyCode.O);
 #endif
             if (e) { if (Ui.PanelOpen) Hide(); else Show(Tab == "chest" ? "bag" : Tab); }
+            else if (o && Progress != null) { if (Ui.PanelOpen && Tab == "quest") Hide(); else Show("quest"); }
             else if (esc && Ui.PanelOpen) Hide();
         }
 
@@ -125,9 +127,10 @@ namespace EtherMines.Game
             Ui.Frame(new Rect(x, y, W, H), new Color(1, 1, 1, 0.12f));
             // the tabs
             float tx = x + 16;
-            foreach (var (k, t) in new[] { ("bag", "Your bag"), ("craft", "Crafting"), ("chest", "Chest") })
+            foreach (var (k, t) in new[] { ("bag", "Your bag"), ("craft", "Crafting"), ("quest", "Objectives"), ("validators", "Validators"), ("chest", "Chest") })
             {
                 if (k == "chest" && Open == null) continue;
+                if ((k == "quest" || k == "validators") && Progress == null) continue;
                 if (GUI.Button(new Rect(tx, y + 12, 120, 30), t, Tab == k ? Ui.Primary : Ui.Button)) { Tab = k; scroll = Vector2.zero; }
                 tx += 128;
             }
@@ -137,6 +140,8 @@ namespace EtherMines.Game
             if (Tab == "bag") Bag(body);
             else if (Tab == "craft") CraftTab(body);
             else if (Tab == "chest" && Open != null) ChestTab(body);
+            else if (Tab == "quest" && Progress != null) Progress.DrawObjectives(body);
+            else if (Tab == "validators" && Progress != null) Progress.DrawValidators(body);
         }
 
         // ---------- your bag ----------

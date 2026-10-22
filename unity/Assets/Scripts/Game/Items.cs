@@ -105,6 +105,7 @@ namespace EtherMines.Game
             }
             if (!Night) { Hud.Feed("burn", "Too bright to sleep", "wait for nightfall"); return; }
             if (Link != null && Link.HpServer) Link.Send(new Dictionary<string, object> { ["t"] = "heal", ["kind"] = "bed" });
+            if (Session != null && !(Session.State.TryGetValue("slept", out var sl) && MiniJson.Truthy(sl))) { Session.State["slept"] = 1.0; Session.Dirty = true; }
             Act.Swing = 0.6f;
             Hud.Feed("mint", "You rest", "full hearts. The night goes on for everyone in this world");
         }

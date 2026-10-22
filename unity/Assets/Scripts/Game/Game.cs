@@ -130,6 +130,13 @@ namespace EtherMines.Game
                 items.Panel = panel;
                 items.Sky = sky;
                 interaction.Items = items;
+                if (session != null)
+                {
+                    var progress = gameObject.AddComponent<Progress>();
+                    progress.Session = session;
+                    progress.Player = player;
+                    panel.Progress = progress;
+                }
                 if (session != null) session.Where = () => new[] { player.Body.X, player.Body.Y, player.Body.Z };
                 if (session != null)
                 {
@@ -238,7 +245,7 @@ namespace EtherMines.Game
             var b = player.Body;
             string s = $"{(session != null ? session.Login + " · " : "")}Position {Math.Floor(b.X)} · {Math.Floor(b.Y)} · {Math.Floor(b.Z)}   Day {sky.DayN} · {(int)(sky.Day * 24):00}:{(int)(sky.Day * 24 * 60 % 60):00}\n" +
                        $"{(world.Status.Length > 0 ? world.Status : status)}   chunks {world.Store.Count}{(mp != null ? "\n" + mp.Line : "")}\n" +
-                       "Left click: mine, strike · Right click: place, open, use, guard with a blade · 1-9 / wheel: bar · E bag & crafting · Enter chat · V view · F fly · Esc mouse";
+                       "Left click: mine, strike · Right click: place, open, use, guard with a blade · 1-9 / wheel: bar · E bag & crafting · O objectives · Enter chat · V view · F fly · Esc mouse";
             GUI.Box(new Rect(10, 10, 780, mp != null ? 96 : 74), s, box);
         }
     }

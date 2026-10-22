@@ -253,6 +253,13 @@ namespace EtherMines.Game
                 var tw = Mobs.Find(a.Type == "pow_twin" ? $"{parts[0]}|{slot + 1}|pos_twin" : $"{parts[0]}|{slot - 1}|pow_twin");
                 if (tw != null) Mobs.Die(tw);
             }
+            // a kill you took part in: the objectives remember it (a corrupted node: the Atrium defended)
+            if (dead && Session != null && m.TryGetValue("by", out var byv) && byv is List<object> by && by.Contains(Link.SelfId))
+            {
+                Session.State["killedMob"] = 1.0;
+                if (a.Type == "corrupted_node") Session.State["defended"] = 1.0;
+                Session.Dirty = true;
+            }
             if (down && !dead && mine) Hud.Feed("burn", a.Kind.N + " falls dormant…", "strike its twin down within 12 s, or it rises again");
         }
 

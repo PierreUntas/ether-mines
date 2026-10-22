@@ -62,6 +62,7 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
 4. Mobs and combat: the web version's models, striking, the guard and the parry, the Plasma Pistol,
    fighting other players, your hearts, falling in combat, the loot.
 5. The rest of the game, in parts. Done: the window (E: your bag, crafting, a chest), chests, consumables,
-   beds and meals, relighting a validator, wearing a plating or the boots, the boots' dodge.
-   Next: chapters, the shop, validators' upkeep, plots, hovercrafts, animals, signs.
+   beds and meals, relighting a validator, wearing a plating or the boots, the boots' dodge; the chapters
+   and their rewards (O, `Progress.cs`: the same save flags as the web version), your validators (attest,
+   upgrade). Next: the shop and the looks, plots, hovercrafts, animals, signs.
 Then touch controls and store builds (6).
