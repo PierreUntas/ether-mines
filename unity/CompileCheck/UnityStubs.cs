@@ -34,7 +34,7 @@ namespace UnityEngine
         public T AddComponent<T>() where T : Component => default;
         public T GetComponent<T>() => default;
         public T[] GetComponentsInChildren<T>() => null;
-        public void SetActive(bool v) { }
+        public void SetActive(bool v) { } public bool activeSelf; public static GameObject CreatePrimitive(PrimitiveType t) => null;
     }
     public class Transform : Component
     {
@@ -43,7 +43,12 @@ namespace UnityEngine
         public void SetParent(Transform p, bool worldPositionStays) { }
         public void SetPositionAndRotation(Vector3 p, Quaternion q) { }
     }
-    public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } }
+    public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public float magnitude => 0; }
+    public enum PrimitiveType { Cube, Sphere }
+    public class GUIStyleState { public Color textColor; }
+    public class GUIContent { public GUIContent(string s) { } }
+    public enum EventType { KeyDown, KeyUp, Repaint }
+    public class Event { public static Event current; public EventType type; public KeyCode keyCode; public void Use() { } }
     public struct Vector3
     {
         public float x, y, z;
@@ -76,12 +81,12 @@ namespace UnityEngine
         public static Color operator *(Color a, float b) => a;
     }
     public struct Color32 { public byte r, g, b, a; }
-    public static class ColorUtility { public static bool TryParseHtmlString(string s, out Color c) { c = default; return true; } }
+    public static class ColorUtility { public static bool TryParseHtmlString(string s, out Color c) { c = default; return true; } public static string ToHtmlStringRGB(Color c) => ""; }
     public struct Rect { public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; } public float x, y, width, height; public float xMax => x + width; public float yMax => y + height; }
     public class RectOffset { public RectOffset(int l, int r, int t, int b) { } }
     public enum TextAnchor { UpperLeft, UpperCenter, UpperRight, MiddleLeft, MiddleCenter, MiddleRight, LowerLeft, LowerCenter, LowerRight }
     public enum FontStyle { Normal, Bold }
-    public class GUIStyle { public GUIStyle(GUIStyle s) { } public GUIStyle() { } public bool richText; public int fontSize; public TextAnchor alignment; public FontStyle fontStyle; public RectOffset padding; public bool wordWrap; }
+    public class GUIStyle { public GUIStyle(GUIStyle s) { } public GUIStyle() { } public bool richText; public int fontSize; public TextAnchor alignment; public FontStyle fontStyle; public RectOffset padding; public bool wordWrap; public GUIStyleState normal = new GUIStyleState(); public Vector2 CalcSize(GUIContent c) => default; public float CalcHeight(GUIContent c, float w) => 0; }
     public class GUISkin { public GUIStyle box, label, button, textField; }
     public static class GUI
     {
@@ -94,12 +99,12 @@ namespace UnityEngine
         public static void Label(Rect r, string s) { }
         public static void Label(Rect r, string s, GUIStyle st) { }
         public static bool Button(Rect r, string s) => false;
-        public static string TextField(Rect r, string s, int max) => s;
+        public static string TextField(Rect r, string s, int max) => s; public static string TextField(Rect r, string s, int max, GUIStyle st) => s; public static void SetNextControlName(string n) { } public static void FocusControl(string n) { }
         public static string PasswordField(Rect r, string s, char c, int max) => s;
     }
     public static class Screen { public static int width, height; }
-    public static class Time { public static float deltaTime, time, unscaledDeltaTime; }
-    public static class Random { public static int Range(int a, int b) => a; public static float Range(float a, float b) => a; }
+    public static class Time { public static float deltaTime, time, unscaledDeltaTime; public static int frameCount; }
+    public static class Random { public static int Range(int a, int b) => a; public static float Range(float a, float b) => a; public static float value; }
     public static class Mathf
     {
         public const float PI = 3.14159265f, Rad2Deg = 57.29578f, Deg2Rad = 0.0174533f;
@@ -127,7 +132,7 @@ namespace UnityEngine
         public static Camera main;
         public float nearClipPlane, farClipPlane, fieldOfView;
         public CameraClearFlags clearFlags;
-        public Color backgroundColor;
+        public Color backgroundColor; public Vector3 WorldToScreenPoint(Vector3 p) => default;
     }
     public enum LightType { Directional, Point, Spot }
     public enum LightShadows { None, Hard, Soft }
@@ -168,7 +173,7 @@ namespace UnityEngine
     public class AsyncOperation { public event Action<AsyncOperation> completed; public bool isDone; }
     public enum RuntimeInitializeLoadType { AfterSceneLoad, BeforeSceneLoad }
     [AttributeUsage(AttributeTargets.Method)] public class RuntimeInitializeOnLoadMethodAttribute : Attribute { public RuntimeInitializeOnLoadMethodAttribute(RuntimeInitializeLoadType t) { } }
-    public enum KeyCode { Space, LeftShift, C, LeftControl, V, F, Escape, E, T, I, Return, Alpha1 }
+    public enum KeyCode { Space, LeftShift, C, LeftControl, V, F, Escape, E, T, I, Return, Alpha1, KeypadEnter }
     public static class Input
     {
         public static float GetAxisRaw(string a) => 0; public static Vector2 mouseScrollDelta; public static bool GetKey(KeyCode k) => false; public static bool GetKeyDown(KeyCode k) => false;
@@ -205,7 +210,7 @@ namespace UnityEngine.InputSystem
     public class Keyboard
     {
         public static Keyboard current;
-        public ButtonControl digit2Key, digit3Key, digit4Key, digit5Key, digit6Key, digit7Key, digit8Key, digit9Key, wKey, aKey, sKey, dKey, zKey, qKey, cKey, vKey, fKey, eKey, tKey, iKey, spaceKey, leftShiftKey, rightShiftKey, leftCtrlKey, escapeKey, enterKey, upArrowKey, downArrowKey, leftArrowKey, rightArrowKey, digit1Key;
+        public ButtonControl digit2Key, digit3Key, digit4Key, digit5Key, digit6Key, digit7Key, digit8Key, digit9Key, wKey, aKey, sKey, dKey, zKey, qKey, cKey, vKey, fKey, eKey, tKey, iKey, spaceKey, leftShiftKey, rightShiftKey, leftCtrlKey, escapeKey, enterKey, numpadEnterKey, upArrowKey, downArrowKey, leftArrowKey, rightArrowKey, digit1Key;
     }
     public class Mouse { public static Mouse current; public Vector2Control delta, scroll, position; public ButtonControl leftButton, rightButton, middleButton; }
     public class Gamepad { public static Gamepad current; public Vector2Control leftStick, rightStick; public ButtonControl buttonSouth, buttonEast, buttonWest, buttonNorth, leftStickButton, rightTrigger, leftTrigger; }

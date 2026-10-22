@@ -1,0 +1,169 @@
+// Ether Mines · the game server (server/, net.js gsConnect): the players' real time over one WebSocket.
+// Hello with your session token, then your position when you move (at most 5 times a second, a sign of
+// life every 4 s), and from the server the list of who is in the world (peers, every 2 s) and the moves
+// of the players near you (pos). Mobs and fights come with the next steps: until then this client says
+// it has hostile mobs turned off (nm), so the server's mobs leave it be.
+using System;
+using System.Collections.Generic;
+using EtherMines.Core;
+
+namespace EtherMines.Game
+{
+    public sealed class GameLink
+    {
+        public const int Protocol = 2; // server.js PROTOCOL, net.js GS_PROTOCOL
+        const string Origin = "https://ethermines.org";
+
+        public sealed class Peer { public string Id, Name, Color; public double X, Y, Z; public bool HasPos; }
+        public sealed class Move { public string Id, Name, Color; public double X, Y, Z, Yaw, Pitch; public bool Mining; public int Held; }
+
+        public event Action<List<Peer>> Peers;
+        public event Action<Move> Pos;
+        public string Status = "";
+        public bool Ready { get; private set; }
+        public string SelfId { get; private set; }
+
+        public string Url = Config.GameServer; // another one for tests (server/: npm run dev)
+        readonly string world;
+        readonly Func<System.Threading.Tasks.Task<string>> token;
+        Socket sock;
+        bool connecting, off;
+        float retryT, tokenT;
+        int retries;
+        string sentToken;
+        double lx, ly, lz, lyaw, lpitch;
+        bool lm, sentOnce;
+        int lh;
+        float lastSent;
+
+        public GameLink(string world, Func<System.Threading.Tasks.Task<string>> token)
+        {
+            this.world = world;
+            this.token = token;
+        }
+
+        async void Connect()
+        {
+            connecting = true;
+            try
+            {
+                var tk = await token();
+                sock = await Socket.Connect(Url, Origin);
+                sentToken = tk;
+                sock.Send(MiniJson.Write(new Dictionary<string, object>
+                {
+                    ["t"] = "hello", ["v"] = Protocol, ["world"] = world, ["token"] = tk, ["title"] = "", ["look"] = "", ["nm"] = 1,
+                }));
+                Status = "hello";
+            }
+            catch (Exception e)
+            {
+                Status = "game server: " + e.Message;
+                sock = null;
+                Later();
+            }
+            finally { connecting = false; }
+        }
+
+        void Later() => retryT = Math.Min(10, 2 << Math.Min(retries++, 3)) + UnityEngine.Random.value;
+
+        public void Tick(float dt)
+        {
+            if (off) return;
+            if (sock == null)
+            {
+                if (!connecting && (retryT -= dt) <= 0) Connect();
+                return;
+            }
+            while (sock.TryRead(out var raw)) Handle(raw);
+            if (sock.Closed)
+            {
+                Ready = false;
+                if (Status.StartsWith("hello", StringComparison.Ordinal) || Status == "online") Status = "game server lost";
+                sock.Dispose();
+                sock = null;
+                if (!off) Later();
+                return;
+            }
+            if (Ready && (tokenT -= dt) <= 0) { tokenT = 60; RenewToken(); }
+        }
+
+        async void RenewToken()
+        {
+            try
+            {
+                var tk = await token();
+                if (tk != sentToken && sock != null) { sentToken = tk; sock.Send(MiniJson.Write(new Dictionary<string, object> { ["t"] = "token", ["token"] = tk })); }
+            }
+            catch (Exception) { }
+        }
+
+        void Handle(string raw)
+        {
+            if (!(MiniJson.Parse(raw) is Dictionary<string, object> m) || !(m.TryGetValue("t", out var tv) && tv is string t)) return;
+            if (t == "welcome")
+            {
+                SelfId = m["id"] as string;
+                Ready = true;
+                retries = 0;
+                Status = "online";
+                sentOnce = false;
+            }
+            else if (t == "bye")
+            {
+                var reason = m.TryGetValue("reason", out var r) ? r as string : "";
+                if (reason == "version") { off = MiniJson.ToInt(m.TryGetValue("protocol", out var pv) ? pv : null) > Protocol; Status = off ? "game server is newer: update this app" : "game server is being updated"; retries = Math.Max(retries, 3); }
+                else if (reason == "elsewhere") { off = true; Status = "you entered on another screen"; }
+                else if (reason == "world") { off = true; Status = "game server: this world name isn't accepted"; }
+                else Status = "game server: " + reason;
+            }
+            else if (t == "peers" && m.TryGetValue("list", out var l) && l is List<object> list)
+            {
+                var ps = new List<Peer>();
+                foreach (var o in list)
+                    if (o is Dictionary<string, object> p)
+                    {
+                        var e = new Peer { Id = p["id"] as string, Name = p.TryGetValue("name", out var n) ? n as string : "?", Color = p.TryGetValue("color", out var c) ? c as string : "#8a7bef" };
+                        if (p.TryGetValue("x", out var x) && x is double) { e.HasPos = true; e.X = (double)x; e.Y = MiniJson.ToDouble(p["y"]); e.Z = MiniJson.ToDouble(p["z"]); }
+                        ps.Add(e);
+                    }
+                Peers?.Invoke(ps);
+            }
+            else if (t == "pos")
+            {
+                Pos?.Invoke(new Move
+                {
+                    Id = m["id"] as string, Name = m.TryGetValue("name", out var n) ? n as string : "?", Color = m.TryGetValue("color", out var c) ? c as string : "#8a7bef",
+                    X = MiniJson.ToDouble(m["x"]), Y = MiniJson.ToDouble(m["y"]), Z = MiniJson.ToDouble(m["z"]),
+                    Yaw = MiniJson.ToDouble(m.TryGetValue("yaw", out var yw) ? yw : null), Pitch = MiniJson.ToDouble(m.TryGetValue("pitch", out var pt) ? pt : null),
+                    Mining = MiniJson.Truthy(m.TryGetValue("m", out var mm) ? mm : null), Held = MiniJson.ToInt(m.TryGetValue("h", out var h) ? h : null),
+                });
+            }
+        }
+
+        // your position (14-startup.js): only when you moved, at most 5 times a second, a sign of life every 4 s
+        public void SendPos(double x, double y, double z, double yaw, double pitch, bool mining, int held, float now)
+        {
+            if (!Ready || now - lastSent < 0.2f) return;
+            bool moved = !sentOnce || Math.Sqrt((x - lx) * (x - lx) + (y - ly) * (y - ly) + (z - lz) * (z - lz)) > 0.08 ||
+                         Math.Abs(yaw - lyaw) > 0.06 || Math.Abs(pitch - lpitch) > 0.08 || mining != lm || held != lh;
+            if (!moved && now - lastSent < 4) return;
+            sentOnce = true;
+            lx = x; ly = y; lz = z; lyaw = yaw; lpitch = pitch; lm = mining; lh = held;
+            lastSent = now;
+            sock?.Send(MiniJson.Write(new Dictionary<string, object>
+            {
+                ["t"] = "pos", ["x"] = Math.Round(x, 2), ["y"] = Math.Round(y, 2), ["z"] = Math.Round(z, 2), ["yaw"] = Math.Round(yaw, 2), ["pitch"] = Math.Round(pitch, 2),
+                ["m"] = mining, ["h"] = held, ["gd"] = 0, ["rd"] = 0, ["on"] = 0, ["ar"] = 0, ["bt"] = 0, ["nm"] = 1, ["fx"] = 0, ["fq"] = 0,
+            }));
+        }
+
+        // a block changed (heard from the database's feed): the server's mobs walk the new terrain
+        public void Edit(int x, int y, int z, int id)
+        {
+            if (Ready) sock?.Send(MiniJson.Write(new Dictionary<string, object> { ["t"] = "edit", ["x"] = x, ["y"] = y, ["z"] = z, ["id"] = id }));
+        }
+
+        public void Close() { off = true; sock?.Dispose(); sock = null; }
+    }
+}

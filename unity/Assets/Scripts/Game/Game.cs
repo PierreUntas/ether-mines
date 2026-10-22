@@ -62,6 +62,7 @@ namespace EtherMines.Game
 
         Session session;
         Interaction interaction;
+        Multiplayer mp;
         string nick = "", password = "", newPassword = "";
         bool busy, known;
         float saveT;
@@ -115,6 +116,15 @@ namespace EtherMines.Game
                 interaction.Player = player;
                 interaction.Session = session;
                 gameObject.AddComponent<Hud>().Act = interaction;
+                if (session != null)
+                {
+                    // playing together: the others, their blocks, the chat
+                    mp = gameObject.AddComponent<Multiplayer>();
+                    mp.Session = session;
+                    mp.World = world;
+                    mp.Player = player;
+                    mp.Act = interaction;
+                }
                 player.enabled = true;
                 started = true;
                 status = "";
@@ -212,9 +222,9 @@ namespace EtherMines.Game
             if (player.Body == null) return;
             var b = player.Body;
             string s = $"{(session != null ? session.Login + " · " : "")}Position {Math.Floor(b.X)} · {Math.Floor(b.Y)} · {Math.Floor(b.Z)}   Day {sky.DayN} · {(int)(sky.Day * 24):00}:{(int)(sky.Day * 24 * 60 % 60):00}\n" +
-                       $"{(world.Status.Length > 0 ? world.Status : status)}   chunks {world.Store.Count}\n" +
-                       "Hold left click: mine · Right click: place, open · 1-9 / wheel: bar · V view · F fly · Esc mouse";
-            GUI.Box(new Rect(10, 10, 640, 74), s, box);
+                       $"{(world.Status.Length > 0 ? world.Status : status)}   chunks {world.Store.Count}{(mp != null ? "\n" + mp.Line : "")}\n" +
+                       "Hold left click: mine · Right click: place, open · 1-9 / wheel: bar · Enter chat · V view · F fly · Esc mouse";
+            GUI.Box(new Rect(10, 10, 680, mp != null ? 96 : 74), s, box);
         }
     }
 }

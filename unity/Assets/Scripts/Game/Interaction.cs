@@ -233,7 +233,7 @@ namespace EtherMines.Game
         static void ReadButtons(out bool mining, out bool use, out int slot, out float wheel)
         {
             mining = use = false; slot = -1; wheel = 0;
-            if (Cursor.lockState != CursorLockMode.Locked) return;
+            if (Cursor.lockState != CursorLockMode.Locked || Chat.Typing) return;
 #if ENABLE_INPUT_SYSTEM
             var m = Mouse.current;
             if (m != null)

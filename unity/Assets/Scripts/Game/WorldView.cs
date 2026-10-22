@@ -198,6 +198,33 @@ namespace EtherMines.Game
             if (lz == 15) QueueMesh(cx, cz + 1);
         }
 
+        // a block changed live in a chunk we drew from the generator: the server froze it just now, read its
+        // terrain from there (11-multiplayer.js applyBlock), the known changes laid on top again
+        public async void Refetch(int cx, int cz)
+        {
+            if (Net == null || Store.IsFrozen(cx, cz)) return;
+            try
+            {
+                var rows = await Net.Select($"chunks?select=sy,data&world=eq.{Supabase.Q(WorldName)}&cx=eq.{cx}&cz=eq.{cz}");
+                if (rows.Count == 0 || !Store.Has(cx, cz) || !(rows[0] is Dictionary<string, object> r)) return;
+                var a = World.DecodeChunk(r["data"] as string, MiniJson.ToInt(r["sy"], World.SY));
+                Store.PutArray(cx, cz, a, true);
+                QueueMesh(cx, cz);
+                QueueMesh(cx + 1, cz); QueueMesh(cx - 1, cz); QueueMesh(cx, cz + 1); QueueMesh(cx, cz - 1);
+            }
+            catch (Exception e) { Debug.LogWarning(e); }
+        }
+
+        // the whole world read again (it was restored as generated, outside the claimed plots)
+        public void ReloadAll()
+        {
+            foreach (var go in views.Values) { foreach (var f in go.GetComponentsInChildren<MeshFilter>()) Destroy(f.sharedMesh); Destroy(go); }
+            views.Clear();
+            meshQueue.Clear();
+            meshSeq.Clear();
+            Store.Clear();
+        }
+
         void StartMesh(long key)
         {
             int cx = ChunkStore.KeyX(key), cz = ChunkStore.KeyZ(key);

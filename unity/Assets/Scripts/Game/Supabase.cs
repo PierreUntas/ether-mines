@@ -82,6 +82,13 @@ namespace EtherMines.Game
             else if (Now > expiresAt - 60 && !await Refresh(refreshToken)) await SignIn();
         }
 
+        // the session token, renewed when it's about to run out (for the real-time connections)
+        public async Task<string> Token()
+        {
+            await Fresh();
+            return AccessToken;
+        }
+
         // every row of a REST query, 1000 at a time (readAll in net.js). query: "chunks?select=...&world=eq.x"
         public async Task<List<object>> Select(string query)
         {

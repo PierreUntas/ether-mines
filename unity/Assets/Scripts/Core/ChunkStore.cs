@@ -88,6 +88,15 @@ namespace EtherMines.Core
 
         public Owner OwnerOf(int x, int y, int z) { owners.TryGetValue(CellKey(x, y, z), out var o); return o; }
 
+        // everything forgotten (the world was restored as generated): read again from the server
+        public void Clear()
+        {
+            chunks.Clear();
+            frozen.Clear();
+            edits.Clear();
+            owners.Clear();
+        }
+
         public void Drop(int cx, int cz)
         {
             var k = Key(cx, cz);

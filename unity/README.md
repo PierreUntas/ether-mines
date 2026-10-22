@@ -14,7 +14,10 @@ accounts** as the web version: same Supabase project, same `act_*` functions, sa
   (`Rules.cs` + `Resources/rules.json`), chunk meshing (`Mesher.cs`), the loaded world (`ChunkStore.cs`),
   walking physics (`PlayerPhysics.cs`). Ported from the web version and **checked against it**.
 - `Assets/Scripts/Game/` — the Unity side: streaming and drawing chunks (`WorldView.cs`), you
-  (`PlayerController.cs`), the sky (`Sky.cs`), Supabase (`Supabase.cs`), the servers (`Config.cs`).
+  (`PlayerController.cs`), the sky (`Sky.cs`), Supabase (`Supabase.cs`), the servers (`Config.cs`),
+  your account and save (`Session.cs`), mining and placing (`Interaction.cs`), the HUD (`Hud.cs`), playing
+  together (`Multiplayer.cs`: the game server in `GameLink.cs`, the database's feed in `Realtime.cs`, both
+  over `Socket.cs`; the others' figures in `Avatars.cs`; `Chat.cs`).
 - `Assets/Resources/Shaders/` — the clay look (blocks, glass, water, plants, sky), built-in render pipeline.
 - `Assets/Resources/Art/` — the web version's own textures, exported by `tools/export-art.mjs`.
 
@@ -33,8 +36,19 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
 - Type-check the Unity scripts without the editor: `cd unity/CompileCheck && dotnet build -c Release`
   (and `-p:Legacy=1` for the old Input Manager branch). `UnityStubs.cs` holds the API they use.
 
+## Multiplayer
+- The game server (`server/`) is reached as the web page is, with the site's origin (`ALLOWED_ORIGINS`)
+  and `PROTOCOL` 2 (`GameLink.Protocol`: change it with `server.js` and `net.js`). Until mobs and combat
+  are ported, the hello and every position say `nm: 1` (hostile mobs off), so the server's mobs leave a
+  Unity player alone.
+- The blocks the others change and the chat come from Supabase Realtime (Phoenix protocol, topic
+  `world:<world>:unity`, the `blocks`, `chat` and `world_restores` tables), as `net.js` hears them.
+- Test without the real servers: `cd server && PORT=8799 AUTH_MODE=test MOB_SIM=0 node src/server.js`,
+  and point `GameLink.Url` at `ws://127.0.0.1:8799` (tokens `test:<id>:<name>`).
+
 ## Status
-Step 1: explore the world — terrain from the seed, the server's frozen chunks and changed blocks
-(read-only), the clay look, the day and night, walking with the web version's physics.
-Next: accounts and building (step 2), multiplayer (3), mobs and combat (4), the rest of the game (5),
-touch controls and store builds (6).
+1. Explore the world: terrain from the seed, the server's frozen chunks and changed blocks, the clay
+   look, the day and night, walking with the web version's physics.
+2. Your account (nickname and password, the same as on the web), your save, mining, placing, your bar.
+3. Playing together: the others walking and mining, their names, their blocks live, the chat.
+Next: mobs and combat (4), the rest of the game (5), touch controls and store builds (6).

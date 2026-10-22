@@ -113,6 +113,7 @@ namespace EtherMines.Game
             fx = fz = lookX = lookY = 0;
             jump = run = sneak = toggleView = toggleFly = unlock = false;
             bool locked = Cursor.lockState == CursorLockMode.Locked;
+            if (Chat.Typing) return; // writing a message: the keys are for the chat
 #if ENABLE_INPUT_SYSTEM
             var k = Keyboard.current;
             if (k != null)
