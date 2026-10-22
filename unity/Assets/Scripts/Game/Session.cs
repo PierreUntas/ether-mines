@@ -152,7 +152,7 @@ namespace EtherMines.Game
         // ok: the server's reply when it agreed, null when it refused (the refusal is said in the log)
         public async Task<Dictionary<string, object>> Act(string name, Dictionary<string, object> args, double ex, double ey, double ez, string why = null)
         {
-            if (name == "mine" || name == "place" || name == "toggle")
+            if (name == "mine" || name == "place" || name == "toggle" || name == "pos")
             {
                 args["ex"] = Math.Round(ex, 2);
                 args["ey"] = Math.Round(ey, 2);

@@ -4,7 +4,7 @@
 // tools/export-mobs.mjs), smoothed toward where they were last seen, walking, flapping, spinning, winding
 // up a blow, reeling from a parry, flashing when struck, bursting into cubes when they fall.
 // The models are in the game's coordinates (their front is +z): mirrored here like the world (z -> -z,
-// every rotation angle negated).
+// the turns about x and y reversed).
 using System;
 using System.Collections.Generic;
 using EtherMines.Core;
@@ -88,12 +88,13 @@ namespace EtherMines.Game
             return mats[key] = m;
         }
 
-        // three.js Euler angles (order XYZ by default, YXZ for a mob's root) seen in the mirror: every angle negated
+        // three.js Euler angles (order XYZ by default, YXZ for a mob's root) seen in the mirror (z -> -z): the
+        // turns about x and y change direction, the turn about z stays
         static Quaternion Mirror(Vector3 e, bool yxz = false)
         {
             var qx = Quaternion.AngleAxis(-e.x * Mathf.Rad2Deg, Vector3.right);
             var qy = Quaternion.AngleAxis(-e.y * Mathf.Rad2Deg, Vector3.up);
-            var qz = Quaternion.AngleAxis(-e.z * Mathf.Rad2Deg, Vector3.forward);
+            var qz = Quaternion.AngleAxis(e.z * Mathf.Rad2Deg, Vector3.forward); // in the mirror's plane: unchanged
             return yxz ? qy * qx * qz : qx * qy * qz;
         }
         static Vector3 V(List<object> l) => new Vector3((float)MiniJson.ToDouble(l[0]), (float)MiniJson.ToDouble(l[1]), (float)MiniJson.ToDouble(l[2]));

@@ -162,8 +162,9 @@ namespace EtherMines.Game
             return go.transform.childCount > 0 ? go : null;
         }
 
-        // three.js Euler angles (XYZ) seen in the mirror: every angle negated
+        // three.js Euler angles (XYZ) seen in the mirror (z -> -z): the turns about x and y change direction,
+        // the turn about z (in the mirror's own plane) stays as it is
         public static Quaternion Mirror(float x, float y, float z) =>
-            Quaternion.AngleAxis(-x * Mathf.Rad2Deg, Vector3.right) * Quaternion.AngleAxis(-y * Mathf.Rad2Deg, Vector3.up) * Quaternion.AngleAxis(-z * Mathf.Rad2Deg, Vector3.forward);
+            Quaternion.AngleAxis(-x * Mathf.Rad2Deg, Vector3.right) * Quaternion.AngleAxis(-y * Mathf.Rad2Deg, Vector3.up) * Quaternion.AngleAxis(z * Mathf.Rad2Deg, Vector3.forward);
     }
 }
