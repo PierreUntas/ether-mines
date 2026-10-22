@@ -13,6 +13,12 @@ namespace EtherMines.Core
         public double StepUp; // how much the eye still has to catch up after a step (eased by the camera)
         public double SpeedMul = 1;             // a meal or the Swift Elixir, the Front-Runner Boots, the guard (10-loop.js)
         public double DashT, DashVx, DashVz;    // a dodge: this velocity, for this long (16-mobs.js DASH)
+        // on board a Diamond Glider (20-hover.js): over the water, over one-block steps, twice as fast (the
+        // caller's SpeedMul), with inertia: it drifts in hard turns (rideVelocity)
+        public bool Riding;
+        double rideVx, rideVz;
+        const double HoverAccel = 3.5, HoverGrip = 1.4;
+        static readonly double[] Steps = { 0.26, 0.52 }, RideSteps = { 0.26, 0.52, 1.05 };
 
         readonly Func<int, int, int, int> get;
         readonly Func<int, int, bool> loaded;
@@ -35,6 +41,7 @@ namespace EtherMines.Core
                     {
                         if (by < 0 || !loaded(bx, bz) || !World.InWorld(bx, bz)) return true;
                         int id = get(bx, by, bz);
+                        if (id == 11 && Riding) return true; // the craft glides over the water instead of sinking into it
                         if (id == 0 || id == 11) continue;
                         var bs = boxes(id, bx, by, bz);
                         if (bs == null) continue;
@@ -71,7 +78,7 @@ namespace EtherMines.Core
                 if (On)
                 {
                     double up = 0;
-                    foreach (var h in new[] { 0.26, 0.52 })
+                    foreach (var h in Riding ? RideSteps : Steps)
                         if (!Collides(X, Y + h, Z)) { up = h; break; }
                     if (up > 0)
                     {
@@ -121,7 +128,19 @@ namespace EtherMines.Core
             double sn = Math.Sin(yaw), cs = Math.Cos(yaw);
             sp *= SpeedMul;
             double vx = (-sn * fz + cs * fx) * sp, vz = (-cs * fz - sn * fx) * sp;
+            if (Riding)
+            {
+                // the part along the nose follows the stick quickly, the part across it only slowly lets go
+                double nx = -sn, nz = -cs, f = rideVx * nx + rideVz * nz, tf = vx * nx + vz * nz,
+                    nf = f + (tf - f) * Math.Min(1, dt * HoverAccel), k = Math.Min(1, dt * HoverGrip),
+                    lx = rideVx - f * nx + (vx - tf * nx - (rideVx - f * nx)) * k,
+                    lz = rideVz - f * nz + (vz - tf * nz - (rideVz - f * nz)) * k;
+                vx = nf * nx + lx;
+                vz = nf * nz + lz;
+            }
+            else rideVx = rideVz = 0;
             if (DashT > 0) { vx = DashVx; vz = DashVz; }
+            double px0 = X, pz0 = Z;
             bool was = On;
             Bumped = false;
             bool guard = sneak && was && !inW;
@@ -154,6 +173,8 @@ namespace EtherMines.Core
             }
             On = false;
             MoveAxis(1, Vy * dt);
+            // what you really moved this frame (a wall stops the slide too)
+            if (Riding && dt > 0) { rideVx = (X - px0) / dt; rideVz = (Z - pz0) / dt; }
         }
     }
 }

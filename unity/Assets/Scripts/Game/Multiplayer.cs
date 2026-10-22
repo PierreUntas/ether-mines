@@ -27,6 +27,7 @@ namespace EtherMines.Game
         Progress progress;
         Signs signs;
         Claims claims;
+        Hover hover;
         readonly List<string> names = new List<string>();
         List<GameLink.Peer> lastPeers = new List<GameLink.Peer>();
         bool restoring;
@@ -69,6 +70,8 @@ namespace EtherMines.Game
             combat.Avatars = avatars;
             combat.Link = link;
             Act.Combat = combat;
+            hover = GetComponent<Hover>();
+            if (hover != null) { combat.Hover = hover; avatars.MyRide = () => hover.Riding; }
             var animals = GetComponent<Animals>();
             if (animals != null) { animals.Link = link; animals.Combat = combat; combat.Animals = animals; }
             avatars.MyArmor = () => combat.Armor;
@@ -89,7 +92,7 @@ namespace EtherMines.Game
                 names.Clear();
                 foreach (var p in list) if (p.Id != link.SelfId) names.Add(p.Name);
             };
-            link.Pos += m => { if (m.Id != link.SelfId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots); };
+            link.Pos += m => { if (m.Id != link.SelfId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride); };
 
             signs = gameObject.AddComponent<Signs>();
             signs.Session = Session;
@@ -204,7 +207,7 @@ namespace EtherMines.Game
             link.SetLook(avatars.MyTitle(), Looks.Code(avatars.MyLook()));
             int held = Act.Inv.HeldId;
             if (held <= 0 || Rules.Block(held) != null) held = 0; // what's drawn in their hand: a tool or a weapon
-            link.SendPos(b.X, b.Y, b.Z, Player.Yaw, Player.Pitch, Act.Swing > 0, held, Time.time, combat.Guarding, combat.Armor, combat.Boots, combat.Fx, combat.Fq, items != null && items.Warded);
+            link.SendPos(b.X, b.Y, b.Z, Player.Yaw, Player.Pitch, Act.Swing > 0, held, Time.time, combat.Guarding, combat.Armor, combat.Boots, combat.Fx, combat.Fq, items != null && items.Warded, hover != null ? hover.Riding : 0);
         }
 
         void OnDestroy()

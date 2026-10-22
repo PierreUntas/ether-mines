@@ -14,6 +14,7 @@ namespace EtherMines.Game
         public PlayerController Player;
         public Interaction Act;
         public Combat Combat; // null offline
+        public Hover Hover;   // on board, both hands on the craft
 
         Camera cam;
         Transform pivot;
@@ -100,7 +101,7 @@ namespace EtherMines.Game
         void LateUpdate()
         {
             if (Player.Body == null || cam == null) return;
-            bool show = Player.View == 0;
+            bool show = Player.View == 0 && !(Hover != null && Hover.Riding != 0);
             cam.enabled = show;
             if (!show) return;
             Set();

@@ -9,9 +9,10 @@
 // Run after changing a held model or an item:  node unity/tools/export-held.mjs   (--check: fail if stale)
 //
 // Format: items.<id> = { upright: 1 (held standing in the palm), parts: [{ c: "#rrggbb", e: "#rrggbb" glow
-// color, b: 1 for an unlit (basic) material, v: [x, y, z, ...] triangles, n: [nx, ny, nz, ...] one normal
+// color, b: 1 for an unlit (basic) material, o: its opacity when see-through, v: [x, y, z, ...] triangles, n: [nx, ny, nz, ...] one normal
 // per triangle (the models are faceted) }] } or
-// { voxel: tile }. Game coordinates (right-handed, -z away from you): the client mirrors z.
+// { voxel: tile }; hovers.<id> = { seat, back, parts }: a Diamond Glider (20-hover.js buildHover) at its
+// own scale, its hull centered on the driver's seat. Game coordinates (right-handed, -z away from you): the client mirrors z.
 import { chromium } from 'playwright';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -49,20 +50,11 @@ await page.route('**/src/config.js', r => r.fulfill({ body: 'window.CONFIG={}', 
 await page.route(/^https:\/\/fonts\./, r => r.abort());
 await page.goto(base + 'index.html');
 await page.waitForFunction(() => typeof clayModel === 'function' && typeof ITEM === 'object', null, { timeout: 60000 });
-const items = await page.evaluate(() => {
+const { out: items, hovers } = await page.evaluate(() => {
   const r4 = v => Math.round(v * 1e3) / 1e3;
   const hex = c => '#' + c.getHexString();
-  const out = {};
-  for (const id of Object.keys(ITEM).map(Number).sort((a, b) => a - b)) {
-    if (B[id]) continue;
-    const m = clayModel(id);
-    if (!m) {
-      out[id] = { voxel: ITEM[id].icon };
-      continue;
-    }
-    m.position.set(0, 0, 0);
-    m.rotation.set(0, 0, 0);
-    m.scale.set(1, 1, 1);
+  // every mesh of a model, as triangles in its root's space, one part per material look
+  function partsOf(m) {
     m.updateMatrixWorld(true);
     const parts = new Map(); // one part per material look
     m.traverse(o => {
@@ -80,8 +72,9 @@ const items = await page.evaluate(() => {
         const basic = mat.type === 'MeshBasicMaterial',
           c = hex(mat.color),
           e = !basic && mat.emissive ? hex(mat.emissive.clone().multiplyScalar(mat.emissiveIntensity ?? 1)) : '#000000',
-          key = c + e + basic;
-        if (!parts.has(key)) parts.set(key, { c, e, b: basic ? 1 : 0, v: [], n: [] });
+          op = mat.transparent && mat.opacity < 1 ? r4(mat.opacity) : 1,
+          key = c + e + basic + op;
+        if (!parts.has(key)) parts.set(key, { c, e, b: basic ? 1 : 0, ...(op < 1 ? { o: op } : {}), v: [], n: [] });
         const p = parts.get(key);
         for (let i = gr.start; i + 2 < gr.start + gr.count; i += 3) {
           // flat normals from the triangle itself, whatever the geometry says (the clay models are faceted)
@@ -95,9 +88,30 @@ const items = await page.evaluate(() => {
         }
       }
     });
-    out[id] = { ...(m.userData.upright ? { upright: 1 } : {}), parts: [...parts.values()].filter(p => p.v.length) };
+    return [...parts.values()].filter(p => p.v.length);
   }
-  return out;
+  const out = {};
+  for (const id of Object.keys(ITEM).map(Number).sort((a, b) => a - b)) {
+    if (B[id]) continue;
+    const m = clayModel(id);
+    if (!m) {
+      out[id] = { voxel: ITEM[id].icon };
+      continue;
+    }
+    m.position.set(0, 0, 0);
+    m.rotation.set(0, 0, 0);
+    m.scale.set(1, 1, 1);
+    out[id] = { ...(m.userData.upright ? { upright: 1 } : {}), parts: partsOf(m) };
+  }
+  // the Diamond Gliders (20-hover.js buildHover): the craft at its scale, its hull centered on the driver's
+  // seat; seat: the seat's height above the craft's origin, back: the back seat's z (null for none)
+  const hovers = {};
+  for (const id of Object.keys(ITEM).map(Number).sort((a, b) => a - b)) {
+    if (!ITEM[id].hover) continue;
+    const root = buildHover(id);
+    hovers[id] = { seat: r4(root.userData.seat), back: root.userData.back === null ? null : r4(root.userData.back), parts: partsOf(root) };
+  }
+  return { out, hovers };
 });
 await browser.close();
 server.close();
@@ -105,6 +119,10 @@ if (errors.length) throw new Error('export-held: the page failed: ' + errors.joi
 const text =
   '{"_format":"see unity/tools/export-held.mjs; generated, do not edit","items":{\n' +
   Object.entries(items)
+    .map(([k, v]) => JSON.stringify(k) + ':' + JSON.stringify(v))
+    .join(',\n') +
+  '\n},"hovers":{\n' +
+  Object.entries(hovers)
     .map(([k, v]) => JSON.stringify(k) + ':' + JSON.stringify(v))
     .join(',\n') +
   '\n}}\n';

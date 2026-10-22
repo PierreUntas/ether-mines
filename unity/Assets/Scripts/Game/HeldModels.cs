@@ -14,7 +14,7 @@ namespace EtherMines.Game
     {
         public sealed class Info { public bool Upright, Ranged, Block, Cube; public float Fit = 1; }
 
-        static Dictionary<string, object> items;
+        static Dictionary<string, object> items, data;
         static readonly Dictionary<string, Material> mats = new Dictionary<string, Material>();
         static readonly Dictionary<int, (MeshOut m, float fit)> blocks = new Dictionary<int, (MeshOut, float)>();
         public static WorldView World; // the world's materials, for blocks
@@ -29,19 +29,39 @@ namespace EtherMines.Game
             m.SetColor("_Glow", glow);
             return mats[k] = m;
         }
-        static Material Basic(Color c)
+        static Material Basic(Color c, float op = 1)
         {
-            var k = "b" + ColorUtility.ToHtmlStringRGB(c);
+            var k = "b" + ColorUtility.ToHtmlStringRGB(c) + op;
             if (mats.TryGetValue(k, out var m)) return m;
             m = new Material(Shader.Find("EtherMines/Glow"));
+            c.a = op;
             m.SetColor("_Color", c);
+            if (op < 1)
+            {
+                m.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                m.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                m.SetFloat("_ZWrite", 0);
+                m.renderQueue = 3000;
+            }
             return mats[k] = m;
         }
 
         static Dictionary<string, object> Item(int id)
         {
-            if (items == null) items = (Dictionary<string, object>)((Dictionary<string, object>)MiniJson.Parse(Resources.Load<TextAsset>("held").text))["items"];
+            if (items == null) { data = (Dictionary<string, object>)MiniJson.Parse(Resources.Load<TextAsset>("held").text); items = (Dictionary<string, object>)data["items"]; }
             return items.TryGetValue(id.ToString(), out var o) ? o as Dictionary<string, object> : null;
+        }
+
+        // a Diamond Glider: its model, the driver's seat height, the back seat's z (NaN when it has none)
+        public static GameObject Hover(int id, out float seat, out float back)
+        {
+            seat = 0; back = float.NaN;
+            if (items == null) Item(0);
+            var h = data != null && data.TryGetValue("hovers", out var hv) && hv is Dictionary<string, object> hd && hd.TryGetValue(id.ToString(), out var o) ? o as Dictionary<string, object> : null;
+            if (h == null) return null;
+            seat = (float)MiniJson.ToDouble(h["seat"]);
+            if (h["back"] != null) back = (float)MiniJson.ToDouble(h["back"]);
+            return FromParts("hover " + id, (List<object>)h["parts"]);
         }
 
         public static Info InfoOf(int id)
@@ -113,7 +133,8 @@ namespace EtherMines.Game
                     mesh.RecalculateBounds();
                     ms[i] = mesh;
                     var c = Avatars.Hex(p["c"] as string, Color.white);
-                    pm[i] = p.ContainsKey("b") && MiniJson.Truthy(p["b"]) ? Basic(c) : Lit(c, Avatars.Hex(p["e"] as string, Color.black));
+                    float op = p.TryGetValue("o", out var ov) ? (float)MiniJson.ToDouble(ov, 1) : 1;
+                    pm[i] = p.ContainsKey("b") && MiniJson.Truthy(p["b"]) ? Basic(c, op) : Lit(c, Avatars.Hex(p["e"] as string, Color.black));
                 }
                 partsCache[key] = built = (ms, pm);
             }

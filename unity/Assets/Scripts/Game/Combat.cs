@@ -19,6 +19,7 @@ namespace EtherMines.Game
         public Avatars Avatars;
         public GameLink Link;
         public Animals Animals;
+        public Hover Hover; // on board: no fighting
 
         public int Hp = 10;
         const float Reach = 5.2f, BoltSpeed = 28, BoltLife = 1.6f;
@@ -71,7 +72,7 @@ namespace EtherMines.Game
         public bool Fight(bool clicking, bool rightHeld, Vector3 eye, Vector3 dir, float blockDist)
         {
             if (!clicking) pvpStruck = false;
-            bool blade = IsBlade(Held);
+            bool blade = IsBlade(Held) && !(Hover != null && Hover.Riding != 0);
             bool g = rightHeld && blade;
             if (g != guard)
             {
@@ -84,6 +85,7 @@ namespace EtherMines.Game
                 if (clicking && rangedT <= 0) Fire(eye, dir);
                 return clicking; // the pistol fires instead of mining
             }
+            if (Hover != null && Hover.Riding != 0) return false; // both hands on the craft
             // a mob, a player or an animal under the crosshair takes the click (10-loop.js: only while you
             // click; otherwise the right button still pets, places, opens as usual)
             if (!clicking) return false;

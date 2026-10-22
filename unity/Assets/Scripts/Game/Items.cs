@@ -23,6 +23,7 @@ namespace EtherMines.Game
         public GameLink Link;   // null offline
         public Combat Combat;   // null offline
         public Signs Signs;     // null offline
+        public Hover Hover;
 
         public float Buff, Vision, Ward; // seconds left
         float dashT, dashCd, dashVx, dashVz;
@@ -199,7 +200,7 @@ namespace EtherMines.Game
             if (b == null) return;
             bool boots = BootsOn;
             var bootsDef = Rules.Item(211);
-            b.SpeedMul = (Buff > 0 ? 1.3 : 1) * (boots && bootsDef != null && bootsDef.HasBoots ? 1 + bootsDef.Boots : 1) * (Combat != null && Combat.Guarding ? 0.55 : 1);
+            b.SpeedMul = (Buff > 0 ? 1.3 : 1) * (boots && bootsDef != null && bootsDef.HasBoots ? 1 + bootsDef.Boots : 1) * (Combat != null && Combat.Guarding ? 0.55 : 1) * (Hover != null && Hover.Riding != 0 ? 2 : 1);
             // the dodge: a short dash the way you're pushing (forward when you stand still)
 #if ENABLE_INPUT_SYSTEM
             var k = Keyboard.current;
@@ -207,7 +208,7 @@ namespace EtherMines.Game
 #else
             bool q = Input.GetKeyDown(KeyCode.Q);
 #endif
-            float fx = Player.MoveX, fz = Player.MoveZ;            if (q && boots && !Ui.Blocking && dashCd <= 0 && dashT <= 0)
+            float fx = Player.MoveX, fz = Player.MoveZ;            if (q && boots && !Ui.Blocking && dashCd <= 0 && dashT <= 0 && !(Hover != null && Hover.Riding != 0))
             {
                 float l = Mathf.Sqrt(fx * fx + fz * fz);
                 if (l < 0.1f) { fx = 0; fz = 1; } else { fx /= l; fz /= l; }

@@ -22,6 +22,7 @@ namespace EtherMines.Game
         public bool Sneaking; // crouching: place against a door instead of opening it
         public bool Moving;   // walking (the hand bobs)
         public float MoveX, MoveZ; // the way you push (strafe, forward), for the dodge
+        public Func<float> Lift = () => 0; // on board a craft: seated higher, the eyes go up as much
         readonly double[] boxBuf = new double[64 * 6];
         double eyeLag;
         bool ready;
@@ -92,7 +93,7 @@ namespace EtherMines.Game
 
         void PlaceCamera()
         {
-            var eye = new Vector3((float)Body.X, (float)(Body.Y + PlayerPhysics.EYE - Math.Min(eyeLag, 0.6)), -(float)Body.Z);
+            var eye = new Vector3((float)Body.X, (float)(Body.Y + PlayerPhysics.EYE - Math.Min(eyeLag, 0.6)) + Lift(), -(float)Body.Z);
             var rot = Quaternion.Euler((float)(-Pitch * Mathf.Rad2Deg), (float)(-Yaw * Mathf.Rad2Deg), 0);
             if (View == 0) Cam.transform.SetPositionAndRotation(eye, rot);
             else

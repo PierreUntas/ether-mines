@@ -139,6 +139,13 @@ namespace EtherMines.Game
                 animals.Mobs = mobs;
                 animals.Session = session;
                 interaction.Animals = animals;
+                var hover = gameObject.AddComponent<Hover>();
+                hover.Player = player;
+                hover.Act = interaction;
+                interaction.Hover = hover;
+                items.Hover = hover;
+                hand.Hover = hover;
+                player.Lift = () => hover.Lift;
                 if (session != null)
                 {
                     var progress = gameObject.AddComponent<Progress>();

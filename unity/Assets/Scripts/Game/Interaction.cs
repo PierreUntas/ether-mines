@@ -20,6 +20,7 @@ namespace EtherMines.Game
         public Combat Combat;   // online: the click strikes what you aim at (a mob, a player), the right button guards
         public Items Items;     // chests, beds, validators' hearts, consumables
         public Animals Animals; // pet an animal, talk to a villager
+        public Hover Hover;     // a Diamond Glider: on and off
         public readonly Inventory LocalInv = new Inventory(); // offline: what you carry, this time only
         public Hit Target;
         public float MineProgress; // 0..1, for the HUD
@@ -63,7 +64,8 @@ namespace EtherMines.Game
                 var dir = new Vector3((float)dx, (float)dy, (float)dz);
                 float bdist = Target != null ? Mobs.RayBox(eye, dir, new Vector3(Target.X, Target.Y, Target.Z), new Vector3(Target.X + 1, Target.Y + 1, Target.Z + 1)) : float.MaxValue;
                 var an = Animals != null && Cursor.lockState == CursorLockMode.Locked ? Animals.Pick(eye, dir, (float)Reach, bdist < 0 ? float.MaxValue : bdist) : null;
-                if (an != null) { Animals.Pet(an); Swing = 0.6f; }
+                if (Hover != null && Hover.Toggle()) { }
+                else if (an != null) { Animals.Pet(an); Swing = 0.6f; }
                 else if (!(Items != null && Items.Use(Target)) && Target != null) Use(Target);
             }
             double dt = Time.deltaTime;

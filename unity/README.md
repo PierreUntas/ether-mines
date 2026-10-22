@@ -74,5 +74,6 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
    and report the others'), the chat's commands (/join, /sanctuary, /ignore, /listen, /report).
    Animals and villagers (`Animals.cs`, `Resources/animals.json` from `tools/export-animals.mjs`: placed
    from the seed and moved by the clock like on the web, pet them, talk to the villagers, fight an animal for
-   a heart back). Next: hovercrafts.
+   a heart back). The Diamond Gliders: E with one in hand to board or step off, twice as fast,
+   gliding over water and one-block steps, drifting in hard turns; other riders seen seated on theirs.
 Then touch controls and store builds (6).
