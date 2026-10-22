@@ -50,6 +50,7 @@ namespace EtherMines.Game
             avatars.Player = Player;
             avatars.Act = Act;
             avatars.MyName = Session.Login ?? "";
+            avatars.MyId = net.UserId;
             avatars.MyColor = Session.Color;
             progress = GetComponent<Progress>();
             avatars.MyLook = () => progress != null ? Looks.Mine(Session, progress.Cosmetics) : new Dictionary<string, int>();
@@ -73,7 +74,7 @@ namespace EtherMines.Game
             hover = GetComponent<Hover>();
             var circuits = GetComponent<CircuitsView>();
             if (circuits != null) circuits.Avatars = avatars; // their feet press the plates too
-            if (hover != null) { combat.Hover = hover; avatars.MyRide = () => hover.Riding; }
+            if (hover != null) { combat.Hover = hover; avatars.MyRide = () => hover.Riding; avatars.MyOn = () => hover.Boarded; avatars.Hover = hover; hover.Avatars = avatars; }
             var animals = GetComponent<Animals>();
             if (animals != null) { animals.Link = link; animals.Combat = combat; combat.Animals = animals; }
             avatars.MyArmor = () => combat.Armor;
@@ -94,7 +95,7 @@ namespace EtherMines.Game
                 names.Clear();
                 foreach (var p in list) if (p.Id != link.SelfId) names.Add(p.Name);
             };
-            link.Pos += m => { if (m.Id != link.SelfId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride); };
+            link.Pos += m => { if (m.Id != link.SelfId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride, m.On); };
 
             signs = gameObject.AddComponent<Signs>();
             signs.Session = Session;
@@ -215,7 +216,7 @@ namespace EtherMines.Game
             link.SetLook(avatars.MyTitle(), Looks.Code(avatars.MyLook()));
             int held = Act.Inv.HeldId;
             if (held <= 0 || Rules.Block(held) != null) held = 0; // what's drawn in their hand: a tool or a weapon
-            link.SendPos(b.X, b.Y, b.Z, Player.Yaw, Player.Pitch, Act.Swing > 0, held, Time.time, combat.Guarding, combat.Armor, combat.Boots, combat.Fx, combat.Fq, items != null && items.Warded, hover != null ? hover.Riding : 0);
+            link.SendPos(b.X, b.Y, b.Z, Player.Yaw, Player.Pitch, Act.Swing > 0, held, Time.time, combat.Guarding, combat.Armor, combat.Boots, combat.Fx, combat.Fq, items != null && items.Warded, hover != null ? hover.Riding : 0, hover?.Boarded);
         }
 
         void OnDestroy()

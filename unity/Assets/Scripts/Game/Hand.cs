@@ -101,7 +101,7 @@ namespace EtherMines.Game
         void LateUpdate()
         {
             if (Player.Body == null || cam == null) return;
-            bool show = Player.View == 0 && !(Hover != null && Hover.Riding != 0);
+            bool show = Player.View == 0 && !(Hover != null && Hover.Aboard);
             cam.enabled = show;
             if (!show) return;
             Set();

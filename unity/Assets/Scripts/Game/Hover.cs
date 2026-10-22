@@ -1,7 +1,8 @@
 // Ether Mines · the Diamond Gliders (20-hover.js): hold one and right-click to ride it, twice as fast, over
 // water and over one-block steps, drifting in hard turns; right-click again, or put it away, to step off.
 // No fighting on board. The craft floats under you, bobbing, leaning into a slide; you sit in it, higher.
-// The others see it under you (their `rd`), and theirs under them. (The Twin Diamond's back seat comes later.)
+// The others see it under you (their `rd`), and theirs under them. The Twin Diamond has a back seat: right-click
+// a friend driving one to sit behind them and go where they go (your `on`); jump to get off.
 using System;
 using EtherMines.Core;
 using UnityEngine;
@@ -14,8 +15,13 @@ namespace EtherMines.Game
         public PlayerController Player;
         public Interaction Act;
 
+        public Avatars Avatars; // the others (their crafts, their back seats); null offline
         public int Riding { get; private set; } // the craft's item id, 0 on foot
-        public float Lift { get; private set; } // how much higher than your feet you sit
+        public string Boarded { get; private set; } // in this driver's back seat (their user id), or null
+        public bool Aboard => Riding != 0 || Boarded != null; // no fighting, no dodging, no hand
+        float lift;
+        public float Lift => Boarded != null ? boardLift : lift; // how much higher than your feet you sit
+        float boardLift, back = float.NaN;
         GameObject craft;
         float yaw, roll, vx, vz;
         Vector3 last;
@@ -28,6 +34,7 @@ namespace EtherMines.Game
         // the right button with a craft in hand, or on board: on or off (toggleRide)
         public bool Toggle()
         {
+            if (Boarded != null) { Unboard(); return true; }
             if (Riding != 0) { Off(); return true; }
             if (!IsHover(Held)) return false;
             var b = Player.Body;
@@ -36,15 +43,16 @@ namespace EtherMines.Game
                 Hud.Feed("burn", "Climb out of the water first", "then get on board: it glides over the sea");
                 return true;
             }
-            craft = HeldModels.Hover(Held, out var seat, out _);
+            craft = HeldModels.Hover(Held, out var seat, out back);
             if (craft == null) return false;
             craft.transform.SetParent(transform, false);
             Riding = Held;
-            Lift = Math.Max(0, Gap + seat - 0.47f + 0.04f);
+            lift = Math.Max(0, Gap + seat - 0.47f + 0.04f);
             yaw = (float)Player.Yaw;
             seen = false;
             b.Riding = true;
-            if (!told && (told = true)) Hud.Feed("nft", "On board the " + Ui.NameOf(Riding), "twice as fast, over water too · " + (TouchPad.Active ? "the Ride button" : "right-click") + " to step off");
+            if (!told && (told = true)) Hud.Feed("nft", "On board the " + Ui.NameOf(Riding), "twice as fast, over water too · " + (TouchPad.Active ? "the Ride button" : "right-click") + " to step off" +
+                (Avatars.IsTwin(Riding) ? " · a friend can take the back seat by " + (TouchPad.Active ? "tapping" : "right-clicking") + " you" : ""));
             return true;
         }
 
@@ -53,8 +61,61 @@ namespace EtherMines.Game
             if (craft != null) Destroy(craft);
             craft = null;
             Riding = 0;
-            Lift = 0;
+            lift = 0;
+            back = float.NaN;
             if (Player.Body != null) Player.Body.Riding = false;
+        }
+
+        // your craft's back seat, for a friend in it (Avatars.DriverSeat): the craft's place and heading
+        public bool BackSeat(out Vector3 pos, out float heading, out float backDist, out float seatLift)
+        {
+            var b = Player.Body;
+            pos = b != null ? new Vector3((float)b.X, (float)b.Y, (float)b.Z) : default;
+            heading = yaw; backDist = back; seatLift = lift;
+            return Riding != 0 && craft != null && !float.IsNaN(back) && Avatars.IsTwin(Riding);
+        }
+
+        // a right-click on a player (tryBoard): their Twin Diamond's back seat, if it's free and near
+        public bool TryBoard(string id)
+        {
+            if (id == null || Aboard || Avatars == null || !Avatars.Driving(id, out var rd, out var p, out var name) || !Avatars.IsTwin(rd)) return false;
+            var b = Player.Body;
+            if (new Vector2((float)(p.x - b.X), (float)(p.z - b.Z)).magnitude > 4.5f) return false;
+            var taken = Avatars.SeatTaken(id);
+            if (taken != null) { Hud.Feed("burn", "The back seat is taken", taken + " is already riding with " + name); return true; }
+            Boarded = id;
+            Hud.Feed("nft", "You ride behind " + name, TouchPad.Active ? "jump or the Ride button to get off" : "jump to get off");
+            return true;
+        }
+
+        // stepped off to the side of the craft, on a free spot
+        public void Unboard()
+        {
+            if (Boarded == null) return;
+            var b = Player.Body;
+            bool had = Avatars.DriverSeat(Boarded, out _, out var y, out _);
+            Boarded = null;
+            if (had && b != null)
+            {
+                double a = y + Math.PI / 2;
+                foreach (var s in new[] { 1.6, -1.6, 0 })
+                {
+                    double x = b.X + Math.Cos(a) * s, z = b.Z - Math.Sin(a) * s;
+                    if (!b.Collides(x, b.Y + 0.6, z)) { b.X = x; b.Z = z; b.Y += 0.6; break; }
+                }
+            }
+            if (b != null) b.Vy = 0;
+        }
+
+        // after the physics, every frame (boardTick): in the back seat, you are where the seat is
+        public void BoardTick(bool jump)
+        {
+            if (Boarded == null) return;
+            var b = Player.Body;
+            if (b == null || Avatars == null || !Avatars.DriverSeat(Boarded, out var p, out _, out var l)) { Unboard(); return; }
+            b.X = p.x; b.Y = p.y; b.Z = p.z; b.Vy = 0; b.On = true;
+            boardLift = l;
+            if (jump) Unboard();
         }
 
         void Update()

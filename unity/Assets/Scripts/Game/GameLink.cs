@@ -15,7 +15,7 @@ namespace EtherMines.Game
         const string Origin = "https://ethermines.org";
 
         public sealed class Peer { public string Id, Name, Color, Title, Look; public double X, Y, Z; public bool HasPos; }
-        public sealed class Move { public string Id, Name, Color; public double X, Y, Z, Yaw, Pitch; public bool Mining, Guard, Boots; public int Held, Armor, Ride; }
+        public sealed class Move { public string Id, Name, Color; public double X, Y, Z, Yaw, Pitch; public bool Mining, Guard, Boots; public int Held, Armor, Ride; public string On; }
 
         public event Action<List<Peer>> Peers;
         public event Action<Move> Pos;
@@ -41,6 +41,7 @@ namespace EtherMines.Game
         double lx, ly, lz, lyaw, lpitch;
         bool lm, lg, lbt, lnm, lwd, sentOnce;
         int lh, lar, lfq, lrd;
+        string lon;
         float lastSent;
 
         public GameLink(string world, Func<System.Threading.Tasks.Task<string>> token)
@@ -156,6 +157,7 @@ namespace EtherMines.Game
                     Mining = MiniJson.Truthy(m.TryGetValue("m", out var mm) ? mm : null), Held = MiniJson.ToInt(m.TryGetValue("h", out var h) ? h : null),
                     Guard = MiniJson.Truthy(m.TryGetValue("gd", out var gd) ? gd : null),
                     Ride = MiniJson.ToInt(m.TryGetValue("rd", out var rdv) ? rdv : null),
+                    On = m.TryGetValue("on", out var onv) ? onv as string : null, // in that driver's back seat
                     Armor = MiniJson.ToInt(m.TryGetValue("ar", out var ar) ? ar : null), Boots = MiniJson.Truthy(m.TryGetValue("bt", out var bt) ? bt : null),
                 });
             }
@@ -165,20 +167,20 @@ namespace EtherMines.Game
         // your position (14-startup.js): only when you moved, at most 5 times a second, a sign of life every 4 s
         // gd: the blade up; ar: the plating you wear; bt: the Front-Runner Boots on; fx/fq: the last blow you
         // took or parried, and its number (the others see it on your figure)
-        public void SendPos(double x, double y, double z, double yaw, double pitch, bool mining, int held, float now, bool guard = false, int armor = 0, bool boots = false, string fx = null, int fq = 0, bool ward = false, int ride = 0)
+        public void SendPos(double x, double y, double z, double yaw, double pitch, bool mining, int held, float now, bool guard = false, int armor = 0, bool boots = false, string fx = null, int fq = 0, bool ward = false, int ride = 0, string on = null)
         {
             if (!Ready || now - lastSent < 0.2f) return;
             bool moved = !sentOnce || Math.Sqrt((x - lx) * (x - lx) + (y - ly) * (y - ly) + (z - lz) * (z - lz)) > 0.08 ||
                          Math.Abs(yaw - lyaw) > 0.06 || Math.Abs(pitch - lpitch) > 0.08 || mining != lm || held != lh ||
-                         guard != lg || armor != lar || boots != lbt || NoMobs != lnm || fq != lfq || ward != lwd || ride != lrd;
+                         guard != lg || armor != lar || boots != lbt || NoMobs != lnm || fq != lfq || ward != lwd || ride != lrd || on != lon;
             if (!moved && now - lastSent < 4) return;
             sentOnce = true;
-            lx = x; ly = y; lz = z; lyaw = yaw; lpitch = pitch; lm = mining; lh = held; lg = guard; lar = armor; lbt = boots; lnm = NoMobs; lfq = fq; lwd = ward; lrd = ride;
+            lx = x; ly = y; lz = z; lyaw = yaw; lpitch = pitch; lm = mining; lh = held; lg = guard; lar = armor; lbt = boots; lnm = NoMobs; lfq = fq; lwd = ward; lrd = ride; lon = on;
             lastSent = now;
             sock?.Send(MiniJson.Write(new Dictionary<string, object>
             {
                 ["t"] = "pos", ["x"] = Math.Round(x, 2), ["y"] = Math.Round(y, 2), ["z"] = Math.Round(z, 2), ["yaw"] = Math.Round(yaw, 2), ["pitch"] = Math.Round(pitch, 2),
-                ["m"] = mining, ["h"] = held, ["gd"] = guard ? 1 : 0, ["rd"] = ride, ["on"] = 0, ["ar"] = armor, ["bt"] = boots ? 1 : 0, ["nm"] = NoMobs ? 1 : 0,
+                ["m"] = mining, ["h"] = held, ["gd"] = guard ? 1 : 0, ["rd"] = ride, ["on"] = on ?? (object)0, ["ar"] = armor, ["bt"] = boots ? 1 : 0, ["nm"] = NoMobs ? 1 : 0,
                 ["fx"] = fx ?? (object)0, ["fq"] = fq, ["wd"] = ward ? 1 : 0,
             }));
         }

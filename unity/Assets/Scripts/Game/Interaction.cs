@@ -89,7 +89,11 @@ namespace EtherMines.Game
                 var dir = new Vector3((float)dx, (float)dy, (float)dz);
                 float bdist = Target != null ? Mobs.RayBox(eye, dir, new Vector3(Target.X, Target.Y, Target.Z), new Vector3(Target.X + 1, Target.Y + 1, Target.Z + 1)) : float.MaxValue;
                 var an = Animals != null && Ui.Aiming ? Animals.Pick(eye, dir, (float)reach, bdist < 0 ? float.MaxValue : bdist) : null;
-                if (Hover != null && Hover.Toggle()) { }
+                // a friend driving a Twin Diamond under the crosshair: their back seat
+                string who = Combat != null && Combat.Avatars != null ? Combat.Avatars.Pick(eye, dir, (float)reach, bdist < 0 ? float.MaxValue : bdist) : null;
+                if (Hover != null && Hover.Aboard && Hover.Toggle()) { }
+                else if (Hover != null && who != null && Hover.TryBoard(who)) { Swing = 0.4f; }
+                else if (Hover != null && Hover.Toggle()) { }
                 else if (an != null) { Animals.Pet(an); Swing = 0.6f; }
                 else if (!(Items != null && Items.Use(Target)) && Target != null) Use(Target);
             }

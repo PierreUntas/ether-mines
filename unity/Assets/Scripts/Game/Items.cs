@@ -210,7 +210,7 @@ namespace EtherMines.Game
 #endif
             TouchPad.Poll();
             q |= TouchPad.Dash;
-            float fx = Player.MoveX, fz = Player.MoveZ;            if (q && boots && !Ui.Blocking && dashCd <= 0 && dashT <= 0 && !(Hover != null && Hover.Riding != 0))
+            float fx = Player.MoveX, fz = Player.MoveZ;            if (q && boots && !Ui.Blocking && dashCd <= 0 && dashT <= 0 && !(Hover != null && Hover.Aboard))
             {
                 float l = Mathf.Sqrt(fx * fx + fz * fz);
                 if (l < 0.1f) { fx = 0; fz = 1; } else { fx /= l; fz /= l; }

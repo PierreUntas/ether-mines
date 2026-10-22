@@ -23,6 +23,7 @@ namespace EtherMines.Game
         public bool Moving;   // walking (the hand bobs)
         public float MoveX, MoveZ; // the way you push (strafe, forward), for the dodge
         public Func<float> Lift = () => 0; // on board a craft: seated higher, the eyes go up as much
+        public Action<bool> AfterStep;     // after the physics (the back seat puts you where it is), given the jump key
         readonly double[] boxBuf = new double[64 * 6];
         double eyeLag;
         bool ready;
@@ -84,6 +85,7 @@ namespace EtherMines.Game
                 Body.Step(dt, fx, fz, Yaw, jump, run, sneak, IsLadder);
                 if (Body.Y < -10) { Body.X = World_SpawnX; Body.Y = EtherMines.Core.World.SPAWN.Y + 0.1; Body.Z = World_SpawnZ; Body.Vy = 0; }
             }
+            AfterStep?.Invoke(jump);
             // the eye catches up smoothly after a step up
             eyeLag = Math.Max(0, eyeLag + Body.StepUp - dt * 4);
             Body.StepUp = 0;

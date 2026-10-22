@@ -154,6 +154,7 @@ namespace EtherMines.Game
                 items.Hover = hover;
                 hand.Hover = hover;
                 player.Lift = () => hover.Lift;
+                player.AfterStep = hover.BoardTick;
                 // the circuits around you (lamps, doors, gates), and the lanterns' light
                 var circuits = gameObject.AddComponent<CircuitsView>();
                 circuits.World = world;
@@ -163,10 +164,10 @@ namespace EtherMines.Game
                 // the touch controls: which buttons show depends on what you hold and wear
                 gameObject.AddComponent<TouchPad>();
                 TouchPad.SlotRect = Hud.SlotRect;
-                TouchPad.Riding = () => hover.Riding != 0;
-                TouchPad.ShowRide = () => hover.Riding != 0 || Hover.IsHover(interaction.Inv.HeldId);
-                TouchPad.ShowGuard = () => interaction.Combat != null && hover.Riding == 0 && Combat.IsBlade(interaction.Inv.HeldId);
-                TouchPad.ShowDash = () => items.BootsOn && hover.Riding == 0;
+                TouchPad.Riding = () => hover.Aboard;
+                TouchPad.ShowRide = () => hover.Aboard || Hover.IsHover(interaction.Inv.HeldId);
+                TouchPad.ShowGuard = () => interaction.Combat != null && !hover.Aboard && Combat.IsBlade(interaction.Inv.HeldId);
+                TouchPad.ShowDash = () => items.BootsOn && !hover.Aboard;
                 TouchPad.Ranged = () => Combat.IsRanged(interaction.Inv.HeldId);
                 if (session != null)
                 {

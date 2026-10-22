@@ -19,6 +19,9 @@ namespace EtherMines.Game
         public Func<int> MyArmor = () => 0;      // the plating you wear
         public Func<bool> MyBoots = () => false, MyCape = () => false; // the Front-Runner Boots on, the Titan's cape owned
         public Func<int> MyRide = () => 0;       // the craft you ride (Hover draws it)
+        public Func<string> MyOn = () => null;   // the driver whose back seat you're in
+        public Hover Hover;                      // your craft, its back seat (null offline)
+        public string MyId;
 
         sealed class Fig
         {
@@ -36,6 +39,8 @@ namespace EtherMines.Game
             public string LookKey = "", Title = "";
             public int Armor; public bool Boots, Cape; // a plating, the boots, the cape (yours only, as on the web)
             public int Ride, CraftId; public GameObject Craft; public float Lift; public bool OwnCraft; // on board a Diamond Glider
+            public float CraftBack = float.NaN;                   // its back seat, behind the driver (the Twin Diamond)
+            public string On; public bool Behind; public float BehindLift; // in a driver's back seat
             public Dictionary<string, int> Look = new Dictionary<string, int>();
             public readonly List<GameObject> LookParts = new List<GameObject>();
             public GameObject Companion;
@@ -147,7 +152,7 @@ namespace EtherMines.Game
             foreach (var k in gone) { Drop(figs[k]); figs.Remove(k); }
         }
 
-        public void Heard(string id, string name, string color, double x, double y, double z, double yaw, double pitch, bool mining, bool live = true, int held = 0, int armor = 0, bool boots = false, int ride = 0)
+        public void Heard(string id, string name, string color, double x, double y, double z, double yaw, double pitch, bool mining, bool live = true, int held = 0, int armor = 0, bool boots = false, int ride = 0, string on = null)
         {
             if (!figs.TryGetValue(id, out var f) || f.Color != color || f.Name != name)
             {
@@ -157,7 +162,7 @@ namespace EtherMines.Game
                 if (keep != null) { f.Look = keep.Look; f.Title = keep.Title; }
             }
             f.Target = new Vector3((float)x, (float)y, (float)z);
-            if (live) { f.TYaw = yaw; f.Pitch = pitch; f.Mining = mining; f.HeardAt = Time.time; f.Held = held; f.Armor = armor; f.Boots = boots; f.Ride = ride; }
+            if (live) { f.TYaw = yaw; f.Pitch = pitch; f.Mining = mining; f.HeardAt = Time.time; f.Held = held; f.Armor = armor; f.Boots = boots; f.Ride = ride; f.On = on; }
             if (!f.Seen) { f.Seen = true; f.Pos = f.Target; f.Yaw = f.TYaw; f.HeardAt = Time.time; }
         }
 
@@ -194,6 +199,7 @@ namespace EtherMines.Game
                 if (f.Companion != null) f.Companion.SetActive(on);
                 if (!on) { f.Seen = false; continue; }
                 Dress(f, f.Look);
+                Passenger(f);
                 Animate(f, dt, Mathf.Min(1, dt * 7));
                 Follow(f, f.Pos, f.Yaw, dt);
             }
@@ -203,7 +209,7 @@ namespace EtherMines.Game
             if (me != null)
             {
                 me.Title = MyTitle();
-                me.Armor = MyArmor(); me.Boots = MyBoots(); me.Cape = MyCape(); me.Ride = MyRide(); me.OwnCraft = true;
+                me.Armor = MyArmor(); me.Boots = MyBoots(); me.Cape = MyCape(); me.Ride = MyRide(); me.OwnCraft = true; me.On = MyOn();
                 Dress(me, MyLook());
                 me.Root.SetActive(mine);
                 // your companion and trail follow you, whatever the view
@@ -216,6 +222,7 @@ namespace EtherMines.Game
                     int h = Act != null && Act.Inv.Held != null ? Act.Inv.HeldId : 0;
                     me.Held = h > 0 && EtherMines.Core.Rules.Block(h) == null ? h : 0;
                     if (!me.Seen) { me.Seen = true; me.Pos = me.Target; me.Yaw = me.TYaw; }
+                    Passenger(me);
                     Animate(me, dt, 1);
                 }
                 else me.Seen = false;
@@ -456,13 +463,53 @@ namespace EtherMines.Game
                 f.Lift = 0;
                 if (f.Ride > 0)
                 {
-                    f.Craft = HeldModels.Hover(f.Ride, out var seat, out _);
+                    f.Craft = HeldModels.Hover(f.Ride, out var seat, out f.CraftBack);
                     if (f.Craft != null) { f.Craft.transform.SetParent(f.Root.transform, false); f.Lift = Mathf.Max(0, Hover.Gap + seat - 0.47f + 0.04f); }
                 }
             }
             if (f.OwnCraft) f.Lift = f.Ride > 0 ? HeldLift(f.Ride) : 0;
             if (f.Craft != null) f.Craft.transform.localPosition = new Vector3(0, Hover.Gap - f.Lift + Mathf.Sin(Time.time * 2.2f) * 0.04f, 0);
         }
+        // the back seat of a driver's Twin Diamond (20-hover.js rideOther, boardTick): where it is (game
+        // coordinates), which way the craft faces, how high it seats you. Yours, or another player's.
+        public bool DriverSeat(string driver, out Vector3 pos, out float yaw, out float lift)
+        {
+            pos = default; yaw = 0; lift = 0;
+            if (driver == null) return false;
+            float back;
+            if (driver == MyId)
+            {
+                if (Hover == null || !Hover.BackSeat(out pos, out yaw, out back, out lift)) return false;
+            }
+            else
+            {
+                if (!figs.TryGetValue(driver, out var d) || !d.Root.activeSelf || d.Craft == null || float.IsNaN(d.CraftBack) || !IsTwin(d.Ride)) return false;
+                pos = d.Pos; yaw = (float)d.Yaw; back = d.CraftBack; lift = d.Lift;
+            }
+            pos += new Vector3(Mathf.Sin(yaw) * back, 0, Mathf.Cos(yaw) * back);
+            return true;
+        }
+        public static bool IsTwin(int id) => EtherMines.Core.Rules.Item(id)?.HoverModel == "twin";
+        // is someone already in that driver's back seat?
+        public string SeatTaken(string driver) { foreach (var f in figs.Values) if (f.On == driver && f.Root.activeSelf) return f.Name; return null; }
+        public bool Driving(string id, out int ride, out Vector3 pos, out string name)
+        {
+            ride = 0; pos = default; name = null;
+            if (!figs.TryGetValue(id, out var f) || !f.Root.activeSelf) return false;
+            ride = f.Ride; pos = f.Pos; name = f.Name;
+            return true;
+        }
+        // a passenger: sits where the seat is on this screen, facing the way the craft goes
+        void Passenger(Fig f)
+        {
+            f.Behind = false;
+            if (f.Ride != 0 || !DriverSeat(f.On, out var p, out var y, out var l)) return;
+            f.Behind = true;
+            f.Target = f.Pos = p;
+            f.TYaw = f.Yaw = y;
+            f.BehindLift = l;
+        }
+
         static readonly Dictionary<int, float> lifts = new Dictionary<int, float>();
         static float HeldLift(int id)
         {
@@ -481,7 +528,7 @@ namespace EtherMines.Game
             double dr = f.TYaw - f.Yaw;
             dr = Math.Atan2(Math.Sin(dr), Math.Cos(dr));
             f.Yaw += dr * Math.Min(1, dt * 7);
-            f.Root.transform.SetPositionAndRotation(View(f.Pos) + Vector3.up * (f.Ride > 0 ? f.Lift : 0), Quaternion.Euler(0, (float)(-f.Yaw * Mathf.Rad2Deg), 0));
+            f.Root.transform.SetPositionAndRotation(View(f.Pos) + Vector3.up * (f.Ride > 0 ? f.Lift : f.Behind ? f.BehindLift : 0), Quaternion.Euler(0, (float)(-f.Yaw * Mathf.Rad2Deg), 0));
             float sp = new Vector2(d.x, d.z).magnitude * k / Mathf.Max(dt, 0.001f);
             f.Walk += Mathf.Min(sp, 8) * dt * 1.6f;
             float mv = Mathf.Min(1, sp / 2), a = mv * Mathf.Sin(f.Walk) * 0.7f * Mathf.Rad2Deg;
@@ -496,7 +543,7 @@ namespace EtherMines.Game
             f.Body.localPosition = new Vector3(0, 0.74f + hop, 0);
             f.Head.localPosition = new Vector3(0, 1.32f + hop + br * 0.012f, 0);
             f.Head.localRotation = Quaternion.Euler((float)(-f.Pitch * 0.6 * Mathf.Rad2Deg), 0, Mathf.Sin(f.Walk) * 0.06f * mv * Mathf.Rad2Deg);
-            if (f.Ride > 0)
+            if (f.Ride > 0 || f.Behind)
             {
                 // seated (sitAvatar): knees forward, both hands forward on the controls, still
                 f.LegL.localRotation = f.LegR.localRotation = Quaternion.Euler(-1.45f * Mathf.Rad2Deg, 0, 0);
