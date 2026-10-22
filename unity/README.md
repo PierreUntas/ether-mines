@@ -70,8 +70,8 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
    beds and meals, relighting a validator, wearing a plating or the boots, the boots' dodge; the chapters
    and their rewards (O, `Progress.cs`: the same save flags as the web version), your validators (attest,
    upgrade); the shop (buy, wear) and the looks on every figure (`Looks.cs`, `Resources/looks.json`:
-   outfits, headwear, back pieces, companions, trails; titles under the names). Not yet: the looks' small
-   animations, the tool and plating trims' glow.
+   outfits, headwear, back pieces, companions, trails; titles under the names); their small animations
+   and the trims' glow come with 6.
    Plots (`Claims.cs`: their borders, /claim to choose and take one, /unclaim, /invite, /kick, /claims;
    building refused in someone else's), signs (`Signs.cs`: their text on the boards, write on yours, read
    and report the others'), the chat's commands (/join, /sanctuary, /ignore, /listen, /report).
@@ -89,7 +89,9 @@ Trades (`Trade.cs`, the window's Trade tab: offers received and sent, accept, de
 of resources, unique pickaxes and plots; the database's feed tells when one changes).
 The Twin Diamond's back seat (right-click a friend driving one: you ride behind them, jump to get off;
 your `on` in the game server's pos message, their passenger seen in your back seat).
-Not yet: the looks' small animations, the tool and plating trims' glow.
+The looks' small animations (`LookAnim.cs`: halos turning, flags and capes in the wind, wings, companions
+bobbing and spinning, measured from the game by `export-looks.mjs`) and your trims' glow (a pickaxe trim on
+what you hold, a plating trim on your plating).
 
 ## Builds for the stores
 The **Ether Mines** menu in the editor (or `Unity -batchmode -quit -projectPath unity -executeMethod

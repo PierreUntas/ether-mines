@@ -69,7 +69,7 @@ namespace UnityEngine
     public struct Vector4 { public float x, y, z, w; public Vector4(float x, float y, float z, float w) { this.x = x; this.y = y; this.z = z; this.w = w; } }
     public struct Quaternion
     {
-        public static Quaternion identity => default;
+        public Quaternion(float x, float y, float z, float w) { } public static Quaternion identity => default;
         public static Quaternion Euler(float x, float y, float z) => default; public static Quaternion AngleAxis(float a, Vector3 axis) => default;
         public static Quaternion LookRotation(Vector3 f) => default;
         public static Quaternion operator *(Quaternion a, Quaternion b) => a;
@@ -179,7 +179,7 @@ namespace UnityEngine
     {
         public Material(Shader s) { } public Material(Material m) { }
         public Shader shader; public Texture mainTexture; public Color color;
-        public int renderQueue; public void SetTexture(string n, Texture t) { } public void SetColor(string n, Color c) { } public Color GetColor(string n) => default; public void SetVector(string n, Vector4 v) { }
+        public int renderQueue; public void SetTexture(string n, Texture t) { } public void SetColor(string n, Color c) { } public Color GetColor(string n) => default; public bool HasProperty(string n) => true; public void SetVector(string n, Vector4 v) { }
         public void SetFloat(string n, float f) { }
     }
     public class TextAsset : Object { public string text; public byte[] bytes; }
@@ -190,7 +190,8 @@ namespace UnityEngine
         public void RecalculateBounds() { } public void RecalculateNormals() { }
     }
     public class MeshFilter : Component { public Mesh sharedMesh, mesh; }
-    public class Renderer : Component { public Material sharedMaterial, material; public Rendering.ShadowCastingMode shadowCastingMode; public bool receiveShadows; }
+    public class MaterialPropertyBlock { public void SetColor(string n, Color c) { } }
+    public class Renderer : Component { public void SetPropertyBlock(MaterialPropertyBlock b) { } public Material sharedMaterial, material; public Rendering.ShadowCastingMode shadowCastingMode; public bool receiveShadows; }
     public class MeshRenderer : Renderer { }
     public class AsyncOperation { public event Action<AsyncOperation> completed; public bool isDone; }
     public enum RuntimeInitializeLoadType { AfterSceneLoad, BeforeSceneLoad }

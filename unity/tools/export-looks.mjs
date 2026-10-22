@@ -2,12 +2,16 @@
 // buildBack, buildCompanion, buildOutfit) to unity/Assets/Resources/looks.json, read by the Unity client
 // (Looks.cs). The game itself builds them, in a headless browser (solo mode, as tests/navigateur.mjs does):
 // every mesh written out as triangles in the frame of the avatar part it hangs on, with its material's
-// color and glow. Their small animations (a flag, a cape, wings) are left out; the client bobs companions.
+// color and glow. Their small animations (a halo turning, a flag, a cape, wings, a companion bobbing) are
+// measured by running them: each moving part is written apart, with a fitted curve for each of its channels.
 // Setup once: npm i --no-save playwright@1.56.0 three@0.128.0
 // Run after changing a look or adding a cosmetic:  node unity/tools/export-looks.mjs   (--check: fail if stale)
 //
 // Format: head.<id>, back.<id>, companion.<id>: [mesh]; outfit.<id>: { color, pants, on: { body | arm0 |
-// arm1 | leg0 | leg1 | head: [mesh] } }; trail.<id>: style. A mesh: { c: "#rrggbb", e: "#rrggbb" glow,
+// arm1 | leg0 | leg1 | head: [mesh] } }; trail.<id>: style; anim."<slot>.<id>": [{ pp, pq, ps: the moving
+// part's parent frame in the piece (position, quaternion x y z w, scale), ch: 9 channels (position x y z,
+// rotation x y z in Three's XYZ order, scale x y z), each [a, l, s, c, w]: a + l t + s sin(w t) + c cos(w t)
+// with t in seconds, parts: [mesh] in the moving part's own frame } ] (not in the piece's own meshes). A mesh: { c: "#rrggbb", e: "#rrggbb" glow,
 // b: 1 unlit, v: [x, y, z, ...] triangles, n: [nx, ny, nz, ...] one per triangle }. Frames: a head piece
 // around the head's center; a back piece in the avatar's upper frame (the clay avatar's body group, 0.2
 // below its root); a companion around its own center (it follows its owner); an outfit piece in its
@@ -92,13 +96,108 @@ const looks = await page.evaluate(() => {
     });
     return [...parts.values()].filter(p => p.v.length);
   }
-  const out = { head: {}, back: {}, companion: {}, outfit: {}, trail: {} };
+  // ---------- the small animations ----------
+  // least squares: the coefficients of columns cols (functions of t) that best give vs
+  function lsq(ts, vs, cols) {
+    const k = cols.length,
+      A = Array.from({ length: k }, () => new Array(k).fill(0)),
+      y = new Array(k).fill(0);
+    ts.forEach((t, i) => {
+      const r = cols.map(f => f(t));
+      for (let a = 0; a < k; a++) {
+        y[a] += r[a] * vs[i];
+        for (let b = 0; b < k; b++) A[a][b] += r[a] * r[b];
+      }
+    });
+    for (let c = 0; c < k; c++) {
+      let p = c;
+      for (let r = c + 1; r < k; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+      [A[c], A[p]] = [A[p], A[c]];
+      [y[c], y[p]] = [y[p], y[c]];
+      if (Math.abs(A[c][c]) < 1e-12) return null;
+      for (let r = 0; r < k; r++) {
+        if (r === c) continue;
+        const f = A[r][c] / A[c][c];
+        for (let q = c; q < k; q++) A[r][q] -= f * A[c][q];
+        y[r] -= f * y[c];
+      }
+    }
+    const x = y.map((v, i) => v / A[i][i]),
+      err = ts.reduce((e, t, i) => e + (cols.reduce((s, f, j) => s + x[j] * f(t), 0) - vs[i]) ** 2, 0) / ts.length;
+    return { x, err };
+  }
+  const r5 = v => Math.round(v * 1e5) / 1e5;
+  // a channel's curve: constant, a steady turn, or a swing (a + s sin wt + c cos wt)
+  function fit(ts, vs) {
+    const mean = vs.reduce((a, b) => a + b, 0) / vs.length;
+    if (vs.every(v => Math.abs(v - mean) < 1e-7)) return [r5(mean), 0, 0, 0, 0];
+    const lin = lsq(ts, vs, [() => 1, t => t]);
+    if (lin && lin.err < 1e-9) return [r5(lin.x[0]), r5(lin.x[1]), 0, 0, 0];
+    let best = null;
+    for (let w = 0.05; w <= 10; w += 0.005) {
+      const f = lsq(ts, vs, [() => 1, t => Math.sin(w * t), t => Math.cos(w * t)]);
+      if (f && (!best || f.err < best.err)) best = { ...f, w };
+    }
+    if (!best || best.err > 1e-6) throw new Error('a look animation does not fit a turn or a swing');
+    return [r5(best.x[0]), 0, r5(best.x[1]), r5(best.x[2]), r5(best.w)];
+  }
+  const anims = {};
+  // a piece built with its animations: the still meshes, and each moving part apart (anims[key])
+  function piece(key, build) {
+    const anim = [],
+      g = build(anim);
+    if (!anim.length) return meshes(g, new THREE.Group());
+    const all = [];
+    g.traverse(o => all.push(o));
+    const chans = o => [o.position.x, o.position.y, o.position.z, o.rotation.x, o.rotation.y, o.rotation.z, o.scale.x, o.scale.y, o.scale.z];
+    const moved = new Map();
+    for (const f of anim) {
+      f(0);
+      const s0 = all.map(chans);
+      f(1.234);
+      const s1 = all.map(chans);
+      f(0);
+      all.forEach((o, i) => {
+        if (s0[i].some((v, k) => Math.abs(v - s1[i][k]) > 1e-7)) (moved.get(o) || moved.set(o, []).get(o)).push(f);
+      });
+    }
+    // a moving part inside another moving part moves with it: only the outer ones
+    const outer = [...moved.keys()].filter(o => {
+      for (let q = o.parent; q; q = q.parent) if (moved.has(q)) return false;
+      return true;
+    });
+    const list = [];
+    for (const o of outer) {
+      const ts = [],
+        cs = Array.from({ length: 9 }, () => []);
+      for (let t = 0; t < 12.6; t += 0.04) {
+        for (const f of moved.get(o)) f(t);
+        ts.push(t);
+        chans(o).forEach((v, k) => cs[k].push(v));
+      }
+      for (const f of moved.get(o)) f(0);
+      g.updateMatrixWorld(true);
+      const pp = new THREE.Vector3(),
+        pq = new THREE.Quaternion(),
+        ps = new THREE.Vector3();
+      o.parent.matrixWorld.decompose(pp, pq, ps);
+      list.push({ pp: [pp.x, pp.y, pp.z].map(r5), pq: [pq.x, pq.y, pq.z, pq.w].map(r5), ps: [ps.x, ps.y, ps.z].map(r5), ch: cs.map(v => fit(ts, v)), parts: meshes(o, o) });
+    }
+    anims[key] = list;
+    // the still meshes: everything but the moving parts
+    const hidden = [];
+    for (const o of outer) o.traverse(m => m.isMesh && m.visible && (hidden.push(m), (m.visible = false)));
+    const still = meshes(g, new THREE.Group());
+    for (const m of hidden) m.visible = true;
+    return still;
+  }
+  const out = { head: {}, back: {}, companion: {}, outfit: {}, trail: {}, anim: anims };
   const ids = Object.keys(COSMETICS).map(Number).sort((a, b) => a - b);
   for (const id of ids) {
     const c = COSMETICS[id];
-    if (c.slot === 'head') out.head[id] = meshes(buildHead(c, []), new THREE.Group());
-    else if (c.slot === 'back') out.back[id] = meshes(buildBack(c, []), new THREE.Group());
-    else if (c.slot === 'companion') out.companion[id] = meshes(buildCompanion(c, []), new THREE.Group());
+    if (c.slot === 'head') out.head[id] = piece('head.' + id, a => buildHead(c, a));
+    else if (c.slot === 'back') out.back[id] = piece('back.' + id, a => buildBack(c, a));
+    else if (c.slot === 'companion') out.companion[id] = piece('companion.' + id, a => buildCompanion(c, a));
     else if (c.slot === 'trail') out.trail[id] = c.style;
     else if (c.slot === 'outfit') {
       const av = makeAvatar('x', c.color, true),

@@ -3,6 +3,8 @@
 // in the palm, a tool or blade held forward, a material standing in the palm, the pistol barrel forward.
 // A blow reaches toward the crosshair and comes back, the pistol kicks; on guard, the blade comes up flat
 // across the middle of the screen. Your bare hand when the slot is empty.
+using System;
+using System.Collections.Generic;
 using EtherMines.Core;
 using UnityEngine;
 
@@ -14,7 +16,8 @@ namespace EtherMines.Game
         public PlayerController Player;
         public Interaction Act;
         public Combat Combat; // null offline
-        public Hover Hover;   // on board, both hands on the craft
+        public Hover Hover;
+        public Func<Dictionary<string, int>> Look; // your look: a pickaxe trim makes what you hold glow   // on board, both hands on the craft
 
         Camera cam;
         Transform pivot;
@@ -105,6 +108,7 @@ namespace EtherMines.Game
             cam.enabled = show;
             if (!show) return;
             Set();
+            if (Look != null && !blockModel) HeldModels.Tint(model, Looks.ToolTrim(Look(), Time.time));
             float dt = Time.deltaTime, swing = Act.Swing;
             // a blow: forward and in, the tip leaning into the target, then back
             float s = Mathf.Sin((1 - swing) * Mathf.PI) * swing;

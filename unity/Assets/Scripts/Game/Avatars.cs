@@ -43,6 +43,7 @@ namespace EtherMines.Game
             public string On; public bool Behind; public float BehindLift; // in a driver's back seat
             public Dictionary<string, int> Look = new Dictionary<string, int>();
             public readonly List<GameObject> LookParts = new List<GameObject>();
+            public readonly List<GameObject> ArmorParts = new List<GameObject>(); // what a plating trim tints
             public GameObject Companion;
             public int CompanionId;
             public string Trail;
@@ -224,6 +225,7 @@ namespace EtherMines.Game
                     if (!me.Seen) { me.Seen = true; me.Pos = me.Target; me.Yaw = me.TYaw; }
                     Passenger(me);
                     Animate(me, dt, 1);
+                    Trims(me, MyLook());
                 }
                 else me.Seen = false;
             }
@@ -245,6 +247,7 @@ namespace EtherMines.Game
             f.LookKey = key;
             foreach (var p in f.LookParts) if (p != null) Destroy(p);
             f.LookParts.Clear();
+            f.ArmorParts.Clear();
             // an outfit: its trousers and its details, when the player wears its color (choosing it sets it)
             Color pants = Looks.DefaultPants;
             if (look.TryGetValue("outfit", out var oid))
@@ -302,16 +305,25 @@ namespace EtherMines.Game
                 if (kv.Key == "head") g.transform.localScale = Vector3.one * 1.32f;
                 if (kv.Key == "up") g.transform.localPosition = new Vector3(0, -0.2f, 0);
                 f.LookParts.Add(g);
+                if (key.StartsWith("armor", StringComparison.Ordinal)) f.ArmorParts.Add(g);
             }
         }
 
         // the companion beside its owner, a little behind, turning as they turn; the trail while they move
+        // your trims (only yours, as on the web): the pickaxe in hand and the plating's glow
+        static void Trims(Fig f, Dictionary<string, int> look)
+        {
+            HeldModels.Tint(f.HeldObj, Looks.ToolTrim(look, Time.time));
+            var pc = Looks.PlatingTrim(look);
+            foreach (var p in f.ArmorParts) HeldModels.Tint(p, pc, true);
+        }
+
         void Follow(Fig f, Vector3 pos, double yaw, float dt)
         {
             if (f.Companion != null)
             {
                 float ox = 0.85f, oz = 0.7f, cy = Mathf.Cos((float)yaw), sy = Mathf.Sin((float)yaw);
-                var target = new Vector3(pos.x + ox * cy + oz * sy, pos.y + 1.35f + Mathf.Sin(Time.time * 2 + f.CompPh) * 0.08f, pos.z - ox * sy + oz * cy);
+                var target = new Vector3(pos.x + ox * cy + oz * sy, pos.y + 1.35f, pos.z - ox * sy + oz * cy);
                 var t = f.Companion.transform;
                 t.position = Vector3.Lerp(t.position, View(target), Mathf.Min(1, dt * 4));
                 t.rotation = Quaternion.Euler(0, (float)(-yaw * Mathf.Rad2Deg), 0);
@@ -428,6 +440,7 @@ namespace EtherMines.Game
             preview.Yaw = preview.TYaw = pspin; // facing the camera at 0, turning
             preview.Mining = false;
             Animate(preview, Time.unscaledDeltaTime, 1);
+            Trims(preview, look);
             Layer(preview.Root.transform, PreviewLayer);
         }
 

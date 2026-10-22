@@ -55,6 +55,8 @@ namespace EtherMines.Game
             progress = GetComponent<Progress>();
             avatars.MyLook = () => progress != null ? Looks.Mine(Session, progress.Cosmetics) : new Dictionary<string, int>();
             avatars.MyTitle = () => progress != null ? Looks.BestTitle(progress.Cosmetics) : "";
+            var myHand = GetComponent<Hand>();
+            if (myHand != null) myHand.Look = avatars.MyLook;
             chat = gameObject.AddComponent<Chat>();
             chat.Session = Session;
             chat.MyName = Session.Login ?? "";

@@ -191,6 +191,31 @@ namespace EtherMines.Game
 
         // three.js Euler angles (XYZ) seen in the mirror (z -> -z): the turns about x and y change direction,
         // the turn about z (in the mirror's own plane) stays as it is
+        // a trim's glow over a model (17-looks.js tintModel, updateArmorVisual): every clay part glows in col
+        // (a pickaxe trim), or only the parts that already glow, as brightly, in col (a plating trim); null:
+        // back to its own colors
+        static MaterialPropertyBlock block;
+        public static void Tint(GameObject g, Color? col, bool glowingOnly = false)
+        {
+            if (g == null) return;
+            foreach (var r in g.GetComponentsInChildren<MeshRenderer>())
+            {
+                var m = r.sharedMaterial;
+                if (m == null || m.shader == null || m.shader.name != "EtherMines/Avatar") continue;
+                if (col == null) { r.SetPropertyBlock(null); continue; }
+                float k = 0.55f;
+                if (glowingOnly)
+                {
+                    var gl = m.GetColor("_Glow");
+                    k = Mathf.Max(gl.r, Mathf.Max(gl.g, gl.b));
+                    if (k < 0.02f) continue;
+                }
+                block ??= new MaterialPropertyBlock();
+                block.SetColor("_Glow", col.Value * k);
+                r.SetPropertyBlock(block);
+            }
+        }
+
         public static Quaternion Mirror(float x, float y, float z) =>
             Quaternion.AngleAxis(-x * Mathf.Rad2Deg, Vector3.right) * Quaternion.AngleAxis(-y * Mathf.Rad2Deg, Vector3.up) * Quaternion.AngleAxis(z * Mathf.Rad2Deg, Vector3.forward);
     }
