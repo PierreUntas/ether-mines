@@ -69,6 +69,9 @@ namespace EtherMines.Game
 
         public Claim At(double x, double z) { claims.TryGetValue(K(World.COf(Math.Floor(x)), World.COf(Math.Floor(z))), out var c); return c; }
         bool Mine(Claim c) => c.Owner == Me || c.Members.Contains(Me);
+        // your own plots, and the one you stand in when it's someone else's (to trade them, Trade.cs)
+        public IEnumerable<Claim> Owned() => claims.Values.Where(c => c.Owner == Me);
+        public Claim HereOther() { var b = Player.Body; var c = b != null ? At(b.X, b.Z) : null; return c != null && c.Owner != Me ? c : null; }
 
         // why you can't build here (canBuildHere, protectMsg), or null
         public string Refusal(double x, double z, bool toggling = false)

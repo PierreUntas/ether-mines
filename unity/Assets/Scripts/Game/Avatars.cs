@@ -51,6 +51,7 @@ namespace EtherMines.Game
         readonly Dictionary<string, Fig> figs = new Dictionary<string, Fig>();
         Fig me;
         // where the others stand (game coordinates): their feet press the plates too (12-circuits.js)
+        public IEnumerable<string> OtherNames() { foreach (var f in figs.Values) if (!string.IsNullOrEmpty(f.Name)) yield return f.Name; }
         public IEnumerable<Vector3> Others() { foreach (var f in figs.Values) if (f.Root.activeSelf) yield return f.Pos; }
         static Mesh cube;
         readonly Dictionary<string, Material> mats = new Dictionary<string, Material>();

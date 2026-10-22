@@ -112,6 +112,12 @@ namespace EtherMines.Game
             feed = new Realtime(Session.World, net.Token);
             feed.Sign += signs.Set;
             feed.Claim += claims.Changed;
+            // trades: the Trade tab of the window
+            var trade = gameObject.AddComponent<Trade>();
+            trade.Session = Session;
+            trade.Avatars = avatars;
+            feed.Offer += trade.Changed;
+            if (panel != null) panel.Trade = trade;
             feed.Block += OnBlock;
             feed.Chat += (uid, name, color, text) => { if (uid != net.UserId) chat.Add(name, color, text); };
             feed.Restored += () =>

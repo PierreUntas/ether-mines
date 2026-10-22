@@ -85,7 +85,9 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
    signs; the store builds (`Assets/Editor/Build.cs`, below).
 Then the circuits (`Core/Circuits.cs`, checked tick for tick against 12-circuits.js; `CircuitsView.cs`:
 lamps, doors, plates, gates and the clock live around you, the objectives' shapes, the lanterns' light).
-Not yet: the looks' small animations, the tool and plating trims' glow, trades, the Twin Diamond's back seat.
+Trades (`Trade.cs`, the window's Trade tab: offers received and sent, accept, decline, cancel, a new offer
+of resources, unique pickaxes and plots; the database's feed tells when one changes).
+Not yet: the looks' small animations, the tool and plating trims' glow, the Twin Diamond's back seat.
 
 ## Builds for the stores
 The **Ether Mines** menu in the editor (or `Unity -batchmode -quit -projectPath unity -executeMethod

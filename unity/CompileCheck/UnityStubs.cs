@@ -47,7 +47,7 @@ namespace UnityEngine
     public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public float magnitude => 0; public static Vector2 zero => default; public static Vector2 operator -(Vector2 a, Vector2 b) => a; public static Vector2 operator +(Vector2 a, Vector2 b) => a; public static Vector2 operator *(Vector2 a, float b) => a; }
     public enum PrimitiveType { Cube, Sphere }
     public class GUIStyleState { public Color textColor; }
-    public class GUIContent { public GUIContent(string s) { } public static GUIContent none; }
+    public class GUIContent { public GUIContent(string s) { } public GUIContent(string s, string tip) { } public static GUIContent none; }
     public enum EventType { KeyDown, KeyUp, Repaint, ScrollWheel }
     public class Event { public static Event current; public EventType type; public KeyCode keyCode; public Vector2 mousePosition, delta; public void Use() { } }
     public struct Vector3
@@ -93,7 +93,7 @@ namespace UnityEngine
     public class GUISkin { public GUIStyle box, label, button, textField; }
     public static class GUI
     {
-        public static Matrix4x4 matrix;
+        public static Matrix4x4 matrix; public static string tooltip;
         public static GUISkin skin;
         public static Color color;
         public static void DrawTexture(Rect r, Texture t) { } public static void DrawTexture(Rect r, Texture t, ScaleMode m, bool a) { }

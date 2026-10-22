@@ -18,6 +18,7 @@ namespace EtherMines.Game
         public Session Session; // null offline
         public Interaction Act;
         public Progress Progress; // null offline
+        public Trade Trade;       // null offline
         public Avatars Avatars;   // your character, shown in the bag and the shop (null offline)
         Shop shop;
         public string Tab = "bag";
@@ -161,11 +162,12 @@ namespace EtherMines.Game
             Ui.Fill(new Rect(x, y, W, H), new Color(0.13f, 0.1f, 0.27f, 0.96f));
             Ui.Frame(new Rect(x, y, W, H), new Color(1, 1, 1, 0.12f));
             // the tabs
-            float tx = x + 16, tw = Mathf.Min(120, (W - 260) / 6 - 8); // narrower on a small screen
-            foreach (var (k, t) in new[] { ("bag", "Your bag"), ("craft", "Crafting"), ("quest", "Objectives"), ("validators", "Validators"), ("shop", "Shop"), ("chest", "Chest") })
+            float tx = x + 16, tw = Mathf.Min(120, (W - 260) / 7 - 8); // narrower on a small screen
+            foreach (var (k, t) in new[] { ("bag", "Your bag"), ("craft", "Crafting"), ("quest", "Objectives"), ("validators", "Validators"), ("shop", "Shop"), ("trade", Trade != null && Trade.Received > 0 ? $"Trade ({Trade.Received})" : "Trade"), ("chest", "Chest") })
             {
                 if (k == "chest" && Open == null) continue;
                 if ((k == "quest" || k == "validators" || k == "shop") && Progress == null) continue;
+                if (k == "trade" && Trade == null) continue;
                 if (GUI.Button(new Rect(tx, y + 12, tw, 30), t, Tab == k ? Ui.Primary : Ui.Button)) { Tab = k; scroll = Vector2.zero; }
                 tx += tw + 8;
             }
@@ -177,6 +179,7 @@ namespace EtherMines.Game
             else if (Tab == "chest" && Open != null) ChestTab(body);
             else if (Tab == "quest" && Progress != null) Progress.DrawObjectives(body);
             else if (Tab == "validators" && Progress != null) Progress.DrawValidators(body);
+            else if (Tab == "trade" && Trade != null) Trade.Draw(body);
             else if (Tab == "shop" && Progress != null) (shop ??= new Shop { Session = Session, Progress = Progress, Avatars = Avatars }).Draw(body);
             if (Tab != "shop" && Avatars != null) { Avatars.TryLook = null; Avatars.TryColor = null; }
         }
