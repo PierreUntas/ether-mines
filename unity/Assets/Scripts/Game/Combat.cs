@@ -21,7 +21,8 @@ namespace EtherMines.Game
 
         public int Hp = 10;
         const float Reach = 5.2f, BoltSpeed = 28, BoltLife = 1.6f;
-        float atkT, rangedT, hurtFlash, shieldTold = -99, parryTold;
+        float atkT, rangedT, hurtFlash, shieldTold = -99, parryTold, guardFlash;
+        string guardWord;
         bool pvpStruck, guard;
         int fq; string fx;
         public bool Guarding => guard;
@@ -165,6 +166,7 @@ namespace EtherMines.Game
             atkT = Mathf.Max(0, atkT - dt);
             rangedT = Mathf.Max(0, rangedT - dt);
             hurtFlash = Mathf.Max(0, hurtFlash - dt);
+            guardFlash = Mathf.Max(0, guardFlash - dt);
             for (int i = bolts.Count - 1; i >= 0; i--)
             {
                 var b = bolts[i];
@@ -259,6 +261,7 @@ namespace EtherMines.Game
         {
             var res = m.TryGetValue("res", out var r) ? r as string : "hit";
             float dmg = F(m, "dmg");
+            if (res == "parry" || res == "block") { guardWord = res == "parry" ? "Parried!" : "Blocked"; guardFlash = 0.7f; }
             if (res == "parry" || (res == "block" && dmg == 0))
             {
                 fx = res; fq = (fq + 1) & 0xffff;
@@ -286,7 +289,9 @@ namespace EtherMines.Game
             hurtFlash = 0.25f;
             // knocked back, away from the blow
             var b = Player.Body;
-            double dx = b.X - F(m, "x"), dz = b.Z - F(m, "z"), dd = Math.Max(1e-3, Math.Sqrt(dx * dx + dz * dz));
+            double dx = b.X - F(m, "x"), dz = b.Z - F(m, "z"), dd = Math.Sqrt(dx * dx + dz * dz);
+            // struck from right where you stand: pushed back, away from where you look
+            if (dd < 0.05) { dx = Math.Sin(Player.Yaw); dz = Math.Cos(Player.Yaw); dd = 1; }
             b.MoveAxis(0, dx / dd * (blocked ? 1.2 : 2.4));
             b.MoveAxis(2, dz / dd * (blocked ? 1.2 : 2.4));
             if (!blocked) b.Vy = Math.Max(b.Vy, 4);
@@ -332,6 +337,15 @@ namespace EtherMines.Game
                 var o = GUI.color;
                 GUI.color = i < Hp ? new Color(1f, 0.36f, 0.48f) : new Color(1, 1, 1, 0.25f);
                 GUI.Label(new Rect(x0 + i * s, y, s, s), "♥", heart);
+                GUI.color = o;
+            }
+            // a blow met by your blade: said under the crosshair
+            if (guardFlash > 0)
+            {
+                var o = GUI.color;
+                GUI.color = guardWord == "Parried!" ? new Color(0.62f, 0.89f, 1f, Mathf.Clamp01(guardFlash * 2)) : new Color(1, 1, 1, Mathf.Clamp01(guardFlash * 2));
+                var st = new GUIStyle(heart) { fontSize = 20, fontStyle = FontStyle.Bold };
+                GUI.Label(new Rect(W / 2 - 100, H / 2 + 28, 200, 28), guardWord, st);
                 GUI.color = o;
             }
             if (hurtFlash > 0)

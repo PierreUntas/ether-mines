@@ -659,7 +659,8 @@
   }
   // struck by a parry: it reels back from (fx, fz), stunned, open to a riposte
   const STUN_S = 1.3,
-    WIND_S = 0.3; // a mob's wind-up before a melee blow
+    WIND_S = 0.3, // a mob's wind-up before a melee blow
+    STAND = 0.9; // blocks: how close a hunting mob comes to its target (less for a short reach)
   function parried(a, fx, fz) {
     a.stunT = STUN_S;
     a.windT = 0;
@@ -702,10 +703,21 @@
       d = tg ? (tg.d ?? Math.hypot(p.x - tg.x, p.y - tg.y, p.z - tg.z)) : Infinity, // in 3D: a buried mob doesn't bite through rock
       aggro = d < K.aggro && !mobSafe(p.x, p.z),
       ty0 = tg ? tg.y : p.y;
-    let tx, tz;
+    let tx,
+      tz,
+      face = null;
     if (aggro) {
       tx = tg.x;
       tz = tg.z;
+      // close enough to strike: it stops a step away and faces its target, instead of walking into it (a
+      // mob standing inside you struck from any side, past your guard, and its blows couldn't push you off)
+      const gx = tg.x - p.x,
+        gz = tg.z - p.z;
+      if (Math.hypot(gx, gz) < Math.min(STAND, K.atk * 0.7) && !(a.rushT > 0)) {
+        tx = p.x;
+        tz = p.z;
+        face = Math.atan2(gx, gz);
+      }
     } else {
       const T = (ev.now ?? Date.now()) / 1000 + a.ph;
       tx = a.hx + Math.sin(T * 0.3) * 2;
@@ -732,6 +744,10 @@
       nx += (dx / dd) * s;
       nz += (dz / dd) * s;
       let dr = Math.atan2(dx, dz) - a.r.y;
+      dr = Math.atan2(Math.sin(dr), Math.cos(dr));
+      a.r.y += dr * Math.min(1, dt * 6);
+    } else if (face !== null) {
+      let dr = face - a.r.y;
       dr = Math.atan2(Math.sin(dr), Math.cos(dr));
       a.r.y += dr * Math.min(1, dt * 6);
     }

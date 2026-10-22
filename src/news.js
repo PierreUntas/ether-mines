@@ -5,6 +5,13 @@
 (function (root) {
   root.NEWS = [
     {
+      date: '2026-10-22',
+      title: 'Fairer fights',
+      items: [
+        'Mobs stop a step away to strike instead of walking into you: your guard and your parries now catch every blow from in front.',
+      ],
+    },
+    {
       date: '2026-10-21',
       title: 'Version 1',
       items: [
