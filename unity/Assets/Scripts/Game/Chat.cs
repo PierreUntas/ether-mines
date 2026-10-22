@@ -32,7 +32,7 @@ namespace EtherMines.Game
 
         void Update()
         {
-            if (Typing || Session == null) return;
+            if (Typing || Session == null || Ui.PanelOpen) return;
 #if ENABLE_INPUT_SYSTEM
             var k = Keyboard.current;
             bool open = k != null && (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame);

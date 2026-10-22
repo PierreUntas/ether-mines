@@ -44,10 +44,10 @@ namespace UnityEngine
         public void SetParent(Transform p, bool worldPositionStays) { }
         public void SetPositionAndRotation(Vector3 p, Quaternion q) { } public int childCount;
     }
-    public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public float magnitude => 0; }
+    public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public float magnitude => 0; public static Vector2 zero => default; }
     public enum PrimitiveType { Cube, Sphere }
     public class GUIStyleState { public Color textColor; }
-    public class GUIContent { public GUIContent(string s) { } }
+    public class GUIContent { public GUIContent(string s) { } public static GUIContent none; }
     public enum EventType { KeyDown, KeyUp, Repaint }
     public class Event { public static Event current; public EventType type; public KeyCode keyCode; public void Use() { } }
     public struct Vector3
@@ -79,7 +79,7 @@ namespace UnityEngine
     {
         public float r, g, b, a;
         public Color(float r, float g, float b, float a = 1) { this.r = r; this.g = g; this.b = b; this.a = a; }
-        public static Color white => default; public static Color magenta => default; public Color(float r, float g, float b) : this(r, g, b, 1) { } public static Color black => default; public static Color clear => default;
+        public float grayscale => 0; public static Color white => default; public static Color magenta => default; public Color(float r, float g, float b) : this(r, g, b, 1) { } public static Color black => default; public static Color clear => default;
         public static Color Lerp(Color a, Color b, float t) => a;
         public static Color operator *(Color a, float b) => a;
     }
@@ -89,7 +89,7 @@ namespace UnityEngine
     public class RectOffset { public RectOffset(int l, int r, int t, int b) { } }
     public enum TextAnchor { UpperLeft, UpperCenter, UpperRight, MiddleLeft, MiddleCenter, MiddleRight, LowerLeft, LowerCenter, LowerRight }
     public enum FontStyle { Normal, Bold }
-    public class GUIStyle { public GUIStyle(GUIStyle s) { } public GUIStyle() { } public bool richText; public int fontSize; public TextAnchor alignment; public FontStyle fontStyle; public RectOffset padding; public bool wordWrap; public GUIStyleState normal = new GUIStyleState(); public Vector2 CalcSize(GUIContent c) => default; public float CalcHeight(GUIContent c, float w) => 0; }
+    public class GUIStyle { public GUIStyle(GUIStyle s) { } public GUIStyle() { } public bool richText; public int fontSize; public TextAnchor alignment; public FontStyle fontStyle; public RectOffset padding; public bool wordWrap; public GUIStyleState normal = new GUIStyleState(), hover = new GUIStyleState(); public static GUIStyle none; public Vector2 CalcSize(GUIContent c) => default; public float CalcHeight(GUIContent c, float w) => 0; }
     public class GUISkin { public GUIStyle box, label, button, textField; }
     public static class GUI
     {
@@ -101,7 +101,8 @@ namespace UnityEngine
         public static void Box(Rect r, string s, GUIStyle st) { }
         public static void Label(Rect r, string s) { }
         public static void Label(Rect r, string s, GUIStyle st) { }
-        public static bool Button(Rect r, string s) => false;
+        public static bool Button(Rect r, string s) => false; public static bool Button(Rect r, string s, GUIStyle st) => false; public static bool Button(Rect r, GUIContent c, GUIStyle st) => false;
+        public static int depth; public static bool enabled; public static Vector2 BeginScrollView(Rect r, Vector2 p, Rect v) => p; public static void EndScrollView() { }
         public static string TextField(Rect r, string s, int max) => s; public static string TextField(Rect r, string s, int max, GUIStyle st) => s; public static void SetNextControlName(string n) { } public static void FocusControl(string n) { }
         public static string PasswordField(Rect r, string s, char c, int max) => s;
     }
@@ -113,7 +114,7 @@ namespace UnityEngine
         public const float PI = 3.14159265f, Rad2Deg = 57.29578f, Deg2Rad = 0.0174533f;
         public static float Min(float a, float b) => a; public static float Max(float a, float b) => a;
         public static float Lerp(float a, float b, float t) => a; public static float Clamp(float v, float a, float b) => v;
-        public static float Clamp01(float v) => v; public static float Atan2(float y, float x) => 0;
+        public static float Clamp01(float v) => v; public static float Sqrt(float v) => v; public static float Ceil(float v) => v; public static int Max(int a, int b) => a; public static float Atan2(float y, float x) => 0;
         public static int Clamp(int v, int a, int b) => v;
         public static float Sin(float a) => a; public static float Cos(float a) => a; public static float Abs(float a) => a;
         public static float Floor(float a) => a; public static int FloorToInt(float a) => 0;
@@ -176,7 +177,7 @@ namespace UnityEngine
     public class AsyncOperation { public event Action<AsyncOperation> completed; public bool isDone; }
     public enum RuntimeInitializeLoadType { AfterSceneLoad, BeforeSceneLoad }
     [AttributeUsage(AttributeTargets.Method)] public class RuntimeInitializeOnLoadMethodAttribute : Attribute { public RuntimeInitializeOnLoadMethodAttribute(RuntimeInitializeLoadType t) { } }
-    public enum KeyCode { Space, LeftShift, C, LeftControl, V, F, Escape, E, T, I, Return, Alpha1, KeypadEnter }
+    public enum KeyCode { Space, LeftShift, C, LeftControl, V, F, Escape, E, T, I, Return, Alpha1, KeypadEnter, Q }
     public static class Input
     {
         public static float GetAxisRaw(string a) => 0; public static Vector2 mouseScrollDelta; public static bool GetKey(KeyCode k) => false; public static bool GetKeyDown(KeyCode k) => false;

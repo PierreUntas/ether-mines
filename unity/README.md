@@ -61,5 +61,7 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
 3. Playing together: the others walking and mining, their names, their blocks live, the chat.
 4. Mobs and combat: the web version's models, striking, the guard and the parry, the Plasma Pistol,
    fighting other players, your hearts, falling in combat, the loot.
-Next: the rest of the game (5: crafting, chests, chapters, shop, validators, plots, hovercrafts, animals,
-potions, the boots' dodge), touch controls and store builds (6).
+5. The rest of the game, in parts. Done: the window (E: your bag, crafting, a chest), chests, consumables,
+   beds and meals, relighting a validator, wearing a plating or the boots, the boots' dodge.
+   Next: chapters, the shop, validators' upkeep, plots, hovercrafts, animals, signs.
+Then touch controls and store builds (6).

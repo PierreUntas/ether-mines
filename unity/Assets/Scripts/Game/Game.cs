@@ -120,6 +120,17 @@ namespace EtherMines.Game
                 var hand = gameObject.AddComponent<Hand>();
                 hand.Player = player;
                 hand.Act = interaction;
+                var panel = gameObject.AddComponent<Panel>();
+                panel.Session = session;
+                panel.Act = interaction;
+                var items = gameObject.AddComponent<Items>();
+                items.Session = session;
+                items.Player = player;
+                items.Act = interaction;
+                items.Panel = panel;
+                items.Sky = sky;
+                interaction.Items = items;
+                if (session != null) session.Where = () => new[] { player.Body.X, player.Body.Y, player.Body.Z };
                 if (session != null)
                 {
                     // playing together: the others, their blocks, the chat
@@ -172,7 +183,7 @@ namespace EtherMines.Game
             if (!started || session == null || player.Body == null) return;
             saveT += Time.deltaTime;
             var p = player.GamePos;
-            if (saveT > 20 && (p - lastSaved).magnitude > 1) { saveT = 0; lastSaved = p; SaveNow(); }
+            if ((saveT > 20 && (p - lastSaved).magnitude > 1) || (session.Dirty && saveT > 2)) { saveT = 0; lastSaved = p; session.Dirty = false; SaveNow(); }
         }
 
         async void SaveNow()
@@ -227,7 +238,7 @@ namespace EtherMines.Game
             var b = player.Body;
             string s = $"{(session != null ? session.Login + " · " : "")}Position {Math.Floor(b.X)} · {Math.Floor(b.Y)} · {Math.Floor(b.Z)}   Day {sky.DayN} · {(int)(sky.Day * 24):00}:{(int)(sky.Day * 24 * 60 % 60):00}\n" +
                        $"{(world.Status.Length > 0 ? world.Status : status)}   chunks {world.Store.Count}{(mp != null ? "\n" + mp.Line : "")}\n" +
-                       "Hold left click: mine, strike · Right click: place, open, guard with a blade · 1-9 / wheel: bar · Enter chat · V view · F fly · Esc mouse";
+                       "Left click: mine, strike · Right click: place, open, use, guard with a blade · 1-9 / wheel: bar · E bag & crafting · Enter chat · V view · F fly · Esc mouse";
             GUI.Box(new Rect(10, 10, 780, mp != null ? 96 : 74), s, box);
         }
     }

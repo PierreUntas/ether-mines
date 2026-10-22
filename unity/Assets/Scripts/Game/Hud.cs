@@ -92,7 +92,7 @@ namespace EtherMines.Game
                 if (age > 7) continue;
                 var c = GUI.color;
                 GUI.color = new Color(1, 1, 1, Mathf.Clamp01(7 - age));
-                string k = l.Kind == "mint" ? "<color=#9fe3c4><b>MINT</b></color>" : l.Kind == "nft" ? "<color=#ffd95e><b>NFT</b></color>" : "<color=#ff9ab8><b>BURN</b></color>";
+                string k = l.Kind == "mint" ? "<color=#9fe3c4><b>MINT</b></color>" : l.Kind == "nft" ? "<color=#7fe8ff><b>NFT</b></color>" : l.Kind == "craft" ? "<color=#ffd95e><b>CRAFT</b></color>" : "<color=#ff9ab8><b>BURN</b></color>";
                 GUI.Label(new Rect(16, fy - i * 24, 700, 24), $"{k} {l.Text} <color=#c9c2f2>{l.Detail}</color>", feedStyle);
                 GUI.color = c;
             }

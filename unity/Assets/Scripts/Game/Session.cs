@@ -21,6 +21,10 @@ namespace EtherMines.Game
         public Dictionary<string, object> State = new Dictionary<string, object>();
         public readonly Inventory Inv = new Inventory();
         public double Gwei;
+        public Func<double[]> Where; // where you stand now: the actions that check it get it when none is given
+        // the act_* functions that check where you stand (their ex, ey, ez)
+        static readonly HashSet<string> WithPos = new HashSet<string> { "mine", "place", "toggle", "pos", "chest", "chest_move", "relight", "claim", "loot_mob" };
+        public bool Dirty; // your save changed (the bar, a plating worn, home...): sent back soon
         public event Action<string, string, string> Log; // kind (mint, burn, nft), text, detail
 
         static readonly string[] Colors = { "#8a7bef", "#ff9ab8", "#7fe8ff", "#9fe3c4", "#ffd95e", "#ffb37a", "#b6a4ff" };
@@ -152,8 +156,9 @@ namespace EtherMines.Game
         // ok: the server's reply when it agreed, null when it refused (the refusal is said in the log)
         public async Task<Dictionary<string, object>> Act(string name, Dictionary<string, object> args, double ex, double ey, double ez, string why = null)
         {
-            if (name == "mine" || name == "place" || name == "toggle" || name == "pos")
+            if (WithPos.Contains(name))
             {
+                if (ex == 0 && ey == 0 && ez == 0 && Where != null) { var w = Where(); ex = w[0]; ey = w[1]; ez = w[2]; }
                 args["ex"] = Math.Round(ex, 2);
                 args["ey"] = Math.Round(ey, 2);
                 args["ez"] = Math.Round(ez, 2);

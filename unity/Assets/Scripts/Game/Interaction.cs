@@ -18,6 +18,7 @@ namespace EtherMines.Game
         public PlayerController Player;
         public Session Session; // null offline
         public Combat Combat;   // online: the click strikes what you aim at (a mob, a player), the right button guards
+        public Items Items;     // chests, beds, validators' hearts, consumables
         public readonly Inventory LocalInv = new Inventory(); // offline: what you carry, this time only
         public Hit Target;
         public float MineProgress; // 0..1, for the HUD
@@ -92,7 +93,7 @@ namespace EtherMines.Game
             else { mineKey = null; mineT = 0; MineProgress = 0; if (mining) Swing = Mathf.Max(Swing, 0.6f); }
 
             placeCd -= dt;
-            if (use && placeCd <= 0 && Target != null) { placeCd = 0.2; Use(Target); }
+            if (use && placeCd <= 0) { placeCd = 0.2; if (!(Items != null && Items.Use(Target)) && Target != null) Use(Target); }
 
             PingPos(b);
         }
@@ -255,7 +256,7 @@ namespace EtherMines.Game
         static void ReadButtons(out bool mining, out bool use, out bool useHeld, out int slot, out float wheel)
         {
             mining = use = useHeld = false; slot = -1; wheel = 0;
-            if (Cursor.lockState != CursorLockMode.Locked || Chat.Typing) return;
+            if (Cursor.lockState != CursorLockMode.Locked || Ui.Blocking) return;
 #if ENABLE_INPUT_SYSTEM
             var m = Mouse.current;
             if (m != null)

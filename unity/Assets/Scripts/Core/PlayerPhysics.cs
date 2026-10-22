@@ -11,6 +11,8 @@ namespace EtherMines.Core
         public double X, Y, Z, Vy, DryT = 9;
         public bool On, InWater, Bumped;
         public double StepUp; // how much the eye still has to catch up after a step (eased by the camera)
+        public double SpeedMul = 1;             // a meal or the Swift Elixir, the Front-Runner Boots, the guard (10-loop.js)
+        public double DashT, DashVx, DashVz;    // a dodge: this velocity, for this long (16-mobs.js DASH)
 
         readonly Func<int, int, int, int> get;
         readonly Func<int, int, bool> loaded;
@@ -117,7 +119,9 @@ namespace EtherMines.Core
             DryT = inW ? 0 : DryT + dt;
             double sp = (run && !sneak ? 6.6 : 4.4) * (inW ? 0.55 : 1) * (sneak && !inW ? 0.35 : 1);
             double sn = Math.Sin(yaw), cs = Math.Cos(yaw);
+            sp *= SpeedMul;
             double vx = (-sn * fz + cs * fx) * sp, vz = (-cs * fz - sn * fx) * sp;
+            if (DashT > 0) { vx = DashVx; vz = DashVz; }
             bool was = On;
             Bumped = false;
             bool guard = sneak && was && !inW;

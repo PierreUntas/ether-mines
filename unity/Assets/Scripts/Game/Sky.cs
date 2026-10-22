@@ -14,6 +14,7 @@ namespace EtherMines.Game
         public int DayN;
         public float? FixedDay; // a fixed time of day (captures), otherwise the world's clock
         public float FogFar = 108;
+        public float Vision; // 0..1: the Owl Draught (18-potions.js visionLight): the dark never gets darker than a soft daylight
 
         const double DAY_S = 480;
         static readonly double WorldEpoch = (new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc) - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
@@ -58,6 +59,7 @@ namespace EtherMines.Game
             Sun.intensity = dir.y > 0 ? si * 0.95f * 1.25f : 0.12f;
             Sun.color = dir.y > 0 ? Color.Lerp(sunC, Color.white, 0.35f) : C("#9fb0ff");
             var ambient = Color.Lerp(hor, Color.white, 0.45f) * amb * 1.6f;
+            if (Vision > 0) { var day = new Color(1.3f, 1.3f, 1.35f); if (day.grayscale > ambient.grayscale) ambient = Color.Lerp(ambient, day, Vision * 0.8f); }
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = ambient;
             RenderSettings.ambientEquatorColor = ambient * 0.85f;

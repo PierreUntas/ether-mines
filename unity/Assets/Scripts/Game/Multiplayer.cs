@@ -21,6 +21,7 @@ namespace EtherMines.Game
         Chat chat;
         Mobs mobs;
         Combat combat;
+        Items items;
         readonly List<string> names = new List<string>();
         bool restoring;
 
@@ -61,6 +62,8 @@ namespace EtherMines.Game
             Act.Combat = combat;
             var hand = GetComponent<Hand>();
             if (hand != null) hand.Combat = combat;
+            items = GetComponent<Items>();
+            if (items != null) { items.Link = link; items.Combat = combat; }
             // your hearts as this screen knows them, your plating and boots: the server keeps them from then on
             link.HelloExtra = () => new Dictionary<string, object> { ["hp"] = combat.Hp, ["ar"] = combat.Armor, ["bt"] = combat.Boots ? 1 : 0 };
             link.Peers += list =>
@@ -108,7 +111,7 @@ namespace EtherMines.Game
             if (b == null) return;
             int held = Act.Inv.HeldId;
             if (held <= 0 || Rules.Block(held) != null) held = 0; // what's drawn in their hand: a tool or a weapon
-            link.SendPos(b.X, b.Y, b.Z, Player.Yaw, Player.Pitch, Act.Swing > 0, held, Time.time, combat.Guarding, combat.Armor, combat.Boots, combat.Fx, combat.Fq);
+            link.SendPos(b.X, b.Y, b.Z, Player.Yaw, Player.Pitch, Act.Swing > 0, held, Time.time, combat.Guarding, combat.Armor, combat.Boots, combat.Fx, combat.Fq, items != null && items.Warded);
         }
 
         void OnDestroy()

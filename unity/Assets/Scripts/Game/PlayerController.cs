@@ -21,6 +21,7 @@ namespace EtherMines.Game
         public float Sensitivity = 1f;
         public bool Sneaking; // crouching: place against a door instead of opening it
         public bool Moving;   // walking (the hand bobs)
+        public float MoveX, MoveZ; // the way you push (strafe, forward), for the dodge
         readonly double[] boxBuf = new double[64 * 6];
         double eyeLag;
         bool ready;
@@ -59,8 +60,9 @@ namespace EtherMines.Game
             ReadInput(out float fx, out float fz, out float lookX, out float lookY, out bool jump, out bool run, out bool sneak, out bool toggleView, out bool toggleFly, out bool unlock);
             Sneaking = sneak;
             Moving = fx != 0 || fz != 0;
+            MoveX = fx; MoveZ = fz;
             if (unlock) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
-            if (Cursor.lockState != CursorLockMode.Locked && ClickedIn()) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
+            if (Cursor.lockState != CursorLockMode.Locked && !Ui.PanelOpen && ClickedIn()) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
             Yaw -= lookX * 0.0025 * Sensitivity;
             Pitch = Math.Max(-1.55, Math.Min(1.55, Pitch - lookY * 0.0025 * Sensitivity * -1));
             if (toggleView) View = (View + 1) % 3;
@@ -115,15 +117,16 @@ namespace EtherMines.Game
             fx = fz = lookX = lookY = 0;
             jump = run = sneak = toggleView = toggleFly = unlock = false;
             bool locked = Cursor.lockState == CursorLockMode.Locked;
-            if (Chat.Typing) return; // writing a message: the keys are for the chat
+            if (Ui.Blocking) return; // writing a message, a window open: the keys are for it
 #if ENABLE_INPUT_SYSTEM
             var k = Keyboard.current;
             if (k != null)
             {
-                if (k.wKey.isPressed || k.zKey.isPressed || k.upArrowKey.isPressed) fz++;
+                // keys by their place on the keyboard (Input System): W A S D here are Z Q S D on a French one
+                if (k.wKey.isPressed || k.upArrowKey.isPressed) fz++;
                 if (k.sKey.isPressed || k.downArrowKey.isPressed) fz--;
                 if (k.dKey.isPressed || k.rightArrowKey.isPressed) fx++;
-                if (k.aKey.isPressed || k.qKey.isPressed || k.leftArrowKey.isPressed) fx--;
+                if (k.aKey.isPressed || k.leftArrowKey.isPressed) fx--;
                 jump = k.spaceKey.isPressed;
                 run = k.leftShiftKey.isPressed || k.rightShiftKey.isPressed;
                 sneak = k.cKey.isPressed || k.leftCtrlKey.isPressed;
