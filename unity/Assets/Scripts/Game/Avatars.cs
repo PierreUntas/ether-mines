@@ -21,6 +21,8 @@ namespace EtherMines.Game
             public Vector3 Target; // game coordinates
             public double Yaw, TYaw, Pitch;
             public bool Mining, Seen;
+            public int Held, ShownHeld = -1; // the tool or weapon in their right hand (`h`), and the one drawn
+            public GameObject HeldObj;
             public float HeardAt, Walk, Phase;
             public Vector3 Pos; // game coordinates, eased
         }
@@ -116,7 +118,7 @@ namespace EtherMines.Game
             foreach (var k in gone) { Destroy(figs[k].Root); figs.Remove(k); }
         }
 
-        public void Heard(string id, string name, string color, double x, double y, double z, double yaw, double pitch, bool mining, bool live = true)
+        public void Heard(string id, string name, string color, double x, double y, double z, double yaw, double pitch, bool mining, bool live = true, int held = 0)
         {
             if (!figs.TryGetValue(id, out var f) || f.Color != color || f.Name != name)
             {
@@ -124,7 +126,7 @@ namespace EtherMines.Game
                 figs[id] = f = Make(id, name, color);
             }
             f.Target = new Vector3((float)x, (float)y, (float)z);
-            if (live) { f.TYaw = yaw; f.Pitch = pitch; f.Mining = mining; f.HeardAt = Time.time; }
+            if (live) { f.TYaw = yaw; f.Pitch = pitch; f.Mining = mining; f.HeardAt = Time.time; f.Held = held; }
             if (!f.Seen) { f.Seen = true; f.Pos = f.Target; f.Yaw = f.TYaw; f.HeardAt = Time.time; }
         }
 
@@ -172,6 +174,8 @@ namespace EtherMines.Game
                     me.Target = Player.GamePos;
                     me.TYaw = Player.Yaw; me.Pitch = Player.Pitch;
                     me.Mining = Act != null && Act.Swing > 0;
+                    int h = Act != null && Act.Inv.Held != null ? Act.Inv.HeldId : 0;
+                    me.Held = h > 0 && EtherMines.Core.Rules.Block(h) == null ? h : 0;
                     if (!me.Seen) { me.Seen = true; me.Pos = me.Target; me.Yaw = me.TYaw; }
                     Animate(me, dt, 1);
                 }
@@ -179,8 +183,24 @@ namespace EtherMines.Game
             }
         }
 
+        // the tool or weapon in the right hand (updateAvatarHand): items only, as the game draws them
+        static void HoldIn(Fig f)
+        {
+            if (f.ShownHeld == f.Held) return;
+            f.ShownHeld = f.Held;
+            if (f.HeldObj != null) Destroy(f.HeldObj);
+            f.HeldObj = f.Held > 0 && EtherMines.Core.Rules.Block(f.Held) == null ? HeldModels.Make(f.Held, 0, true) : null;
+            if (f.HeldObj == null) return;
+            var t = f.HeldObj.transform;
+            t.SetParent(f.ArmR, false);
+            t.localScale = Vector3.one * 0.72f;
+            t.localPosition = new Vector3(0.1f, -0.3f, 0.22f);
+            t.localRotation = HeldModels.Mirror(0, -0.3f, 0.3f);
+        }
+
         static void Animate(Fig f, float dt, float k)
         {
+            HoldIn(f);
             var d = f.Target - f.Pos;
             f.Pos += d * k;
             double dr = f.TYaw - f.Yaw;

@@ -22,6 +22,7 @@ namespace EtherMines.Game
         public string Status = "";
 
         Material opMat, glMat, waMat, plMat;
+        public Material OpMat => opMat; public Material GlMat => glMat; public Material WaMat => waMat; public Material PlMat => plMat;
         readonly Dictionary<long, GameObject> views = new Dictionary<long, GameObject>();
         readonly HashSet<long> pending = new HashSet<long>(); // being read from the server
         readonly HashSet<long> meshQueue = new HashSet<long>();
@@ -275,9 +276,10 @@ namespace EtherMines.Game
             views[key] = go;
         }
 
-        static void Part(GameObject parent, MeshGroup g, Material mat, bool shadows)
+        // a mesher group as a Unity mesh under parent (z mirrored, triangles turned around); null when empty
+        public static GameObject Part(GameObject parent, MeshGroup g, Material mat, bool shadows)
         {
-            if (g == null || g.Pos == null || g.Pos.Length == 0) return;
+            if (g == null || g.Pos == null || g.Pos.Length == 0) return null;
             int n = g.Pos.Length / 3;
             var pos = new Vector3[n];
             var nor = new Vector3[n];
@@ -320,6 +322,7 @@ namespace EtherMines.Game
             r.sharedMaterial = mat;
             r.shadowCastingMode = shadows ? ShadowCastingMode.On : ShadowCastingMode.Off;
             r.receiveShadows = true;
+            return go;
         }
 
         void UnloadFar()

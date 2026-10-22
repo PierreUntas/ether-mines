@@ -18,7 +18,8 @@ accounts** as the web version: same Supabase project, same `act_*` functions, sa
   your account and save (`Session.cs`), mining and placing (`Interaction.cs`), the HUD (`Hud.cs`), playing
   together (`Multiplayer.cs`: the game server in `GameLink.cs`, the database's feed in `Realtime.cs`, both
   over `Socket.cs`; the others' figures in `Avatars.cs`; `Chat.cs`), the mobs (`Mobs.cs`, models from
-  `Resources/mobs.json`) and fighting them (`Combat.cs`).
+  `Resources/mobs.json`) and fighting them (`Combat.cs`), what you hold (`Hand.cs` in first person,
+  `HeldModels.cs`: the items' clay models from `Resources/held.json`, blocks meshed by `Mesher`).
 - `Assets/Resources/Shaders/` — the clay look (blocks, glass, water, plants, sky), built-in render pipeline.
 - `Assets/Resources/Art/` — the web version's own textures, exported by `tools/export-art.mjs`.
 
@@ -36,6 +37,9 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
 - Textures changed (`src/game/01-textures.js`) → `node unity/tools/export-art.mjs`.
 - A mob's model (`buildMob` in `src/game/16-mobs.js`) or stats (`MK` in `src/mobs-core.js`) changed →
   `node unity/tools/export-mobs.mjs` (a test checks it).
+- A held item's model (`clayModel` in `src/game/04-render.js`) changed, or an item added →
+  `node unity/tools/export-held.mjs` (opens the game in a headless browser: Playwright, as for
+  `tests/navigateur.mjs`).
 - Type-check the Unity scripts without the editor: `cd unity/CompileCheck && dotnet build -c Release`
   (and `-p:Legacy=1` for the old Input Manager branch). `UnityStubs.cs` holds the API they use.
 

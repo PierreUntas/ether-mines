@@ -25,6 +25,7 @@ namespace UnityEngine
         public T[] GetComponentsInChildren<T>() => null;
     }
     public class Behaviour : Component { public bool enabled; }
+    public class Collider : Component { }
     public class MonoBehaviour : Behaviour { }
     public class GameObject : Object
     {
@@ -34,14 +35,14 @@ namespace UnityEngine
         public T AddComponent<T>() where T : Component => default;
         public T GetComponent<T>() => default;
         public T[] GetComponentsInChildren<T>() => null;
-        public void SetActive(bool v) { } public bool activeSelf; public static GameObject CreatePrimitive(PrimitiveType t) => null;
+        public void SetActive(bool v) { } public bool activeSelf; public int layer; public static GameObject CreatePrimitive(PrimitiveType t) => null;
     }
     public class Transform : Component
     {
         public Vector3 position, localPosition, eulerAngles, localScale;
         public Quaternion rotation, localRotation;
         public void SetParent(Transform p, bool worldPositionStays) { }
-        public void SetPositionAndRotation(Vector3 p, Quaternion q) { }
+        public void SetPositionAndRotation(Vector3 p, Quaternion q) { } public int childCount;
     }
     public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public float magnitude => 0; }
     public enum PrimitiveType { Cube, Sphere }
@@ -134,7 +135,7 @@ namespace UnityEngine
         public static Camera main;
         public float nearClipPlane, farClipPlane, fieldOfView;
         public CameraClearFlags clearFlags;
-        public Color backgroundColor; public Vector3 WorldToScreenPoint(Vector3 p) => default;
+        public Color backgroundColor; public int cullingMask; public float depth; public Vector3 WorldToScreenPoint(Vector3 p) => default;
     }
     public enum LightType { Directional, Point, Spot }
     public enum LightShadows { None, Hard, Soft }

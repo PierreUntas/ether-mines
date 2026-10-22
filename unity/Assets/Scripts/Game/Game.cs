@@ -116,6 +116,10 @@ namespace EtherMines.Game
                 interaction.Player = player;
                 interaction.Session = session;
                 gameObject.AddComponent<Hud>().Act = interaction;
+                HeldModels.World = world;
+                var hand = gameObject.AddComponent<Hand>();
+                hand.Player = player;
+                hand.Act = interaction;
                 if (session != null)
                 {
                     // playing together: the others, their blocks, the chat
