@@ -1,6 +1,7 @@
 // Ether Mines · playing together (11-multiplayer.js, 14-startup.js Net.on...): the game server for who is
 // here and where they move, the database's feed for the blocks the others change and the chat. Your own
-// moves go out as you walk; the others' blocks are laid into the world and drawn again at once.
+// moves go out as you walk; the others' blocks are laid into the world and drawn again at once. The
+// server also runs the mobs and keeps your hearts: Mobs draws them, Combat fights them.
 using System.Collections.Generic;
 using EtherMines.Core;
 using UnityEngine;
@@ -18,6 +19,8 @@ namespace EtherMines.Game
         Realtime feed;
         Avatars avatars;
         Chat chat;
+        Mobs mobs;
+        Combat combat;
         readonly List<string> names = new List<string>();
         bool restoring;
 
@@ -46,6 +49,18 @@ namespace EtherMines.Game
             chat.MyColor = Session.Color;
 
             link = new GameLink(Session.World, net.Token);
+            mobs = gameObject.AddComponent<Mobs>();
+            mobs.Player = Player;
+            combat = gameObject.AddComponent<Combat>();
+            combat.Session = Session;
+            combat.Player = Player;
+            combat.Act = Act;
+            combat.Mobs = mobs;
+            combat.Avatars = avatars;
+            combat.Link = link;
+            Act.Combat = combat;
+            // your hearts as this screen knows them, your plating and boots: the server keeps them from then on
+            link.HelloExtra = () => new Dictionary<string, object> { ["hp"] = combat.Hp, ["ar"] = combat.Armor, ["bt"] = combat.Boots ? 1 : 0 };
             link.Peers += list =>
             {
                 avatars.SetPeers(list, link.SelfId);
@@ -91,7 +106,7 @@ namespace EtherMines.Game
             if (b == null) return;
             int held = Act.Inv.HeldId;
             if (held <= 0 || Rules.Block(held) != null) held = 0; // what's drawn in their hand: a tool or a weapon
-            link.SendPos(b.X, b.Y, b.Z, Player.Yaw, Player.Pitch, Act.Swing > 0, held, Time.time);
+            link.SendPos(b.X, b.Y, b.Z, Player.Yaw, Player.Pitch, Act.Swing > 0, held, Time.time, combat.Guarding, combat.Armor, combat.Boots, combat.Fx, combat.Fq);
         }
 
         void OnDestroy()

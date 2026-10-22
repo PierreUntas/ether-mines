@@ -17,6 +17,7 @@ namespace EtherMines.Game
         public WorldView World;
         public PlayerController Player;
         public Session Session; // null offline
+        public Combat Combat;   // online: the click strikes what you aim at (a mob, a player), the right button guards
         public readonly Inventory LocalInv = new Inventory(); // offline: what you carry, this time only
         public Hit Target;
         public float MineProgress; // 0..1, for the HUD
@@ -39,7 +40,7 @@ namespace EtherMines.Game
         void Update()
         {
             if (Player == null || Player.Body == null) return;
-            ReadButtons(out bool mining, out bool use, out int slot, out float wheel);
+            ReadButtons(out bool mining, out bool use, out bool useHeld, out int slot, out float wheel);
             var inv = Inv;
             if (slot >= 0) inv.Sel = slot;
             if (wheel != 0) inv.Sel = ((inv.Sel + (wheel > 0 ? -1 : 1)) % 9 + 9) % 9;
@@ -50,9 +51,25 @@ namespace EtherMines.Game
             double cp = Math.Cos(Player.Pitch);
             double dx = -Math.Sin(Player.Yaw) * cp, dy = Math.Sin(Player.Pitch), dz = -Math.Cos(Player.Yaw) * cp;
             Target = Cursor.lockState == CursorLockMode.Locked ? Raycast.Cast(World.Get, b.X, b.Y + PlayerPhysics.EYE, b.Z, dx, dy, dz, Reach) : null;
+            double dt = Time.deltaTime;
+            // fighting first: a mob or a player under the crosshair, the pistol in hand, the guard up
+            if (Combat != null && Cursor.lockState == CursorLockMode.Locked)
+            {
+                var eye = new Vector3((float)b.X, (float)(b.Y + PlayerPhysics.EYE), (float)b.Z);
+                var dir = new Vector3((float)dx, (float)dy, (float)dz);
+                float blockDist = Target != null ? Mobs.RayBox(eye, dir, new Vector3(Target.X, Target.Y, Target.Z), new Vector3(Target.X + 1, Target.Y + 1, Target.Z + 1)) : float.MaxValue;
+                if (blockDist < 0) blockDist = float.MaxValue;
+                if (Combat.Fight(mining, useHeld, eye, dir, blockDist))
+                {
+                    Target = null;
+                    PlaceOutline();
+                    mineKey = null; mineT = 0; MineProgress = 0;
+                    PingPos(b);
+                    return;
+                }
+            }
             PlaceOutline();
 
-            double dt = Time.deltaTime;
             var bd = Target != null ? Rules.Block(Target.Id) : null;
             if (mining && Target != null && bd != null && !double.IsInfinity(bd.H) && World_InWorld(Target) && !Protected(Target.X, Target.Z))
             {
@@ -77,7 +94,12 @@ namespace EtherMines.Game
             placeCd -= dt;
             if (use && placeCd <= 0 && Target != null) { placeCd = 0.2; Use(Target); }
 
-            // the server's idea of where you are (move validation): a ping every 15 s while you move
+            PingPos(b);
+        }
+
+        // the server's idea of where you are (move validation): a ping every 15 s while you move
+        void PingPos(PlayerPhysics b)
+        {
             if (Session != null && Time.time - lastPos > 15) { lastPos = (int)Time.time; _ = Session.Act("pos", new Dictionary<string, object>(), b.X, b.Y, b.Z); }
         }
 
@@ -230,9 +252,9 @@ namespace EtherMines.Game
             outline.transform.position = new Vector3(Target.X, Target.Y, -Target.Z - 1);
         }
 
-        static void ReadButtons(out bool mining, out bool use, out int slot, out float wheel)
+        static void ReadButtons(out bool mining, out bool use, out bool useHeld, out int slot, out float wheel)
         {
-            mining = use = false; slot = -1; wheel = 0;
+            mining = use = useHeld = false; slot = -1; wheel = 0;
             if (Cursor.lockState != CursorLockMode.Locked || Chat.Typing) return;
 #if ENABLE_INPUT_SYSTEM
             var m = Mouse.current;
@@ -240,6 +262,7 @@ namespace EtherMines.Game
             {
                 mining = m.leftButton.isPressed;
                 use = m.rightButton.wasPressedThisFrame;
+                useHeld = m.rightButton.isPressed;
                 wheel = m.scroll.ReadValue().y;
             }
             var k = Keyboard.current;
@@ -249,10 +272,11 @@ namespace EtherMines.Game
                 for (int i = 0; i < 9; i++) if (digits[i].wasPressedThisFrame) slot = i;
             }
             var g = Gamepad.current;
-            if (g != null) { mining |= g.rightTrigger.isPressed; use |= g.leftTrigger.wasPressedThisFrame; }
+            if (g != null) { mining |= g.rightTrigger.isPressed; use |= g.leftTrigger.wasPressedThisFrame; useHeld |= g.leftTrigger.isPressed; }
 #else
             mining = Input.GetMouseButton(0);
             use = Input.GetMouseButtonDown(1);
+            useHeld = Input.GetMouseButton(1);
             wheel = Input.mouseScrollDelta.y;
             for (int i = 0; i < 9; i++) if (Input.GetKeyDown(KeyCode.Alpha1 + i)) slot = i;
 #endif

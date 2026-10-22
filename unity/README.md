@@ -17,7 +17,8 @@ accounts** as the web version: same Supabase project, same `act_*` functions, sa
   (`PlayerController.cs`), the sky (`Sky.cs`), Supabase (`Supabase.cs`), the servers (`Config.cs`),
   your account and save (`Session.cs`), mining and placing (`Interaction.cs`), the HUD (`Hud.cs`), playing
   together (`Multiplayer.cs`: the game server in `GameLink.cs`, the database's feed in `Realtime.cs`, both
-  over `Socket.cs`; the others' figures in `Avatars.cs`; `Chat.cs`).
+  over `Socket.cs`; the others' figures in `Avatars.cs`; `Chat.cs`), the mobs (`Mobs.cs`, models from
+  `Resources/mobs.json`) and fighting them (`Combat.cs`).
 - `Assets/Resources/Shaders/` — the clay look (blocks, glass, water, plants, sky), built-in render pipeline.
 - `Assets/Resources/Art/` — the web version's own textures, exported by `tools/export-art.mjs`.
 
@@ -33,14 +34,17 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
   `cd unity/CoreTests && node golden.mjs && node golden-mesh.mjs && dotnet build -c Release && dotnet bin/Release/net8.0/CoreTests.dll`
   (every chunk must match the JavaScript byte for byte, every mesh vertex for vertex).
 - Textures changed (`src/game/01-textures.js`) → `node unity/tools/export-art.mjs`.
+- A mob's model (`buildMob` in `src/game/16-mobs.js`) or stats (`MK` in `src/mobs-core.js`) changed →
+  `node unity/tools/export-mobs.mjs` (a test checks it).
 - Type-check the Unity scripts without the editor: `cd unity/CompileCheck && dotnet build -c Release`
   (and `-p:Legacy=1` for the old Input Manager branch). `UnityStubs.cs` holds the API they use.
 
 ## Multiplayer
 - The game server (`server/`) is reached as the web page is, with the site's origin (`ALLOWED_ORIGINS`)
-  and `PROTOCOL` 2 (`GameLink.Protocol`: change it with `server.js` and `net.js`). Until mobs and combat
-  are ported, the hello and every position say `nm: 1` (hostile mobs off), so the server's mobs leave a
-  Unity player alone.
+  and `PROTOCOL` 2 (`GameLink.Protocol`: change it with `server.js` and `net.js`).
+- The mobs run on the game server: the client draws what it says (`ms`), sends its blows (`mob`, `hit`,
+  `shot`, `guard`) and shows what the server settled (`mob`, `hurt`, `hp`, `loot`, `mshot`). Without the
+  game server there are no mobs in the Unity client (the web version then runs them on each screen).
 - The blocks the others change and the chat come from Supabase Realtime (Phoenix protocol, topic
   `world:<world>:unity`, the `blocks`, `chat` and `world_restores` tables), as `net.js` hears them.
 - Test without the real servers: `cd server && PORT=8799 AUTH_MODE=test MOB_SIM=0 node src/server.js`,
@@ -51,4 +55,7 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
    look, the day and night, walking with the web version's physics.
 2. Your account (nickname and password, the same as on the web), your save, mining, placing, your bar.
 3. Playing together: the others walking and mining, their names, their blocks live, the chat.
-Next: mobs and combat (4), the rest of the game (5), touch controls and store builds (6).
+4. Mobs and combat: the web version's models, striking, the guard and the parry, the Plasma Pistol,
+   fighting other players, your hearts, falling in combat, the loot.
+Next: the rest of the game (5: crafting, chests, chapters, shop, validators, plots, hovercrafts, animals,
+potions, the boots' dodge), touch controls and store builds (6).

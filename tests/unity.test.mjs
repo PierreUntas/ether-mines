@@ -9,3 +9,8 @@ test('unity rules.json is up to date (node unity/tools/export-rules.mjs)', () =>
   const tool = new URL('../unity/tools/export-rules.mjs', import.meta.url).pathname;
   assert.doesNotThrow(() => execFileSync(process.execPath, [tool, '--check'], { encoding: 'utf8', stdio: 'pipe' }));
 });
+
+test('unity mobs.json is up to date (node unity/tools/export-mobs.mjs)', () => {
+  const tool = new URL('../unity/tools/export-mobs.mjs', import.meta.url).pathname;
+  assert.doesNotThrow(() => execFileSync(process.execPath, [tool, '--check'], { encoding: 'utf8', stdio: 'pipe' }));
+});

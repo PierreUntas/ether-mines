@@ -1,8 +1,8 @@
 // Ether Mines · the game server (server/, net.js gsConnect): the players' real time over one WebSocket.
 // Hello with your session token, then your position when you move (at most 5 times a second, a sign of
 // life every 4 s), and from the server the list of who is in the world (peers, every 2 s) and the moves
-// of the players near you (pos). Mobs and fights come with the next steps: until then this client says
-// it has hostile mobs turned off (nm), so the server's mobs leave it be.
+// of the players near you (pos). The server also runs the mobs and keeps your hearts: what it says about
+// them (ms, mob, mhit, mshot, hurt, hp, loot, hit, shot) goes to Message, for Combat and Mobs.
 using System;
 using System.Collections.Generic;
 using EtherMines.Core;
@@ -15,10 +15,16 @@ namespace EtherMines.Game
         const string Origin = "https://ethermines.org";
 
         public sealed class Peer { public string Id, Name, Color; public double X, Y, Z; public bool HasPos; }
-        public sealed class Move { public string Id, Name, Color; public double X, Y, Z, Yaw, Pitch; public bool Mining; public int Held; }
+        public sealed class Move { public string Id, Name, Color; public double X, Y, Z, Yaw, Pitch; public bool Mining, Guard; public int Held; }
 
         public event Action<List<Peer>> Peers;
         public event Action<Move> Pos;
+        public event Action<string, Dictionary<string, object>> Message; // everything else the server says
+        public bool MobServer { get; private set; }  // it runs the mobs (the game only draws them)
+        public bool HpServer { get; private set; }   // it keeps your hearts
+        public bool LootServer { get; private set; } // it pays the loot of a kill
+        public Func<Dictionary<string, object>> HelloExtra; // your hearts, your plating... for the hello
+        public bool NoMobs;                          // hostile mobs off here: the server's mobs leave you be
         public string Status = "";
         public bool Ready { get; private set; }
         public string SelfId { get; private set; }
@@ -32,8 +38,8 @@ namespace EtherMines.Game
         int retries;
         string sentToken;
         double lx, ly, lz, lyaw, lpitch;
-        bool lm, sentOnce;
-        int lh;
+        bool lm, lg, lbt, lnm, sentOnce;
+        int lh, lar, lfq;
         float lastSent;
 
         public GameLink(string world, Func<System.Threading.Tasks.Task<string>> token)
@@ -50,10 +56,12 @@ namespace EtherMines.Game
                 var tk = await token();
                 sock = await Socket.Connect(Url, Origin);
                 sentToken = tk;
-                sock.Send(MiniJson.Write(new Dictionary<string, object>
+                var hello = new Dictionary<string, object>
                 {
-                    ["t"] = "hello", ["v"] = Protocol, ["world"] = world, ["token"] = tk, ["title"] = "", ["look"] = "", ["nm"] = 1,
-                }));
+                    ["t"] = "hello", ["v"] = Protocol, ["world"] = world, ["token"] = tk, ["title"] = "", ["look"] = "", ["nm"] = NoMobs ? 1 : 0,
+                };
+                if (HelloExtra != null) foreach (var kv in HelloExtra()) hello[kv.Key] = kv.Value;
+                sock.Send(MiniJson.Write(hello));
                 Status = "hello";
             }
             catch (Exception e)
@@ -104,7 +112,11 @@ namespace EtherMines.Game
             if (t == "welcome")
             {
                 SelfId = m["id"] as string;
+                MobServer = MiniJson.Truthy(m.TryGetValue("mobs", out var mb) ? mb : null);
+                HpServer = m.TryGetValue("hp", out var hp) && hp is double;
+                LootServer = MiniJson.Truthy(m.TryGetValue("loot", out var lt) ? lt : null);
                 Ready = true;
+                Message?.Invoke("welcome", m);
                 retries = 0;
                 Status = "online";
                 sentOnce = false;
@@ -137,25 +149,37 @@ namespace EtherMines.Game
                     X = MiniJson.ToDouble(m["x"]), Y = MiniJson.ToDouble(m["y"]), Z = MiniJson.ToDouble(m["z"]),
                     Yaw = MiniJson.ToDouble(m.TryGetValue("yaw", out var yw) ? yw : null), Pitch = MiniJson.ToDouble(m.TryGetValue("pitch", out var pt) ? pt : null),
                     Mining = MiniJson.Truthy(m.TryGetValue("m", out var mm) ? mm : null), Held = MiniJson.ToInt(m.TryGetValue("h", out var h) ? h : null),
+                    Guard = MiniJson.Truthy(m.TryGetValue("gd", out var gd) ? gd : null),
                 });
             }
+            else Message?.Invoke(t, m);
         }
 
         // your position (14-startup.js): only when you moved, at most 5 times a second, a sign of life every 4 s
-        public void SendPos(double x, double y, double z, double yaw, double pitch, bool mining, int held, float now)
+        // gd: the blade up; ar: the plating you wear; bt: the Front-Runner Boots on; fx/fq: the last blow you
+        // took or parried, and its number (the others see it on your figure)
+        public void SendPos(double x, double y, double z, double yaw, double pitch, bool mining, int held, float now, bool guard = false, int armor = 0, bool boots = false, string fx = null, int fq = 0)
         {
             if (!Ready || now - lastSent < 0.2f) return;
             bool moved = !sentOnce || Math.Sqrt((x - lx) * (x - lx) + (y - ly) * (y - ly) + (z - lz) * (z - lz)) > 0.08 ||
-                         Math.Abs(yaw - lyaw) > 0.06 || Math.Abs(pitch - lpitch) > 0.08 || mining != lm || held != lh;
+                         Math.Abs(yaw - lyaw) > 0.06 || Math.Abs(pitch - lpitch) > 0.08 || mining != lm || held != lh ||
+                         guard != lg || armor != lar || boots != lbt || NoMobs != lnm || fq != lfq;
             if (!moved && now - lastSent < 4) return;
             sentOnce = true;
-            lx = x; ly = y; lz = z; lyaw = yaw; lpitch = pitch; lm = mining; lh = held;
+            lx = x; ly = y; lz = z; lyaw = yaw; lpitch = pitch; lm = mining; lh = held; lg = guard; lar = armor; lbt = boots; lnm = NoMobs; lfq = fq;
             lastSent = now;
             sock?.Send(MiniJson.Write(new Dictionary<string, object>
             {
                 ["t"] = "pos", ["x"] = Math.Round(x, 2), ["y"] = Math.Round(y, 2), ["z"] = Math.Round(z, 2), ["yaw"] = Math.Round(yaw, 2), ["pitch"] = Math.Round(pitch, 2),
-                ["m"] = mining, ["h"] = held, ["gd"] = 0, ["rd"] = 0, ["on"] = 0, ["ar"] = 0, ["bt"] = 0, ["nm"] = 1, ["fx"] = 0, ["fq"] = 0,
+                ["m"] = mining, ["h"] = held, ["gd"] = guard ? 1 : 0, ["rd"] = 0, ["on"] = 0, ["ar"] = armor, ["bt"] = boots ? 1 : 0, ["nm"] = NoMobs ? 1 : 0,
+                ["fx"] = fx ?? (object)0, ["fq"] = fq,
             }));
+        }
+
+        // any other word to the server (mob, hit, shot, guard, parry...): only once it has welcomed you
+        public void Send(Dictionary<string, object> m)
+        {
+            if (Ready) sock?.Send(MiniJson.Write(m));
         }
 
         // a block changed (heard from the database's feed): the server's mobs walk the new terrain

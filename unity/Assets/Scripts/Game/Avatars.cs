@@ -130,6 +130,26 @@ namespace EtherMines.Game
 
         public int Count => figs.Count;
 
+        // the others you can see, where they stand (game coordinates)
+        public IEnumerable<(string id, Vector3 pos)> Visible()
+        {
+            foreach (var f in figs.Values) if (f.Root.activeSelf) yield return (f.Id, f.Pos);
+        }
+
+        // the player your aim meets first, within reach and before any block (pickPlayer)
+        public string Pick(Vector3 eye, Vector3 dir, float reach, float blockDist)
+        {
+            string best = null;
+            float bd = Mathf.Min(reach, blockDist);
+            foreach (var f in figs.Values)
+            {
+                if (!f.Root.activeSelf) continue;
+                float d = Mobs.RayBox(eye, dir, new Vector3(f.Pos.x - 0.35f, f.Pos.y, f.Pos.z - 0.35f), new Vector3(f.Pos.x + 0.35f, f.Pos.y + 1.85f, f.Pos.z + 0.35f));
+                if (d >= 0 && d < bd) { bd = d; best = f.Id; }
+            }
+            return best;
+        }
+
         void Update()
         {
             float dt = Time.deltaTime;

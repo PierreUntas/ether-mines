@@ -55,7 +55,9 @@ namespace UnityEngine
         public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
         public Vector3 normalized => this;
         public float magnitude => 0; public static Vector3 operator *(Vector3 a, double b) => a;
-        public static Vector3 zero => default; public static Vector3 up => default; public static Vector3 forward => default;
+        public static Vector3 zero => default; public static Vector3 up => default; public static Vector3 forward => default; public static Vector3 one => default; public static Vector3 right => default;
+        public float sqrMagnitude => 0; public static float Distance(Vector3 a, Vector3 b) => 0; public static Vector3 Lerp(Vector3 a, Vector3 b, float t) => a;
+        public float this[int i] { get => 0; set { } } public static Vector3 operator /(Vector3 a, float b) => a;
         public static Vector3 operator +(Vector3 a, Vector3 b) => a;
         public static Vector3 operator -(Vector3 a, Vector3 b) => a;
         public static Vector3 operator -(Vector3 a) => a;
@@ -67,7 +69,7 @@ namespace UnityEngine
     public struct Quaternion
     {
         public static Quaternion identity => default;
-        public static Quaternion Euler(float x, float y, float z) => default;
+        public static Quaternion Euler(float x, float y, float z) => default; public static Quaternion AngleAxis(float a, Vector3 axis) => default;
         public static Quaternion LookRotation(Vector3 f) => default;
         public static Quaternion operator *(Quaternion a, Quaternion b) => a;
         public static Vector3 operator *(Quaternion a, Vector3 b) => b;
@@ -76,7 +78,7 @@ namespace UnityEngine
     {
         public float r, g, b, a;
         public Color(float r, float g, float b, float a = 1) { this.r = r; this.g = g; this.b = b; this.a = a; }
-        public static Color white => default; public Color(float r, float g, float b) : this(r, g, b, 1) { } public static Color black => default; public static Color clear => default;
+        public static Color white => default; public static Color magenta => default; public Color(float r, float g, float b) : this(r, g, b, 1) { } public static Color black => default; public static Color clear => default;
         public static Color Lerp(Color a, Color b, float t) => a;
         public static Color operator *(Color a, float b) => a;
     }
@@ -110,7 +112,7 @@ namespace UnityEngine
         public const float PI = 3.14159265f, Rad2Deg = 57.29578f, Deg2Rad = 0.0174533f;
         public static float Min(float a, float b) => a; public static float Max(float a, float b) => a;
         public static float Lerp(float a, float b, float t) => a; public static float Clamp(float v, float a, float b) => v;
-        public static float Clamp01(float v) => v;
+        public static float Clamp01(float v) => v; public static float Atan2(float y, float x) => 0;
         public static int Clamp(int v, int a, int b) => v;
         public static float Sin(float a) => a; public static float Cos(float a) => a; public static float Abs(float a) => a;
         public static float Floor(float a) => a; public static int FloorToInt(float a) => 0;
@@ -157,7 +159,7 @@ namespace UnityEngine
     {
         public Material(Shader s) { } public Material(Material m) { }
         public Shader shader; public Texture mainTexture; public Color color;
-        public void SetTexture(string n, Texture t) { } public void SetColor(string n, Color c) { } public void SetVector(string n, Vector4 v) { }
+        public int renderQueue; public void SetTexture(string n, Texture t) { } public void SetColor(string n, Color c) { } public void SetVector(string n, Vector4 v) { }
         public void SetFloat(string n, float f) { }
     }
     public class TextAsset : Object { public string text; public byte[] bytes; }
@@ -184,6 +186,7 @@ namespace UnityEngine.Rendering
 {
     public enum IndexFormat { UInt16, UInt32 }
     public enum ShadowCastingMode { Off, On }
+    public enum BlendMode { Zero, One, DstColor, SrcColor, OneMinusDstColor, SrcAlpha, OneMinusSrcColor, DstAlpha, OneMinusDstAlpha, SrcAlphaSaturate, OneMinusSrcAlpha }
     public enum AmbientMode { Skybox, Trilight, Flat }
 }
 namespace UnityEngine.Networking
