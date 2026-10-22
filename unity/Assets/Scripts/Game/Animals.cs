@@ -471,6 +471,7 @@ namespace EtherMines.Game
 
         void OnGUI()
         {
+            Ui.Begin();
             var cam = Player.Cam;
             if (cam == null || Player.Body == null) return;
             if (tagStyle == null) tagStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, richText = true };
@@ -480,16 +481,17 @@ namespace EtherMines.Game
                 {
                     if (a.VillagerIx < 0) continue;
                     var s = cam.WorldToScreenPoint(new Vector3(a.Pos.x, a.Pos.y + 2.15f, -a.Pos.z));
+                    s = new Vector3(s.x / Ui.Scale, s.y / Ui.Scale, s.z);
                     if (s.z <= 0 || s.z > 40) continue;
                     var h = villagers[a.VillagerIx];
-                    float w = tagStyle.CalcSize(new GUIContent(h.Name)).x + 24, x = s.x - w / 2, y = Screen.height - s.y - 12;
+                    float w = tagStyle.CalcSize(new GUIContent(h.Name)).x + 24, x = s.x - w / 2, y = Ui.H - s.y - 12;
                     Ui.Fill(new Rect(x, y, w, 24), new Color(0.11f, 0.086f, 0.23f, 0.72f));
                     GUI.Label(new Rect(x, y, w, 24), $"<color={h.Color}>{h.Name}</color>", tagStyle);
                 }
             // the dialogue bubble, typed out
             if (Time.time > dUntil + 1.5f || dText == null) return;
             int shown = Mathf.Min(dText.Length, (int)((Time.time - dAt) / 0.02f));
-            float bw = Mathf.Min(640, Screen.width - 40), bx = (Screen.width - bw) / 2, by = Screen.height - 230;
+            float bw = Mathf.Min(640, Ui.W - 40), bx = (Ui.W - bw) / 2, by = Ui.H - 230;
             Ui.Fill(new Rect(bx, by, bw, 96), new Color(0.13f, 0.1f, 0.27f, 0.92f));
             GUI.Label(new Rect(bx + 16, by + 8, bw - 32, 22), $"<b><color={dColor}>{dName}</color></b>  <i><color=#c9c2f2>{dRole}</color></i>", Ui.Label);
             GUI.Label(new Rect(bx + 16, by + 32, bw - 32, 60), dText.Substring(0, shown), Ui.Label);

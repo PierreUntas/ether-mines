@@ -16,6 +16,8 @@ namespace EtherMines.Core
         // on board a Diamond Glider (20-hover.js): over the water, over one-block steps, twice as fast (the
         // caller's SpeedMul), with inertia: it drifts in hard turns (rideVelocity)
         public bool Riding;
+        // a touch screen (10-loop.js `touch`): walking into a one-block step hops it, swimming into the bank climbs out
+        public bool AutoJump;
         double rideVx, rideVz;
         const double HoverAccel = 3.5, HoverGrip = 1.4;
         static readonly double[] Steps = { 0.26, 0.52 }, RideSteps = { 0.26, 0.52, 1.05 };
@@ -158,7 +160,7 @@ namespace EtherMines.Core
                             isLadder(get((int)Math.Floor(X), (int)Math.Floor(Y + 1.2), (int)Math.Floor(Z)));
             bool feetWet = get((int)Math.Floor(X), (int)Math.Floor(Y), (int)Math.Floor(Z)) == 11 ||
                            get((int)Math.Floor(X), (int)Math.Floor(Y - 0.2), (int)Math.Floor(Z)) == 11;
-            if ((inW || feetWet) && Bumped && l > 0.1 && jump && !sneak && Vy < 6) Vy = 7.6;
+            if ((inW || feetWet) && Bumped && l > 0.1 && (jump || AutoJump) && !sneak && Vy < 6) Vy = 7.6;
             else if (inW)
             {
                 bool chestWet = get((int)Math.Floor(X), (int)Math.Floor(Y + 1), (int)Math.Floor(Z)) == 11;
@@ -169,6 +171,7 @@ namespace EtherMines.Core
             else
             {
                 if (jump && was) Vy = 8.2;
+                else if (AutoJump && Bumped && was && l > 0.3) Vy = 8.2;
                 Vy = Math.Max(Vy - 24 * dt, -30);
             }
             On = false;

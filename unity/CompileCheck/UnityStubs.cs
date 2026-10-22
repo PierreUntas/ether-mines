@@ -44,7 +44,7 @@ namespace UnityEngine
         public void SetParent(Transform p, bool worldPositionStays) { }
         public void SetPositionAndRotation(Vector3 p, Quaternion q) { } public int childCount; public Transform parent; public Transform GetChild(int i) => null;
     }
-    public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public float magnitude => 0; public static Vector2 zero => default; }
+    public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public float magnitude => 0; public static Vector2 zero => default; public static Vector2 operator -(Vector2 a, Vector2 b) => a; public static Vector2 operator +(Vector2 a, Vector2 b) => a; public static Vector2 operator *(Vector2 a, float b) => a; }
     public enum PrimitiveType { Cube, Sphere }
     public class GUIStyleState { public Color textColor; }
     public class GUIContent { public GUIContent(string s) { } public static GUIContent none; }
@@ -93,6 +93,7 @@ namespace UnityEngine
     public class GUISkin { public GUIStyle box, label, button, textField; }
     public static class GUI
     {
+        public static Matrix4x4 matrix;
         public static GUISkin skin;
         public static Color color;
         public static void DrawTexture(Rect r, Texture t) { } public static void DrawTexture(Rect r, Texture t, ScaleMode m, bool a) { }
@@ -106,8 +107,20 @@ namespace UnityEngine
         public static string TextField(Rect r, string s, int max) => s; public static string TextField(Rect r, string s, int max, GUIStyle st) => s; public static void SetNextControlName(string n) { } public static void FocusControl(string n) { }
         public static string PasswordField(Rect r, string s, char c, int max) => s;
     }
-    public static class Screen { public static int width, height; }
-    public static class Time { public static float deltaTime, time, unscaledDeltaTime; public static int frameCount; }
+    public static class Screen { public static int width, height, sleepTimeout; public static Rect safeArea; }
+    public static class SleepTimeout { public const int NeverSleep = -1; }
+    public enum TouchScreenKeyboardType { Default }
+    public class TouchScreenKeyboard
+    {
+        public enum Status { Visible, Done, Canceled, LostFocus }
+        public static TouchScreenKeyboard Open(string text, TouchScreenKeyboardType t, bool autocorrection, bool multiline, bool secure, bool alert, string placeholder, int limit) => null;
+        public string text; public Status status; public bool active;
+    }
+    public struct Matrix4x4 { public static Matrix4x4 Scale(Vector3 v) => default; }
+    public struct Ray { public Vector3 origin, direction; }
+    public enum TouchPhase { Began, Moved, Stationary, Ended, Canceled }
+    public struct Touch { public int fingerId; public Vector2 position; public TouchPhase phase; }
+    public static class Time { public static float deltaTime, time, unscaledDeltaTime, unscaledTime; public static int frameCount; }
     public static class Random { public static int Range(int a, int b) => a; public static float Range(float a, float b) => a; public static float value; }
     public static class Mathf
     {
@@ -120,7 +133,7 @@ namespace UnityEngine
         public static float Floor(float a) => a; public static int FloorToInt(float a) => 0;
     }
     public static class Debug { public static void Log(object o) { } public static void LogWarning(object o) { } public static void LogError(object o) { } public static void LogException(Exception e) { } }
-    public static class Application { public static int targetFrameRate; public static string persistentDataPath; public static bool isMobilePlatform; }
+    public static class Application { public static int targetFrameRate; public static string persistentDataPath; public static bool isMobilePlatform, isBatchMode; }
     public static class PlayerPrefs
     {
         public static string GetString(string k, string d) => d; public static void SetString(string k, string v) { }
@@ -136,7 +149,7 @@ namespace UnityEngine
         public static Camera main;
         public float nearClipPlane, farClipPlane, fieldOfView;
         public CameraClearFlags clearFlags;
-        public Color backgroundColor; public int cullingMask; public float depth; public RenderTexture targetTexture; public Vector3 WorldToScreenPoint(Vector3 p) => default;
+        public Color backgroundColor; public int cullingMask; public float depth; public RenderTexture targetTexture; public Vector3 WorldToScreenPoint(Vector3 p) => default; public Ray ScreenPointToRay(Vector3 p) => default;
     }
     public enum LightType { Directional, Point, Spot }
     public enum LightShadows { None, Hard, Soft }
@@ -186,7 +199,7 @@ namespace UnityEngine
     public static class Input
     {
         public static float GetAxisRaw(string a) => 0; public static Vector2 mouseScrollDelta; public static bool GetKey(KeyCode k) => false; public static bool GetKeyDown(KeyCode k) => false;
-        public static bool GetMouseButtonDown(int b) => false; public static bool GetMouseButton(int b) => false;
+        public static bool GetMouseButtonDown(int b) => false; public static int touchCount; public static Touch GetTouch(int i) => default; public static bool simulateMouseWithTouches; public static bool GetMouseButton(int b) => false;
     }
 }
 namespace UnityEngine.Rendering
@@ -223,5 +236,8 @@ namespace UnityEngine.InputSystem
         public ButtonControl digit2Key, digit3Key, digit4Key, digit5Key, digit6Key, digit7Key, digit8Key, digit9Key, wKey, aKey, sKey, dKey, zKey, qKey, cKey, vKey, fKey, eKey, tKey, iKey, spaceKey, leftShiftKey, rightShiftKey, leftCtrlKey, escapeKey, enterKey, numpadEnterKey, oKey, xKey, upArrowKey, downArrowKey, leftArrowKey, rightArrowKey, digit1Key;
     }
     public class Mouse { public static Mouse current; public Vector2Control delta, scroll, position; public ButtonControl leftButton, rightButton, middleButton; }
+    public class IntegerControl { public int ReadValue() => 0; }
+    public class TouchControl { public ButtonControl press; public Vector2Control position; public IntegerControl touchId; }
+    public class Touchscreen { public static Touchscreen current; public TouchControl[] touches; }
     public class Gamepad { public static Gamepad current; public Vector2Control leftStick, rightStick; public ButtonControl buttonSouth, buttonEast, buttonWest, buttonNorth, leftStickButton, rightTrigger, leftTrigger; }
 }

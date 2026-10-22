@@ -1,6 +1,6 @@
 // Ether Mines · you: keyboard and mouse (or a gamepad), walking with the web version's own physics
 // (core PlayerPhysics), seen in first person or from behind (V), as in 05-player.js and 14-startup.js.
-// Touch controls come with the phone builds.
+// On a touch screen, TouchPad's stick, finger and buttons.
 using System;
 using EtherMines.Core;
 using UnityEngine;
@@ -59,11 +59,12 @@ namespace EtherMines.Game
             if (Body == null) return;
             float dt = Mathf.Min(Time.deltaTime, 0.05f);
             ReadInput(out float fx, out float fz, out float lookX, out float lookY, out bool jump, out bool run, out bool sneak, out bool toggleView, out bool toggleFly, out bool unlock);
+            Body.AutoJump = TouchPad.Active; // no jump key under the thumb: walking into a step hops it (10-loop.js)
             Sneaking = sneak;
             Moving = fx != 0 || fz != 0;
             MoveX = fx; MoveZ = fz;
             if (unlock) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
-            if (Cursor.lockState != CursorLockMode.Locked && !Ui.PanelOpen && !Signs.Open && ClickedIn()) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
+            if (!TouchPad.Active && Cursor.lockState != CursorLockMode.Locked && !Ui.PanelOpen && !Signs.Open && ClickedIn()) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
             Yaw -= lookX * 0.0025 * Sensitivity;
             Pitch = Math.Max(-1.55, Math.Min(1.55, Pitch - lookY * 0.0025 * Sensitivity * -1));
             if (toggleView) View = (View + 1) % 3;
@@ -117,7 +118,7 @@ namespace EtherMines.Game
         {
             fx = fz = lookX = lookY = 0;
             jump = run = sneak = toggleView = toggleFly = unlock = false;
-            bool locked = Cursor.lockState == CursorLockMode.Locked;
+            bool locked = !TouchPad.Active && Cursor.lockState == CursorLockMode.Locked;
             if (Ui.Blocking) return; // writing a message, a window open: the keys are for it
 #if ENABLE_INPUT_SYSTEM
             var k = Keyboard.current;
@@ -156,6 +157,14 @@ namespace EtherMines.Game
             toggleFly = Input.GetKeyDown(KeyCode.F);
             unlock = Input.GetKeyDown(KeyCode.Escape);
 #endif
+            TouchPad.Poll();
+            if (TouchPad.Active)
+            {
+                // the finger's drag turns you as on the web (0.005 rad a point), the stick walks
+                fx += TouchPad.Move.x; fz += TouchPad.Move.y;
+                lookX += TouchPad.Look.x * 2; lookY -= TouchPad.Look.y * 2;
+                jump |= TouchPad.Jump; sneak |= TouchPad.Sneak; run |= TouchPad.Sprint; toggleView |= TouchPad.View;
+            }
         }
     }
 }

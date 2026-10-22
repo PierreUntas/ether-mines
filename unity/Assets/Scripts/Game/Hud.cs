@@ -18,6 +18,8 @@ namespace EtherMines.Game
 
         struct Line { public string Kind, Text, Detail; public float At; }
         static readonly List<Line> feed = new List<Line>();
+        // the bar's slots (points), bottom center: drawn here, tapped on a touch screen (TouchPad)
+        public static Rect SlotRect(int i) { float s = 54, gap = 6, bw = 9 * s + 8 * gap, x0 = (Ui.W - bw) / 2, y0 = Ui.H - s - 16 - (TouchPad.Active ? Ui.H - Ui.Safe.yMax : 0); return new Rect(x0 + i * (s + gap), y0, s, s); }
         public static void Feed(string kind, string text, string detail)
         {
             feed.Insert(0, new Line { Kind = kind, Text = text, Detail = detail ?? "", At = Time.time });
@@ -49,6 +51,7 @@ namespace EtherMines.Game
 
         void OnGUI()
         {
+            Ui.Begin();
             if (Act == null || Act.Player == null || Act.Player.Body == null) return;
             if (count == null)
             {
@@ -56,7 +59,7 @@ namespace EtherMines.Game
                 feedStyle = new GUIStyle(GUI.skin.label) { fontSize = 15, richText = true };
                 tag = new GUIStyle(GUI.skin.label) { fontSize = 15, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
             }
-            float W = Screen.width, H = Screen.height;
+            float W = Ui.W, H = Ui.H;
             // crosshair
             Fill(new Rect(W / 2 - 9, H / 2 - 1, 18, 2), new Color(1, 1, 1, 0.85f));
             Fill(new Rect(W / 2 - 1, H / 2 - 9, 2, 18), new Color(1, 1, 1, 0.85f));
@@ -68,11 +71,11 @@ namespace EtherMines.Game
             }
             // the bar
             var inv = Act.Inv;
-            float s = 54, gap = 6, bw = 9 * s + 8 * gap, x0 = (W - bw) / 2, y0 = H - s - 16;
+            float s = 54, gap = 6, bw = 9 * s + 8 * gap, x0 = SlotRect(0).x, y0 = SlotRect(0).y;
             Fill(new Rect(x0 - 8, y0 - 8, bw + 16, s + 16), new Color(0.11f, 0.09f, 0.23f, 0.55f));
             for (int i = 0; i < 9; i++)
             {
-                var r = new Rect(x0 + i * (s + gap), y0, s, s);
+                var r = SlotRect(i);
                 Fill(r, i == inv.Sel ? new Color(1, 1, 1, 0.35f) : new Color(1, 1, 1, 0.08f));
                 if (i == inv.Sel) { Fill(new Rect(r.x, r.y, s, 2), Color.white); Fill(new Rect(r.x, r.yMax - 2, s, 2), Color.white); Fill(new Rect(r.x, r.y, 2, s), Color.white); Fill(new Rect(r.xMax - 2, r.y, 2, s), Color.white); }
                 var key = inv.Bar[i];
@@ -93,7 +96,8 @@ namespace EtherMines.Game
                 var c = GUI.color;
                 GUI.color = new Color(1, 1, 1, Mathf.Clamp01(7 - age));
                 string k = l.Kind == "mint" ? "<color=#9fe3c4><b>MINT</b></color>" : l.Kind == "nft" ? "<color=#7fe8ff><b>NFT</b></color>" : l.Kind == "craft" ? "<color=#ffd95e><b>CRAFT</b></color>" : "<color=#ff9ab8><b>BURN</b></color>";
-                GUI.Label(new Rect(16, fy - i * 24, 700, 24), $"{k} {l.Text} <color=#c9c2f2>{l.Detail}</color>", feedStyle);
+                // on a touch screen, top left: the stick has the bottom left
+                GUI.Label(TouchPad.Active ? new Rect(16 + Ui.Safe.x, Ui.Safe.y + 56 + i * 24, Mathf.Min(520, Ui.W * 0.4f), 24) : new Rect(16, fy - i * 24, 700, 24), $"{k} {l.Text} <color=#c9c2f2>{l.Detail}</color>", feedStyle);
                 GUI.color = c;
             }
         }

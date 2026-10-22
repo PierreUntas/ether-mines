@@ -33,6 +33,7 @@ namespace EtherMines.Game
 
         void Update()
         {
+            Keys();
             if ((t -= Time.deltaTime) > 0 || Player.Body == null) return;
             t = 0.4f;
             var b = Player.Body;
@@ -121,13 +122,25 @@ namespace EtherMines.Game
             else { editing = false; readText = text; readBy = own?.Name; }
             Open = true;
             openedFrame = Time.frameCount;
+            if (editing && TouchPad.Active) kb = TouchScreenKeyboard.Open(draft, TouchScreenKeyboardType.Default, false, false, false, false, "Write on your sign", 60);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+        }
+
+        TouchScreenKeyboard kb; // a phone: the system keyboard writes the sign
+
+        void Keys()
+        {
+            if (!Open || kb == null) return;
+            draft = kb.text;
+            if (kb.status == TouchScreenKeyboard.Status.Done) { kb = null; Save(); }
+            else if (kb.status != TouchScreenKeyboard.Status.Visible) kb = null; // closed: Save and Cancel are still there
         }
 
         void Close()
         {
             Open = false;
+            if (kb != null) { kb.active = false; kb = null; }
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
@@ -168,10 +181,11 @@ namespace EtherMines.Game
 
         void OnGUI()
         {
+            Ui.Begin();
             if (!Open) return;
             var ev = Event.current;
             if (ev.type == EventType.KeyDown && ev.keyCode == KeyCode.Escape) { Close(); ev.Use(); return; }
-            float w = 460, h = editing ? 190 : 210, x = (Screen.width - w) / 2, y = (Screen.height - h) / 2;
+            float w = 460, h = editing ? 190 : 210, x = (Ui.W - w) / 2, y = (Ui.H - h) / 2;
             Ui.Fill(new Rect(x, y, w, h), new Color(0.13f, 0.1f, 0.27f, 0.97f));
             Ui.Frame(new Rect(x, y, w, h), new Color(1, 1, 1, 0.15f));
             GUI.enabled = !busy;
@@ -179,9 +193,13 @@ namespace EtherMines.Game
             {
                 GUI.Label(new Rect(x + 20, y + 14, w - 40, 28), "Write on your sign", Ui.Title);
                 if (ev.type == EventType.KeyDown && (ev.keyCode == KeyCode.Return || ev.keyCode == KeyCode.KeypadEnter) && Time.frameCount != openedFrame) { Save(); ev.Use(); }
-                GUI.SetNextControlName("sign");
-                draft = GUI.TextField(new Rect(x + 20, y + 52, w - 40, 30), draft, 60);
-                GUI.FocusControl("sign");
+                if (kb != null) GUI.Box(new Rect(x + 20, y + 52, w - 40, 30), draft); // the system keyboard writes it
+                else
+                {
+                    GUI.SetNextControlName("sign");
+                    draft = GUI.TextField(new Rect(x + 20, y + 52, w - 40, 30), draft, 60);
+                    GUI.FocusControl("sign");
+                }
                 GUI.Label(new Rect(x + 20, y + 88, w - 40, 40), "60 characters at most. Insults and personal details are not allowed.", Ui.Small);
                 if (GUI.Button(new Rect(x + w - 240, y + h - 46, 100, 32), "Cancel", Ui.Button)) Close();
                 if (GUI.Button(new Rect(x + w - 130, y + h - 46, 110, 32), "Save", Ui.Primary)) Save();

@@ -176,7 +176,7 @@ namespace EtherMines.Game
             Hud.Feed("mint", "Ether Tonic", "+5 hearts");
         }
 
-        bool BootsOn
+        public bool BootsOn
         {
             get
             {
@@ -208,6 +208,8 @@ namespace EtherMines.Game
 #else
             bool q = Input.GetKeyDown(KeyCode.Q);
 #endif
+            TouchPad.Poll();
+            q |= TouchPad.Dash;
             float fx = Player.MoveX, fz = Player.MoveZ;            if (q && boots && !Ui.Blocking && dashCd <= 0 && dashT <= 0 && !(Hover != null && Hover.Riding != 0))
             {
                 float l = Mathf.Sqrt(fx * fx + fz * fz);
@@ -231,6 +233,7 @@ namespace EtherMines.Game
 
         void OnGUI()
         {
+            Ui.Begin();
             if (Player.Body == null) return;
             var on = new List<string>();
             if (Buff > 0) on.Add("⚡ " + Mmss(Buff));
@@ -240,7 +243,7 @@ namespace EtherMines.Game
             if (buffStyle == null) { buffStyle = new GUIStyle(GUI.skin.box) { fontSize = 15, alignment = TextAnchor.MiddleCenter }; }
             var s = string.Join(" · ", on);
             float w = buffStyle.CalcSize(new GUIContent(s)).x + 20;
-            GUI.Box(new Rect(Screen.width - w - 12, 12, w, 30), s, buffStyle);
+            GUI.Box(new Rect(Ui.W - w - 12, 12, w, 30), s, buffStyle);
         }
     }
 }

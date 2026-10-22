@@ -57,6 +57,14 @@ namespace EtherMines.Game
             player.World = world;
             player.Cam = cam;
             player.enabled = false;
+            if (TouchPad.Active)
+            {
+                // a phone: a little less far, crisper shadows nearer, and the screen stays on while you play
+                world.ViewRadius = 5;
+                sun.shadows = LightShadows.Hard;
+                QualitySettings.shadowDistance = 40;
+                Screen.sleepTimeout = SleepTimeout.NeverSleep;
+            }
             sky.FogFar = world.ViewRadius * World.CH + 12;
         }
 
@@ -146,6 +154,14 @@ namespace EtherMines.Game
                 items.Hover = hover;
                 hand.Hover = hover;
                 player.Lift = () => hover.Lift;
+                // the touch controls: which buttons show depends on what you hold and wear
+                gameObject.AddComponent<TouchPad>();
+                TouchPad.SlotRect = Hud.SlotRect;
+                TouchPad.Riding = () => hover.Riding != 0;
+                TouchPad.ShowRide = () => hover.Riding != 0 || Hover.IsHover(interaction.Inv.HeldId);
+                TouchPad.ShowGuard = () => interaction.Combat != null && hover.Riding == 0 && Combat.IsBlade(interaction.Inv.HeldId);
+                TouchPad.ShowDash = () => items.BootsOn && hover.Riding == 0;
+                TouchPad.Ranged = () => Combat.IsRanged(interaction.Inv.HeldId);
                 if (session != null)
                 {
                     var progress = gameObject.AddComponent<Progress>();
@@ -219,6 +235,7 @@ namespace EtherMines.Game
 
         void OnGUI()
         {
+            Ui.Begin();
             if (box == null)
             {
                 box = new GUIStyle(GUI.skin.box) { fontSize = 16, alignment = TextAnchor.UpperLeft, padding = new RectOffset(10, 10, 8, 8) };
@@ -226,7 +243,7 @@ namespace EtherMines.Game
             }
             if (!started)
             {
-                float w = 460, h = session != null && session.MustChange ? 400 : 360, x = (Screen.width - w) / 2, y = (Screen.height - h) / 2;
+                float w = 460, h = session != null && session.MustChange ? 400 : 360, x = (Ui.W - w) / 2, y = (Ui.H - h) / 2;
                 GUI.Box(new Rect(x, y, w, h), "");
                 GUI.Label(new Rect(x, y + 10, w, 60), "Ether Mines", big);
                 float ly = y + 85;

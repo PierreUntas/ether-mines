@@ -44,7 +44,7 @@ namespace EtherMines.Game
             yaw = (float)Player.Yaw;
             seen = false;
             b.Riding = true;
-            if (!told && (told = true)) Hud.Feed("nft", "On board the " + Ui.NameOf(Riding), "twice as fast, over water too · right-click to step off");
+            if (!told && (told = true)) Hud.Feed("nft", "On board the " + Ui.NameOf(Riding), "twice as fast, over water too · " + (TouchPad.Active ? "the Ride button" : "right-click") + " to step off");
             return true;
         }
 

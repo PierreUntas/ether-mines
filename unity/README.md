@@ -19,7 +19,8 @@ accounts** as the web version: same Supabase project, same `act_*` functions, sa
   together (`Multiplayer.cs`: the game server in `GameLink.cs`, the database's feed in `Realtime.cs`, both
   over `Socket.cs`; the others' figures in `Avatars.cs`; `Chat.cs`), the mobs (`Mobs.cs`, models from
   `Resources/mobs.json`) and fighting them (`Combat.cs`), what you hold (`Hand.cs` in first person,
-  `HeldModels.cs`: the items' clay models from `Resources/held.json`, blocks meshed by `Mesher`).
+  `HeldModels.cs`: the items' clay models from `Resources/held.json`, blocks meshed by `Mesher`), the
+  touch controls (`TouchPad.cs`).
 - `Assets/Resources/Shaders/` — the clay look (blocks, glass, water, plants, sky), built-in render pipeline.
 - `Assets/Resources/Art/` — the web version's own textures, exported by `tools/export-art.mjs`.
 
@@ -68,12 +69,32 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
    and their rewards (O, `Progress.cs`: the same save flags as the web version), your validators (attest,
    upgrade); the shop (buy, wear) and the looks on every figure (`Looks.cs`, `Resources/looks.json`:
    outfits, headwear, back pieces, companions, trails; titles under the names). Not yet: the looks' small
-   animations, the tool and plating trims' glow, trying a piece on before buying.
+   animations, the tool and plating trims' glow.
    Plots (`Claims.cs`: their borders, /claim to choose and take one, /unclaim, /invite, /kick, /claims;
    building refused in someone else's), signs (`Signs.cs`: their text on the boards, write on yours, read
    and report the others'), the chat's commands (/join, /sanctuary, /ignore, /listen, /report).
    Animals and villagers (`Animals.cs`, `Resources/animals.json` from `tools/export-animals.mjs`: placed
    from the seed and moved by the clock like on the web, pet them, talk to the villagers, fight an animal for
-   a heart back). The Diamond Gliders: E with one in hand to board or step off, twice as fast,
+   a heart back). The Diamond Gliders: right-click with one in hand to board or step off, twice as fast,
    gliding over water and one-block steps, drifting in hard turns; other riders seen seated on theirs.
-Then touch controls and store builds (6).
+6. Phones and tablets: the touch controls (`TouchPad.cs`, as on the web: the stick under the left thumb,
+   drag to look, tap to place or use, hold to mine, the buttons on the right and on top, tap the bar),
+   the interface scaled to the screen and clear of the notch, the system keyboard for the chat and the
+   signs; the store builds (`Assets/Editor/Build.cs`, below).
+Not yet: the looks' small animations, the tool and plating trims' glow, the circuits, trades, the
+Twin Diamond's back seat.
+
+## Builds for the stores
+The **Ether Mines** menu in the editor (or `Unity -batchmode -quit -projectPath unity -executeMethod
+EtherMines.Builds.Build.<IPhone|Android|AndroidApk|Mac|Windows>`) sets the player settings (name, the id
+`org.ethermines.game`, version, landscape, IL2CPP, the icon from `Assets/Icon/icon.png`, the fog and the
+HUD shader kept), creates `Assets/Scenes/Main.unity` and builds into `Builds/` (not committed).
+- **iPhone**: an Xcode project in `Builds/iOS`. Open it on the Mac, choose your team under Signing, then
+  Product → Archive → Distribute to App Store Connect (an Apple Developer account, 99 $/year).
+- **Android**: `Builds/Android/EtherMines.aab` for Google Play (a Play Console account). The upload key stays
+  out of the repo: create it once (Unity's Keystore Manager or `keytool`), keep it safe, and give its path
+  and passwords in `ETHERMINES_KEYSTORE`, `ETHERMINES_KEYSTORE_PASS`, `ETHERMINES_KEY_ALIAS`,
+  `ETHERMINES_KEY_PASS`. Without it the build is signed with a debug key (fine on your own phone, refused by
+  Google Play). The `.apk` menu item makes one to install directly on a phone.
+- **Mac / Windows**: an app in `Builds/Mac` or `Builds/Windows`.
+- Try the touch controls without a phone: Window → General → **Device Simulator**, pick a phone, press Play.

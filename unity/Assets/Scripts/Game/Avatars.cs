@@ -506,6 +506,7 @@ namespace EtherMines.Game
         // the name over each head (nameTag): a dark rounded label with a dot of their color
         void OnGUI()
         {
+            Ui.Begin();
             var cam = Player != null ? Player.Cam : null;
             if (cam == null) return;
             if (tagStyle == null) tagStyle = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, richText = true, normal = { textColor = new Color(0.96f, 0.95f, 1) } };
@@ -514,11 +515,12 @@ namespace EtherMines.Game
                 if (!f.Root.activeSelf) continue;
                 var w = View(f.Pos) + Vector3.up * 2.1f;
                 var s = cam.WorldToScreenPoint(w);
+                s = new Vector3(s.x / Ui.Scale, s.y / Ui.Scale, s.z);
                 if (s.z <= 0 || s.z > 80) continue;
                 var size = tagStyle.CalcSize(new GUIContent(f.Name));
                 bool titled = !string.IsNullOrEmpty(f.Title);
                 if (titled) size.x = Mathf.Max(size.x, tagStyle.CalcSize(new GUIContent(f.Title)).x * 0.8f);
-                float bw = size.x + 34, bh = titled ? 40 : 26, x = s.x - bw / 2, y = Screen.height - s.y - bh / 2;
+                float bw = size.x + 34, bh = titled ? 40 : 26, x = s.x - bw / 2, y = Ui.H - s.y - bh / 2;
                 var o = GUI.color;
                 GUI.color = new Color(0.11f, 0.086f, 0.23f, 0.72f);
                 GUI.DrawTexture(new Rect(x, y, bw, bh), Texture2D.whiteTexture);

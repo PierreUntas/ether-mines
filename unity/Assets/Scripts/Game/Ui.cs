@@ -11,6 +11,17 @@ namespace EtherMines.Game
     {
         public static bool PanelOpen;   // the inventory, crafting, chest... window
         public static bool Blocking => PanelOpen || Chat.Typing || Signs.Open;
+        // aiming at the world: the mouse captured (a computer), or no window open (a touch screen)
+        public static bool Aiming => TouchPad.Active ? !Blocking : Cursor.lockState == CursorLockMode.Locked;
+
+        // the interface is laid out in points: on a phone a point is a few pixels, so the bar, the buttons and
+        // the windows keep a size a thumb can use (about as tall as the web page on the same phone)
+        public static float Scale => TouchPad.Active ? Mathf.Max(1, Mathf.Min(Screen.width, Screen.height) / 430f) : 1;
+        public static float W => Screen.width / Scale;
+        public static float H => Screen.height / Scale;
+        public static void Begin() { float s = Scale; GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1)); }
+        // the notch and the rounded corners (in points): what the buttons keep clear of
+        public static Rect Safe { get { var r = Screen.safeArea; float s = Scale; return new Rect(r.x / s, (Screen.height - r.yMax) / s, r.width / s, r.height / s); } }
 
         public static readonly Color Ink = new Color(0.11f, 0.086f, 0.23f), Paper = new Color(0.96f, 0.95f, 1f),
             Muted = new Color(0.79f, 0.76f, 0.95f), Mint = new Color(0.62f, 0.89f, 0.77f), Burn = new Color(1f, 0.6f, 0.72f),

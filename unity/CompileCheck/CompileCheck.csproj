@@ -15,5 +15,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../Assets/Scripts/**/*.cs" />
+    <Compile Include="../Assets/Editor/**/*.cs" />
   </ItemGroup>
 </Project>

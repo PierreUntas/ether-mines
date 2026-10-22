@@ -43,40 +43,65 @@ namespace EtherMines.Game
         void Update()
         {
             if (Player == null || Player.Body == null) return;
+            TouchPad.Poll();
             ReadButtons(out bool mining, out bool use, out bool useHeld, out int slot, out float wheel);
             var inv = Inv;
             if (slot >= 0) inv.Sel = slot;
             if (wheel != 0) inv.Sel = ((inv.Sel + (wheel > 0 ? -1 : 1)) % 9 + 9) % 9;
             Swing = Mathf.Max(0, Swing - Time.deltaTime * 3);
 
-            // what you aim at, from your eyes along your look
+            // what you aim at, from your eyes along your look; on a touch screen, through the finger
             var b = Player.Body;
             double cp = Math.Cos(Player.Pitch);
             double dx = -Math.Sin(Player.Yaw) * cp, dy = Math.Sin(Player.Pitch), dz = -Math.Cos(Player.Yaw) * cp;
-            Target = Cursor.lockState == CursorLockMode.Locked ? Raycast.Cast(World.Get, b.X, b.Y + PlayerPhysics.EYE, b.Z, dx, dy, dz, Reach) : null;
+            double ox = b.X, oy = b.Y + PlayerPhysics.EYE, oz = b.Z, reach = Reach;
+            if (TouchPad.Active && TouchPad.Aim is Vector2 at && Player.Cam != null && !Combat.IsRanged(inv.HeldId))
+            {
+                var ray = Player.Cam.ScreenPointToRay(new Vector3(at.x * Ui.Scale, Screen.height - at.y * Ui.Scale, 0));
+                // the view mirrors z (WorldView): back to the game's coordinates; from the camera, a little
+                // further when it stands behind you
+                ox = ray.origin.x; oy = ray.origin.y; oz = -ray.origin.z;
+                dx = ray.direction.x; dy = ray.direction.y; dz = -ray.direction.z;
+                reach += Math.Sqrt((ox - b.X) * (ox - b.X) + (oy - b.Y - PlayerPhysics.EYE) * (oy - b.Y - PlayerPhysics.EYE) + (oz - b.Z) * (oz - b.Z));
+            }
+            Target = Ui.Aiming ? Raycast.Cast(World.Get, ox, oy, oz, dx, dy, dz, reach) : null;
+            // a tap: a blow when the pistol is in hand or it lands on a mob or a player (tapFights), otherwise
+            // the same as the right button
+            bool strike = false;
+            if (TouchPad.Active && TouchPad.Tap && Ui.Aiming)
+            {
+                var eye0 = new Vector3((float)ox, (float)oy, (float)oz);
+                var dir0 = new Vector3((float)dx, (float)dy, (float)dz);
+                float bd0 = Target != null ? Mobs.RayBox(eye0, dir0, new Vector3(Target.X, Target.Y, Target.Z), new Vector3(Target.X + 1, Target.Y + 1, Target.Z + 1)) : float.MaxValue;
+                if (bd0 < 0) bd0 = float.MaxValue;
+                strike = Combat != null && (Combat.IsRanged(inv.HeldId) || Combat.Mobs.Pick(eye0, dir0, (float)reach, bd0) != null ||
+                         (!Sanctuary(b.X, b.Z) && Combat.Avatars.Pick(eye0, dir0, (float)reach, bd0) != null));
+                if (!strike) use = true;
+            }
+            if (TouchPad.Ride && Hover != null && Ui.Aiming) Hover.Toggle();
             // the right button: pet, talk, open, use, place (05-player.js place(), at the same time as the guard)
             placeCd -= Time.deltaTime;
             if (use && placeCd <= 0 && !Ui.Blocking)
             {
                 placeCd = 0.2;
                 // an animal or a villager under the crosshair, before the block behind it
-                var eye = new Vector3((float)b.X, (float)(b.Y + PlayerPhysics.EYE), (float)b.Z);
+                var eye = new Vector3((float)ox, (float)oy, (float)oz);
                 var dir = new Vector3((float)dx, (float)dy, (float)dz);
                 float bdist = Target != null ? Mobs.RayBox(eye, dir, new Vector3(Target.X, Target.Y, Target.Z), new Vector3(Target.X + 1, Target.Y + 1, Target.Z + 1)) : float.MaxValue;
-                var an = Animals != null && Cursor.lockState == CursorLockMode.Locked ? Animals.Pick(eye, dir, (float)Reach, bdist < 0 ? float.MaxValue : bdist) : null;
+                var an = Animals != null && Ui.Aiming ? Animals.Pick(eye, dir, (float)reach, bdist < 0 ? float.MaxValue : bdist) : null;
                 if (Hover != null && Hover.Toggle()) { }
                 else if (an != null) { Animals.Pet(an); Swing = 0.6f; }
                 else if (!(Items != null && Items.Use(Target)) && Target != null) Use(Target);
             }
             double dt = Time.deltaTime;
             // fighting first: a mob or a player under the crosshair, the pistol in hand, the guard up
-            if (Combat != null && Cursor.lockState == CursorLockMode.Locked)
+            if (Combat != null && Ui.Aiming)
             {
-                var eye = new Vector3((float)b.X, (float)(b.Y + PlayerPhysics.EYE), (float)b.Z);
+                var eye = new Vector3((float)ox, (float)oy, (float)oz);
                 var dir = new Vector3((float)dx, (float)dy, (float)dz);
                 float blockDist = Target != null ? Mobs.RayBox(eye, dir, new Vector3(Target.X, Target.Y, Target.Z), new Vector3(Target.X + 1, Target.Y + 1, Target.Z + 1)) : float.MaxValue;
                 if (blockDist < 0) blockDist = float.MaxValue;
-                if (Combat.Fight(mining, useHeld, eye, dir, blockDist))
+                if (Combat.Fight(mining || strike, useHeld, eye, dir, blockDist, (float)reach))
                 {
                     Target = null;
                     PlaceOutline();
@@ -274,7 +299,13 @@ namespace EtherMines.Game
         static void ReadButtons(out bool mining, out bool use, out bool useHeld, out int slot, out float wheel)
         {
             mining = use = useHeld = false; slot = -1; wheel = 0;
-            if (Cursor.lockState != CursorLockMode.Locked || Ui.Blocking) return;
+            if (!Ui.Aiming) return;
+            if (TouchPad.Active)
+            {
+                // the long press mines, the guard button holds the blade up, a tap on the bar picks the slot
+                mining = TouchPad.Mining; useHeld = TouchPad.Guard; slot = TouchPad.Slot;
+                return;
+            }
 #if ENABLE_INPUT_SYSTEM
             var m = Mouse.current;
             if (m != null)

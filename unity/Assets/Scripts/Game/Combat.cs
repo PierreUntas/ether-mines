@@ -45,8 +45,8 @@ namespace EtherMines.Game
         void OnDestroy() { if (Link != null) Link.Message -= OnMessage; }
 
         int Held => Act.Inv.HeldId;
-        static bool IsBlade(int id) { var it = Rules.Item(id); return Rules.Block(id) == null && it != null && it.HasDmg && !it.Ranged; }
-        static bool IsRanged(int id) { var it = Rules.Item(id); return Rules.Block(id) == null && it != null && it.Ranged; }
+        public static bool IsBlade(int id) { var it = Rules.Item(id); return Rules.Block(id) == null && it != null && it.HasDmg && !it.Ranged; }
+        public static bool IsRanged(int id) { var it = Rules.Item(id); return Rules.Block(id) == null && it != null && it.Ranged; }
         double HeldDmg { get { var it = Rules.Item(Held); return Rules.Block(Held) == null && it != null && it.HasDmg ? it.Dmg : 1; } }
         int HeldWeapon => Rules.Block(Held) == null && Rules.Item(Held) != null ? Held : 0;
 
@@ -69,7 +69,7 @@ namespace EtherMines.Game
 
         // called by Interaction each frame before mining: true when the click is for fighting (or the blade is
         // up), not for the block under the crosshair. The right button's own use (pet, open, place) comes first.
-        public bool Fight(bool clicking, bool rightHeld, Vector3 eye, Vector3 dir, float blockDist)
+        public bool Fight(bool clicking, bool rightHeld, Vector3 eye, Vector3 dir, float blockDist, float reach = Reach)
         {
             if (!clicking) pvpStruck = false;
             bool blade = IsBlade(Held) && !(Hover != null && Hover.Riding != 0);
@@ -89,7 +89,7 @@ namespace EtherMines.Game
             // a mob, a player or an animal under the crosshair takes the click (10-loop.js: only while you
             // click; otherwise the right button still pets, places, opens as usual)
             if (!clicking) return false;
-            var mob = Mobs.Pick(eye, dir, Reach, blockDist);
+            var mob = Mobs.Pick(eye, dir, reach, blockDist);
             if (mob != null)
             {
                 if (atkT <= 0) Strike(mob, HeldDmg, Player.Body.X, Player.Body.Z, HeldWeapon);
@@ -97,7 +97,7 @@ namespace EtherMines.Game
             }
             if (!Interaction.Sanctuary(Player.Body.X, Player.Body.Z))
             {
-                var who = Avatars.Pick(eye, dir, Reach, blockDist);
+                var who = Avatars.Pick(eye, dir, reach, blockDist);
                 if (who != null)
                 {
                     if (atkT <= 0 && !pvpStruck)
@@ -111,7 +111,7 @@ namespace EtherMines.Game
                 }
             }
             // an animal with hearts (attackAnimal): the villagers have none, the click mines past them
-            var an = Animals != null ? Animals.Pick(eye, dir, Reach, blockDist) : null;
+            var an = Animals != null ? Animals.Pick(eye, dir, reach, blockDist) : null;
             if (an != null && Animals.Fightable(an))
             {
                 if (atkT <= 0)
@@ -354,9 +354,10 @@ namespace EtherMines.Game
         // your hearts, over the bar; a red flash when a blow lands
         void OnGUI()
         {
+            Ui.Begin();
             if (!Link.HpServer) return;
             if (heart == null) heart = new GUIStyle(GUI.skin.label) { fontSize = 22, alignment = TextAnchor.MiddleCenter };
-            float W = Screen.width, H = Screen.height, s = 24, x0 = W / 2 - 5 * s, y = H - 54 - 16 - 40;
+            float W = Ui.W, H = Ui.H, s = 24, x0 = W / 2 - 5 * s, y = H - 54 - 16 - 40;
             for (int i = 0; i < 10; i++)
             {
                 var o = GUI.color;

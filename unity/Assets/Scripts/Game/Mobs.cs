@@ -362,6 +362,7 @@ namespace EtherMines.Game
         // a health bar over the ones that took a blow, with their name
         void OnGUI()
         {
+            Ui.Begin();
             var cam = Player != null ? Player.Cam : null;
             if (cam == null) return;
             if (barStyle == null) barStyle = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
@@ -369,8 +370,9 @@ namespace EtherMines.Game
             {
                 if (a.DyingT >= 0 || a.Down || a.Hp >= a.Kind.Hp || a.Hp <= 0) continue;
                 var s = cam.WorldToScreenPoint(View(a.Pos) + Vector3.up * (a.Kind.Hit[1] + 0.35f));
+                s = new Vector3(s.x / Ui.Scale, s.y / Ui.Scale, s.z);
                 if (s.z <= 0 || s.z > 40) continue;
-                float w = 70, x = s.x - w / 2, y = Screen.height - s.y;
+                float w = 70, x = s.x - w / 2, y = Ui.H - s.y;
                 var o = GUI.color;
                 GUI.color = new Color(0.11f, 0.086f, 0.23f, 0.75f);
                 GUI.DrawTexture(new Rect(x - 1, y - 1, w + 2, 8), Texture2D.whiteTexture);

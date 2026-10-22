@@ -61,6 +61,8 @@ namespace EtherMines.Game
 #else
             bool e = Input.GetKeyDown(KeyCode.E), esc = Input.GetKeyDown(KeyCode.Escape), o = Input.GetKeyDown(KeyCode.O);
 #endif
+            TouchPad.Poll();
+            e |= TouchPad.Bag; o |= TouchPad.Goals; // the buttons on top (the window closes with its ✕)
             // 1-9 choose the bar's slot with the window open too (the bag's "Place in slot" uses it)
             if (Ui.PanelOpen)
             {
@@ -138,9 +140,11 @@ namespace EtherMines.Game
 
         void OnGUI()
         {
+            Ui.Begin();
             if (!Ui.PanelOpen) return;
             GUI.depth = -10;
-            float W = Mathf.Min(980, Screen.width - 40), H = Mathf.Min(640, Screen.height - 120), x = (Screen.width - W) / 2, y = 40;
+            float W = Mathf.Min(980, Ui.W - 40), H = Mathf.Min(640, Ui.H - 120), x = (Ui.W - W) / 2, y = 40;
+            if (TouchPad.Active) { var sa = Ui.Safe; W = Mathf.Min(980, sa.width - 16); H = sa.height - 16; x = sa.x + (sa.width - W) / 2; y = sa.y + 8; } // a phone: the whole screen
             // the wheel turns the bar's slot: in your bag (unless it scrolls a long list under the mouse),
             // or anywhere outside the window (over the bar)
             var ev = Event.current;
@@ -153,17 +157,17 @@ namespace EtherMines.Game
                     ev.Use();
                 }
             }
-            Ui.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0.05f, 0.04f, 0.12f, 0.45f));
+            Ui.Fill(new Rect(0, 0, Ui.W, Ui.H), new Color(0.05f, 0.04f, 0.12f, 0.45f));
             Ui.Fill(new Rect(x, y, W, H), new Color(0.13f, 0.1f, 0.27f, 0.96f));
             Ui.Frame(new Rect(x, y, W, H), new Color(1, 1, 1, 0.12f));
             // the tabs
-            float tx = x + 16;
+            float tx = x + 16, tw = Mathf.Min(120, (W - 260) / 6 - 8); // narrower on a small screen
             foreach (var (k, t) in new[] { ("bag", "Your bag"), ("craft", "Crafting"), ("quest", "Objectives"), ("validators", "Validators"), ("shop", "Shop"), ("chest", "Chest") })
             {
                 if (k == "chest" && Open == null) continue;
                 if ((k == "quest" || k == "validators" || k == "shop") && Progress == null) continue;
-                if (GUI.Button(new Rect(tx, y + 12, 120, 30), t, Tab == k ? Ui.Primary : Ui.Button)) { Tab = k; scroll = Vector2.zero; }
-                tx += 128;
+                if (GUI.Button(new Rect(tx, y + 12, tw, 30), t, Tab == k ? Ui.Primary : Ui.Button)) { Tab = k; scroll = Vector2.zero; }
+                tx += tw + 8;
             }
             GUI.Label(new Rect(x + W - 230, y + 16, 150, 24), Session != null ? $"{Session.Gwei:0} Gwei" : "offline", Ui.Label);
             if (GUI.Button(new Rect(x + W - 70, y + 12, 54, 30), "✕", Ui.Button)) { Hide(); return; }

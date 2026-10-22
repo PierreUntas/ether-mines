@@ -42,9 +42,25 @@ namespace EtherMines.Game
             if (lines.Count > 30) lines.RemoveAt(0);
         }
 
+        TouchScreenKeyboard kb; // a phone: the system keyboard writes the line
+
         void Update()
         {
+            if (Typing && kb != null)
+            {
+                draft = kb.text;
+                if (kb.status == TouchScreenKeyboard.Status.Done) { kb = null; Typing = false; Send(draft); }
+                else if (kb.status != TouchScreenKeyboard.Status.Visible) { kb = null; Typing = false; }
+                return;
+            }
             if (Typing || Session == null || Ui.PanelOpen || Signs.Open) return;
+            TouchPad.Poll();
+            if (TouchPad.Chat)
+            {
+                Typing = true; draft = ""; openedFrame = Time.frameCount;
+                kb = TouchScreenKeyboard.Open("", TouchScreenKeyboardType.Default, false, false, false, false, "Message, or / for commands", 140);
+                return;
+            }
 #if ENABLE_INPUT_SYSTEM
             var k = Keyboard.current;
             bool open = k != null && (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame);
@@ -80,12 +96,13 @@ namespace EtherMines.Game
 
         void OnGUI()
         {
+            Ui.Begin();
             if (style == null)
             {
                 style = new GUIStyle(GUI.skin.label) { fontSize = 15, richText = true, wordWrap = true };
                 input = new GUIStyle(GUI.skin.textField) { fontSize = 16, padding = new RectOffset(8, 8, 6, 6) };
             }
-            float W = 520, x = 16, y = Screen.height * 0.62f;
+            float W = 520, x = 16, y = Ui.H * 0.62f;
             // the last messages, newest at the bottom; they fade after a while unless the line is open
             int shown = 0;
             for (int i = lines.Count - 1; i >= 0 && shown < 8; i--)
@@ -112,8 +129,9 @@ namespace EtherMines.Game
                 if (ev.keyCode == KeyCode.Return || ev.keyCode == KeyCode.KeypadEnter) { Send(draft); Typing = false; ev.Use(); return; }
                 if (ev.keyCode == KeyCode.Escape) { Typing = false; ev.Use(); return; }
             }
+            if (kb != null) { GUI.Box(new Rect(x, Ui.H * 0.62f + 8, W, 32), draft, input); return; } // the system keyboard writes it
             GUI.SetNextControlName("chat");
-            draft = GUI.TextField(new Rect(x, Screen.height * 0.62f + 8, W, 32), draft, 200, input);
+            draft = GUI.TextField(new Rect(x, Ui.H * 0.62f + 8, W, 32), draft, 200, input);
             GUI.FocusControl("chat");
         }
     }
