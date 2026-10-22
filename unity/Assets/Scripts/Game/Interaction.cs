@@ -53,6 +53,19 @@ namespace EtherMines.Game
             double cp = Math.Cos(Player.Pitch);
             double dx = -Math.Sin(Player.Yaw) * cp, dy = Math.Sin(Player.Pitch), dz = -Math.Cos(Player.Yaw) * cp;
             Target = Cursor.lockState == CursorLockMode.Locked ? Raycast.Cast(World.Get, b.X, b.Y + PlayerPhysics.EYE, b.Z, dx, dy, dz, Reach) : null;
+            // the right button: pet, talk, open, use, place (05-player.js place(), at the same time as the guard)
+            placeCd -= Time.deltaTime;
+            if (use && placeCd <= 0 && !Ui.Blocking)
+            {
+                placeCd = 0.2;
+                // an animal or a villager under the crosshair, before the block behind it
+                var eye = new Vector3((float)b.X, (float)(b.Y + PlayerPhysics.EYE), (float)b.Z);
+                var dir = new Vector3((float)dx, (float)dy, (float)dz);
+                float bdist = Target != null ? Mobs.RayBox(eye, dir, new Vector3(Target.X, Target.Y, Target.Z), new Vector3(Target.X + 1, Target.Y + 1, Target.Z + 1)) : float.MaxValue;
+                var an = Animals != null && Cursor.lockState == CursorLockMode.Locked ? Animals.Pick(eye, dir, (float)Reach, bdist < 0 ? float.MaxValue : bdist) : null;
+                if (an != null) { Animals.Pet(an); Swing = 0.6f; }
+                else if (!(Items != null && Items.Use(Target)) && Target != null) Use(Target);
+            }
             double dt = Time.deltaTime;
             // fighting first: a mob or a player under the crosshair, the pistol in hand, the guard up
             if (Combat != null && Cursor.lockState == CursorLockMode.Locked)
@@ -93,18 +106,6 @@ namespace EtherMines.Game
             }
             else { mineKey = null; mineT = 0; MineProgress = 0; if (mining) Swing = Mathf.Max(Swing, 0.6f); }
 
-            placeCd -= dt;
-            if (use && placeCd <= 0)
-            {
-                placeCd = 0.2;
-                // an animal or a villager under the crosshair, before the block behind it
-                var eye = new Vector3((float)b.X, (float)(b.Y + PlayerPhysics.EYE), (float)b.Z);
-                var dir = new Vector3((float)dx, (float)dy, (float)dz);
-                float bdist = Target != null ? Mobs.RayBox(eye, dir, new Vector3(Target.X, Target.Y, Target.Z), new Vector3(Target.X + 1, Target.Y + 1, Target.Z + 1)) : float.MaxValue;
-                var an = Animals != null && Cursor.lockState == CursorLockMode.Locked ? Animals.Pick(eye, dir, (float)Reach, bdist < 0 ? float.MaxValue : bdist) : null;
-                if (an != null) { Animals.Pet(an); Swing = 0.6f; }
-                else if (!(Items != null && Items.Use(Target)) && Target != null) Use(Target);
-            }
 
             PingPos(b);
         }

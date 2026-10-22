@@ -66,8 +66,8 @@ namespace EtherMines.Game
 
         static Vector3 V(Vector3 g) => new Vector3(g.x, g.y, -g.z);
 
-        // called by Interaction each frame before mining: true when the click (or the right button) is for
-        // fighting, not for the block under the crosshair
+        // called by Interaction each frame before mining: true when the click is for fighting (or the blade is
+        // up), not for the block under the crosshair. The right button's own use (pet, open, place) comes first.
         public bool Fight(bool clicking, bool rightHeld, Vector3 eye, Vector3 dir, float blockDist)
         {
             if (!clicking) pvpStruck = false;
@@ -82,12 +82,15 @@ namespace EtherMines.Game
             if (IsRanged(Held))
             {
                 if (clicking && rangedT <= 0) Fire(eye, dir);
-                return true;
+                return clicking; // the pistol fires instead of mining
             }
+            // a mob, a player or an animal under the crosshair takes the click (10-loop.js: only while you
+            // click; otherwise the right button still pets, places, opens as usual)
+            if (!clicking) return false;
             var mob = Mobs.Pick(eye, dir, Reach, blockDist);
             if (mob != null)
             {
-                if (clicking && atkT <= 0) Strike(mob, HeldDmg, Player.Body.X, Player.Body.Z, HeldWeapon);
+                if (atkT <= 0) Strike(mob, HeldDmg, Player.Body.X, Player.Body.Z, HeldWeapon);
                 return true;
             }
             if (!Interaction.Sanctuary(Player.Body.X, Player.Body.Z))
@@ -95,7 +98,7 @@ namespace EtherMines.Game
                 var who = Avatars.Pick(eye, dir, Reach, blockDist);
                 if (who != null)
                 {
-                    if (clicking && atkT <= 0 && !pvpStruck)
+                    if (atkT <= 0 && !pvpStruck)
                     {
                         pvpStruck = true;
                         atkT = 0.45f;
@@ -109,7 +112,7 @@ namespace EtherMines.Game
             var an = Animals != null ? Animals.Pick(eye, dir, Reach, blockDist) : null;
             if (an != null && Animals.Fightable(an))
             {
-                if (clicking && atkT <= 0)
+                if (atkT <= 0)
                 {
                     atkT = 0.45f;
                     Act.Swing = Mathf.Max(Act.Swing, 0.6f);
