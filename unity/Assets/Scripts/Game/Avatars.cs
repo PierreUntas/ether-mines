@@ -1,6 +1,8 @@
 // Ether Mines · the other players as you see them (14-startup.js makeAvatar, updateOthers): a clay figure
 // in their color with their name over the head, walking toward where they were last heard of, turned to
-// where they look, the arm swinging while they mine. Seen from behind (V), you get yours too.
+// where they look, the arm swinging while they mine, dressed in their look (17-looks.js applyLook: an
+// outfit, headwear, a back piece, a companion following them, a trail), their title under their name.
+// Seen from behind (V), you get yours too; your companion and trail follow you in first person as well.
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -12,6 +14,8 @@ namespace EtherMines.Game
         public PlayerController Player;
         public Interaction Act;
         public string MyName = "", MyColor = "#8a7bef";
+        public Func<Dictionary<string, int>> MyLook = () => new Dictionary<string, int>();
+        public Func<string> MyTitle = () => "";
 
         sealed class Fig
         {
@@ -25,7 +29,19 @@ namespace EtherMines.Game
             public GameObject HeldObj;
             public float HeardAt, Walk, Phase;
             public Vector3 Pos; // game coordinates, eased
+            public Renderer[] Legs;      // their trousers take the outfit's color
+            public string LookKey = "", Title = "";
+            public Dictionary<string, int> Look = new Dictionary<string, int>();
+            public readonly List<GameObject> LookParts = new List<GameObject>();
+            public GameObject Companion;
+            public int CompanionId;
+            public string Trail;
+            public float TrailAcc, CompPh;
+            public Vector3 LastPos;
         }
+
+        struct Bit { public Transform T; public float Life, Max, Size, Vy; public bool Flat; public Material M; }
+        readonly List<Bit> trail = new List<Bit>();
 
         readonly Dictionary<string, Fig> figs = new Dictionary<string, Fig>();
         Fig me;
@@ -85,9 +101,13 @@ namespace EtherMines.Game
             f.Root = new GameObject("player " + name);
             f.Root.transform.SetParent(transform, false);
             var r = f.Root.transform;
-            f.LegL = Limb(r, new Vector3(0.24f, 0.47f, 0.26f), new Vector3(-0.13f, 0.47f, 0), Mat(new Color(0.42f, 0.35f, 0.88f)));
-            f.LegR = Limb(r, new Vector3(0.24f, 0.47f, 0.26f), new Vector3(0.13f, 0.47f, 0), Mat(new Color(0.42f, 0.35f, 0.88f)));
-            f.Body = Box(r, new Vector3(0.47f, 0.54f, 0.28f), new Vector3(0, 0.74f, 0), Mat(col));
+            f.LegL = Limb(r, new Vector3(0.24f, 0.47f, 0.26f), new Vector3(-0.13f, 0.47f, 0), Mat(Looks.DefaultPants));
+            f.LegR = Limb(r, new Vector3(0.24f, 0.47f, 0.26f), new Vector3(0.13f, 0.47f, 0), Mat(Looks.DefaultPants));
+            f.Legs = new Renderer[] { f.LegL.GetComponentInChildren<MeshRenderer>(), f.LegR.GetComponentInChildren<MeshRenderer>() };
+            f.Body = new GameObject("body").transform;
+            f.Body.SetParent(r, false);
+            f.Body.localPosition = new Vector3(0, 0.74f, 0);
+            Box(f.Body, new Vector3(0.47f, 0.54f, 0.28f), Vector3.zero, Mat(col));
             f.ArmL = Limb(r, new Vector3(0.18f, 0.5f, 0.22f), new Vector3(-0.35f, 1.06f, 0), Mat(col));
             f.ArmR = Limb(r, new Vector3(0.18f, 0.5f, 0.22f), new Vector3(0.35f, 1.06f, 0), Mat(col));
             f.Head = new GameObject("head").transform;
@@ -112,18 +132,21 @@ namespace EtherMines.Game
                 if (p.Id == selfId) continue;
                 ids.Add(p.Id);
                 if (!figs.ContainsKey(p.Id) && p.HasPos) Heard(p.Id, p.Name, p.Color, p.X, p.Y, p.Z, 0, 0, false, false);
+                if (figs.TryGetValue(p.Id, out var f)) { f.Look = Looks.Parse(p.Look); f.Title = p.Title ?? ""; }
             }
             var gone = new List<string>();
             foreach (var k in figs.Keys) if (!ids.Contains(k)) gone.Add(k);
-            foreach (var k in gone) { Destroy(figs[k].Root); figs.Remove(k); }
+            foreach (var k in gone) { Drop(figs[k]); figs.Remove(k); }
         }
 
         public void Heard(string id, string name, string color, double x, double y, double z, double yaw, double pitch, bool mining, bool live = true, int held = 0)
         {
             if (!figs.TryGetValue(id, out var f) || f.Color != color || f.Name != name)
             {
-                if (f != null) Destroy(f.Root);
+                var keep = f;
+                if (f != null) Drop(f);
                 figs[id] = f = Make(id, name, color);
+                if (keep != null) { f.Look = keep.Look; f.Title = keep.Title; }
             }
             f.Target = new Vector3((float)x, (float)y, (float)z);
             if (live) { f.TYaw = yaw; f.Pitch = pitch; f.Mining = mining; f.HeardAt = Time.time; f.Held = held; }
@@ -160,15 +183,22 @@ namespace EtherMines.Game
                 // no news for a while (a sign of life comes every 4 s): out of range, hidden until they're back
                 bool on = Time.time - f.HeardAt < 10;
                 f.Root.SetActive(on);
+                if (f.Companion != null) f.Companion.SetActive(on);
                 if (!on) { f.Seen = false; continue; }
+                Dress(f, f.Look);
                 Animate(f, dt, Mathf.Min(1, dt * 7));
+                Follow(f, f.Pos, f.Yaw, dt);
             }
             // yours, seen from behind or from the front
             bool mine = Player != null && Player.Body != null && Player.View != 0;
-            if (mine && me == null) { me = Make("me", MyName, MyColor); }
+            if (Player != null && Player.Body != null && (me == null || me.Color != MyColor)) { if (me != null) Drop(me); me = Make("me", MyName, MyColor); me.Pos = me.LastPos = Player.GamePos; me.Root.SetActive(false); }
             if (me != null)
             {
+                me.Title = MyTitle();
+                Dress(me, MyLook());
                 me.Root.SetActive(mine);
+                // your companion and trail follow you, whatever the view
+                Follow(me, Player.GamePos, (float)Player.Yaw, dt);
                 if (mine)
                 {
                     me.Target = Player.GamePos;
@@ -180,6 +210,119 @@ namespace EtherMines.Game
                     Animate(me, dt, 1);
                 }
                 else me.Seen = false;
+            }
+            UpdateTrail(dt);
+        }
+
+        void Drop(Fig f)
+        {
+            if (f.Companion != null) Destroy(f.Companion);
+            Destroy(f.Root);
+        }
+
+        // ---------- the look (applyLook) ----------
+        void Dress(Fig f, Dictionary<string, int> look)
+        {
+            var key = Looks.Code(look) + "|" + f.Color;
+            if (key == f.LookKey) return;
+            f.LookKey = key;
+            foreach (var p in f.LookParts) if (p != null) Destroy(p);
+            f.LookParts.Clear();
+            // an outfit: its trousers and its details, when the player wears its color (choosing it sets it)
+            Color pants = Looks.DefaultPants;
+            if (look.TryGetValue("outfit", out var oid))
+            {
+                var o = Looks.OutfitOf(oid);
+                var hex = Looks.OutfitHex(oid);
+                if (o != null && hex != null && string.Equals(hex, f.Color, StringComparison.OrdinalIgnoreCase))
+                {
+                    pants = o.Pants;
+                    foreach (var kv in o.On)
+                    {
+                        Transform at = kv.Key == "body" ? f.Body : kv.Key == "arm0" ? f.ArmL : kv.Key == "arm1" ? f.ArmR : kv.Key == "leg0" ? f.LegL : kv.Key == "leg1" ? f.LegR : kv.Key == "head" ? f.Head : null;
+                        if (at == null || kv.Value == null) continue;
+                        var g = HeldModels.FromParts("outfit " + oid + " " + kv.Key, kv.Value);
+                        g.transform.SetParent(at, false);
+                        if (kv.Key == "head") g.transform.localScale = Vector3.one * 1.32f;
+                        f.LookParts.Add(g);
+                    }
+                }
+            }
+            foreach (var r in f.Legs) r.sharedMaterial = Mat(pants);
+            if (look.TryGetValue("head", out var hid))
+            {
+                var g = Looks.Piece("head", hid);
+                if (g != null) { g.transform.SetParent(f.Head, false); g.transform.localScale = Vector3.one * 1.32f; f.LookParts.Add(g); }
+            }
+            if (look.TryGetValue("back", out var bid))
+            {
+                var g = Looks.Piece("back", bid);
+                if (g != null) { g.transform.SetParent(f.Root.transform, false); g.transform.localPosition = new Vector3(0, -0.2f, 0); f.LookParts.Add(g); }
+            }
+            int cid = look.TryGetValue("companion", out var c) ? c : 0;
+            if (cid != f.CompanionId)
+            {
+                if (f.Companion != null) Destroy(f.Companion);
+                f.CompanionId = cid;
+                f.Companion = cid > 0 ? Looks.Piece("companion", cid) : null;
+                if (f.Companion != null) { f.Companion.transform.SetParent(transform, false); f.CompPh = UnityEngine.Random.value * 6; f.Companion.transform.position = View(f.Pos) + Vector3.up * 1.3f; }
+            }
+            f.Trail = look.TryGetValue("trail", out var t) ? Looks.TrailStyle(t) : null;
+        }
+
+        // the companion beside its owner, a little behind, turning as they turn; the trail while they move
+        void Follow(Fig f, Vector3 pos, double yaw, float dt)
+        {
+            if (f.Companion != null)
+            {
+                float ox = 0.85f, oz = 0.7f, cy = Mathf.Cos((float)yaw), sy = Mathf.Sin((float)yaw);
+                var target = new Vector3(pos.x + ox * cy + oz * sy, pos.y + 1.35f + Mathf.Sin(Time.time * 2 + f.CompPh) * 0.08f, pos.z - ox * sy + oz * cy);
+                var t = f.Companion.transform;
+                t.position = Vector3.Lerp(t.position, View(target), Mathf.Min(1, dt * 4));
+                t.rotation = Quaternion.Euler(0, (float)(-yaw * Mathf.Rad2Deg), 0);
+            }
+            float sp = new Vector2(pos.x - f.LastPos.x, pos.z - f.LastPos.z).magnitude / Mathf.Max(dt, 0.001f);
+            f.LastPos = pos;
+            if (f.Trail == null || sp < 1.2f || sp > 40) return;
+            f.TrailAcc += dt;
+            while (f.TrailAcc > 0.05f) { f.TrailAcc -= 0.05f; Emit(f.Trail, pos); }
+        }
+
+        void Emit(string style, Vector3 pos)
+        {
+            bool big = Looks.Bubbles(style), flat = style == "coins";
+            var c = Looks.TrailColor(style, Time.time);
+            var m = new Material(Shader.Find("EtherMines/Glow"));
+            m.SetColor("_Color", new Color(c.r, c.g, c.b, big ? 0.45f : 0.9f));
+            m.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            m.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            m.SetFloat("_ZWrite", 0);
+            m.renderQueue = 3000;
+            var go = new GameObject("trail");
+            go.transform.SetParent(transform, false);
+            go.transform.position = View(new Vector3(pos.x + (UnityEngine.Random.value - 0.5f) * 0.4f, pos.y + 0.15f + UnityEngine.Random.value * 0.3f, pos.z + (UnityEngine.Random.value - 0.5f) * 0.4f));
+            go.AddComponent<MeshFilter>().sharedMesh = cube;
+            var r = go.AddComponent<MeshRenderer>();
+            r.sharedMaterial = m;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            float size = big ? 0.13f : 0.09f;
+            go.transform.localScale = flat ? new Vector3(size, 0.025f, size) : Vector3.one * size;
+            trail.Add(new Bit { T = go.transform, Life = big ? 1.4f : 0.9f, Max = big ? 1.4f : 0.9f, Size = size, Vy = big ? 0.7f : 0.35f, Flat = flat, M = m });
+            if (trail.Count > 160) { Destroy(trail[0].T.gameObject); Destroy(trail[0].M); trail.RemoveAt(0); }
+        }
+
+        void UpdateTrail(float dt)
+        {
+            for (int i = trail.Count - 1; i >= 0; i--)
+            {
+                var b = trail[i];
+                b.Life -= dt;
+                if (b.Life <= 0) { Destroy(b.T.gameObject); Destroy(b.M); trail.RemoveAt(i); continue; }
+                float k = b.Life / b.Max, s = b.Size * (0.4f + 0.6f * k) * (b.Flat ? 1.6f : 1);
+                b.T.position += Vector3.up * b.Vy * dt;
+                b.T.localScale = b.Flat ? new Vector3(s, 0.025f, s) : Vector3.one * s;
+                var c = b.M.GetColor("_Color"); c.a = k * 0.9f; b.M.SetColor("_Color", c);
+                trail[i] = b;
             }
         }
 
@@ -228,7 +371,7 @@ namespace EtherMines.Game
         {
             var cam = Player != null ? Player.Cam : null;
             if (cam == null) return;
-            if (tagStyle == null) tagStyle = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = new Color(0.96f, 0.95f, 1) } };
+            if (tagStyle == null) tagStyle = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, richText = true, normal = { textColor = new Color(0.96f, 0.95f, 1) } };
             foreach (var f in figs.Values)
             {
                 if (!f.Root.activeSelf) continue;
@@ -236,14 +379,17 @@ namespace EtherMines.Game
                 var s = cam.WorldToScreenPoint(w);
                 if (s.z <= 0 || s.z > 80) continue;
                 var size = tagStyle.CalcSize(new GUIContent(f.Name));
-                float bw = size.x + 34, bh = 26, x = s.x - bw / 2, y = Screen.height - s.y - bh / 2;
+                bool titled = !string.IsNullOrEmpty(f.Title);
+                if (titled) size.x = Mathf.Max(size.x, tagStyle.CalcSize(new GUIContent(f.Title)).x * 0.8f);
+                float bw = size.x + 34, bh = titled ? 40 : 26, x = s.x - bw / 2, y = Screen.height - s.y - bh / 2;
                 var o = GUI.color;
                 GUI.color = new Color(0.11f, 0.086f, 0.23f, 0.72f);
                 GUI.DrawTexture(new Rect(x, y, bw, bh), Texture2D.whiteTexture);
                 GUI.color = Hex(f.Color, Color.white);
                 GUI.DrawTexture(new Rect(x + 9, y + 9, 8, 8), Texture2D.whiteTexture);
                 GUI.color = o;
-                GUI.Label(new Rect(x + 24, y, bw - 24, bh), f.Name, tagStyle);
+                GUI.Label(new Rect(x + 24, y, bw - 24, 26), f.Name, tagStyle);
+                if (titled) GUI.Label(new Rect(x + 24, y + 20, bw - 24, 18), "<size=12><color=#ffd95e>" + f.Title + "</color></size>", tagStyle);
             }
         }
     }

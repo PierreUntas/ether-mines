@@ -18,6 +18,7 @@ namespace EtherMines.Game
         public Session Session; // null offline
         public Interaction Act;
         public Progress Progress; // null offline
+        Shop shop;
         public string Tab = "bag";
         Vector2 scroll;
         string selKey, craftCat = "";
@@ -127,10 +128,10 @@ namespace EtherMines.Game
             Ui.Frame(new Rect(x, y, W, H), new Color(1, 1, 1, 0.12f));
             // the tabs
             float tx = x + 16;
-            foreach (var (k, t) in new[] { ("bag", "Your bag"), ("craft", "Crafting"), ("quest", "Objectives"), ("validators", "Validators"), ("chest", "Chest") })
+            foreach (var (k, t) in new[] { ("bag", "Your bag"), ("craft", "Crafting"), ("quest", "Objectives"), ("validators", "Validators"), ("shop", "Shop"), ("chest", "Chest") })
             {
                 if (k == "chest" && Open == null) continue;
-                if ((k == "quest" || k == "validators") && Progress == null) continue;
+                if ((k == "quest" || k == "validators" || k == "shop") && Progress == null) continue;
                 if (GUI.Button(new Rect(tx, y + 12, 120, 30), t, Tab == k ? Ui.Primary : Ui.Button)) { Tab = k; scroll = Vector2.zero; }
                 tx += 128;
             }
@@ -142,6 +143,7 @@ namespace EtherMines.Game
             else if (Tab == "chest" && Open != null) ChestTab(body);
             else if (Tab == "quest" && Progress != null) Progress.DrawObjectives(body);
             else if (Tab == "validators" && Progress != null) Progress.DrawValidators(body);
+            else if (Tab == "shop" && Progress != null) (shop ??= new Shop { Session = Session, Progress = Progress }).Draw(body);
         }
 
         // ---------- your bag ----------

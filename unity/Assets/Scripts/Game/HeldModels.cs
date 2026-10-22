@@ -15,8 +15,6 @@ namespace EtherMines.Game
         public sealed class Info { public bool Upright, Ranged, Block, Cube; public float Fit = 1; }
 
         static Dictionary<string, object> items;
-        static readonly Dictionary<int, Mesh[]> meshes = new Dictionary<int, Mesh[]>();
-        static readonly Dictionary<int, Material[]> partMats = new Dictionary<int, Material[]>();
         static readonly Dictionary<string, Material> mats = new Dictionary<string, Material>();
         static readonly Dictionary<int, (MeshOut m, float fit)> blocks = new Dictionary<int, (MeshOut, float)>();
         public static WorldView World; // the world's materials, for blocks
@@ -76,10 +74,20 @@ namespace EtherMines.Game
         {
             var d = Item(id);
             if (d == null || !d.TryGetValue("parts", out var po)) return null;
-            var parts = (List<object>)po;
-            if (!meshes.TryGetValue(id, out var ms))
+            var go = FromParts("held " + id, (List<object>)po);
+            go.name = "held " + id;
+            return go;
+        }
+
+        static readonly Dictionary<string, (Mesh[] ms, Material[] mats)> partsCache = new Dictionary<string, (Mesh[], Material[])>();
+
+        // a model exported from the game as triangles ([{ c, e, b, v, n }]: tools/export-held.mjs,
+        // export-looks.mjs), mirrored into Unity's space; the meshes are built once per key and shared
+        public static GameObject FromParts(string key, List<object> parts)
+        {
+            if (!partsCache.TryGetValue(key, out var built))
             {
-                ms = new Mesh[parts.Count];
+                var ms = new Mesh[parts.Count];
                 var pm = new Material[parts.Count];
                 for (int i = 0; i < parts.Count; i++)
                 {
@@ -97,7 +105,7 @@ namespace EtherMines.Game
                         nor[t] = new Vector3((float)(double)n[tri * 3], (float)(double)n[tri * 3 + 1], -(float)(double)n[tri * 3 + 2]);
                     }
                     for (int t = 0; t + 2 < vc; t += 3) { idx[t] = t; idx[t + 1] = t + 2; idx[t + 2] = t + 1; }
-                    var mesh = new Mesh { name = "held " + id };
+                    var mesh = new Mesh { name = key };
                     if (vc > 65000) mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
                     mesh.vertices = pos;
                     mesh.normals = nor;
@@ -107,17 +115,15 @@ namespace EtherMines.Game
                     var c = Avatars.Hex(p["c"] as string, Color.white);
                     pm[i] = p.ContainsKey("b") && MiniJson.Truthy(p["b"]) ? Basic(c) : Lit(c, Avatars.Hex(p["e"] as string, Color.black));
                 }
-                meshes[id] = ms;
-                partMats[id] = pm;
+                partsCache[key] = built = (ms, pm);
             }
-            var go = new GameObject("held " + id);
-            var mats2 = partMats[id];
-            for (int i = 0; i < ms.Length; i++)
+            var go = new GameObject(key);
+            for (int i = 0; i < built.ms.Length; i++)
             {
                 var ch = new GameObject("part");
                 ch.transform.SetParent(go.transform, false);
-                ch.AddComponent<MeshFilter>().sharedMesh = ms[i];
-                ch.AddComponent<MeshRenderer>().sharedMaterial = mats2[i];
+                ch.AddComponent<MeshFilter>().sharedMesh = built.ms[i];
+                ch.AddComponent<MeshRenderer>().sharedMaterial = built.mats[i];
             }
             return go;
         }

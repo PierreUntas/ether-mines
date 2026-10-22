@@ -40,6 +40,7 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
 - A held item's model (`clayModel` in `src/game/04-render.js`) changed, or an item added →
   `node unity/tools/export-held.mjs` (opens the game in a headless browser: Playwright, as for
   `tests/navigateur.mjs`).
+- A look (`src/game/17-looks.js`) changed, or a cosmetic added → `node unity/tools/export-looks.mjs` (the same way).
 - Type-check the Unity scripts without the editor: `cd unity/CompileCheck && dotnet build -c Release`
   (and `-p:Legacy=1` for the old Input Manager branch). `UnityStubs.cs` holds the API they use.
 
@@ -64,5 +65,8 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
 5. The rest of the game, in parts. Done: the window (E: your bag, crafting, a chest), chests, consumables,
    beds and meals, relighting a validator, wearing a plating or the boots, the boots' dodge; the chapters
    and their rewards (O, `Progress.cs`: the same save flags as the web version), your validators (attest,
-   upgrade). Next: the shop and the looks, plots, hovercrafts, animals, signs.
+   upgrade); the shop (buy, wear) and the looks on every figure (`Looks.cs`, `Resources/looks.json`:
+   outfits, headwear, back pieces, companions, trails; titles under the names). Not yet: the looks' small
+   animations, the tool and plating trims' glow, trying a piece on before buying.
+   Next: plots, hovercrafts, animals, signs.
 Then touch controls and store builds (6).

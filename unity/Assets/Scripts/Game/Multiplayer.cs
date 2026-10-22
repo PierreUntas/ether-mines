@@ -22,6 +22,7 @@ namespace EtherMines.Game
         Mobs mobs;
         Combat combat;
         Items items;
+        Progress progress;
         readonly List<string> names = new List<string>();
         bool restoring;
 
@@ -44,6 +45,9 @@ namespace EtherMines.Game
             avatars.Act = Act;
             avatars.MyName = Session.Login ?? "";
             avatars.MyColor = Session.Color;
+            progress = GetComponent<Progress>();
+            avatars.MyLook = () => progress != null ? Looks.Mine(Session, progress.Cosmetics) : new Dictionary<string, int>();
+            avatars.MyTitle = () => progress != null ? Looks.BestTitle(progress.Cosmetics) : "";
             chat = gameObject.AddComponent<Chat>();
             chat.Session = Session;
             chat.MyName = Session.Login ?? "";
@@ -109,6 +113,8 @@ namespace EtherMines.Game
             feed.Tick(dt);
             var b = Player.Body;
             if (b == null) return;
+            avatars.MyColor = Session.Color;
+            link.SetLook(avatars.MyTitle(), Looks.Code(avatars.MyLook()));
             int held = Act.Inv.HeldId;
             if (held <= 0 || Rules.Block(held) != null) held = 0; // what's drawn in their hand: a tool or a weapon
             link.SendPos(b.X, b.Y, b.Z, Player.Yaw, Player.Pitch, Act.Swing > 0, held, Time.time, combat.Guarding, combat.Armor, combat.Boots, combat.Fx, combat.Fq, items != null && items.Warded);

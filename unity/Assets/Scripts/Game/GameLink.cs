@@ -14,7 +14,7 @@ namespace EtherMines.Game
         public const int Protocol = 2; // server.js PROTOCOL, net.js GS_PROTOCOL
         const string Origin = "https://ethermines.org";
 
-        public sealed class Peer { public string Id, Name, Color; public double X, Y, Z; public bool HasPos; }
+        public sealed class Peer { public string Id, Name, Color, Title, Look; public double X, Y, Z; public bool HasPos; }
         public sealed class Move { public string Id, Name, Color; public double X, Y, Z, Yaw, Pitch; public bool Mining, Guard; public int Held; }
 
         public event Action<List<Peer>> Peers;
@@ -24,6 +24,7 @@ namespace EtherMines.Game
         public bool HpServer { get; private set; }   // it keeps your hearts
         public bool LootServer { get; private set; } // it pays the loot of a kill
         public Func<Dictionary<string, object>> HelloExtra; // your hearts, your plating... for the hello
+        public string Title = "", LookCode = "";             // under your name, what you wear: told to the others
         public bool NoMobs;                          // hostile mobs off here: the server's mobs leave you be
         public string Status = "";
         public bool Ready { get; private set; }
@@ -58,7 +59,7 @@ namespace EtherMines.Game
                 sentToken = tk;
                 var hello = new Dictionary<string, object>
                 {
-                    ["t"] = "hello", ["v"] = Protocol, ["world"] = world, ["token"] = tk, ["title"] = "", ["look"] = "", ["nm"] = NoMobs ? 1 : 0,
+                    ["t"] = "hello", ["v"] = Protocol, ["world"] = world, ["token"] = tk, ["title"] = Title, ["look"] = LookCode, ["nm"] = NoMobs ? 1 : 0,
                 };
                 if (HelloExtra != null) foreach (var kv in HelloExtra()) hello[kv.Key] = kv.Value;
                 sock.Send(MiniJson.Write(hello));
@@ -135,7 +136,11 @@ namespace EtherMines.Game
                 foreach (var o in list)
                     if (o is Dictionary<string, object> p)
                     {
-                        var e = new Peer { Id = p["id"] as string, Name = p.TryGetValue("name", out var n) ? n as string : "?", Color = p.TryGetValue("color", out var c) ? c as string : "#8a7bef" };
+                        var e = new Peer
+                        {
+                            Id = p["id"] as string, Name = p.TryGetValue("name", out var n) ? n as string : "?", Color = p.TryGetValue("color", out var c) ? c as string : "#8a7bef",
+                            Title = p.TryGetValue("title", out var ti) ? ti as string : "", Look = p.TryGetValue("look", out var lk) ? lk as string : "",
+                        };
                         if (p.TryGetValue("x", out var x) && x is double) { e.HasPos = true; e.X = (double)x; e.Y = MiniJson.ToDouble(p["y"]); e.Z = MiniJson.ToDouble(p["z"]); }
                         ps.Add(e);
                     }
@@ -180,6 +185,15 @@ namespace EtherMines.Game
         public void Send(Dictionary<string, object> m)
         {
             if (Ready) sock?.Send(MiniJson.Write(m));
+        }
+
+        // your title or look changed: the others see it at once
+        public void SetLook(string title, string look)
+        {
+            if (title == Title && look == LookCode) return;
+            Title = title;
+            LookCode = look;
+            Send(new Dictionary<string, object> { ["t"] = "look", ["title"] = title, ["look"] = look });
         }
 
         // a block changed (heard from the database's feed): the server's mobs walk the new terrain

@@ -22,7 +22,7 @@ namespace UnityEngine
         public GameObject gameObject;
         public Transform transform;
         public T GetComponent<T>() => default;
-        public T[] GetComponentsInChildren<T>() => null;
+        public T[] GetComponentsInChildren<T>() => null; public T GetComponentInChildren<T>() => default;
     }
     public class Behaviour : Component { public bool enabled; }
     public class Collider : Component { }
@@ -79,7 +79,7 @@ namespace UnityEngine
     {
         public float r, g, b, a;
         public Color(float r, float g, float b, float a = 1) { this.r = r; this.g = g; this.b = b; this.a = a; }
-        public float grayscale => 0; public static Color white => default; public static Color magenta => default; public Color(float r, float g, float b) : this(r, g, b, 1) { } public static Color black => default; public static Color clear => default;
+        public float grayscale => 0; public static Color HSVToRGB(float h, float s, float v) => default; public static Color white => default; public static Color magenta => default; public Color(float r, float g, float b) : this(r, g, b, 1) { } public static Color black => default; public static Color clear => default;
         public static Color Lerp(Color a, Color b, float t) => a;
         public static Color operator *(Color a, float b) => a;
     }
@@ -161,7 +161,7 @@ namespace UnityEngine
     {
         public Material(Shader s) { } public Material(Material m) { }
         public Shader shader; public Texture mainTexture; public Color color;
-        public int renderQueue; public void SetTexture(string n, Texture t) { } public void SetColor(string n, Color c) { } public void SetVector(string n, Vector4 v) { }
+        public int renderQueue; public void SetTexture(string n, Texture t) { } public void SetColor(string n, Color c) { } public Color GetColor(string n) => default; public void SetVector(string n, Vector4 v) { }
         public void SetFloat(string n, float f) { }
     }
     public class TextAsset : Object { public string text; public byte[] bytes; }

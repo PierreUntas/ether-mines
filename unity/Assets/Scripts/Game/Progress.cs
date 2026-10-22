@@ -84,7 +84,7 @@ namespace EtherMines.Game
         public List<Dictionary<string, object>> Validators = new List<Dictionary<string, object>>();
         bool validatorsLoaded;
         int myGates;
-        float tickT, valT, gatesT;
+        float tickT, valT, gatesT, rewardsT = 5;
         readonly Dictionary<string, float> claimFailed = new Dictionary<string, float>();
         readonly HashSet<string> claiming = new HashSet<string>();
         bool busy;
@@ -156,6 +156,7 @@ namespace EtherMines.Game
             valT -= Time.deltaTime;
             gatesT -= Time.deltaTime;
             if (valT <= 0) _ = LoadValidators();
+            if ((rewardsT -= Time.deltaTime) <= 0) { rewardsT = 60; Rewards(); }
             if (gatesT <= 0 && Open(Chapters.First(c => c.Id == "circuits"))) LoadGates();
             if ((tickT -= Time.deltaTime) > 0) return;
             tickT = 1;
@@ -214,6 +215,20 @@ namespace EtherMines.Game
                     (!claimFailed.TryGetValue(c.Id, out var t) || Time.time - t > 600))
                     Claim(c);
             }
+        }
+
+        // what your validators produced meanwhile (act_rewards, every minute)
+        async void Rewards()
+        {
+            try
+            {
+                var r = await Session.Act("rewards", new Dictionary<string, object>(), 0, 0, 0);
+                if (r == null || r.ContainsKey("refused")) return;
+                if (r.TryGetValue("gwei", out var g)) Session.Gwei = MiniJson.ToDouble(g);
+                int gained = MiniJson.ToInt(r.TryGetValue("gained", out var ga) ? ga : null);
+                if (gained > 0) Hud.Feed("mint", gained + " Gwei", "collected from your validators");
+            }
+            catch (Exception e) { Debug.LogWarning(e); }
         }
 
         async void Claim(Chapter c)
