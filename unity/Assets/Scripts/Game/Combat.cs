@@ -128,6 +128,7 @@ namespace EtherMines.Game
         // a blow on a mob (damageMob): shown here at once, settled by the server, told to everyone near
         void Strike(Mobs.Mob a, double dmg, double fromX, double fromZ, int item)
         {
+            Sounds.Hit("stone", a.Pos);
             atkT = 0.45f;
             Act.Swing = Mathf.Max(Act.Swing, 0.6f);
             if (a.StunT > 0) dmg *= 1.5; // a riposte, while it reels from a parry
@@ -156,6 +157,7 @@ namespace EtherMines.Game
         void Fire(Vector3 eye, Vector3 dir)
         {
             rangedT = 0.35f;
+            Sounds.Shoot();
             Act.Swing = Mathf.Max(Act.Swing, 0.5f);
             Spawn(eye, dir * BoltSpeed, new Color(0.37f, 0.91f, 1f), 1, true, HeldWeapon, HeldDmg);
             Link.Send(new Dictionary<string, object>
@@ -227,6 +229,11 @@ namespace EtherMines.Game
                     break;
                 case "mob": MobWord(m); break;
                 case "mshot":
+                    {
+                        var o = new Vector3(F(m, "x"), F(m, "y"), F(m, "z"));
+                        var me = Player.Body;
+                        if (me != null && new Vector2((float)(o.x - me.X), (float)(o.z - me.Z)).magnitude < 30) Sounds.Shoot(o);
+                    }
                     // a mob's bolt: flown by the server, which says whom it hits; drawn here
                     Spawn(new Vector3(F(m, "x"), F(m, "y"), F(m, "z")), new Vector3(F(m, "vx"), F(m, "vy"), F(m, "vz")),
                           HexOf(m.TryGetValue("c", out var c) ? c : null), Mathf.Clamp(F(m, "s"), 0.5f, 3), false);
@@ -285,6 +292,7 @@ namespace EtherMines.Game
         void Hurt(Dictionary<string, object> m)
         {
             var res = m.TryGetValue("res", out var r) ? r as string : "hit";
+            if (res == "parry" || res == "block") Sounds.Hit("stone"); else Sounds.Hurt();
             float dmg = F(m, "dmg");
             if (res == "parry" || res == "block") { guardWord = res == "parry" ? "Parried!" : "Blocked"; guardFlash = 0.7f; }
             if (res == "parry" || (res == "block" && dmg == 0))

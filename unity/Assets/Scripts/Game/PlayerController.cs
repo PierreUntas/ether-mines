@@ -82,7 +82,10 @@ namespace EtherMines.Game
             }
             else if (ready)
             {
+                bool was = Body.On;
+                double vy0 = Body.Vy;
                 Body.Step(dt, fx, fz, Yaw, jump, run, sneak, IsLadder);
+                Footsteps(dt, Math.Sqrt(fx * fx + fz * fz), run, was, vy0);
                 if (Body.Y < -10) { Body.X = World_SpawnX; Body.Y = EtherMines.Core.World.SPAWN.Y + 0.1; Body.Z = World_SpawnZ; Body.Vy = 0; }
             }
             AfterStep?.Invoke(jump);
@@ -90,6 +93,19 @@ namespace EtherMines.Game
             eyeLag = Math.Max(0, eyeLag + Body.StepUp - dt * 4);
             Body.StepUp = 0;
             PlaceCamera();
+        }
+
+        // a step every 0.38 s walking (0.28 running) on the ground, and one landing from a fall (10-loop.js)
+        double stepT;
+        void Footsteps(double dt, double l, bool run, bool was, double fallV)
+        {
+            string Under() => Sounds.MatOf(World.Get((int)Math.Floor(Body.X), (int)Math.Floor(Body.Y - 0.1), (int)Math.Floor(Body.Z)));
+            if (l > 0.1 && Body.On && !Body.InWater)
+            {
+                if ((stepT -= dt) <= 0) { stepT = run ? 0.28 : 0.38; Sounds.Step(Under()); }
+            }
+            else stepT = 0.12;
+            if (!was && Body.On && fallV < -7) Sounds.Step(Under());
         }
 
         static double World_SpawnX => EtherMines.Core.World.SPAWN.X + 0.5;

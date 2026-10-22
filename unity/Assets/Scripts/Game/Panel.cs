@@ -162,7 +162,7 @@ namespace EtherMines.Game
             Ui.Fill(new Rect(x, y, W, H), new Color(0.13f, 0.1f, 0.27f, 0.96f));
             Ui.Frame(new Rect(x, y, W, H), new Color(1, 1, 1, 0.12f));
             // the tabs
-            float tx = x + 16, tw = Mathf.Min(120, (W - 260) / 7 - 8); // narrower on a small screen
+            float tx = x + 16, tw = Mathf.Min(120, (W - 320) / 7 - 8); // narrower on a small screen
             foreach (var (k, t) in new[] { ("bag", "Your bag"), ("craft", "Crafting"), ("quest", "Objectives"), ("validators", "Validators"), ("shop", "Shop"), ("trade", Trade != null && Trade.Received > 0 ? $"Trade ({Trade.Received})" : "Trade"), ("chest", "Chest") })
             {
                 if (k == "chest" && Open == null) continue;
@@ -171,8 +171,10 @@ namespace EtherMines.Game
                 if (GUI.Button(new Rect(tx, y + 12, tw, 30), t, Tab == k ? Ui.Primary : Ui.Button)) { Tab = k; scroll = Vector2.zero; }
                 tx += tw + 8;
             }
-            GUI.Label(new Rect(x + W - 230, y + 16, 150, 24), Session != null ? $"{Session.Gwei:0} Gwei" : "offline", Ui.Label);
+            GUI.Label(new Rect(x + W - 290, y + 16, 150, 24), Session != null ? $"{Session.Gwei:0} Gwei" : "offline", Ui.Label);
             if (GUI.Button(new Rect(x + W - 70, y + 12, 54, 30), "✕", Ui.Button)) { Hide(); return; }
+            // the sound, on or off (M)
+            if (GUI.Button(new Rect(x + W - 134, y + 12, 58, 30), Sounds.On ? "♪ on" : "♪ off", Ui.Button)) Sounds.Toggle();
             var body = new Rect(x + 16, y + 54, W - 32, H - 70);
             if (Tab == "bag") Bag(body);
             else if (Tab == "craft") CraftTab(body);

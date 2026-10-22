@@ -28,7 +28,7 @@ namespace EtherMines.Game
         const double Reach = 5.2;
 
         string mineKey;
-        double mineT, hitT, placeCd;
+        double mineT, hitT, placeCd, knockT; // knockT: the pickaxe's knocks while you mine
         GameObject outline;
         int lastPos;
 
@@ -122,6 +122,7 @@ namespace EtherMines.Game
                 Swing = Mathf.Max(Swing, 0.6f);
                 if (!inv.CanMine(Target.Id))
                 {
+                    if ((knockT -= dt) <= 0) { knockT = 0.4; Sounds.Hit("stone"); }
                     hitT -= dt;
                     if (hitT <= 0) { hitT = 6; Say("burn", "Too hard for this tool", "you need a better pickaxe"); }
                     MineProgress = 0;
@@ -131,11 +132,12 @@ namespace EtherMines.Game
                     var k = Target.X + "," + Target.Y + "," + Target.Z;
                     if (k != mineKey) { mineKey = k; mineT = 0; }
                     mineT += dt * inv.HeldTool;
+                    if ((knockT -= dt) <= 0) { knockT = 0.25; Sounds.Hit(Sounds.MatOf(Target.Id)); }
                     MineProgress = (float)Math.Min(1, mineT / bd.H);
                     if (MineProgress >= 1) { Break(Target); mineKey = null; mineT = 0; MineProgress = 0; }
                 }
             }
-            else { mineKey = null; mineT = 0; MineProgress = 0; if (mining) Swing = Mathf.Max(Swing, 0.6f); }
+            else { mineKey = null; mineT = 0; MineProgress = 0; knockT = 0; if (mining) Swing = Mathf.Max(Swing, 0.6f); }
 
 
             PingPos(b);
@@ -211,6 +213,7 @@ namespace EtherMines.Game
             var rec = Record(cells);
             foreach (var c in cells) Write(c[0], c[1], c[2], 0, null);
             Swing = 1;
+            Sounds.Brk(Sounds.MatOf(id));
             if (Session == null)
             {
                 int drop = bd.HasDrop ? bd.Drop : id;
@@ -243,6 +246,7 @@ namespace EtherMines.Game
                 var rec = Record(cells);
                 foreach (var c in cells) Write(c[0], c[1], c[2], c[3], World.Store.OwnerOf(c[0], c[1], c[2]));
                 Swing = 0.6f;
+                if (bd.Shape == "door") Sounds.Door(); else Sounds.Click();
                 if (Session == null) return;
                 var r = await Session.Act("toggle", new Dictionary<string, object> { ["px"] = t.X, ["py"] = t.Y, ["pz"] = t.Z }, b.X, b.Y, b.Z);
                 if (r == null || r.ContainsKey("refused")) Revert(rec); else Apply(r);
@@ -260,6 +264,7 @@ namespace EtherMines.Game
             foreach (var c in plan.Cells) Write(c[0], c[1], c[2], c[3], own);
             inv.Counts[it] = inv.Count(it) - 1;
             Swing = 1;
+            Sounds.Place(Sounds.MatOf(it));
             if (Session == null) { if (inv.Counts[it] <= 0) inv.SetCounts(new Dictionary<string, object> { [it.ToString()] = 0.0 }); return; }
             var r2 = await Session.Act("place", new Dictionary<string, object> { ["px"] = t.PX, ["py"] = t.PY, ["pz"] = t.PZ, ["it"] = it, ["bid"] = plan.Id }, b.X, b.Y, b.Z);
             if (r2 == null || r2.ContainsKey("refused")) { Revert(rec2); await Session.LoadInventory(); return; }

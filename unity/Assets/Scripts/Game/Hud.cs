@@ -23,6 +23,7 @@ namespace EtherMines.Game
         public static void Feed(string kind, string text, string detail)
         {
             feed.Insert(0, new Line { Kind = kind, Text = text, Detail = detail ?? "", At = Time.time });
+            if (kind == "mint" || kind == "craft" || kind == "nft") Sounds.Chime(); // something gained: the crystal chime
             if (feed.Count > 6) feed.RemoveAt(feed.Count - 1);
         }
 

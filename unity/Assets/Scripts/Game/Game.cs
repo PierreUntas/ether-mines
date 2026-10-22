@@ -37,6 +37,7 @@ namespace EtherMines.Game
             cam.farClipPlane = 400;
             cam.fieldOfView = 70;
             cam.clearFlags = CameraClearFlags.Skybox;
+            if (cam.GetComponent<AudioListener>() == null) cam.gameObject.AddComponent<AudioListener>(); // the ears: where the camera is
             foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None)) l.enabled = false; // the scene's default light: ours replaces it
 
             var sunGo = new GameObject("Sun");
@@ -155,6 +156,10 @@ namespace EtherMines.Game
                 hand.Hover = hover;
                 player.Lift = () => hover.Lift;
                 player.AfterStep = hover.BoardTick;
+                // the sounds (made, not recorded), and the ambiance that follows the day and the depth
+                var sounds = gameObject.AddComponent<Sounds>();
+                sounds.Player = player;
+                sounds.Sky = sky;
                 // the circuits around you (lamps, doors, gates), and the lanterns' light
                 var circuits = gameObject.AddComponent<CircuitsView>();
                 circuits.World = world;

@@ -22,6 +22,7 @@ namespace EtherMines.CoreTests
             if (only == null || only == "physics") PhysicsCheck.Run();
             if (only == null || only == "step2") Step2Check.Run();
             if (only == null || only == "circuits") CircuitParity.Run();
+            if (only == null || only == "audio") AudioParity.Run();
             Console.WriteLine(failures.Count == 0 ? "ALL PASS" : failures.Count + " FAILED");
             return failures.Count == 0 ? 0 : 1;
         }

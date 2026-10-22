@@ -111,6 +111,15 @@ namespace EtherMines.Game
             var changed = cir.Step(nodes, feet, clockOn);
             Objectives();
             if (changed.Count == 0) return;
+            // a door swinging, a plate going down: heard from there
+            foreach (var k in changed)
+            {
+                if (!nodes.TryGetValue(k, out var id)) continue;
+                Circuits.D(k, out var x, out var y, out var z);
+                var at = new Vector3(x + 0.5f, y + 0.5f, z + 0.5f);
+                if (id >= 48 && id <= 63 && !Rules.Block(id).Top) Sounds.Door(at);
+                else if (id == 66) Sounds.Plate(at);
+            }
             World.Powered = new HashSet<long>(cir.Powered);
             var chunks = new HashSet<long>();
             foreach (var k in changed)

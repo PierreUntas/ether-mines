@@ -37,7 +37,30 @@ namespace EtherMines.Game
         float spawnT, netT;
         int network; string topName; int topN;
         // the dialogue bubble
-        string dName, dRole, dText, dColor; float dAt = -99, dUntil;
+        string dName, dRole, dText, dColor; float dAt = -99, dUntil; int dBlip;
+        float callT = 8;
+        // the typewriter's tick every few letters (09-animals.js), and now and then the nearest animal's call
+        void SoundsTick()
+        {
+            if (dText != null && Time.time <= dUntil)
+            {
+                int shown = Mathf.Min(dText.Length, (int)((Time.time - dAt) / 0.02f));
+                for (; dBlip < shown; dBlip++) if (dBlip > 0 && dBlip % 4 == 0 && dText[dBlip - 1] != ' ') Sounds.Blip();
+            }
+            if ((callT -= Time.deltaTime) > 0 || Player == null || Player.Body == null) return;
+            callT = 7 + UnityEngine.Random.value * 12;
+            Animal near = null;
+            float nd = 18;
+            var p = Player.GamePos;
+            foreach (var list in chunks.Values)
+                foreach (var a in list)
+                {
+                    if (a.Type == "fish" || a.VillagerIx >= 0) continue;
+                    float d = Vector3.Distance(a.Pos, p);
+                    if (d < nd) { nd = d; near = a; }
+                }
+            if (near != null) Sounds.Animal(near.Type, near.Pos);
+        }
         GUIStyle tagStyle;
         struct Heart { public Transform T; public float Life; }
         readonly List<Heart> hearts = new List<Heart>();
@@ -236,6 +259,7 @@ namespace EtherMines.Game
 
         void Update()
         {
+            SoundsTick();
             var b = Player.Body;
             if (b == null) return;
             float dt = Time.deltaTime;
@@ -384,6 +408,7 @@ namespace EtherMines.Game
             if (a.VillagerIx >= 0) { Talk(a); return; }
             var K = kinds[a.Type];
             a.Pet = 0.6f;
+            Sounds.Animal(a.Type, a.Pos);
             if (Session != null) { Session.State["petted"] = 1.0; Session.Dirty = true; }
             for (int i = 0; i < (a.Type == "jellyfish" ? 5 : 3); i++)
             {
@@ -417,7 +442,8 @@ namespace EtherMines.Game
             if (line == "@network") line = network > 0 || Session != null ? NetworkLine() : "The network is waiting for its first relit validator.";
             else if (line == "@top") line = topName != null ? $"{topName} watches over {topN} validator{(topN > 1 ? "s" : "")}: no one has relit more." : "No one has relit an old validator yet. The first name carved here could be yours.";
             else if (line == "@ruin") line = RuinLine();
-            dName = h.Name; dRole = h.Role; dColor = h.Color; dText = line; dAt = Time.time; dUntil = Time.time + 1 + line.Length * 0.062f;
+            dName = h.Name; dRole = h.Role; dColor = h.Color; dText = line; dAt = Time.time; dUntil = Time.time + 1 + line.Length * 0.062f; dBlip = 0;
+            Sounds.Animal("villager");
             a.Pet = 0.25f;
             if (Session != null)
             {

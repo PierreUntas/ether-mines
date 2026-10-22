@@ -33,8 +33,10 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
 - `rules.js` changed → `node unity/tools/export-rules.mjs` (a test in `tests/unity.test.mjs` checks it).
 - `world.js` (the generator, `GEN`) or `src/mesh.js` changed → port the change to `WorldGen*.cs` /
   `Mesher.cs`, then run the parity checks:
-  `cd unity/CoreTests && node golden.mjs && node golden-mesh.mjs && node golden-circuits.mjs && dotnet build -c Release && dotnet bin/Release/net8.0/CoreTests.dll`
+  `cd unity/CoreTests && node golden.mjs && node golden-mesh.mjs && node golden-circuits.mjs && node golden-audio.mjs && dotnet build -c Release && dotnet bin/Release/net8.0/CoreTests.dll`
   (every chunk must match the JavaScript byte for byte, every mesh vertex for vertex).
+- The sounds (`src/audio.js`) changed → port the recipe to `Game/Sounds.cs` (a new shape of sound to
+  `Core/Synth.cs`, then `node golden-audio.mjs` and the parity checks).
 - The circuits (`src/game/12-circuits.js`) changed → port the change to `Core/Circuits.cs` and run the
   parity checks above (`golden-circuits.mjs` runs the web's own file on test circuits).
 - Textures changed (`src/game/01-textures.js`) → `node unity/tools/export-art.mjs`.
@@ -83,6 +85,9 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
    drag to look, tap to place or use, hold to mine, the buttons on the right and on top, tap the bar),
    the interface scaled to the screen and clear of the notch, the system keyboard for the chat and the
    signs; the store builds (`Assets/Editor/Build.cs`, below).
+The sounds (`Core/Synth.cs`, checked against the browser's Web Audio; `Sounds.cs`: the web's recipes,
+footsteps and mining by material, the ambiance's pad, bells, birds, crickets and drips; what happens around
+you heard from where it is: others' blocks, animals, mobs, doors, plates, bolts; M or the window's ♪ button).
 Then the circuits (`Core/Circuits.cs`, checked tick for tick against 12-circuits.js; `CircuitsView.cs`:
 lamps, doors, plates, gates and the clock live around you, the objectives' shapes, the lanterns' light).
 Trades (`Trade.cs`, the window's Trade tab: offers received and sent, accept, decline, cancel, a new offer

@@ -51,6 +51,7 @@ namespace EtherMines.Game
             yaw = (float)Player.Yaw;
             seen = false;
             b.Riding = true;
+            Sounds.Chime();
             if (!told && (told = true)) Hud.Feed("nft", "On board the " + Ui.NameOf(Riding), "twice as fast, over water too · " + (TouchPad.Active ? "the Ride button" : "right-click") + " to step off" +
                 (Avatars.IsTwin(Riding) ? " · a friend can take the back seat by " + (TouchPad.Active ? "tapping" : "right-clicking") + " you" : ""));
             return true;
@@ -58,7 +59,7 @@ namespace EtherMines.Game
 
         public void Off()
         {
-            if (craft != null) Destroy(craft);
+            if (craft != null) { Destroy(craft); Sounds.Click(); }
             craft = null;
             Riding = 0;
             lift = 0;

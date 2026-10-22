@@ -196,7 +196,7 @@ namespace UnityEngine
     public class AsyncOperation { public event Action<AsyncOperation> completed; public bool isDone; }
     public enum RuntimeInitializeLoadType { AfterSceneLoad, BeforeSceneLoad }
     [AttributeUsage(AttributeTargets.Method)] public class RuntimeInitializeOnLoadMethodAttribute : Attribute { public RuntimeInitializeOnLoadMethodAttribute(RuntimeInitializeLoadType t) { } }
-    public enum KeyCode { Space, LeftShift, C, LeftControl, V, F, Escape, E, T, I, Return, Alpha1, KeypadEnter, Q, O, X }
+    public enum KeyCode { M, Space, LeftShift, C, LeftControl, V, F, Escape, E, T, I, Return, Alpha1, KeypadEnter, Q, O, X }
     public static class Input
     {
         public static float GetAxisRaw(string a) => 0; public static Vector2 mouseScrollDelta; public static bool GetKey(KeyCode k) => false; public static bool GetKeyDown(KeyCode k) => false;
@@ -234,11 +234,21 @@ namespace UnityEngine.InputSystem
     public class Keyboard
     {
         public static Keyboard current;
-        public ButtonControl digit2Key, digit3Key, digit4Key, digit5Key, digit6Key, digit7Key, digit8Key, digit9Key, wKey, aKey, sKey, dKey, zKey, qKey, cKey, vKey, fKey, eKey, tKey, iKey, spaceKey, leftShiftKey, rightShiftKey, leftCtrlKey, escapeKey, enterKey, numpadEnterKey, oKey, xKey, upArrowKey, downArrowKey, leftArrowKey, rightArrowKey, digit1Key;
+        public ButtonControl digit2Key, digit3Key, digit4Key, digit5Key, digit6Key, digit7Key, digit8Key, digit9Key, wKey, aKey, sKey, dKey, zKey, qKey, cKey, vKey, fKey, eKey, tKey, iKey, spaceKey, leftShiftKey, rightShiftKey, leftCtrlKey, escapeKey, enterKey, numpadEnterKey, oKey, xKey, mKey, upArrowKey, downArrowKey, leftArrowKey, rightArrowKey, digit1Key;
     }
     public class Mouse { public static Mouse current; public Vector2Control delta, scroll, position; public ButtonControl leftButton, rightButton, middleButton; }
     public class IntegerControl { public int ReadValue() => 0; }
     public class TouchControl { public ButtonControl press; public Vector2Control position; public IntegerControl touchId; }
     public class Touchscreen { public static Touchscreen current; public TouchControl[] touches; }
     public class Gamepad { public static Gamepad current; public Vector2Control leftStick, rightStick; public ButtonControl buttonSouth, buttonEast, buttonWest, buttonNorth, leftStickButton, rightTrigger, leftTrigger; }
+}
+namespace UnityEngine
+{
+    public class AudioClip : Object { public static AudioClip Create(string n, int len, int ch, int rate, bool stream) => null; public bool SetData(float[] d, int off) => true; }
+    public enum AudioRolloffMode { Logarithmic, Linear, Custom }
+    public class AudioSource : Behaviour { public AudioClip clip; public float volume, spatialBlend, minDistance, maxDistance, dopplerLevel; public bool playOnAwake, isPlaying; public AudioRolloffMode rolloffMode; public void Play() { } public void Stop() { } }
+    public class AudioListener : Behaviour { public static float volume; }
+    public class AudioLowPassFilter : Behaviour { public float cutoffFrequency; }
+    public enum AudioReverbPreset { Off, Generic, Hallway, Concerthall, User }
+    public class AudioReverbFilter : Behaviour { public AudioReverbPreset reverbPreset; public float dryLevel, room, decayTime, reflectionsLevel, reverbLevel; }
 }

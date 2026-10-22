@@ -197,6 +197,14 @@ namespace EtherMines.Game
         {
             int cx = e.X >> 4, cz = e.Z >> 4;
             bool unfrozen = World.Store.Has(cx, cz) && !World.Store.IsFrozen(cx, cz);
+            // someone else's block, heard from where it is (yours already sounded when you did it)
+            int before = World.Get(e.X, e.Y, e.Z);
+            var me = Player.Body;
+            if (before != e.Id && me != null && new Vector2((float)(e.X - me.X), (float)(e.Z - me.Z)).magnitude < 24)
+            {
+                var at = new Vector3(e.X + 0.5f, e.Y + 0.5f, e.Z + 0.5f);
+                if (e.Id == 0) Sounds.Brk(Sounds.MatOf(before), at); else Sounds.Place(Sounds.MatOf(e.Id), at);
+            }
             World.Store.Edit(e);
             World.Rebuild(e.X, e.Z);
             if (unfrozen) World.Refetch(cx, cz);
