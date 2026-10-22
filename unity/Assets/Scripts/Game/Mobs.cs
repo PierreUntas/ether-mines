@@ -90,7 +90,7 @@ namespace EtherMines.Game
 
         // three.js Euler angles (order XYZ by default, YXZ for a mob's root) seen in the mirror (z -> -z): the
         // turns about x and y change direction, the turn about z stays
-        static Quaternion Mirror(Vector3 e, bool yxz = false)
+        public static Quaternion Mirror(Vector3 e, bool yxz = false)
         {
             var qx = Quaternion.AngleAxis(-e.x * Mathf.Rad2Deg, Vector3.right);
             var qy = Quaternion.AngleAxis(-e.y * Mathf.Rad2Deg, Vector3.up);
@@ -153,6 +153,21 @@ namespace EtherMines.Game
                 if (m != null) { a.ArenaX = m.X + 0.5f; a.ArenaZ = m.Z + 0.5f; a.ArenaReach = World.ARENA_W + 1; }
             }
             return a;
+        }
+
+        // a model from a JSON node (mobs.json, animals.json) into a holder's parts, under parent
+        public void BuildModel(Mob holder, Dictionary<string, object> model, Transform parent)
+        {
+            Build(holder, model, transform, true);
+            holder.Root.transform.SetParent(parent, false);
+        }
+
+        // a part turned to these three.js angles (mirrored)
+        public static void Pose(Mob a, string part, Vector3 e)
+        {
+            if (!a.Parts.TryGetValue(part, out var t)) return;
+            a.Euler[t] = e;
+            t.localRotation = Mirror(e);
         }
 
         public Mob Find(string id) { All.TryGetValue(id, out var a); return a; }

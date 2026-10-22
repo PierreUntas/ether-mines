@@ -130,6 +130,15 @@ namespace EtherMines.Game
                 items.Panel = panel;
                 items.Sky = sky;
                 interaction.Items = items;
+                // animals and villagers, online or not (each screen places them from the seed)
+                var mobs = gameObject.AddComponent<Mobs>();
+                mobs.Player = player;
+                var animals = gameObject.AddComponent<Animals>();
+                animals.World = world;
+                animals.Player = player;
+                animals.Mobs = mobs;
+                animals.Session = session;
+                interaction.Animals = animals;
                 if (session != null)
                 {
                     var progress = gameObject.AddComponent<Progress>();

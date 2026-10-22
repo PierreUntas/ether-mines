@@ -549,10 +549,10 @@ function spawnChunk(cx, cz) {
   if (r3 < 0.05) add('cat', 1 + (r3 < 0.02 ? 1 : 0));
   else if (r3 < 0.07) add(bi === 'dunes' ? 'shiba' : 'cat', 1);
   else if (r3 < 0.08) add('robot', 1);
-  if (bi === 'plaine') {
+  if (bi === 'plain') {
     if (r < 0.16 || (near && r < 0.5)) add('sheep', 2 + Math.floor(hash(cx, cz, 63) * 2));
     else if (r < 0.24) add('rabbit', 1 + (r < 0.2 ? 1 : 0));
-  } else if (bi === 'foret') {
+  } else if (bi === 'forest') {
     if (r < 0.1) add('fox', 1);
     else if (r < 0.18) add('rabbit', 1);
     else if (near && r < 0.45) add('sheep', 2);
@@ -876,14 +876,14 @@ function petAnimal(a) {
   S.pets = S.pets || {};
   if (K.gift && S.pets[key] !== today && SERVER()) {
     S.pets[key] = today;
-    serverAct('gift', { animal: key, kind: a.type }, null, K.gift === 'fleur' ? 'cueillie par un fox rose' : K.gift[2]).then(r => {
+    serverAct('gift', { animal: key, kind: a.type }, null, K.gift === 'flower' ? 'picked by a pink fox' : K.gift[2]).then(r => {
       if (r) Sound.chime();
     });
     return;
   }
   if (K.gift && S.pets[key] !== today) {
     S.pets[key] = today;
-    if (K.gift === 'fleur') give(17 + Math.floor(Math.random() * 3), 1, 'cueillie par un fox rose');
+    if (K.gift === 'flower') give(17 + Math.floor(Math.random() * 3), 1, 'picked by a pink fox');
     else give(K.gift[0], K.gift[1], K.gift[2]);
     Sound.chime();
   }

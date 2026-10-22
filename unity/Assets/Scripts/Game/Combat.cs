@@ -18,6 +18,7 @@ namespace EtherMines.Game
         public Mobs Mobs;
         public Avatars Avatars;
         public GameLink Link;
+        public Animals Animals;
 
         public int Hp = 10;
         const float Reach = 5.2f, BoltSpeed = 28, BoltLife = 1.6f;
@@ -103,6 +104,18 @@ namespace EtherMines.Game
                     }
                     return true;
                 }
+            }
+            // an animal with hearts (attackAnimal): the villagers have none, the click mines past them
+            var an = Animals != null ? Animals.Pick(eye, dir, Reach, blockDist) : null;
+            if (an != null && Animals.Fightable(an))
+            {
+                if (clicking && atkT <= 0)
+                {
+                    atkT = 0.45f;
+                    Act.Swing = Mathf.Max(Act.Swing, 0.6f);
+                    Animals.Strike(an, HeldDmg);
+                }
+                return true;
             }
             return false;
         }

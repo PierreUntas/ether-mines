@@ -59,7 +59,7 @@ namespace EtherMines.Game
             chat.MyColor = Session.Color;
 
             link = new GameLink(Session.World, net.Token);
-            mobs = gameObject.AddComponent<Mobs>();
+            mobs = GetComponent<Mobs>() ?? gameObject.AddComponent<Mobs>();
             mobs.Player = Player;
             combat = gameObject.AddComponent<Combat>();
             combat.Session = Session;
@@ -69,6 +69,8 @@ namespace EtherMines.Game
             combat.Avatars = avatars;
             combat.Link = link;
             Act.Combat = combat;
+            var animals = GetComponent<Animals>();
+            if (animals != null) { animals.Link = link; animals.Combat = combat; combat.Animals = animals; }
             avatars.MyArmor = () => combat.Armor;
             avatars.MyBoots = () => combat.Boots;
             avatars.MyCape = () => Session.Inv.Uniques.Exists(u => u.Id == 205);

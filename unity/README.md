@@ -40,6 +40,7 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
 - A held item's model (`clayModel` in `src/game/04-render.js`) changed, or an item added →
   `node unity/tools/export-held.mjs` (opens the game in a headless browser: Playwright, as for
   `tests/navigateur.mjs`).
+- The animals or villagers (`src/game/09-animals.js`) changed → `node unity/tools/export-animals.mjs` (a test checks it).
 - A look (`src/game/17-looks.js`) changed, or a cosmetic added → `node unity/tools/export-looks.mjs` (the same way).
 - Type-check the Unity scripts without the editor: `cd unity/CompileCheck && dotnet build -c Release`
   (and `-p:Legacy=1` for the old Input Manager branch). `UnityStubs.cs` holds the API they use.
@@ -71,5 +72,7 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
    Plots (`Claims.cs`: their borders, /claim to choose and take one, /unclaim, /invite, /kick, /claims;
    building refused in someone else's), signs (`Signs.cs`: their text on the boards, write on yours, read
    and report the others'), the chat's commands (/join, /sanctuary, /ignore, /listen, /report).
-   Next: hovercrafts, animals.
+   Animals and villagers (`Animals.cs`, `Resources/animals.json` from `tools/export-animals.mjs`: placed
+   from the seed and moved by the clock like on the web, pet them, talk to the villagers, fight an animal for
+   a heart back). Next: hovercrafts.
 Then touch controls and store builds (6).

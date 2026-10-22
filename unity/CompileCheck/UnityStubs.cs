@@ -114,7 +114,7 @@ namespace UnityEngine
         public const float PI = 3.14159265f, Rad2Deg = 57.29578f, Deg2Rad = 0.0174533f;
         public static float Min(float a, float b) => a; public static float Max(float a, float b) => a;
         public static float Lerp(float a, float b, float t) => a; public static float Clamp(float v, float a, float b) => v;
-        public static float Clamp01(float v) => v; public static float Sqrt(float v) => v; public static float Ceil(float v) => v; public static int Max(int a, int b) => a; public static float Atan2(float y, float x) => 0;
+        public static float Clamp01(float v) => v; public static float Sqrt(float v) => v; public static float Ceil(float v) => v; public static int Max(int a, int b) => a; public static int Min(int a, int b) => a; public static float Atan2(float y, float x) => 0;
         public static int Clamp(int v, int a, int b) => v;
         public static float Sin(float a) => a; public static float Cos(float a) => a; public static float Abs(float a) => a;
         public static float Floor(float a) => a; public static int FloorToInt(float a) => 0;
