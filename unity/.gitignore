@@ -20,3 +20,5 @@ CoreTests/obj/
 CoreTests/golden/
 CompileCheck/bin/
 CompileCheck/obj/
+.vscode/
+*.slnx
