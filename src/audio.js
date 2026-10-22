@@ -101,16 +101,18 @@
     o.stop(t + a + dec + 0.05);
   }
 
-  // each material has its own noise color: [filter, frequency, Q, decay]
+  // each material has its own noise color: [filter, frequency, Q, decay]. The keys are MAT_OF's
+  // (02-blocks.js); 'pierre', the old French name some calls still use, is stone.
   const MAT = {
-    herbe: ['bandpass', 900, 0.8, 0.09],
-    sable: ['highpass', 2400, 0.5, 0.1],
-    neige: ['highpass', 3200, 0.7, 0.12],
-    bois: ['bandpass', 520, 3, 0.08],
-    verre: ['bandpass', 3800, 6, 0.07],
-    pierre: ['bandpass', 1500, 1.6, 0.06],
+    grass: ['bandpass', 900, 0.8, 0.09],
+    sand: ['highpass', 2400, 0.5, 0.1],
+    snow: ['highpass', 3200, 0.7, 0.12],
+    wood: ['bandpass', 520, 3, 0.08],
+    glass: ['bandpass', 3800, 6, 0.07],
+    stone: ['bandpass', 1500, 1.6, 0.06],
   };
-  const m = k => MAT[k] || MAT.pierre;
+  const key = k => (k === 'pierre' ? 'stone' : MAT[k] ? k : 'stone'),
+    m = k => MAT[key(k)];
   const jitter = v => v * (0.85 + Math.random() * 0.3);
 
   const Sound = {
@@ -130,13 +132,13 @@
       if (!ctx) return;
       const [t, f, q, d] = m(k);
       noise(t, jitter(f), q, 0.22, d);
-      if (k === 'bois') tone(jitter(130), 'sine', 0.08, 0.06);
+      if (key(k) === 'wood') tone(jitter(130), 'sine', 0.08, 0.06);
     },
     hit(k) {
       if (!ctx) return;
       const [t, f, q, d] = m(k);
       noise(t, jitter(f * 1.3), q + 1, 0.3, d * 0.8);
-      if (k === 'pierre' || k === 'verre') tone(jitter(k === 'verre' ? 2200 : 900), 'triangle', 0.05, 0.05);
+      if (key(k) === 'stone' || key(k) === 'glass') tone(jitter(key(k) === 'glass' ? 2200 : 900), 'triangle', 0.05, 0.05);
     },
     brk(k) {
       if (!ctx) return;
@@ -144,15 +146,15 @@
         T = now();
       noise(t, f, q, 0.45, d * 2.6, T);
       noise('lowpass', f * 0.5, 1, 0.3, d * 3, T + 0.02, sfx, 0.7);
-      if (k === 'verre') for (let i = 0; i < 5; i++) tone(2000 + Math.random() * 2500, 'sine', 0.06, 0.18, T + i * 0.025);
-      if (k === 'pierre') tone(95, 'sine', 0.18, 0.15, T, sfx, 0.6);
+      if (key(k) === 'glass') for (let i = 0; i < 5; i++) tone(2000 + Math.random() * 2500, 'sine', 0.06, 0.18, T + i * 0.025);
+      if (key(k) === 'stone') tone(95, 'sine', 0.18, 0.15, T, sfx, 0.6);
     },
     place(k) {
       if (!ctx) return;
       const [t, f, q, d] = m(k),
         T = now();
       noise(t, f * 0.8, q, 0.35, d * 1.4, T);
-      tone(k === 'verre' ? 1400 : k === 'bois' ? 180 : 220, 'sine', 0.16, 0.1, T, sfx, 0.7);
+      tone(key(k) === 'glass' ? 1400 : key(k) === 'wood' ? 180 : 220, 'sine', 0.16, 0.1, T, sfx, 0.7);
     },
     // pure ether shard, crystal: pentatonic arpeggio
     chime() {

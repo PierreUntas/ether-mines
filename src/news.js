@@ -5,6 +5,13 @@
 (function (root) {
   root.NEWS = [
     {
+      date: '2026-10-23',
+      title: 'The sound of the ground',
+      items: [
+        'Footsteps, mining and building sound like what they touch again: grass, sand, snow, wood, glass and stone each have their own.',
+      ],
+    },
+    {
       date: '2026-10-22',
       title: 'Fairer fights',
       items: [
