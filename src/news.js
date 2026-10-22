@@ -10,7 +10,7 @@
       items: [
         'Mobs stop a step away to strike instead of walking into you: your guard and your parries now catch every blow from in front.',
         '/invite and /kick work again: let a friend build on your plots, or take it back.',
-        'Sheep graze the plains again and pink foxes roam the forests: pet them for wool and flowers.',
+        'Pink foxes roam the forests again: pet one and it picks you a flower, once a day.',
       ],
     },
     {

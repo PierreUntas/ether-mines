@@ -105,7 +105,7 @@ const VILLAGERS = [
     says: [
       "Here everything gets crafted and traded: your chest's Trade tab is for offering a deal to another player.",
       'Flowers, crystals, reeds: almost everything you pick up goes into a decoration recipe.',
-      'Pet the sheep: they offer their wool once a day.',
+      'Pet the pink foxes: they pick a flower for you once a day.',
     ],
   },
   {
@@ -443,8 +443,7 @@ function spawnChunk(cx, cz) {
   ANIMALS.set(k, list);
   const r = hash(cx * 7 + 1, cz * 13 + 2, 61),
     x0 = cx * CH,
-    z0 = cz * CH,
-    near = Math.abs(cx) <= 1 && Math.abs(cz) <= 1;
+    z0 = cz * CH;
   const add = (type, n, rad) => {
     for (let i = 0; i < n; i++) {
       const hx = x0 + 2 + Math.floor(hash(cx + i * 31, cz, 62 + i) * 12),
@@ -549,13 +548,12 @@ function spawnChunk(cx, cz) {
   if (r3 < 0.05) add('cat', 1 + (r3 < 0.02 ? 1 : 0));
   else if (r3 < 0.07) add(bi === 'dunes' ? 'shiba' : 'cat', 1);
   else if (r3 < 0.08) add('robot', 1);
+  // (no sheep in the world: Pierre's choice; AK keeps them, nothing places them)
   if (bi === 'plain') {
-    if (r < 0.16 || (near && r < 0.5)) add('sheep', 2 + Math.floor(hash(cx, cz, 63) * 2));
-    else if (r < 0.24) add('rabbit', 1 + (r < 0.2 ? 1 : 0));
+    if (r < 0.24) add('rabbit', 1 + (r < 0.2 ? 1 : 0));
   } else if (bi === 'forest') {
     if (r < 0.1) add('fox', 1);
     else if (r < 0.18) add('rabbit', 1);
-    else if (near && r < 0.45) add('sheep', 2);
   } else {
     if (r < 0.14) add('rabbit', 1 + Math.floor(hash(cx, cz, 64) * 2));
   }

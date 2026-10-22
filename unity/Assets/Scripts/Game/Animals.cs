@@ -1,8 +1,8 @@
 // Ether Mines · animals and villagers (09-animals.js): placed per chunk from the seed and moved by the real
-// clock, so every player sees the same ones in the same place without a word on the network. Sheep, rabbits,
+// clock, so every player sees the same ones in the same place without a word on the network. Rabbits,
 // foxes, cats, shibas, validator robots on the ground, prism fish in the sea, jellyfish over the floating
-// islands; the villagers in the Atrium and the City. Right-click one: pet it (hearts; a sheep's wool or a
-// fox's flower once a day, act_gift) or talk to a villager (their lines, one at a time). Left-click an
+// islands (no sheep: Pierre's choice); the villagers in the Atrium and the City. Right-click one: pet it
+// (hearts; a fox's flower or a jellyfish's crystal once a day, act_gift) or talk to a villager (their lines, one at a time). Left-click an
 // animal with hearts to fight it: a kill gives one of yours back if you're hurt (the game server's `heal`).
 // Models from the game itself (Resources/animals.json, tools/export-animals.mjs), drawn by Mobs' builder.
 using System;
@@ -113,7 +113,6 @@ namespace EtherMines.Game
             string k = cx + "," + cz;
             double r = Hash(cx * 7 + 1, cz * 13 + 2, 61);
             int x0 = cx * 16, z0 = cz * 16;
-            bool near = Math.Abs(cx) <= 1 && Math.Abs(cz) <= 1;
             void Add(string type, int n)
             {
                 for (int i = 0; i < n; i++)
@@ -200,16 +199,12 @@ namespace EtherMines.Game
             if (r3 < 0.05) Add("cat", 1 + (r3 < 0.02 ? 1 : 0));
             else if (r3 < 0.07) Add(bi == "dunes" ? "shiba" : "cat", 1);
             else if (r3 < 0.08) Add("robot", 1);
-            if (bi == "plain")
-            {
-                if (r < 0.16 || (near && r < 0.5)) Add("sheep", 2 + (int)Math.Floor(Hash(cx, cz, 63) * 2));
-                else if (r < 0.24) Add("rabbit", 1 + (r < 0.2 ? 1 : 0));
-            }
+            // (no sheep in the world, as on the web: the kind is kept, nothing places it)
+            if (bi == "plain") { if (r < 0.24) Add("rabbit", 1 + (r < 0.2 ? 1 : 0)); }
             else if (bi == "forest")
             {
                 if (r < 0.1) Add("fox", 1);
                 else if (r < 0.18) Add("rabbit", 1);
-                else if (near && r < 0.45) Add("sheep", 2);
             }
             else if (r < 0.14) Add("rabbit", 1 + (int)Math.Floor(Hash(cx, cz, 64) * 2));
         }
