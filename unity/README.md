@@ -68,5 +68,8 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
    upgrade); the shop (buy, wear) and the looks on every figure (`Looks.cs`, `Resources/looks.json`:
    outfits, headwear, back pieces, companions, trails; titles under the names). Not yet: the looks' small
    animations, the tool and plating trims' glow, trying a piece on before buying.
-   Next: plots, hovercrafts, animals, signs.
+   Plots (`Claims.cs`: their borders, /claim to choose and take one, /unclaim, /invite, /kick, /claims;
+   building refused in someone else's), signs (`Signs.cs`: their text on the boards, write on yours, read
+   and report the others'), the chat's commands (/join, /sanctuary, /ignore, /listen, /report).
+   Next: hovercrafts, animals.
 Then touch controls and store builds (6).

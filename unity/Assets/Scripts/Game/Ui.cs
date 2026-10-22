@@ -10,7 +10,7 @@ namespace EtherMines.Game
     public static class Ui
     {
         public static bool PanelOpen;   // the inventory, crafting, chest... window
-        public static bool Blocking => PanelOpen || Chat.Typing;
+        public static bool Blocking => PanelOpen || Chat.Typing || Signs.Open;
 
         public static readonly Color Ink = new Color(0.11f, 0.086f, 0.23f), Paper = new Color(0.96f, 0.95f, 1f),
             Muted = new Color(0.79f, 0.76f, 0.95f), Mint = new Color(0.62f, 0.89f, 0.77f), Burn = new Color(1f, 0.6f, 0.72f),

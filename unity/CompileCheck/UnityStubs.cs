@@ -151,6 +151,9 @@ namespace UnityEngine
     public static class QualitySettings { public static float shadowDistance; }
     public class Shader : Object { public static Shader Find(string n) => null; }
     public class Texture : Object { public FilterMode filterMode; public TextureWrapMode wrapMode; public int anisoLevel, width, height; }
+    public class Font : Object { public Material material; }
+    public enum TextAlignment { Left, Center, Right }
+    public class TextMesh : Component { public Font font; public string text; public TextAnchor anchor; public TextAlignment alignment; public int fontSize; public float characterSize; public Color color; }
     public class RenderTexture : Texture { public RenderTexture(int w, int h, int d) { } public string name; }
     public enum ScaleMode { StretchToFill, ScaleAndCrop, ScaleToFit }
     public enum MeshTopology { Triangles, Lines }
@@ -167,7 +170,7 @@ namespace UnityEngine
         public void SetFloat(string n, float f) { }
     }
     public class TextAsset : Object { public string text; public byte[] bytes; }
-    public static class Resources { public static T Load<T>(string p) where T : Object => null; }
+    public static class Resources { public static T Load<T>(string p) where T : Object => null; public static T GetBuiltinResource<T>(string p) where T : Object => null; }
     public class Mesh : Object
     {
         public void SetIndices(int[] i, MeshTopology t, int sub) { } public Rendering.IndexFormat indexFormat; public Vector3[] vertices, normals; public Vector2[] uv; public Color[] colors; public int[] triangles;
@@ -179,7 +182,7 @@ namespace UnityEngine
     public class AsyncOperation { public event Action<AsyncOperation> completed; public bool isDone; }
     public enum RuntimeInitializeLoadType { AfterSceneLoad, BeforeSceneLoad }
     [AttributeUsage(AttributeTargets.Method)] public class RuntimeInitializeOnLoadMethodAttribute : Attribute { public RuntimeInitializeOnLoadMethodAttribute(RuntimeInitializeLoadType t) { } }
-    public enum KeyCode { Space, LeftShift, C, LeftControl, V, F, Escape, E, T, I, Return, Alpha1, KeypadEnter, Q, O }
+    public enum KeyCode { Space, LeftShift, C, LeftControl, V, F, Escape, E, T, I, Return, Alpha1, KeypadEnter, Q, O, X }
     public static class Input
     {
         public static float GetAxisRaw(string a) => 0; public static Vector2 mouseScrollDelta; public static bool GetKey(KeyCode k) => false; public static bool GetKeyDown(KeyCode k) => false;
@@ -217,7 +220,7 @@ namespace UnityEngine.InputSystem
     public class Keyboard
     {
         public static Keyboard current;
-        public ButtonControl digit2Key, digit3Key, digit4Key, digit5Key, digit6Key, digit7Key, digit8Key, digit9Key, wKey, aKey, sKey, dKey, zKey, qKey, cKey, vKey, fKey, eKey, tKey, iKey, spaceKey, leftShiftKey, rightShiftKey, leftCtrlKey, escapeKey, enterKey, numpadEnterKey, oKey, upArrowKey, downArrowKey, leftArrowKey, rightArrowKey, digit1Key;
+        public ButtonControl digit2Key, digit3Key, digit4Key, digit5Key, digit6Key, digit7Key, digit8Key, digit9Key, wKey, aKey, sKey, dKey, zKey, qKey, cKey, vKey, fKey, eKey, tKey, iKey, spaceKey, leftShiftKey, rightShiftKey, leftCtrlKey, escapeKey, enterKey, numpadEnterKey, oKey, xKey, upArrowKey, downArrowKey, leftArrowKey, rightArrowKey, digit1Key;
     }
     public class Mouse { public static Mouse current; public Vector2Control delta, scroll, position; public ButtonControl leftButton, rightButton, middleButton; }
     public class Gamepad { public static Gamepad current; public Vector2Control leftStick, rightStick; public ButtonControl buttonSouth, buttonEast, buttonWest, buttonNorth, leftStickButton, rightTrigger, leftTrigger; }

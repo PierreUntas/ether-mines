@@ -22,6 +22,7 @@ namespace EtherMines.Game
         public Sky Sky;
         public GameLink Link;   // null offline
         public Combat Combat;   // null offline
+        public Signs Signs;     // null offline
 
         public float Buff, Vision, Ward; // seconds left
         float dashT, dashCd, dashVx, dashVz;
@@ -56,6 +57,7 @@ namespace EtherMines.Game
             if (t.Id == 98 && !sneak) { Panel.OpenChest(t.X, t.Y, t.Z); return true; }
             if (t.Id == 135 && !sneak) { Eat(); return true; }
             if (sh.StartsWith("bed", StringComparison.Ordinal) && !sneak) { Sleep(t); return true; }
+            if (tb != null && tb.Sign && !sneak && Signs != null) { Signs.Use(t); return true; }
             return false;
         }
 

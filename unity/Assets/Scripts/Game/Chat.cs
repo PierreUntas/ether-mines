@@ -3,6 +3,7 @@
 // signs it with your nickname and color); everyone's arrive from the database's feed (Realtime).
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using EtherMines.Core;
 using UnityEngine;
 #if ENABLE_INPUT_SYSTEM
@@ -16,6 +17,16 @@ namespace EtherMines.Game
         public static bool Typing; // the line is open: the keys write instead of moving you
         public Session Session;
         public string MyName = "", MyColor = "#8a7bef";
+        public Action<string> Command;      // a line starting with "/" (Multiplayer: /claim, /join...)
+        public Func<bool> EnterTaken;       // Enter is for something else right now (confirming a plot)
+        // ignored players (by nickname, kept on this device): their messages no longer show up
+        public readonly HashSet<string> Ignores = new HashSet<string>(LoadIgnores());
+        static IEnumerable<string> LoadIgnores()
+        {
+            var l = MiniJson.Parse(PlayerPrefs.GetString("ether-mines:ignores", "[]")) as List<object>;
+            return l == null ? new string[0] : l.Select(o => (o as string ?? "").ToLowerInvariant());
+        }
+        public void SaveIgnores() { PlayerPrefs.SetString("ether-mines:ignores", MiniJson.Write(Ignores.Cast<object>().ToList())); PlayerPrefs.Save(); }
 
         struct Msg { public string Name, Color, Text; public float At; }
         readonly List<Msg> lines = new List<Msg>();
@@ -26,19 +37,21 @@ namespace EtherMines.Game
 
         public void Add(string name, string color, string text)
         {
+            if (name != null && Ignores.Contains(name.ToLowerInvariant())) return;
             lines.Add(new Msg { Name = name, Color = color, Text = text, At = Time.time });
             if (lines.Count > 30) lines.RemoveAt(0);
         }
 
         void Update()
         {
-            if (Typing || Session == null || Ui.PanelOpen) return;
+            if (Typing || Session == null || Ui.PanelOpen || Signs.Open) return;
 #if ENABLE_INPUT_SYSTEM
             var k = Keyboard.current;
             bool open = k != null && (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame);
 #else
             bool open = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
 #endif
+            if (open && EnterTaken != null && EnterTaken()) return;
             if (open) { Typing = true; draft = ""; openedFrame = Time.frameCount; }
         }
 
@@ -46,6 +59,7 @@ namespace EtherMines.Game
         {
             text = text.Trim();
             if (text.Length == 0 || sending) return;
+            if (text.StartsWith("/")) { Command?.Invoke(text); return; }
             sending = true;
             try
             {

@@ -442,7 +442,7 @@ async function claimCmd(c, arg) {
       say(`Type /${c} followed by a nickname.`);
       return;
     }
-    const r = await serverAct('member', { pseudo: arg, invite: c === 'invite' });
+    const r = await serverAct('member', { username: arg, invite: c === 'invite' });
     if (r) say(c === 'invite' ? `${r.name} can now build on all your plots.` : `${r.name} can no longer build on your plots.`);
     return;
   }

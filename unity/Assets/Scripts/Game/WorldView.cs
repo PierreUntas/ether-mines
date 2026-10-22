@@ -35,6 +35,7 @@ namespace EtherMines.Game
         [ThreadStatic] static Mesher threadMesher;
 
         public Func<Vector3> PlayerPos = () => Vector3.zero; // in game coordinates (web: x, y, z)
+        public event Action<int, int, int, string> SignRead; // a sign's text, read with its area (Signs.cs)
 
         void Awake()
         {
@@ -144,7 +145,14 @@ namespace EtherMines.Game
                     string w = "world=eq." + Supabase.Q(WorldName);
                     var chunksT = Net.Select($"chunks?select=cx,cz,sy,data&{w}&cx=gte.{x0}&cx=lte.{x1}&cz=gte.{z0}&cz=lte.{z1}&order=cx,cz");
                     var editsT = Net.Select($"blocks?select=x,y,z,id,placed_by,placed_name,serial&{w}&x=gte.{x0 * 16}&x=lt.{(x1 + 1) * 16}&z=gte.{z0 * 16}&z=lt.{(z1 + 1) * 16}&order=x,y,z");
+                    var signsT = Net.Select($"signs?select=x,y,z,text&{w}&x=gte.{x0 * 16}&x=lt.{(x1 + 1) * 16}&z=gte.{z0 * 16}&z=lt.{(z1 + 1) * 16}");
                     await Task.WhenAll(chunksT, editsT);
+                    try
+                    {
+                        foreach (Dictionary<string, object> sg in await signsT)
+                            SignRead?.Invoke(MiniJson.ToInt(sg["x"]), MiniJson.ToInt(sg["y"]), MiniJson.ToInt(sg["z"]), sg.TryGetValue("text", out var tx) ? tx as string : "");
+                    }
+                    catch (Exception e) { Debug.LogWarning(e); } // an older database without signs
                     foreach (Dictionary<string, object> r in chunksT.Result)
                         rows[ChunkStore.Key(MiniJson.ToInt(r["cx"]), MiniJson.ToInt(r["cz"]))] = (r["data"] as string, MiniJson.ToInt(r["sy"], World.SY));
                     foreach (Dictionary<string, object> e in editsT.Result)

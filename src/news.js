@@ -9,6 +9,7 @@
       title: 'Fairer fights',
       items: [
         'Mobs stop a step away to strike instead of walking into you: your guard and your parries now catch every blow from in front.',
+        '/invite and /kick work again: let a friend build on your plots, or take it back.',
       ],
     },
     {

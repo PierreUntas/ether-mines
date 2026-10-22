@@ -62,7 +62,7 @@ namespace EtherMines.Game
             Moving = fx != 0 || fz != 0;
             MoveX = fx; MoveZ = fz;
             if (unlock) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
-            if (Cursor.lockState != CursorLockMode.Locked && !Ui.PanelOpen && ClickedIn()) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
+            if (Cursor.lockState != CursorLockMode.Locked && !Ui.PanelOpen && !Signs.Open && ClickedIn()) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
             Yaw -= lookX * 0.0025 * Sensitivity;
             Pitch = Math.Max(-1.55, Math.Min(1.55, Pitch - lookY * 0.0025 * Sensitivity * -1));
             if (toggleView) View = (View + 1) % 3;

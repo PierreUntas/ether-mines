@@ -13,6 +13,8 @@ namespace EtherMines.Game
         public event Action<BlockEdit> Block;
         public event Action<string, string, string, string> Chat; // user id, name, color, text
         public event Action Restored;                             // the world was put back as generated
+        public event Action<string, Dictionary<string, object>, Dictionary<string, object>> Claim; // INSERT/UPDATE/DELETE, new row, old row
+        public event Action<int, int, int, string> Sign;           // a sign's text ("" when cleared)
         public string Status = "";
         public bool Joined { get; private set; }
         public string Url = Config.SupabaseUrl.Replace("https://", "wss://") + "/realtime/v1/websocket?apikey=" + Config.SupabaseAnonKey + "&vsn=1.0.0";
@@ -47,6 +49,8 @@ namespace EtherMines.Game
                     new Dictionary<string, object> { ["event"] = "*", ["schema"] = "public", ["table"] = "blocks", ["filter"] = filter },
                     new Dictionary<string, object> { ["event"] = "INSERT", ["schema"] = "public", ["table"] = "chat", ["filter"] = filter },
                     new Dictionary<string, object> { ["event"] = "*", ["schema"] = "public", ["table"] = "world_restores", ["filter"] = filter },
+                    new Dictionary<string, object> { ["event"] = "*", ["schema"] = "public", ["table"] = "claims", ["filter"] = filter },
+                    new Dictionary<string, object> { ["event"] = "*", ["schema"] = "public", ["table"] = "signs", ["filter"] = filter },
                 };
                 var r = Ref();
                 sentToken = tk;
@@ -134,6 +138,14 @@ namespace EtherMines.Game
             var table = data.TryGetValue("table", out var t) ? t as string : null;
             var type = data.TryGetValue("type", out var ty) ? ty as string : null;
             var rec = data.TryGetValue("record", out var r) ? r as Dictionary<string, object> : null;
+            var old = data.TryGetValue("old_record", out var orr) ? orr as Dictionary<string, object> : null;
+            if (table == "claims") { Claim?.Invoke(type, rec, old); return; }
+            if (table == "signs")
+            {
+                var s = type == "DELETE" ? old : rec;
+                if (s != null && s.ContainsKey("x")) Sign?.Invoke(MiniJson.ToInt(s["x"]), MiniJson.ToInt(s["y"]), MiniJson.ToInt(s["z"]), type == "DELETE" ? "" : (s.TryGetValue("text", out var tx) ? tx as string : "") ?? "");
+                return;
+            }
             if (rec == null || type == "DELETE") return;
             if (table == "blocks" && rec.ContainsKey("x"))
                 Block?.Invoke(new BlockEdit

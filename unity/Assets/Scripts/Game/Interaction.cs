@@ -114,10 +114,13 @@ namespace EtherMines.Game
                    EtherMines.Core.World.Hypot(fx - EtherMines.Core.World.CITY.X, fz - EtherMines.Core.World.CITY.Z) <= EtherMines.Core.World.CITY.R + 0.5;
         }
         float protectT;
-        bool Protected(int x, int z)
+        // the Atrium, the City and the others' plots (canBuildHere): refused here before the server refuses it
+        bool Protected(int x, int z, bool toggling = false)
         {
-            if (Session == null || !Sanctuary(x, z)) return false;
-            if (Time.time > protectT) { protectT = Time.time + 4; Say("burn", "Protected area", "the Atrium and the City belong to everyone: build elsewhere"); }
+            if (Session == null) return false;
+            string why = Claims.Instance != null ? Claims.Instance.Refusal(x, z, toggling) : !toggling && Sanctuary(x, z) ? "the Atrium and the City belong to everyone" : null;
+            if (why == null) return false;
+            if (Time.time > protectT) { protectT = Time.time + 4; Say("burn", "Protected area", why); }
             return true;
         }
 
@@ -191,6 +194,7 @@ namespace EtherMines.Game
             // a door or a lever: open, close, pull
             if (bd != null && (bd.Shape == "door" || bd.Shape == "lever") && !Player.Sneaking)
             {
+                if (Protected(t.X, t.Z, true)) return;
                 var cells = bd.Shape == "door" ? Placement.ToggleDoor(t.X, t.Y, t.Z, t.Id, World.Get) : new List<int[]> { new[] { t.X, t.Y, t.Z, bd.On ? 64 : 65 } };
                 if (cells.Count == 0) return;
                 var rec = Record(cells);
