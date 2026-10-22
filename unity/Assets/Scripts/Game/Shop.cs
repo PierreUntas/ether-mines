@@ -15,6 +15,7 @@ namespace EtherMines.Game
     {
         public Session Session;
         public Progress Progress;
+        public Avatars Avatars; // your character, in the window, with what you try on
         Vector2 scroll;
         bool busy;
 
@@ -92,10 +93,26 @@ namespace EtherMines.Game
             var titles = ids.Where(i => Rules.Cosmetics[i].Category == "title").ToList();
             for (int k = 0; k < titles.Count; k++) rows.Add((k == 0 ? $"Titles · {titles.Count(Owns)}/{titles.Count}" : null, k == 0 ? "Never sold: each one is earned by finishing a story chapter; the furthest shows under your name." : null, titles[k]));
 
-            GUI.Label(new Rect(body.x, body.y, body.width, 22), $"Cosmetics only: no combat, speed, harvesting or access advantage. You have <b>{Session.Gwei:0} Gwei</b>, earned by your validators, mobs and chapters. Wear yours, then look at yourself from behind (V).", Ui.Small);
+            // your character beside the list, with what you try on
+            float side = Avatars != null ? 290 : 0;
+            if (Avatars != null)
+            {
+                var pr = new Rect(body.xMax - side, body.y, side, body.height);
+                Ui.Fill(pr, new Color(1, 1, 1, 0.06f));
+                Panel.DrawPreview(Avatars, new Rect(pr.x, pr.y + 6, pr.width, Mathf.Min(360, pr.height - 90)));
+                float ty = pr.y + Mathf.Min(360, pr.height - 90) + 12;
+                if (Avatars.TryLook != null && Avatars.TryLook.Count > 0)
+                {
+                    GUI.Label(new Rect(pr.x + 12, ty, pr.width - 24, 40), "Trying on: " + string.Join(", ", Avatars.TryLook.Values.Select(i => Rules.Cosmetics[i].N)), Ui.Small);
+                    if (GUI.Button(new Rect(pr.x + 12, ty + 40, pr.width - 24, 30), "Back to my look", Ui.Button)) { Avatars.TryLook = null; Avatars.TryColor = null; }
+                }
+                else GUI.Label(new Rect(pr.x + 12, ty, pr.width - 24, 40), "Press Try on any piece to see it on your character first.", Ui.Small);
+            }
+            var lb = new Rect(body.x, body.y, body.width - side - (side > 0 ? 12 : 0), body.height);
+            GUI.Label(new Rect(lb.x, lb.y, lb.width, 36), $"Cosmetics only: no combat, speed, harvesting or access advantage. You have <b>{Session.Gwei:0} Gwei</b>, earned by your validators, mobs and chapters.", Ui.Small);
             float h = rows.Sum(r => 58 + (r.head != null ? 34 : 0) + (r.note != null ? 22 : 0));
-            var view = new Rect(0, 0, body.width - 20, h);
-            scroll = GUI.BeginScrollView(new Rect(body.x, body.y + 28, body.width, body.height - 28), scroll, view);
+            var view = new Rect(0, 0, lb.width - 20, h);
+            scroll = GUI.BeginScrollView(new Rect(lb.x, lb.y + 40, lb.width, lb.height - 40), scroll, view);
             float y = 0;
             foreach (var (head, note, id) in rows)
             {
@@ -124,9 +141,20 @@ namespace EtherMines.Game
                 : limitedAway ? $"{slot} · limited · back another week"
                 : slot;
             string priceTxt = !sellable || (owned && !c.HasGrant) ? "" : onSale ? $" · <color=#9a92c8>{c.Price}</color> <b><color=#ffd95e>{price} Gwei</color></b>" : $" · {price} Gwei";
-            GUI.Label(new Rect(r.x + 54, r.y + 4, r.width - 260, 24), "<b>" + c.N + "</b>", Ui.Label);
-            GUI.Label(new Rect(r.x + 54, r.y + 26, r.width - 260, 22), sub + priceTxt, Ui.Small);
+            GUI.Label(new Rect(r.x + 54, r.y + 4, r.width - 370, 24), "<b>" + c.N + "</b>", Ui.Label);
+            GUI.Label(new Rect(r.x + 54, r.y + 26, r.width - 370, 22), sub + priceTxt, Ui.Small);
             var b = new Rect(r.xMax - 190, r.y + 10, 180, 32);
+            // try it on first (tryOn): on your character, beside the list
+            if (Avatars != null && c.Slot != null && !c.HasGrant && !owned && sellable)
+            {
+                bool trying = Avatars.TryLook != null && Avatars.TryLook.TryGetValue(c.Slot, out var tid) && tid == c.Id;
+                if (GUI.Button(new Rect(b.x - 110, b.y, 100, 32), trying ? "Stop" : "Try", Ui.Button))
+                {
+                    if (Avatars.TryLook == null) Avatars.TryLook = new Dictionary<string, int>();
+                    if (trying) { Avatars.TryLook.Remove(c.Slot); if (c.Slot == "outfit") Avatars.TryColor = null; }
+                    else { Avatars.TryLook[c.Slot] = c.Id; if (c.Slot == "outfit") Avatars.TryColor = c.Color; }
+                }
+            }
             GUI.enabled = !busy;
             if (c.Slot != null && owned) { if (GUI.Button(b, worn ? "Remove" : "Wear", worn ? Ui.Button : Ui.Primary)) Wear(c, !worn); }
             else if (!sellable) { GUI.enabled = false; GUI.Button(b, "Not for sale", Ui.Button); }

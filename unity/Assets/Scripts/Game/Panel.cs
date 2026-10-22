@@ -18,6 +18,7 @@ namespace EtherMines.Game
         public Session Session; // null offline
         public Interaction Act;
         public Progress Progress; // null offline
+        public Avatars Avatars;   // your character, shown in the bag and the shop (null offline)
         Shop shop;
         public string Tab = "bag";
         Vector2 scroll;
@@ -46,6 +47,7 @@ namespace EtherMines.Game
         {
             Ui.PanelOpen = false;
             Open = null;
+            if (Avatars != null) { Avatars.TryLook = null; Avatars.TryColor = null; }
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
@@ -143,7 +145,8 @@ namespace EtherMines.Game
             else if (Tab == "chest" && Open != null) ChestTab(body);
             else if (Tab == "quest" && Progress != null) Progress.DrawObjectives(body);
             else if (Tab == "validators" && Progress != null) Progress.DrawValidators(body);
-            else if (Tab == "shop" && Progress != null) (shop ??= new Shop { Session = Session, Progress = Progress }).Draw(body);
+            else if (Tab == "shop" && Progress != null) (shop ??= new Shop { Session = Session, Progress = Progress, Avatars = Avatars }).Draw(body);
+            if (Tab != "shop" && Avatars != null) { Avatars.TryLook = null; Avatars.TryColor = null; }
         }
 
         // ---------- your bag ----------
@@ -185,6 +188,12 @@ namespace EtherMines.Game
             // the sheet of the item picked
             var c = new Rect(body.xMax - 310, body.y, 310, body.height);
             Ui.Fill(c, new Color(1, 1, 1, 0.06f));
+            if (Avatars != null)
+            {
+                float ph = Mathf.Min(260, body.height * 0.45f);
+                DrawPreview(Avatars, new Rect(c.x, c.y, c.width, ph));
+                c = new Rect(c.x, c.y + ph, c.width, c.height - ph);
+            }
             if (selKey == null) return;
             var e = all.First(z => z.Key == selKey);
             Ui.Icon(new Rect(c.x + 14, c.y + 14, 64, 64), e.Id);
@@ -226,6 +235,15 @@ namespace EtherMines.Game
                 ? "A unique item has its own number and keeps its history: who forged it, where, and what it has accomplished."
                 : Rules.Block(e.Id) != null ? "Mining this block mints a token. Placing it burns it, and the placed block carries your serial number in the ledger."
                 : "A fungible resource: every unit is worth exactly the same as another.", Ui.Small);
+        }
+
+        // your character, turning, as the window's preview camera sees it
+        public static void DrawPreview(Avatars av, Rect r)
+        {
+            var tex = av.Preview();
+            if (tex == null) return;
+            float w = r.height * 512f / 640f;
+            GUI.DrawTexture(new Rect(r.x + (r.width - w) / 2, r.y, w, r.height), tex, ScaleMode.ScaleToFit, true);
         }
 
         string State(string k) => Session != null && Session.State.TryGetValue(k, out var v) && v != null ? (v is double d ? ((int)d).ToString() : v.ToString()) : null;

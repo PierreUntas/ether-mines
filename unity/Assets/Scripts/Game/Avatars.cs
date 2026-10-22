@@ -326,6 +326,81 @@ namespace EtherMines.Game
             }
         }
 
+        // ---------- your character in the window (previewBox): turning slowly, in your look or a try-on ----------
+        public const int PreviewLayer = 30; // seen only by the preview's own camera
+        Fig preview;
+        Camera pcam;
+        RenderTexture prt;
+        float pspin = 0.5f, pwantedAt = -1;
+        public Dictionary<string, int> TryLook; // pieces tried on in the shop, by slot
+        public string TryColor;                // an outfit tried on comes in its own color
+
+        // asked every frame the window shows it; the camera only runs meanwhile
+        public Texture Preview()
+        {
+            pwantedAt = Time.time;
+            return prt;
+        }
+
+        void LateUpdate()
+        {
+            bool want = Time.time - pwantedAt < 0.2f && Player != null && Player.Body != null;
+            if (!want)
+            {
+                if (pcam != null) pcam.enabled = false;
+                if (preview != null) preview.Root.SetActive(false);
+                return;
+            }
+            if (pcam == null)
+            {
+                prt = new RenderTexture(512, 640, 24) { name = "preview" };
+                pcam = new GameObject("Preview camera").AddComponent<Camera>();
+                pcam.transform.SetParent(transform, false);
+                pcam.targetTexture = prt;
+                pcam.clearFlags = CameraClearFlags.SolidColor;
+                pcam.backgroundColor = new Color(0, 0, 0, 0);
+                pcam.cullingMask = 1 << PreviewLayer;
+                pcam.fieldOfView = 30;
+                pcam.nearClipPlane = 0.1f;
+                pcam.farClipPlane = 20;
+                pcam.transform.position = new Vector3(0, -1000 + 1.05f, 5.4f);
+                pcam.transform.rotation = Quaternion.Euler(4, 180, 0);
+                if (Player.Cam != null) Player.Cam.cullingMask &= ~(1 << PreviewLayer);
+            }
+            pcam.enabled = true;
+            var color = TryColor ?? MyColor;
+            if (preview == null || preview.Color != color)
+            {
+                if (preview != null) Drop(preview);
+                preview = Make("preview", MyName, color);
+            }
+            preview.Root.SetActive(true);
+            var look = new Dictionary<string, int>(MyLook());
+            if (TryLook != null) foreach (var kv in TryLook) look[kv.Key] = kv.Value;
+            Dress(preview, look);
+            if (preview.Companion != null && preview.Companion.transform.parent != preview.Root.transform)
+            {
+                // in the window, the companion floats beside you instead of following you around
+                preview.Companion.transform.SetParent(preview.Root.transform, false);
+                preview.Companion.transform.localPosition = new Vector3(0.75f, 1.45f, -0.25f);
+                preview.Companion.transform.localRotation = Quaternion.identity;
+            }
+            int h = Act != null && Act.Inv.Held != null ? Act.Inv.HeldId : 0;
+            preview.Held = h > 0 && EtherMines.Core.Rules.Block(h) == null ? h : 0;
+            pspin += Time.unscaledDeltaTime * 0.6f;
+            preview.Pos = preview.Target = new Vector3(0, -1000, 0);
+            preview.Yaw = preview.TYaw = pspin; // facing the camera at 0, turning
+            preview.Mining = false;
+            Animate(preview, Time.unscaledDeltaTime, 1);
+            Layer(preview.Root.transform, PreviewLayer);
+        }
+
+        static void Layer(Transform t, int layer)
+        {
+            t.gameObject.layer = layer;
+            for (int i = 0; i < t.childCount; i++) Layer(t.GetChild(i), layer);
+        }
+
         // the tool or weapon in the right hand (updateAvatarHand): items only, as the game draws them
         static void HoldIn(Fig f)
         {

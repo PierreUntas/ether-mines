@@ -66,6 +66,8 @@ namespace EtherMines.Game
             Act.Combat = combat;
             var hand = GetComponent<Hand>();
             if (hand != null) hand.Combat = combat;
+            var panel = GetComponent<Panel>();
+            if (panel != null) panel.Avatars = avatars;
             items = GetComponent<Items>();
             if (items != null) { items.Link = link; items.Combat = combat; }
             // your hearts as this screen knows them, your plating and boots: the server keeps them from then on

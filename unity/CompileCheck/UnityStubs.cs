@@ -42,7 +42,7 @@ namespace UnityEngine
         public Vector3 position, localPosition, eulerAngles, localScale;
         public Quaternion rotation, localRotation;
         public void SetParent(Transform p, bool worldPositionStays) { }
-        public void SetPositionAndRotation(Vector3 p, Quaternion q) { } public int childCount;
+        public void SetPositionAndRotation(Vector3 p, Quaternion q) { } public int childCount; public Transform parent; public Transform GetChild(int i) => null;
     }
     public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public float magnitude => 0; public static Vector2 zero => default; }
     public enum PrimitiveType { Cube, Sphere }
@@ -95,7 +95,7 @@ namespace UnityEngine
     {
         public static GUISkin skin;
         public static Color color;
-        public static void DrawTexture(Rect r, Texture t) { }
+        public static void DrawTexture(Rect r, Texture t) { } public static void DrawTexture(Rect r, Texture t, ScaleMode m, bool a) { }
         public static void DrawTextureWithTexCoords(Rect r, Texture t, Rect uv) { }
         public static void Box(Rect r, string s) { }
         public static void Box(Rect r, string s, GUIStyle st) { }
@@ -136,7 +136,7 @@ namespace UnityEngine
         public static Camera main;
         public float nearClipPlane, farClipPlane, fieldOfView;
         public CameraClearFlags clearFlags;
-        public Color backgroundColor; public int cullingMask; public float depth; public Vector3 WorldToScreenPoint(Vector3 p) => default;
+        public Color backgroundColor; public int cullingMask; public float depth; public RenderTexture targetTexture; public Vector3 WorldToScreenPoint(Vector3 p) => default;
     }
     public enum LightType { Directional, Point, Spot }
     public enum LightShadows { None, Hard, Soft }
@@ -151,6 +151,8 @@ namespace UnityEngine
     public static class QualitySettings { public static float shadowDistance; }
     public class Shader : Object { public static Shader Find(string n) => null; }
     public class Texture : Object { public FilterMode filterMode; public TextureWrapMode wrapMode; public int anisoLevel, width, height; }
+    public class RenderTexture : Texture { public RenderTexture(int w, int h, int d) { } public string name; }
+    public enum ScaleMode { StretchToFill, ScaleAndCrop, ScaleToFit }
     public enum MeshTopology { Triangles, Lines }
     public enum FilterMode { Point, Bilinear, Trilinear }
     public enum TextureWrapMode { Repeat, Clamp }
