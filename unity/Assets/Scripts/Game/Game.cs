@@ -157,6 +157,8 @@ namespace EtherMines.Game
                 player.Lift = () => hover.Lift;
                 player.AfterStep = hover.BoardTick;
                 // the sounds (made, not recorded), and the ambiance that follows the day and the depth
+                gameObject.AddComponent<Haptics>();
+                gameObject.AddComponent<Notify>().Session = session; // a word for later, when you leave (a phone)
                 var sounds = gameObject.AddComponent<Sounds>();
                 sounds.Player = player;
                 sounds.Sky = sky;

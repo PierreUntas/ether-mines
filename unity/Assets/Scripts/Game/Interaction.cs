@@ -214,6 +214,7 @@ namespace EtherMines.Game
             foreach (var c in cells) Write(c[0], c[1], c[2], 0, null);
             Swing = 1;
             Sounds.Brk(Sounds.MatOf(id));
+            Haptics.Play(Haptics.Kind.Light);
             if (Session == null)
             {
                 int drop = bd.HasDrop ? bd.Drop : id;
@@ -265,6 +266,7 @@ namespace EtherMines.Game
             inv.Counts[it] = inv.Count(it) - 1;
             Swing = 1;
             Sounds.Place(Sounds.MatOf(it));
+            Haptics.Play(Haptics.Kind.Light);
             if (Session == null) { if (inv.Counts[it] <= 0) inv.SetCounts(new Dictionary<string, object> { [it.ToString()] = 0.0 }); return; }
             var r2 = await Session.Act("place", new Dictionary<string, object> { ["px"] = t.PX, ["py"] = t.PY, ["pz"] = t.PZ, ["it"] = it, ["bid"] = plan.Id }, b.X, b.Y, b.Z);
             if (r2 == null || r2.ContainsKey("refused")) { Revert(rec2); await Session.LoadInventory(); return; }

@@ -240,7 +240,7 @@ namespace UnityEngine.InputSystem
     public class IntegerControl { public int ReadValue() => 0; }
     public class TouchControl { public ButtonControl press; public Vector2Control position; public IntegerControl touchId; }
     public class Touchscreen { public static Touchscreen current; public TouchControl[] touches; }
-    public class Gamepad { public static Gamepad current; public Vector2Control leftStick, rightStick; public ButtonControl buttonSouth, buttonEast, buttonWest, buttonNorth, leftStickButton, rightTrigger, leftTrigger; }
+    public class Gamepad { public static Gamepad current; public Vector2Control leftStick, rightStick; public void SetMotorSpeeds(float lo, float hi) { } public ButtonControl buttonSouth, buttonEast, buttonWest, buttonNorth, leftStickButton, rightTrigger, leftTrigger; }
 }
 namespace UnityEngine
 {
@@ -251,4 +251,45 @@ namespace UnityEngine
     public class AudioLowPassFilter : Behaviour { public float cutoffFrequency; }
     public enum AudioReverbPreset { Off, Generic, Hallway, Concerthall, User }
     public class AudioReverbFilter : Behaviour { public AudioReverbPreset reverbPreset; public float dryLevel, room, decayTime, reflectionsLevel, reverbLevel; }
+}
+
+namespace UnityEngine { public static class Handheld { public static void Vibrate() { } } }
+namespace UnityEngine
+{
+    public class AndroidJavaObject : IDisposable
+    {
+        public AndroidJavaObject(string c, params object[] a) { }
+        public T Call<T>(string m, params object[] a) => default; public void Call(string m, params object[] a) { }
+        public T GetStatic<T>(string f) => default; public T CallStatic<T>(string m, params object[] a) => default;
+        public void Dispose() { }
+    }
+    public class AndroidJavaClass : AndroidJavaObject { public AndroidJavaClass(string c) : base(c) { } }
+}
+namespace Unity.Notifications.Android
+{
+    public enum Importance { None, Low, Default, High }
+    public enum PermissionStatus { NotRequested, Allowed, Denied, DeniedDontAskAgain, RequestPending, NotificationsBlockedForApp }
+    public class AndroidNotificationChannel { public AndroidNotificationChannel(string id, string name, string desc, Importance i) { } }
+    public struct AndroidNotification { public string Title, Text; public System.DateTime FireTime; }
+    public class PermissionRequest { }
+    public static class AndroidNotificationCenter
+    {
+        public static PermissionStatus UserPermissionToPost;
+        public static void RegisterNotificationChannel(AndroidNotificationChannel c) { }
+        public static int SendNotification(AndroidNotification n, string channel) => 0;
+        public static void CancelAllScheduledNotifications() { } public static void CancelAllDisplayedNotifications() { }
+    }
+}
+namespace Unity.Notifications.iOS
+{
+    [System.Flags] public enum AuthorizationOption { None = 0, Badge = 1, Sound = 2, Alert = 4 }
+    public class AuthorizationRequest { public AuthorizationRequest(AuthorizationOption o, bool registerRemote) { } }
+    public class iOSNotificationTimeIntervalTrigger { public System.TimeSpan TimeInterval; public bool Repeats; }
+    public class iOSNotification { public string Identifier, Title, Body; public bool ShowInForeground; public iOSNotificationTimeIntervalTrigger Trigger; }
+    public static class iOSNotificationCenter
+    {
+        public static int ApplicationBadge;
+        public static void ScheduleNotification(iOSNotification n) { }
+        public static void RemoveAllScheduledNotifications() { } public static void RemoveAllDeliveredNotifications() { }
+    }
 }

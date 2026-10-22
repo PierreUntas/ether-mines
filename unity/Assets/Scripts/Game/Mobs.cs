@@ -220,6 +220,7 @@ namespace EtherMines.Game
         {
             if (a.DyingT >= 0) return;
             Sounds.Animal(a.Type, a.Pos);
+            if (Time.time - a.HitAt < 3) Haptics.Play(Haptics.Kind.Success); // one you fought
             a.Hp = 0;
             a.Down = false;
             a.DyingT = 0.4f;

@@ -105,7 +105,7 @@ namespace EtherMines.Game
                 if ((stepT -= dt) <= 0) { stepT = run ? 0.28 : 0.38; Sounds.Step(Under()); }
             }
             else stepT = 0.12;
-            if (!was && Body.On && fallV < -7) Sounds.Step(Under());
+            if (!was && Body.On && fallV < -7) { Sounds.Step(Under()); Haptics.Play(fallV < -14 ? Haptics.Kind.Heavy : Haptics.Kind.Medium); }
         }
 
         static double World_SpawnX => EtherMines.Core.World.SPAWN.X + 0.5;

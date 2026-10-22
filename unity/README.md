@@ -88,6 +88,11 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
 The sounds (`Core/Synth.cs`, checked against the browser's Web Audio; `Sounds.cs`: the web's recipes,
 footsteps and mining by material, the ambiance's pad, bells, birds, crickets and drips; what happens around
 you heard from where it is: others' blocks, animals, mobs, doors, plates, bolts; M or the window's ♪ button).
+What you feel (`Haptics.cs`: the iPhone's Taptic Engine through `Plugins/iOS/EtherHaptics.mm`, Android's
+vibrator by strength, a gamepad's rumble: a light tap for blocks and the long press, firmer for blows and
+guards, heavy when hurt, a pattern for parries, kills and rewards; the window's ≋ button) and notifications
+when you leave the game on a phone (`Notify.cs`, the `com.unity.mobile.notifications` package: the shop's
+new week, your animals' gifts the next day, never at night).
 Then the circuits (`Core/Circuits.cs`, checked tick for tick against 12-circuits.js; `CircuitsView.cs`:
 lamps, doors, plates, gates and the clock live around you, the objectives' shapes, the lanterns' light).
 Trades (`Trade.cs`, the window's Trade tab: offers received and sent, accept, decline, cancel, a new offer

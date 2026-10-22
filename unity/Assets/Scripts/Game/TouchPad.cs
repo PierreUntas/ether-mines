@@ -86,7 +86,7 @@ namespace EtherMines.Game
             }
             Remember();
             // a press held still long enough: it mines (or fires the pistol) where it touches
-            if (pressing && !drag && !mine && Time.unscaledTime - pressT >= HoldS) { mine = true; Mining = true; }
+            if (pressing && !drag && !mine && Time.unscaledTime - pressT >= HoldS) { mine = true; Mining = true; Haptics.Play(Haptics.Kind.Light); }
             Aim = pressing && !drag && !(mine && Ranged()) ? pressAt : Tap ? tapAt : (Vector2?)null;
             Jump = Holding(Own.Jump);
             Sneak = Holding(Own.Sneak);
