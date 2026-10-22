@@ -11,7 +11,9 @@
 // b: 1 unlit, v: [x, y, z, ...] triangles, n: [nx, ny, nz, ...] one per triangle }. Frames: a head piece
 // around the head's center; a back piece in the avatar's upper frame (the clay avatar's body group, 0.2
 // below its root); a companion around its own center (it follows its owner); an outfit piece in its
-// part's own frame (the clay avatar's body, arms, legs: makeAvatar). Game coordinates (right-handed, the
+// part's own frame (the clay avatar's body, arms, legs: makeAvatar); armor.<item>, boots.211, cape.205:
+// { body | arm0 | arm1 | leg0 | leg1 | head | up | root: [mesh] }, what a plating, the Front-Runner Boots
+// or the Titan's cape adds, by the part it hangs on (up: the avatar's upper frame). Game coordinates (right-handed, the
 // face looks toward -z): the client mirrors z.
 import { chromium } from 'playwright';
 import { createRequire } from 'node:module';
@@ -123,6 +125,50 @@ const looks = await page.evaluate(() => {
       out.outfit[id] = o;
     }
   }
+  // the platings, the Front-Runner Boots and the Titan's cape (14-startup.js updateArmorVisual,
+  // updateBootsVisual, updateCapeVisual): what each makes appear on a fresh avatar, by the part it hangs on
+  function worn(dress) {
+    const av = makeAvatar('x', '#8a7bef', true),
+      seen = new Set(),
+      shown = o => {
+        for (let q = o; q; q = q.parent) if (!q.visible) return false;
+        return true;
+      };
+    av.g.traverse(o => o.isMesh && shown(o) && seen.add(o));
+    dress(av);
+    av.g.updateMatrixWorld(true);
+    const frames = { body: av.body, arm0: av.arms[0], arm1: av.arms[1], leg0: av.legs[0], leg1: av.legs[1], head: av.head, up: av.body.parent, root: av.g },
+      byFrame = {};
+    av.g.traverse(o => {
+      if (!o.isMesh || seen.has(o) || !shown(o)) return; // new, and visible all the way up
+      let f = o.parent;
+      while (f && !Object.values(frames).includes(f)) f = f.parent;
+      const name = Object.keys(frames).find(k => frames[k] === f) || 'root';
+      (byFrame[name] ||= []).push(o);
+    });
+    const res = {};
+    for (const [name, list] of Object.entries(byFrame)) {
+      const holder = new THREE.Group();
+      holder.matrixAutoUpdate = false;
+      holder.matrix.copy(frames[name].matrixWorld);
+      for (const o of list) {
+        const c = o.clone();
+        c.matrixAutoUpdate = false;
+        c.matrix.copy(new THREE.Matrix4().copy(frames[name].matrixWorld).invert().multiply(o.matrixWorld));
+        holder.add(c);
+      }
+      holder.updateMatrixWorld(true);
+      const frame = new THREE.Group();
+      frame.matrixAutoUpdate = false;
+      frame.matrix.copy(frames[name].matrixWorld);
+      res[name] = meshes(holder, frame);
+    }
+    return res;
+  }
+  out.armor = {};
+  for (const id of Object.keys(ITEM).map(Number).sort((a, b) => a - b)) if (ITEM[id].armor) out.armor[id] = worn(av => updateArmorVisual(av, id, null));
+  out.boots = { 211: worn(av => updateBootsVisual(av, true)) };
+  out.cape = { 205: worn(av => (av.cape.visible = true)) };
   return out;
 });
 await browser.close();

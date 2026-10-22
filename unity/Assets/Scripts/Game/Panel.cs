@@ -61,6 +61,19 @@ namespace EtherMines.Game
 #else
             bool e = Input.GetKeyDown(KeyCode.E), esc = Input.GetKeyDown(KeyCode.Escape), o = Input.GetKeyDown(KeyCode.O);
 #endif
+            // 1-9 choose the bar's slot with the window open too (the bag's "Place in slot" uses it)
+            if (Ui.PanelOpen)
+            {
+#if ENABLE_INPUT_SYSTEM
+                if (k != null)
+                {
+                    var digits = new[] { k.digit1Key, k.digit2Key, k.digit3Key, k.digit4Key, k.digit5Key, k.digit6Key, k.digit7Key, k.digit8Key, k.digit9Key };
+                    for (int i = 0; i < 9; i++) if (digits[i].wasPressedThisFrame) Inv.Sel = i;
+                }
+#else
+                for (int i = 0; i < 9; i++) if (Input.GetKeyDown(KeyCode.Alpha1 + i)) Inv.Sel = i;
+#endif
+            }
             if (e) { if (Ui.PanelOpen) Hide(); else Show(Tab == "chest" ? "bag" : Tab); }
             else if (o && Progress != null) { if (Ui.PanelOpen && Tab == "quest") Hide(); else Show("quest"); }
             else if (esc && Ui.PanelOpen) Hide();
@@ -118,6 +131,9 @@ namespace EtherMines.Game
             finally { busy = false; }
         }
 
+        Rect gridRect;
+        bool gridOverflows;
+
         bool Owns(int id) => Inv.Uniques.Any(u => u.Id == id);
 
         void OnGUI()
@@ -125,6 +141,18 @@ namespace EtherMines.Game
             if (!Ui.PanelOpen) return;
             GUI.depth = -10;
             float W = Mathf.Min(980, Screen.width - 40), H = Mathf.Min(640, Screen.height - 120), x = (Screen.width - W) / 2, y = 40;
+            // the wheel turns the bar's slot: in your bag (unless it scrolls a long list under the mouse),
+            // or anywhere outside the window (over the bar)
+            var ev = Event.current;
+            if (ev.type == EventType.ScrollWheel)
+            {
+                bool outside = !new Rect(x, y, W, H).Contains(ev.mousePosition);
+                if (outside || (Tab == "bag" && !(gridOverflows && gridRect.Contains(ev.mousePosition))))
+                {
+                    Inv.Sel = ((Inv.Sel + (ev.delta.y > 0 ? 1 : -1)) % 9 + 9) % 9;
+                    ev.Use();
+                }
+            }
             Ui.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0.05f, 0.04f, 0.12f, 0.45f));
             Ui.Fill(new Rect(x, y, W, H), new Color(0.13f, 0.1f, 0.27f, 0.96f));
             Ui.Frame(new Rect(x, y, W, H), new Color(1, 1, 1, 0.12f));
@@ -175,6 +203,8 @@ namespace EtherMines.Game
             float gw = body.width - 330, cs = 58;
             int cols = Mathf.Max(1, (int)(gw / (cs + 6)));
             var view = new Rect(0, 0, gw - 20, Mathf.Ceil(all.Count / (float)cols) * (cs + 6) + 10);
+            gridRect = new Rect(body.x, body.y, gw, body.height);
+            gridOverflows = view.height > body.height;
             scroll = GUI.BeginScrollView(new Rect(body.x, body.y, gw, body.height), scroll, view);
             if (all.Count == 0) GUI.Label(new Rect(0, 0, gw - 20, 40), "Your bag is empty. Mine a few blocks.", Ui.Small);
             for (int i = 0; i < all.Count; i++)

@@ -64,6 +64,9 @@ namespace EtherMines.Game
             combat.Avatars = avatars;
             combat.Link = link;
             Act.Combat = combat;
+            avatars.MyArmor = () => combat.Armor;
+            avatars.MyBoots = () => combat.Boots;
+            avatars.MyCape = () => Session.Inv.Uniques.Exists(u => u.Id == 205);
             var hand = GetComponent<Hand>();
             if (hand != null) hand.Combat = combat;
             var panel = GetComponent<Panel>();
@@ -78,7 +81,7 @@ namespace EtherMines.Game
                 names.Clear();
                 foreach (var p in list) if (p.Id != link.SelfId) names.Add(p.Name);
             };
-            link.Pos += m => { if (m.Id != link.SelfId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held); };
+            link.Pos += m => { if (m.Id != link.SelfId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots); };
 
             feed = new Realtime(Session.World, net.Token);
             feed.Block += OnBlock;

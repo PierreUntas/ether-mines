@@ -15,7 +15,7 @@ namespace EtherMines.Game
         const string Origin = "https://ethermines.org";
 
         public sealed class Peer { public string Id, Name, Color, Title, Look; public double X, Y, Z; public bool HasPos; }
-        public sealed class Move { public string Id, Name, Color; public double X, Y, Z, Yaw, Pitch; public bool Mining, Guard; public int Held; }
+        public sealed class Move { public string Id, Name, Color; public double X, Y, Z, Yaw, Pitch; public bool Mining, Guard, Boots; public int Held, Armor; }
 
         public event Action<List<Peer>> Peers;
         public event Action<Move> Pos;
@@ -155,6 +155,7 @@ namespace EtherMines.Game
                     Yaw = MiniJson.ToDouble(m.TryGetValue("yaw", out var yw) ? yw : null), Pitch = MiniJson.ToDouble(m.TryGetValue("pitch", out var pt) ? pt : null),
                     Mining = MiniJson.Truthy(m.TryGetValue("m", out var mm) ? mm : null), Held = MiniJson.ToInt(m.TryGetValue("h", out var h) ? h : null),
                     Guard = MiniJson.Truthy(m.TryGetValue("gd", out var gd) ? gd : null),
+                    Armor = MiniJson.ToInt(m.TryGetValue("ar", out var ar) ? ar : null), Boots = MiniJson.Truthy(m.TryGetValue("bt", out var bt) ? bt : null),
                 });
             }
             else Message?.Invoke(t, m);

@@ -48,8 +48,8 @@ namespace UnityEngine
     public enum PrimitiveType { Cube, Sphere }
     public class GUIStyleState { public Color textColor; }
     public class GUIContent { public GUIContent(string s) { } public static GUIContent none; }
-    public enum EventType { KeyDown, KeyUp, Repaint }
-    public class Event { public static Event current; public EventType type; public KeyCode keyCode; public void Use() { } }
+    public enum EventType { KeyDown, KeyUp, Repaint, ScrollWheel }
+    public class Event { public static Event current; public EventType type; public KeyCode keyCode; public Vector2 mousePosition, delta; public void Use() { } }
     public struct Vector3
     {
         public float x, y, z;
@@ -85,7 +85,7 @@ namespace UnityEngine
     }
     public struct Color32 { public byte r, g, b, a; }
     public static class ColorUtility { public static bool TryParseHtmlString(string s, out Color c) { c = default; return true; } public static string ToHtmlStringRGB(Color c) => ""; }
-    public struct Rect { public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; } public float x, y, width, height; public float xMax => x + width; public float yMax => y + height; }
+    public struct Rect { public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; } public float x, y, width, height; public float xMax => x + width; public float yMax => y + height; public bool Contains(Vector2 p) => false; }
     public class RectOffset { public RectOffset(int l, int r, int t, int b) { } }
     public enum TextAnchor { UpperLeft, UpperCenter, UpperRight, MiddleLeft, MiddleCenter, MiddleRight, LowerLeft, LowerCenter, LowerRight }
     public enum FontStyle { Normal, Bold }

@@ -47,6 +47,17 @@ namespace EtherMines.Game
         }
         public static string OutfitHex(int id) => Rules.Cosmetics.TryGetValue(id, out var c) ? c.Color : null;
 
+        // what a plating (armor.<item>), the Front-Runner Boots (boots.211) or the Titan's cape (cape.205) adds
+        // to a character, by the part it hangs on (body, arm0, arm1, leg0, leg1, head, up, root); null if nothing
+        public static Dictionary<string, List<object>> Worn(string kind, int id)
+        {
+            var m = Slot(kind);
+            if (m == null || !m.TryGetValue(id.ToString(), out var v) || !(v is Dictionary<string, object> d)) return null;
+            var o = new Dictionary<string, List<object>>();
+            foreach (var kv in d) if (kv.Value is List<object> l && l.Count > 0) o[kv.Key] = l;
+            return o;
+        }
+
         public static string TrailStyle(int id) { var m = Slot("trail"); return m != null && m.TryGetValue(id.ToString(), out var s) ? s as string : null; }
 
         // the trail's little cubes: their colors (17-looks.js TRAIL_COLORS)

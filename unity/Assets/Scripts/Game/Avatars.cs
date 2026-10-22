@@ -16,6 +16,8 @@ namespace EtherMines.Game
         public string MyName = "", MyColor = "#8a7bef";
         public Func<Dictionary<string, int>> MyLook = () => new Dictionary<string, int>();
         public Func<string> MyTitle = () => "";
+        public Func<int> MyArmor = () => 0;      // the plating you wear
+        public Func<bool> MyBoots = () => false, MyCape = () => false; // the Front-Runner Boots on, the Titan's cape owned
 
         sealed class Fig
         {
@@ -31,6 +33,7 @@ namespace EtherMines.Game
             public Vector3 Pos; // game coordinates, eased
             public Renderer[] Legs;      // their trousers take the outfit's color
             public string LookKey = "", Title = "";
+            public int Armor; public bool Boots, Cape; // a plating, the boots, the cape (yours only, as on the web)
             public Dictionary<string, int> Look = new Dictionary<string, int>();
             public readonly List<GameObject> LookParts = new List<GameObject>();
             public GameObject Companion;
@@ -139,7 +142,7 @@ namespace EtherMines.Game
             foreach (var k in gone) { Drop(figs[k]); figs.Remove(k); }
         }
 
-        public void Heard(string id, string name, string color, double x, double y, double z, double yaw, double pitch, bool mining, bool live = true, int held = 0)
+        public void Heard(string id, string name, string color, double x, double y, double z, double yaw, double pitch, bool mining, bool live = true, int held = 0, int armor = 0, bool boots = false)
         {
             if (!figs.TryGetValue(id, out var f) || f.Color != color || f.Name != name)
             {
@@ -149,7 +152,7 @@ namespace EtherMines.Game
                 if (keep != null) { f.Look = keep.Look; f.Title = keep.Title; }
             }
             f.Target = new Vector3((float)x, (float)y, (float)z);
-            if (live) { f.TYaw = yaw; f.Pitch = pitch; f.Mining = mining; f.HeardAt = Time.time; f.Held = held; }
+            if (live) { f.TYaw = yaw; f.Pitch = pitch; f.Mining = mining; f.HeardAt = Time.time; f.Held = held; f.Armor = armor; f.Boots = boots; }
             if (!f.Seen) { f.Seen = true; f.Pos = f.Target; f.Yaw = f.TYaw; f.HeardAt = Time.time; }
         }
 
@@ -195,6 +198,7 @@ namespace EtherMines.Game
             if (me != null)
             {
                 me.Title = MyTitle();
+                me.Armor = MyArmor(); me.Boots = MyBoots(); me.Cape = MyCape();
                 Dress(me, MyLook());
                 me.Root.SetActive(mine);
                 // your companion and trail follow you, whatever the view
@@ -223,7 +227,7 @@ namespace EtherMines.Game
         // ---------- the look (applyLook) ----------
         void Dress(Fig f, Dictionary<string, int> look)
         {
-            var key = Looks.Code(look) + "|" + f.Color;
+            var key = Looks.Code(look) + "|" + f.Color + "|" + f.Armor + (f.Boots ? "b" : "") + (f.Cape ? "c" : "");
             if (key == f.LookKey) return;
             f.LookKey = key;
             foreach (var p in f.LookParts) if (p != null) Destroy(p);
@@ -259,6 +263,10 @@ namespace EtherMines.Game
                 var g = Looks.Piece("back", bid);
                 if (g != null) { g.transform.SetParent(f.Root.transform, false); g.transform.localPosition = new Vector3(0, -0.2f, 0); f.LookParts.Add(g); }
             }
+            // the plating, the boots, and the cape (unless a back piece takes its place)
+            if (f.Armor > 0) Hang(f, Looks.Worn("armor", f.Armor), "armor " + f.Armor);
+            if (f.Boots) Hang(f, Looks.Worn("boots", 211), "boots");
+            if (f.Cape && !look.ContainsKey("back")) Hang(f, Looks.Worn("cape", 205), "cape");
             int cid = look.TryGetValue("companion", out var c) ? c : 0;
             if (cid != f.CompanionId)
             {
@@ -268,6 +276,20 @@ namespace EtherMines.Game
                 if (f.Companion != null) { f.Companion.transform.SetParent(transform, false); f.CompPh = UnityEngine.Random.value * 6; f.Companion.transform.position = View(f.Pos) + Vector3.up * 1.3f; }
             }
             f.Trail = look.TryGetValue("trail", out var t) ? Looks.TrailStyle(t) : null;
+        }
+
+        void Hang(Fig f, Dictionary<string, List<object>> parts, string key)
+        {
+            if (parts == null) return;
+            foreach (var kv in parts)
+            {
+                Transform at = kv.Key == "body" ? f.Body : kv.Key == "arm0" ? f.ArmL : kv.Key == "arm1" ? f.ArmR : kv.Key == "leg0" ? f.LegL : kv.Key == "leg1" ? f.LegR : kv.Key == "head" ? f.Head : f.Root.transform;
+                var g = HeldModels.FromParts(key + " " + kv.Key, kv.Value);
+                g.transform.SetParent(at, false);
+                if (kv.Key == "head") g.transform.localScale = Vector3.one * 1.32f;
+                if (kv.Key == "up") g.transform.localPosition = new Vector3(0, -0.2f, 0);
+                f.LookParts.Add(g);
+            }
         }
 
         // the companion beside its owner, a little behind, turning as they turn; the trail while they move
@@ -375,6 +397,7 @@ namespace EtherMines.Game
                 preview = Make("preview", MyName, color);
             }
             preview.Root.SetActive(true);
+            preview.Armor = MyArmor(); preview.Boots = MyBoots(); preview.Cape = MyCape();
             var look = new Dictionary<string, int>(MyLook());
             if (TryLook != null) foreach (var kv in TryLook) look[kv.Key] = kv.Value;
             Dress(preview, look);
