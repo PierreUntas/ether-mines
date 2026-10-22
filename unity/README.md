@@ -93,6 +93,10 @@ vibrator by strength, a gamepad's rumble: a light tap for blocks and the long pr
 guards, heavy when hurt, a pattern for parries, kills and rewards; the window's ≋ button) and notifications
 when you leave the game on a phone (`Notify.cs`, the `com.unity.mobile.notifications` package: the shop's
 new week, your animals' gifts the next day, never at night).
+The glow (`PostGlow.cs` on the camera, `Shaders/Bloom.shader`: the web's UnrealBloomPass settings) and the
+little lives (`Effects.cs`: fireflies at night, butterflies by day, petals from the pink trees, and the clay
+break's flash, facets and ether sparks, also on a parry and a dodge). The window's Settings: sound,
+vibrations, glow, fireflies & co.
 Then the circuits (`Core/Circuits.cs`, checked tick for tick against 12-circuits.js; `CircuitsView.cs`:
 lamps, doors, plates, gates and the clock live around you, the objectives' shapes, the lanterns' light).
 Trades (`Trade.cs`, the window's Trade tab: offers received and sent, accept, decline, cancel, a new offer

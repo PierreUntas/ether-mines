@@ -218,6 +218,7 @@ namespace EtherMines.Game
                 dashVx = (float)((-sn * fz + cs * fx) * 20);
                 dashVz = (float)((-cs * fz - sn * fx) * 20);
                 dashT = 0.2f;
+                Effects.Burst((float)b.X - 0.5f, (float)b.Y + 0.2f, (float)b.Z - 0.5f, Avatars.Hex("#c2b8ff", Color.white)); // a puff of ether where you were
                 dashCd = 1.6f;
                 Link?.Send(new Dictionary<string, object> { ["t"] = "dodge" });
             }

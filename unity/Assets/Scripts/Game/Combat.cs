@@ -296,6 +296,13 @@ namespace EtherMines.Game
             var res = m.TryGetValue("res", out var r) ? r as string : "hit";
             if (res == "parry" || res == "block") Sounds.Hit("stone"); else Sounds.Hurt();
             Haptics.Play(res == "parry" ? Haptics.Kind.Success : res == "block" ? Haptics.Kind.Medium : Haptics.Kind.Heavy);
+            if (res == "parry" || res == "block")
+            {
+                // sparks on the blade, in front of you (16-mobs.js: clayBurst at the guard)
+                var pb = Player.Body;
+                float fx = (float)(pb.X - Math.Sin(Player.Yaw) * 0.7), fz = (float)(pb.Z - Math.Cos(Player.Yaw) * 0.7);
+                Effects.Burst(fx - 0.5f, (float)pb.Y + 0.8f, fz - 0.5f, Avatars.Hex(res == "parry" ? "#bdf6ff" : "#c2b8ff", Color.white));
+            }
             float dmg = F(m, "dmg");
             if (res == "parry" || res == "block") { guardWord = res == "parry" ? "Parried!" : "Blocked"; guardFlash = 0.7f; }
             if (res == "parry" || (res == "block" && dmg == 0))

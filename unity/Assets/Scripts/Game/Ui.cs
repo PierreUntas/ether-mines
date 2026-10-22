@@ -43,6 +43,25 @@ namespace EtherMines.Game
             foreach (var kv in (Dictionary<string, object>)idx["index"]) iconIndex[int.Parse(kv.Key)] = MiniJson.ToInt(kv.Value);
         }
 
+        // a block's or an item's color, on average (05-player.js avgColor): its icon's opaque pixels
+        static readonly Dictionary<int, Color> avg = new Dictionary<int, Color>();
+        public static Color IconColor(int id)
+        {
+            if (avg.TryGetValue(id, out var c)) return c;
+            LoadIcons();
+            c = Color.white;
+            if (iconIndex.TryGetValue(id, out var i))
+            {
+                // the texture's rows go up: the icon's square from its bottom-left corner
+                int x0 = (i % iconCols) * iconSize, y0 = icons.height - ((i / iconCols) + 1) * iconSize;
+                var px = icons.GetPixels(x0, y0, iconSize, iconSize);
+                float r = 0, g = 0, b = 0; int n = 0;
+                foreach (var p in px) if (p.a > 0.4f) { r += p.r; g += p.g; b += p.b; n++; }
+                if (n > 0) c = new Color(r / n, g / n, b / n);
+            }
+            return avg[id] = c;
+        }
+
         public static void Icon(Rect r, int id)
         {
             LoadIcons();

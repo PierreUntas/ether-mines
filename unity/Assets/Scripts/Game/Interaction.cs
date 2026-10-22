@@ -215,6 +215,7 @@ namespace EtherMines.Game
             Swing = 1;
             Sounds.Brk(Sounds.MatOf(id));
             Haptics.Play(Haptics.Kind.Light);
+            Effects.Break(t.X, t.Y, t.Z, id);
             if (Session == null)
             {
                 int drop = bd.HasDrop ? bd.Drop : id;

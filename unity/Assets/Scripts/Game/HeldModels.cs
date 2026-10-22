@@ -20,7 +20,7 @@ namespace EtherMines.Game
         public static WorldView World; // the world's materials, for blocks
         static Mesher mesher;
 
-        static Material Lit(Color c, Color glow)
+        public static Material Lit(Color c, Color glow)
         {
             var k = "l" + ColorUtility.ToHtmlStringRGB(c) + ColorUtility.ToHtmlStringRGB(glow);
             if (mats.TryGetValue(k, out var m)) return m;

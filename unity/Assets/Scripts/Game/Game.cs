@@ -158,6 +158,12 @@ namespace EtherMines.Game
                 player.AfterStep = hover.BoardTick;
                 // the sounds (made, not recorded), and the ambiance that follows the day and the depth
                 gameObject.AddComponent<Haptics>();
+                // fireflies, butterflies, petals, the breaks' bursts; and the glow over the picture
+                var fx = gameObject.AddComponent<Effects>();
+                fx.World = world;
+                fx.Player = player;
+                fx.Sky = sky;
+                if (player.Cam.GetComponent<PostGlow>() == null) player.Cam.gameObject.AddComponent<PostGlow>();
                 gameObject.AddComponent<Notify>().Session = session; // a word for later, when you leave (a phone)
                 var sounds = gameObject.AddComponent<Sounds>();
                 sounds.Player = player;

@@ -162,7 +162,7 @@ namespace EtherMines.Game
             Ui.Fill(new Rect(x, y, W, H), new Color(0.13f, 0.1f, 0.27f, 0.96f));
             Ui.Frame(new Rect(x, y, W, H), new Color(1, 1, 1, 0.12f));
             // the tabs
-            float tx = x + 16, tw = Mathf.Min(120, (W - (W < 1000 ? 230 : 380)) / (Open != null ? 7 : 6) - 8); // narrower on a small screen
+            float tx = x + 16, tw = Mathf.Min(120, (W - (W < 1000 ? 200 : 350)) / (Open != null ? 7 : 6) - 8); // narrower on a small screen
             foreach (var (k, t) in new[] { ("bag", "Your bag"), ("craft", "Crafting"), ("quest", "Objectives"), ("validators", "Validators"), ("shop", "Shop"), ("trade", Trade != null && Trade.Received > 0 ? $"Trade ({Trade.Received})" : "Trade"), ("chest", "Chest") })
             {
                 if (k == "chest" && Open == null) continue;
@@ -174,11 +174,12 @@ namespace EtherMines.Game
             bool narrow = W < 1000; // a phone: the Gwei go to the bottom corner, the tabs keep the room
             GUI.Label(narrow ? new Rect(x + W - 170, y + H - 28, 150, 24) : new Rect(x + W - 350, y + 16, 150, 24), Session != null ? $"{Session.Gwei:0} Gwei" : "offline", Ui.Label);
             if (GUI.Button(new Rect(x + W - 70, y + 12, 54, 30), "✕", Ui.Button)) { Hide(); return; }
-            // the sound, on or off (M)
-            if (GUI.Button(new Rect(x + W - 134, y + 12, 58, 30), Sounds.On ? "♪ on" : "♪ off", Ui.Button)) Sounds.Toggle();
-            // the vibrations (a phone, a gamepad), on or off
-            if (GUI.Button(new Rect(x + W - 198, y + 12, 58, 30), Haptics.On ? "≋ on" : "≋ off", Ui.Button)) Haptics.Toggle();
+            // the settings: sound, vibrations, glow, the little lives (a short list under the button)
+            if (GUI.Button(new Rect(x + W - 170, y + 12, 94, 30), "Settings", settingsOpen ? Ui.Primary : Ui.Button)) settingsOpen = !settingsOpen;
             var body = new Rect(x + 16, y + 54, W - 32, H - 70);
+            // the settings' list: it takes the clicks first (before the tab under it), and is painted last, over it
+            settingsRect = new Rect(x + W - 290, y + 46, 274, 4 * 36 + 12);
+            if (settingsOpen && Event.current.type != EventType.Repaint) Settings();
             if (Tab == "bag") Bag(body);
             else if (Tab == "craft") CraftTab(body);
             else if (Tab == "chest" && Open != null) ChestTab(body);
@@ -187,7 +188,32 @@ namespace EtherMines.Game
             else if (Tab == "trade" && Trade != null) Trade.Draw(body);
             else if (Tab == "shop" && Progress != null) (shop ??= new Shop { Session = Session, Progress = Progress, Avatars = Avatars }).Draw(body);
             if (Tab != "shop" && Avatars != null) { Avatars.TryLook = null; Avatars.TryColor = null; }
+            if (settingsOpen && Event.current.type == EventType.Repaint) Settings();
         }
+
+        void Settings()
+        {
+            {
+                var r = settingsRect;
+                Ui.Fill(r, new Color(0.09f, 0.07f, 0.2f, 0.98f));
+                Ui.Frame(r, new Color(1, 1, 1, 0.2f));
+                float ly = r.y + 8;
+                void Row(string label, bool on, Action toggle)
+                {
+                    GUI.Label(new Rect(r.x + 12, ly + 5, 170, 24), label, Ui.Label);
+                    if (GUI.Button(new Rect(r.xMax - 82, ly, 70, 30), on ? "On" : "Off", on ? Ui.Primary : Ui.Button)) toggle();
+                    ly += 36;
+                }
+                Row("Sound (M)", Sounds.On, Sounds.Toggle);
+                Row("Vibrations", Haptics.On, Haptics.Toggle);
+                Row("Glow", PostGlow.On, PostGlow.Toggle);
+                Row("Fireflies & co", Effects.Life, Effects.Toggle);
+                // a click on the list stays in it
+                if (Event.current.type == EventType.MouseDown && r.Contains(Event.current.mousePosition)) Event.current.Use();
+            }
+        }
+        bool settingsOpen;
+        Rect settingsRect;
 
         // ---------- your bag ----------
         struct Entry { public string Key; public int Id, N; public Unique U; }

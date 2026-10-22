@@ -203,7 +203,8 @@ namespace EtherMines.Game
             if (before != e.Id && me != null && new Vector2((float)(e.X - me.X), (float)(e.Z - me.Z)).magnitude < 24)
             {
                 var at = new Vector3(e.X + 0.5f, e.Y + 0.5f, e.Z + 0.5f);
-                if (e.Id == 0) Sounds.Brk(Sounds.MatOf(before), at); else Sounds.Place(Sounds.MatOf(e.Id), at);
+                if (e.Id == 0) { Sounds.Brk(Sounds.MatOf(before), at); Effects.Break(e.X, e.Y, e.Z, before); }
+                else Sounds.Place(Sounds.MatOf(e.Id), at);
             }
             World.Store.Edit(e);
             World.Rebuild(e.X, e.Z);

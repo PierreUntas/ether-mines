@@ -39,6 +39,7 @@ namespace UnityEngine
     }
     public class Transform : Component
     {
+        public Vector3 right, up; public void Rotate(float x, float y, float z) { }
         public Vector3 position, localPosition, eulerAngles, localScale;
         public Quaternion rotation, localRotation;
         public void SetParent(Transform p, bool worldPositionStays) { }
@@ -48,7 +49,7 @@ namespace UnityEngine
     public enum PrimitiveType { Cube, Sphere }
     public class GUIStyleState { public Color textColor; }
     public class GUIContent { public GUIContent(string s) { } public GUIContent(string s, string tip) { } public static GUIContent none; }
-    public enum EventType { KeyDown, KeyUp, Repaint, ScrollWheel }
+    public enum EventType { KeyDown, KeyUp, Repaint, ScrollWheel, MouseDown, MouseUp }
     public class Event { public static Event current; public EventType type; public KeyCode keyCode; public Vector2 mousePosition, delta; public void Use() { } }
     public struct Vector3
     {
@@ -162,18 +163,21 @@ namespace UnityEngine
         public static Rendering.AmbientMode ambientMode; public static Color ambientSkyColor, ambientEquatorColor, ambientGroundColor, ambientLight;
     }
     public static class QualitySettings { public static float shadowDistance; }
-    public class Shader : Object { public static Shader Find(string n) => null; }
+    public class Shader : Object { public static Shader Find(string n) => null; public bool isSupported; }
     public class Texture : Object { public FilterMode filterMode; public TextureWrapMode wrapMode; public int anisoLevel, width, height; }
     public class Font : Object { public Material material; }
     public enum TextAlignment { Left, Center, Right }
     public class TextMesh : Component { public Font font; public string text; public TextAnchor anchor; public TextAlignment alignment; public int fontSize; public float characterSize; public Color color; }
-    public class RenderTexture : Texture { public RenderTexture(int w, int h, int d) { } public string name; }
+    public class RenderTexture : Texture { public RenderTexture(int w, int h, int d) { } public string name; public RenderTextureFormat format; public static RenderTexture GetTemporary(int w, int h, int d, RenderTextureFormat f) => null; public static void ReleaseTemporary(RenderTexture t) { } }
+    public enum RenderTextureFormat { ARGB32, ARGBHalf, Default }
+    public static class Graphics { public static void Blit(Texture s, RenderTexture d) { } public static void Blit(Texture s, RenderTexture d, Material m, int pass) { } }
+    public struct Bounds { public Bounds(Vector3 c, Vector3 s) { } }
     public enum ScaleMode { StretchToFill, ScaleAndCrop, ScaleToFit }
     public enum MeshTopology { Triangles, Lines }
     public enum FilterMode { Point, Bilinear, Trilinear }
     public enum TextureWrapMode { Repeat, Clamp }
     public enum TextureFormat { RGBA32, ARGB32 }
-    public class Texture2D : Texture { public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void Apply() { } public static Texture2D whiteTexture; }
+    public class Texture2D : Texture { public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void Apply() { } public static Texture2D whiteTexture; public void SetPixel(int x, int y, Color c) { } public void SetPixels(Color[] c) { } public Color[] GetPixels(int x, int y, int w, int h) => null; }
     public static class ImageConversion { public static bool LoadImage(this Texture2D t, byte[] data) => true; }
     public class Material : Object
     {
@@ -186,6 +190,7 @@ namespace UnityEngine
     public static class Resources { public static T Load<T>(string p) where T : Object => null; public static T GetBuiltinResource<T>(string p) where T : Object => null; }
     public class Mesh : Object
     {
+        public void MarkDynamic() { } public Bounds bounds;
         public void SetIndices(int[] i, MeshTopology t, int sub) { } public Rendering.IndexFormat indexFormat; public Vector3[] vertices, normals; public Vector2[] uv; public Color[] colors; public int[] triangles;
         public void RecalculateBounds() { } public void RecalculateNormals() { }
     }
