@@ -154,6 +154,12 @@ namespace EtherMines.Game
                 items.Hover = hover;
                 hand.Hover = hover;
                 player.Lift = () => hover.Lift;
+                // the circuits around you (lamps, doors, gates), and the lanterns' light
+                var circuits = gameObject.AddComponent<CircuitsView>();
+                circuits.World = world;
+                circuits.Player = player;
+                circuits.Session = session;
+                circuits.Sky = sky;
                 // the touch controls: which buttons show depends on what you hold and wear
                 gameObject.AddComponent<TouchPad>();
                 TouchPad.SlotRect = Hud.SlotRect;

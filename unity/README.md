@@ -33,8 +33,10 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
 - `rules.js` changed → `node unity/tools/export-rules.mjs` (a test in `tests/unity.test.mjs` checks it).
 - `world.js` (the generator, `GEN`) or `src/mesh.js` changed → port the change to `WorldGen*.cs` /
   `Mesher.cs`, then run the parity checks:
-  `cd unity/CoreTests && node golden.mjs && node golden-mesh.mjs && dotnet build -c Release && dotnet bin/Release/net8.0/CoreTests.dll`
+  `cd unity/CoreTests && node golden.mjs && node golden-mesh.mjs && node golden-circuits.mjs && dotnet build -c Release && dotnet bin/Release/net8.0/CoreTests.dll`
   (every chunk must match the JavaScript byte for byte, every mesh vertex for vertex).
+- The circuits (`src/game/12-circuits.js`) changed → port the change to `Core/Circuits.cs` and run the
+  parity checks above (`golden-circuits.mjs` runs the web's own file on test circuits).
 - Textures changed (`src/game/01-textures.js`) → `node unity/tools/export-art.mjs`.
 - A mob's model (`buildMob` in `src/game/16-mobs.js`) or stats (`MK` in `src/mobs-core.js`) changed →
   `node unity/tools/export-mobs.mjs` (a test checks it).
@@ -81,8 +83,9 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
    drag to look, tap to place or use, hold to mine, the buttons on the right and on top, tap the bar),
    the interface scaled to the screen and clear of the notch, the system keyboard for the chat and the
    signs; the store builds (`Assets/Editor/Build.cs`, below).
-Not yet: the looks' small animations, the tool and plating trims' glow, the circuits, trades, the
-Twin Diamond's back seat.
+Then the circuits (`Core/Circuits.cs`, checked tick for tick against 12-circuits.js; `CircuitsView.cs`:
+lamps, doors, plates, gates and the clock live around you, the objectives' shapes, the lanterns' light).
+Not yet: the looks' small animations, the tool and plating trims' glow, trades, the Twin Diamond's back seat.
 
 ## Builds for the stores
 The **Ether Mines** menu in the editor (or `Unity -batchmode -quit -projectPath unity -executeMethod

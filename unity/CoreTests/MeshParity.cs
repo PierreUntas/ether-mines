@@ -12,7 +12,7 @@ namespace EtherMines.CoreTests
 {
     public static class MeshParity
     {
-        static string Dir()
+        public static string Dir()
         {
             // the CoreTests folder: walk up from the binary until golden-mesh.mjs is found
             var d = new DirectoryInfo(AppContext.BaseDirectory);

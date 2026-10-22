@@ -71,6 +71,8 @@ namespace EtherMines.Game
             combat.Link = link;
             Act.Combat = combat;
             hover = GetComponent<Hover>();
+            var circuits = GetComponent<CircuitsView>();
+            if (circuits != null) circuits.Avatars = avatars; // their feet press the plates too
             if (hover != null) { combat.Hover = hover; avatars.MyRide = () => hover.Riding; }
             var animals = GetComponent<Animals>();
             if (animals != null) { animals.Link = link; animals.Combat = combat; combat.Animals = animals; }

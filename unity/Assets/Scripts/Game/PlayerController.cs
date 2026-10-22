@@ -39,7 +39,8 @@ namespace EtherMines.Game
         {
             if (!Mesher.IsSolid(id)) return null;
             if (!Mesher.IsShaped(id)) return Full;
-            int n = Mesher.ShapeBoxes(id, x, y, z, (a, b, c) => false, null, boxBuf);
+            var pw = World.Powered; // an open door (powered) lets you through
+            int n = Mesher.ShapeBoxes(id, x, y, z, (a, b, c) => pw.Count > 0 && pw.Contains(Circuits.K(a, b, c)), null, boxBuf);
             var r = new double[n][];
             for (int i = 0; i < n; i++) r[i] = new[] { boxBuf[i * 6], boxBuf[i * 6 + 1], boxBuf[i * 6 + 2], boxBuf[i * 6 + 3], boxBuf[i * 6 + 4], boxBuf[i * 6 + 5] };
             return r;

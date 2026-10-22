@@ -35,7 +35,10 @@ namespace EtherMines.Game
         [ThreadStatic] static Mesher threadMesher;
 
         public Func<Vector3> PlayerPos = () => Vector3.zero; // in game coordinates (web: x, y, z)
-        public event Action<int, int, int, string> SignRead; // a sign's text, read with its area (Signs.cs)
+        public event Action<int, int, int, string> SignRead;
+        public event Action<int, int> Changed; // a block changed in this chunk (the circuits index it again)
+        // the powered blocks (CircuitsView): replaced, never changed in place, so a mesh being built keeps its copy
+        public HashSet<long> Powered = new HashSet<long>(); // a sign's text, read with its area (Signs.cs)
 
         void Awake()
         {
@@ -200,6 +203,7 @@ namespace EtherMines.Game
         public void Rebuild(int x, int z)
         {
             int cx = x >> 4, cz = z >> 4, lx = x & 15, lz = z & 15;
+            Changed?.Invoke(cx, cz);
             QueueMesh(cx, cz);
             if (lx == 0) QueueMesh(cx - 1, cz);
             if (lx == 15) QueueMesh(cx + 1, cz);
@@ -248,6 +252,7 @@ namespace EtherMines.Game
                     var c = Store.Chunk(cx + dx, cz + dz);
                     snap[(dz + 1) * 3 + dx + 1] = c == null ? null : (byte[])c.Clone();
                 }
+            var pw = Powered;
             ThreadPool.QueueUserWorkItem(_ =>
             {
                 MeshOut m = null;
@@ -262,7 +267,7 @@ namespace EtherMines.Game
                         var a = snap[iz * 3 + ix];
                         return a == null ? 0 : a[World.Li(x - ccx * 16, y, z - ccz * 16)];
                     };
-                    m = threadMesher.MeshChunk(cx, cz, get, (Func<int, int, int, bool>)((x, y, z) => false));
+                    m = threadMesher.MeshChunk(cx, cz, get, (Func<int, int, int, bool>)((x, y, z) => pw.Count > 0 && pw.Contains(Circuits.K(x, y, z))));
                 }
                 catch (Exception e) { Debug.LogException(e); }
                 lock (readyLock) ready.Enqueue((key, seq, m));
