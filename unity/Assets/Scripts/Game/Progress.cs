@@ -216,20 +216,31 @@ namespace EtherMines.Game
                 {
                     seen[c.Id + ":in"] = 1.0;
                     Session.Dirty = true;
-                    if (c.Intro != null) Hud.Feed("nft", "Thea", c.Intro);
+                    if (c.Intro != null) Story.Thea(c.Intro);
                     Hud.Feed("nft", "New chapter: " + c.N, $"{c.Q.Length} objectives · reward {c.Gwei} Gwei and a title");
                 }
                 if (open && Done(c) && !seen.ContainsKey(c.Id))
                 {
                     seen[c.Id] = 1.0;
                     Session.Dirty = true;
-                    if (c.Outro != null) Hud.Feed("nft", "Thea", c.Outro);
+                    if (c.Outro != null) Story.Thea(c.Outro);
                 }
                 if (cosmeticsLoaded && Done(c) && !Cosmetics.Contains(c.Title) && !claiming.Contains(c.Id) &&
                     (!claimFailed.TryGetValue(c.Id, out var t) || Time.time - t > 600))
                     Claim(c);
             }
+            // the last main chapter done: the epilogue (Thea closes the story, the Objectives tab opens on it)
+            var last = Mains[Mains.Length - 1];
+            if (Open(last) && Done(last) && !Seen("epilogue")) { Obj("seen")["epilogue"] = 1.0; Session.Dirty = true; }
         }
+
+        // what the epilogue card counts (epilogueCard)
+        public int MainsDone => Mains.Count(Done);
+        public int MainsCount => Mains.Length;
+        public bool CircuitsDone => Done(Chapters.First(c => c.Id == "circuits"));
+        public int Guardians => new[] { 205, 206, 209 }.Count(HasNft);
+        public int DaysHere => MiniJson.ToInt(Session.State.TryGetValue("dayN", out var d) ? d : null) + 1;
+        public void SetSeen(string k, bool on) { var s = Obj("seen"); if (on) s[k] = 1.0; else s.Remove(k); Session.Dirty = true; }
 
         // what your validators produced meanwhile (act_rewards, every minute)
         async void Rewards()
@@ -268,10 +279,17 @@ namespace EtherMines.Game
         {
             float h = 0;
             foreach (var c in Chapters) h += 90 + (Open(c) && !Done(c) ? c.Q.Length * 44 : 0);
-            var view = new Rect(0, 0, body.width - 20, h + 60);
+            var view = new Rect(0, 0, body.width - 20, h + 60 + topH);
             scroll = GUI.BeginScrollView(body, scroll, view);
-            GUI.Label(new Rect(0, 0, view.width, 40), "The old validators of this world have gone dark. Grow strong enough to reach the genesis rock, forge a validator heart, and relight them, one by one.", Ui.Small);
-            float y = 46;
+            float y = 0;
+            // the epilogue, kept at the top once the story is done; then the network, the shared goal
+            if (Seen("epilogue")) y = Story.DrawEpilogue(this, view.width, y) + 12;
+            y = DrawNetwork(view.width, y) + 10;
+            GUI.Label(new Rect(0, y, view.width, 26), "Your journey", Ui.Title);
+            y += 30;
+            GUI.Label(new Rect(0, y, view.width, 40), "The old validators of this world have gone dark. Grow strong enough to reach the genesis rock, forge a validator heart, and relight them, one by one.", Ui.Small);
+            y += 46;
+            topH = y;
             var cur = Current;
             foreach (var c in Chapters)
             {
@@ -308,6 +326,51 @@ namespace EtherMines.Game
                 y += 6;
             }
             GUI.EndScrollView();
+        }
+
+        float topH = 200;
+        static readonly int[] NetTiers = { 3, 10, 25, 50, 100 };
+        static readonly string[] MilestoneNames = { "a first star", "two stars", "three stars", "four stars", "the diamond fully awake" };
+        // the network box (renderQuests' networkBox): everyone's relit validators, the hourly attack, the guardians
+        float DrawNetwork(float w, float y)
+        {
+            int n = Animals.NetworkN, niv = NetTiers.Count(p => n >= p), g = NetTiers.FirstOrDefault(p => p > n);
+            float y0 = y;
+            var lines = new List<string>();
+            float hh = 0;
+            string intro = g > 0 ? $"All together, relight <b>{g}</b> old validators to give the great diamond in the sky {MilestoneNames[niv]}." : "The network is awake. The great diamond shines with all its light.";
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            bool active = now % 3600 < 600;
+            string attack = $"Every hour, for its first 10 minutes, corrupted nodes converge on the Atrium — fight them off for better loot and Gwei. {(active ? "It’s happening right now." : $"Next attack at :00, in {Math.Round((3600 - now % 3600) / 60.0)} min.")} Defense score so far: <b>{Animals.AttackScore}</b>.";
+            float iw = w - 24;
+            float h1 = Ui.Small.CalcHeight(new GUIContent(intro), iw), h2 = Ui.Small.CalcHeight(new GUIContent(attack), iw);
+            hh = 34 + h1 + 8 + 10 + 8 + 22 + 8 + 24 + h2 + (Animals.NetworkTop.Count > 0 ? 26 + Animals.NetworkTop.Count * 20 : 0) + 10;
+            Ui.Fill(new Rect(0, y, w, hh), new Color(0.5f, 0.91f, 1f, 0.07f));
+            Ui.Fill(new Rect(0, y, 4, hh), Ui.Cyan);
+            y += 6;
+            GUI.Label(new Rect(12, y, iw, 26), "The network · shared goal", Ui.Title);
+            y += 28;
+            GUI.Label(new Rect(12, y, iw, h1), intro, Ui.Small);
+            y += h1 + 8;
+            Ui.Fill(new Rect(12, y, iw, 10), new Color(1, 1, 1, 0.1f));
+            Ui.Fill(new Rect(12, y, iw * Mathf.Min(1, n / (float)(g > 0 ? g : Math.Max(1, n))), 10), Ui.Cyan);
+            y += 18;
+            string tiers = string.Join("   ", NetTiers.Select(p => n >= p ? $"<color=#7fe8ff>◆ {p}</color>" : $"<color=#9a92c8>◆ {p}</color>")) + $"     <b>{n} relit</b>";
+            GUI.Label(new Rect(12, y, iw, 22), tiers, Ui.Small);
+            y += 30;
+            GUI.Label(new Rect(12, y, iw, 22), "<b>Under attack, every hour</b>", Ui.Label);
+            y += 24;
+            GUI.Label(new Rect(12, y, iw, h2), attack, Ui.Small);
+            y += h2;
+            if (Animals.NetworkTop.Count > 0)
+            {
+                y += 4;
+                GUI.Label(new Rect(12, y, iw, 22), "<b>Guardians</b>", Ui.Label);
+                y += 22;
+                int i = 1;
+                foreach (var (name, cnt) in Animals.NetworkTop) { GUI.Label(new Rect(24, y, iw - 12, 20), $"{i++}. {name} · {cnt}", Ui.Small); y += 20; }
+            }
+            return y0 + hh;
         }
 
         // ---------- the Validators tab ----------

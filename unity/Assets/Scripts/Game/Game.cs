@@ -262,6 +262,15 @@ namespace EtherMines.Game
                 guide.Online = () => mpRef != null ? mpRef.Line : null;
                 guide.Progress = () => GetComponent<Progress>();
                 guide.Combat = () => GetComponent<Combat>();
+                // the story on screen: Thea's lines, the intro and the finale, the network's milestones, the leaderboard
+                var story = gameObject.AddComponent<Story>();
+                story.Session = session;
+                story.Player = player;
+                story.World = world;
+                story.Sky = sky;
+                story.Animals = animals;
+                story.Panel = panel;
+                story.Progress = () => GetComponent<Progress>();
                 player.enabled = true;
                 started = true;
                 Step(online ? "Joining the world and the other players…" : "Generating the world…", 14);

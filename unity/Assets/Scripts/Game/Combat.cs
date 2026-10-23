@@ -373,6 +373,7 @@ namespace EtherMines.Game
         void OnGUI()
         {
             Ui.Begin();
+            if (Ui.Cine) return; // a cinematic: the screen is the film's
             if (!Link.HpServer) return;
             if (heart == null) heart = new GUIStyle(GUI.skin.label) { fontSize = 22, alignment = TextAnchor.MiddleCenter };
             float W = Ui.W, H = Ui.H, s = 24, x0 = W / 2 - 5 * s, y = H - 54 - 16 - 40;

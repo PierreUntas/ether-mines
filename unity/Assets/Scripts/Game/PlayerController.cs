@@ -67,7 +67,7 @@ namespace EtherMines.Game
             Moving = fx != 0 || fz != 0;
             MoveX = fx; MoveZ = fz;
             if (unlock) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
-            if (!TouchPad.Active && Cursor.lockState != CursorLockMode.Locked && !Ui.PanelOpen && !Signs.Open && ClickedIn()) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
+            if (!TouchPad.Active && Cursor.lockState != CursorLockMode.Locked && !Ui.Blocking && !Story.ScreenUp && ClickedIn()) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
             Yaw -= lookX * 0.0025 * Sensitivity;
             Pitch = Math.Max(-1.55, Math.Min(1.55, Pitch - lookY * 0.0025 * Sensitivity * -1));
             if (toggleView) View = (View + 1) % 3;
@@ -112,8 +112,20 @@ namespace EtherMines.Game
         static double World_SpawnX => EtherMines.Core.World.SPAWN.X + 0.5;
         static double World_SpawnZ => EtherMines.Core.World.SPAWN.Z + 2.5;
 
+        // a cinematic's camera (Story.cs): where it is and what it looks at, in the game's coordinates
+        public Func<(Vector3 pos, Vector3 look)> CinePose;
+
         void PlaceCamera()
         {
+            if (Ui.Cine && CinePose != null)
+            {
+                var (cp0, cl) = CinePose();
+                var at = new Vector3(cp0.x, cp0.y, -cp0.z);
+                var d = new Vector3(cl.x, cl.y, -cl.z) - at;
+                Cam.transform.SetPositionAndRotation(at, d.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(d) : Cam.transform.rotation);
+                Sky.Underwater = false;
+                return;
+            }
             var eye = new Vector3((float)Body.X, (float)(Body.Y + PlayerPhysics.EYE - Math.Min(eyeLag, 0.6)) + Lift(), -(float)Body.Z);
             var rot = Quaternion.Euler((float)(-Pitch * Mathf.Rad2Deg), (float)(-Yaw * Mathf.Rad2Deg), 0);
             if (View == 0) Cam.transform.SetPositionAndRotation(eye, rot);

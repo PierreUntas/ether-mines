@@ -104,7 +104,7 @@ namespace EtherMines.Game
         void LateUpdate()
         {
             if (Player.Body == null || cam == null) return;
-            bool show = Player.View == 0 && !(Hover != null && Hover.Aboard);
+            bool show = Player.View == 0 && !(Hover != null && Hover.Aboard) && !Ui.Cine; // no hand drawn over a cinematic
             cam.enabled = show;
             if (!show) return;
             Set();

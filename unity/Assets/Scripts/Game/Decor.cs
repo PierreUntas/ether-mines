@@ -36,7 +36,7 @@ namespace EtherMines.Game
         }
 
         // ethGeo: the Ethereum diamond, four faces up and four down, a gap between, two tones each way
-        static Mesh EthGeo(float r, float ht, float hb, float gap, string[] cols)
+        public static Mesh EthGeo(float r, float ht, float hb, float gap, string[] cols)
         {
             var v = new List<Vector3>(); var c = new List<Color>(); var t = new List<int>();
             var e = new[] { new Vector3(r, 0, 0), new Vector3(0, 0, r), new Vector3(-r, 0, 0), new Vector3(0, 0, -r) };
@@ -51,7 +51,7 @@ namespace EtherMines.Game
         }
 
         // a box (BoxGeometry), white vertices: its material gives the color
-        static Mesh Box(float s)
+        public static Mesh Box(float s)
         {
             var v = new List<Vector3>(); var c = new List<Color>(); var t = new List<int>();
             float h = s / 2;
@@ -67,7 +67,7 @@ namespace EtherMines.Game
         }
 
         // CylinderGeometry: from angle start, len around (x = r sin a, z = r cos a), open ends; uv along and up
-        static Mesh Cylinder(float rTop, float rBot, float h, int seg, float start = 0, float len = Mathf.PI * 2, bool caps = false)
+        public static Mesh Cylinder(float rTop, float rBot, float h, int seg, float start = 0, float len = Mathf.PI * 2, bool caps = false)
         {
             var v = new List<Vector3>(); var c = new List<Color>(); var t = new List<int>(); var uv = new List<Vector2>();
             for (int i = 0; i <= seg; i++)
@@ -115,6 +115,24 @@ namespace EtherMines.Game
 
         static readonly string[] EthCols = { "#9a8cf5", "#c2b8ff", "#6a58e0", "#8a7bef" };
 
+        // the network's marks on the great diamond (07-interface.js STARS, SCORE_PALETTES; Story.cs sets them):
+        // a small star orbiting it for each tier of validators relit by everyone, its colors for the defense
+        // score, and a faster spin during the finale
+        public static Vector3 Diamond; // in the game's coordinates
+        public static int StarsShown, PaletteTier;
+        public static float Spin;
+        static readonly string[][] Palettes =
+        {
+            new[] { "#9a8cf5", "#c2b8ff", "#6a58e0", "#8a7bef" },
+            new[] { "#ffb36b", "#ffd95e", "#e08a3a", "#ff9a5c" },
+            new[] { "#7fe8ff", "#bdf6ff", "#3ab8d8", "#5cc9e8" },
+            new[] { "#ff9ab8", "#ffd0e0", "#d8508a", "#ff6fa0" },
+            new[] { "#9fe3c4", "#d4f5e6", "#3fae7e", "#6fd4a8" },
+            new[] { "#fff3c2", "#ffe9a8", "#ffb347", "#ffd95e" },
+        };
+        int paletteShown;
+        readonly List<(Transform t, float a, float r, float h)> stars = new List<(Transform, float, float, float)>();
+
         void Start()
         {
             var ethMesh = EthGeo(9, 15, 10, 2.5f, EthCols);
@@ -124,6 +142,14 @@ namespace EtherMines.Game
             // the great diamond, far beyond the Atrium
             bigEth = Obj("great diamond", ethMesh, ethMat).transform;
             bigEth.position = V(sp, SY + 40, spz - 110);
+            Diamond = new Vector3(sp, SY + 40, spz - 110);
+            var starMesh = EthGeo(2.2f, 3.4f, 2.4f, 0.5f, new[] { "#fff3c2", "#ffd95e", "#ffb36b", "#ffe9a8" });
+            for (int i = 0; i < 5; i++)
+            {
+                var s = Obj("network star " + (i + 1), starMesh, ethMat).transform;
+                s.gameObject.SetActive(false);
+                stars.Add((s, i / 5f * Mathf.PI * 2, 26 + (i % 2) * 5, (i - 2) * 4));
+            }
             // its ring of orange blocks (like ethereum.org's illustrations), tilted, turning the other way
             ring = new GameObject("orange ring").transform;
             ring.SetParent(transform, false);
@@ -314,7 +340,22 @@ namespace EtherMines.Game
             if (p == null || cam == null || bigEth == null) return;
             float dt = Time.deltaTime, t = Time.time, night = Sky.Night;
             var cp = cam.transform.position;
-            bigEth.rotation *= Quaternion.Euler(0, -dt * 0.12f * Mathf.Rad2Deg, 0);
+            bigEth.rotation *= Quaternion.Euler(0, -dt * (0.12f + Spin) * Mathf.Rad2Deg, 0);
+            if (PaletteTier != paletteShown)
+            {
+                paletteShown = PaletteTier;
+                bigEth.GetComponent<MeshFilter>().sharedMesh = EthGeo(9, 15, 10, 2.5f, Palettes[Mathf.Clamp(PaletteTier, 0, Palettes.Length - 1)]);
+            }
+            for (int i = 0; i < stars.Count; i++)
+            {
+                var (st, a0, r, h) = stars[i];
+                bool on = i < StarsShown;
+                if (st.gameObject.activeSelf != on) st.gameObject.SetActive(on);
+                if (!on) continue;
+                float a = a0 + t * 0.16f;
+                st.position = V(Diamond.x + Mathf.Cos(a) * r, Diamond.y + h + Mathf.Sin(a * 2) * 1.5f, Diamond.z + Mathf.Sin(a) * r);
+                st.rotation = Quaternion.Euler(0, -t * 0.8f * Mathf.Rad2Deg, 0);
+            }
             ringY -= dt * 0.05f;
             ring.rotation = HeldModels.Mirror(0.35f, ringY, 0);
             foreach (var (m, a0, r, h, ph) in ethers)

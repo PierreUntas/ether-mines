@@ -570,6 +570,7 @@ namespace EtherMines.Game
         void OnGUI()
         {
             Ui.Begin();
+            if (Ui.Cine) return; // a cinematic: the screen is the film's
             var cam = Player != null ? Player.Cam : null;
             if (cam == null) return;
             if (tagStyle == null) tagStyle = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, richText = true, normal = { textColor = new Color(0.96f, 0.95f, 1) } };

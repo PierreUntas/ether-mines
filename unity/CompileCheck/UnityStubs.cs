@@ -39,14 +39,14 @@ namespace UnityEngine
     }
     public class Transform : Component
     {
-        public Vector3 right, up; public void Rotate(float x, float y, float z) { }
+        public Vector3 right, up, forward; public void Rotate(float x, float y, float z) { }
         public Vector3 position, localPosition, eulerAngles, localScale;
         public Quaternion rotation, localRotation;
         public void SetParent(Transform p, bool worldPositionStays) { }
         public void SetPositionAndRotation(Vector3 p, Quaternion q) { } public int childCount; public Transform parent; public Transform GetChild(int i) => null;
     }
     public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public float magnitude => 0; public static Vector2 zero => default; public static Vector2 operator -(Vector2 a, Vector2 b) => a; public static Vector2 operator +(Vector2 a, Vector2 b) => a; public static Vector2 operator *(Vector2 a, float b) => a; public Vector2 normalized => this; }
-    public enum PrimitiveType { Cube, Sphere }
+    public enum PrimitiveType { Cube, Sphere, Quad }
     public enum TextClipping { Overflow, Clip }
     public class GUIStyleState { public Color textColor; public Texture2D background; }
     public class GUIContent { public GUIContent(string s) { } public GUIContent(string s, string tip) { } public static GUIContent none; }
@@ -56,7 +56,7 @@ namespace UnityEngine
     {
         public float x, y, z;
         public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
-        public Vector3 normalized => this;
+        public Vector3 normalized => this; public void Normalize() { }
         public float magnitude => 0; public static Vector3 operator *(Vector3 a, double b) => a;
         public static Vector3 zero => default; public static Vector3 up => default; public static Vector3 forward => default; public static Vector3 one => default; public static Vector3 right => default; public static Vector3 left => default; public static Vector3 down => default; public static Vector3 back => default; public static Vector3 Cross(Vector3 a, Vector3 b) => a;
         public float sqrMagnitude => 0; public static float Distance(Vector3 a, Vector3 b) => 0; public static Vector3 Lerp(Vector3 a, Vector3 b, float t) => a;
@@ -106,7 +106,7 @@ namespace UnityEngine
         public static void Label(Rect r, string s) { }
         public static void Label(Rect r, string s, GUIStyle st) { }
         public static bool Button(Rect r, string s) => false; public static bool Button(Rect r, string s, GUIStyle st) => false; public static bool Button(Rect r, GUIContent c, GUIStyle st) => false;
-        public static int depth; public static bool enabled; public static Vector2 BeginScrollView(Rect r, Vector2 p, Rect v) => p; public static Vector2 BeginScrollView(Rect r, Vector2 p, Rect v, bool h, bool vv, GUIStyle hs, GUIStyle vs) => p; public static void EndScrollView() { }
+        public static int depth; public static bool enabled; public static Vector2 BeginScrollView(Rect r, Vector2 p, Rect v) => p; public static Vector2 BeginScrollView(Rect r, Vector2 p, Rect v, bool h, bool vv, GUIStyle hs, GUIStyle vs) => p; public static void EndScrollView() { } public static void BeginGroup(Rect r) { } public static void EndGroup() { }
         public static string TextField(Rect r, string s, int max) => s; public static string TextField(Rect r, string s, int max, GUIStyle st) => s; public static void SetNextControlName(string n) { } public static void FocusControl(string n) { }
         public static string PasswordField(Rect r, string s, char c, int max) => s;
         public static string PasswordField(Rect r, string s, char c, int max, GUIStyle st) => s;
@@ -174,9 +174,9 @@ namespace UnityEngine
     public class Shader : Object { public static Shader Find(string n) => null; public bool isSupported; public static void SetGlobalColor(string n, Color c) { } public static void SetGlobalFloat(string n, float v) { } }
     [System.Flags] public enum DepthTextureMode { None = 0, Depth = 1, DepthNormals = 2 }
     public class Texture : Object { public FilterMode filterMode; public TextureWrapMode wrapMode; public int anisoLevel, width, height; }
-    public class Font : Object { public Material material; }
+    public class Font : Object { public Material material; public static event System.Action<Font> textureRebuilt; static void Touch() => textureRebuilt?.Invoke(null); }
     public enum TextAlignment { Left, Center, Right }
-    public class TextMesh : Component { public Font font; public string text; public TextAnchor anchor; public TextAlignment alignment; public int fontSize; public float characterSize; public Color color; }
+    public class TextMesh : Component { public Font font; public string text; public TextAnchor anchor; public TextAlignment alignment; public int fontSize; public float characterSize; public Color color; public bool richText; public float lineSpacing; }
     public class RenderTexture : Texture { public RenderTexture(int w, int h, int d) { } public string name; public RenderTextureFormat format; public static RenderTexture GetTemporary(int w, int h, int d, RenderTextureFormat f) => null; public static void ReleaseTemporary(RenderTexture t) { } }
     public enum RenderTextureFormat { ARGB32, ARGBHalf, Default }
     public static class Graphics { public static void Blit(Texture s, RenderTexture d) { } public static void Blit(Texture s, RenderTexture d, Material m, int pass) { } }

@@ -235,6 +235,7 @@ namespace EtherMines.Game
         void OnGUI()
         {
             Ui.Begin();
+            if (Ui.Cine) return; // a cinematic: the screen is the film's
             if (Player.Body == null) return;
             var on = new List<string>();
             if (Buff > 0) on.Add("⚡ " + Mmss(Buff));

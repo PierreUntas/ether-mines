@@ -22,7 +22,7 @@ namespace EtherMines.Game
         public Combat Combat;
 
         sealed class Kind { public string Type, N; public double D, Walk, R; public float[] Hit; public int Hp; public bool Gift; public List<object> Models; public int[] Variant; }
-        sealed class Villager { public int X, Z; public string Name, Role, After, Color; public List<string> Says; public object Model; }
+        public sealed class Villager { public int X, Z; public string Name, Role, After, Color; public List<string> Says; public object Model; }
         public sealed class Animal
         {
             public string Type, K; public int I; public Mobs.Mob Rig;
@@ -38,6 +38,15 @@ namespace EtherMines.Game
         int network; string topName; int topN;
         // the dialogue bubble
         string dName, dRole, dText, dColor; float dAt = -99, dUntil; int dBlip;
+        public Villager Thea => villagers.Count > 0 ? villagers[0] : null; // the Atrium's guardian
+        public bool Speaking => dText != null && Time.time <= dUntil + 1.5f;
+        // a villager speaks without being clicked (sayAs, greetPlayer): Thea's chapter lines, her greeting
+        public void SayAs(Villager h, string line, float seconds)
+        {
+            if (h == null || line == null) return;
+            dName = h.Name; dRole = h.Role; dColor = h.Color; dText = line; dAt = Time.time; dUntil = Time.time + seconds - 1.5f; dBlip = 0;
+            Sounds.Animal("villager");
+        }
         float callT = 8;
         // the typewriter's tick every few letters (09-animals.js), and now and then the nearest animal's call
         void SoundsTick()
@@ -401,7 +410,8 @@ namespace EtherMines.Game
             return K.N;
         }
         // the world's network (act_network, read every minute): validators relit by everyone, the hour's attack
-        public static int NetworkN, AttackKills;
+        public static int NetworkN, AttackKills, AttackScore, NetworkReads;
+        public static readonly List<(string name, int n)> NetworkTop = new List<(string, int)>();
         public static long AttackWindow = -1;
 
         // a blow on an animal (attackAnimal): at 0 it falls, and gives you a heart back if you're hurt
@@ -508,8 +518,12 @@ namespace EtherMines.Game
                     AttackWindow = (long)MiniJson.ToDouble(atk.TryGetValue("window_id", out var wi) ? wi : null);
                     AttackKills = MiniJson.ToInt(atk.TryGetValue("kills", out var ki) ? ki : null);
                 }
-                if (r.TryGetValue("top", out var t) && t is List<object> top && top.Count > 0 && top[0] is Dictionary<string, object> f)
-                { topName = f["name"] as string; topN = MiniJson.ToInt(f["n"]); }
+                if (r.TryGetValue("attack", out var at2) && at2 is Dictionary<string, object> atk2) AttackScore = MiniJson.ToInt(atk2.TryGetValue("score", out var sc) ? sc : null);
+                NetworkTop.Clear();
+                if (r.TryGetValue("top", out var t) && t is List<object> top)
+                    foreach (var o in top) if (o is Dictionary<string, object> e) NetworkTop.Add((e["name"] as string ?? "?", MiniJson.ToInt(e["n"])));
+                if (NetworkTop.Count > 0) { topName = NetworkTop[0].name; topN = NetworkTop[0].n; }
+                NetworkReads++;
             }
             catch (Exception e) { Debug.LogWarning(e); }
         }
@@ -517,6 +531,7 @@ namespace EtherMines.Game
         void OnGUI()
         {
             Ui.Begin();
+            if (Ui.Cine) return; // a cinematic: the screen is the film's
             var cam = Player.Cam;
             if (cam == null || Player.Body == null) return;
             if (tagStyle == null) tagStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, richText = true };

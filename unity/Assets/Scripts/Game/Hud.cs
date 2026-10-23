@@ -56,6 +56,7 @@ namespace EtherMines.Game
         void OnGUI()
         {
             Ui.Begin();
+            if (Ui.Cine) return; // a cinematic: the screen is the film's
             if (Act == null || Act.Player == null || Act.Player.Body == null) return;
             if (count == null)
             {

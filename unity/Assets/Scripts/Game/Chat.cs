@@ -101,6 +101,7 @@ namespace EtherMines.Game
         void OnGUI()
         {
             Ui.Begin();
+            if (Ui.Cine) return; // a cinematic: the screen is the film's
             if (lines == null) lines = new List<Msg>();
             if (draft == null) draft = "";
             if (style == null || input == null)

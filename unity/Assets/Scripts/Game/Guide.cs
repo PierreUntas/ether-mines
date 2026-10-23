@@ -32,6 +32,9 @@ namespace EtherMines.Game
         GUIStyle lbl, small, mono, place, placeSub, arrow, title;
         float t4, placeAt = -99, questFlash = -99;
         string placeName, placeSub2, placeSeen, lastQuest;
+        // a moment worth the place names' big letters (announce): the network awakening, holding
+        static string annT, annS;
+        public static void Announce(string title, string sub) { annT = title; annS = sub; }
         // what's worked out a few times a second (not every frame)
         string questHead, questText, questWay, netLine, posLine, target, targetSub;
         bool targetMine;
@@ -62,6 +65,7 @@ namespace EtherMines.Game
                 placeSeen = name;
                 if (here != null) { placeName = here.Value.title; placeSub2 = here.Value.sub; placeAt = Time.time; }
             }
+            if (annT != null) { placeName = annT; placeSub2 = annS; placeAt = Time.time; annT = null; }
             // the objective
             var p = Progress();
             string qid = null;
@@ -70,6 +74,13 @@ namespace EtherMines.Game
             {
                 questHead = $"{ch} {done}/{total}";
                 questText = text;
+            }
+            else if (p != null && Story.FinaleWaiting)
+            {
+                // the story is done, the finale not yet played: back to the Atrium
+                long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                questHead = "Finale";
+                questText = now % 3600 < 600 ? $"once the attack is over · {(int)Math.Ceiling((600 - now % 3600) / 60.0)} min" : "Return to the Atrium";
             }
             else if (p != null)
             {
@@ -85,7 +96,13 @@ namespace EtherMines.Game
             netLine = Session != null ? $"network {n}/{next}" : null;
             if (p != null)
             {
-                if (qid == null || qid == "relight" || qid == "relit3")
+                if (Story.FinaleWaiting && qid == null)
+                {
+                    float ax = EtherMines.Core.World.SPAWN.X + 0.5f, az = EtherMines.Core.World.SPAWN.Z + 0.5f;
+                    questWay = $"Atrium at {Math.Round(EtherMines.Core.World.Hypot(ax - b.X, az - b.Z))} m";
+                    goal = (ax, az, "Atrium");
+                }
+                else if (qid == null || qid == "relight" || qid == "relit3")
                 {
                     var r = NearestRuin(b);
                     if (r != null) { questWay = $"ruin at {Math.Round(r.Value.d)} m"; goal = (r.Value.x, r.Value.z, "Ruin"); }
@@ -251,7 +268,7 @@ namespace EtherMines.Game
         void OnGUI()
         {
             var b = Player != null ? Player.Body : null;
-            if (b == null) return;
+            if (b == null || Ui.Cine) return;
             Ui.Begin();
             Styles();
             var sa = Ui.Safe;
