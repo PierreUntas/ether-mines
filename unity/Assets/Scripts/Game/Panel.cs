@@ -231,6 +231,7 @@ namespace EtherMines.Game
                 Row("Sound (M)", Sounds.On, Sounds.Toggle);
                 Row("Vibrations", Haptics.On, Haptics.Toggle);
                 Row("Glow", PostGlow.On, PostGlow.Toggle);
+                Row("Ambient occlusion", PostGlow.Ao, PostGlow.ToggleAo);
                 Row("Fireflies & co", Effects.Life, Effects.Toggle);
                 Row("Weather", Weather.On, Weather.Toggle);
                 ly += 4;

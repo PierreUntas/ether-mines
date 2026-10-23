@@ -16,16 +16,21 @@ namespace UnityEditor
     public static class EditorUserBuildSettings { public static bool buildAppBundle; }
     public class EditorBuildSettingsScene { public EditorBuildSettingsScene(string p, bool e) { } }
     public static class EditorBuildSettings { public static EditorBuildSettingsScene[] scenes; }
-    public static class EditorApplication { public static void Exit(int c) { } }
+    public static class EditorApplication { public static void Exit(int c) { } public static Action delayCall; }
     public static class AssetDatabase
     {
         public static void ImportAsset(string p) { }
         public static T LoadAssetAtPath<T>(string p) where T : Object => null;
         public static Object[] LoadAllAssetsAtPath(string p) => null;
         public static void SaveAssets() { }
+        public static void CreateAsset(Object o, string p) { }
+        public static void AddObjectToAsset(Object o, Object a) { }
+        public static bool TryGetGUIDAndLocalFileIdentifier(Object o, out string g, out long id) { g = null; id = 0; return false; }
     }
-    public class SerializedProperty { public int intValue, arraySize; public bool boolValue; public Object objectReferenceValue; public SerializedProperty GetArrayElementAtIndex(int i) => null; public void InsertArrayElementAtIndex(int i) { } }
-    public class SerializedObject { public SerializedObject(Object o) { } public SerializedProperty FindProperty(string n) => null; public bool ApplyModifiedProperties() => true; }
+    public class SerializedProperty { public int intValue, arraySize; public long longValue; public float floatValue; public bool boolValue; public Object objectReferenceValue; public SerializedProperty GetArrayElementAtIndex(int i) => null; public void InsertArrayElementAtIndex(int i) { } }
+    public class SerializedObject { public SerializedObject(Object o) { } public SerializedProperty FindProperty(string n) => null; public bool ApplyModifiedProperties() => true; public void Update() { } }
+    public class InitializeOnLoadAttribute : Attribute { }
+    public static class EditorUtility { public static void SetDirty(Object o) { } }
     public static class PlayerSettings
     {
         public static string companyName, productName, bundleVersion;

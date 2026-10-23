@@ -5,6 +5,8 @@
 using System;
 using EtherMines.Core;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace EtherMines.Game
 {
@@ -39,7 +41,9 @@ namespace EtherMines.Game
             cam.clearFlags = CameraClearFlags.Skybox;
             // the camera's depth, for the water's shallows and its foam (not on a phone: it costs a pass)
             bool depth = !TouchPad.Active;
-            if (depth) cam.depthTextureMode |= DepthTextureMode.Depth;
+            var camData = cam.GetUniversalAdditionalCameraData();
+            camData.requiresDepthOption = depth ? CameraOverrideOption.On : CameraOverrideOption.Off;
+            camData.renderShadows = true;
             Shader.SetGlobalFloat("_EM_Depth", depth ? 1 : 0);
             if (cam.GetComponent<AudioListener>() == null) cam.gameObject.AddComponent<AudioListener>(); // the ears: where the camera is
             foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None)) l.enabled = false; // the scene's default light: ours replaces it
@@ -49,18 +53,11 @@ namespace EtherMines.Game
             sun.type = LightType.Directional;
             sun.shadows = LightShadows.Soft;
             sun.shadowStrength = 0.55f;
-            // the picture, beyond the web's: smooth edges, sharper shadows that reach further in four steps,
-            // textures crisp at a slant, the lamps' lights all lit
-            QualitySettings.antiAliasing = 4;
-            QualitySettings.shadows = ShadowQuality.All;
-            QualitySettings.shadowResolution = ShadowResolution.VeryHigh;
-            QualitySettings.shadowCascades = 4;
-            QualitySettings.shadowProjection = ShadowProjection.StableFit;
+            // the picture, beyond the web's: smooth edges, soft shadows far out in four cascades, the lamps lit
+            // per pixel (URP's asset, set up by UrpSetup.cs); textures crisp at a slant
             QualitySettings.anisotropicFiltering = AnisotropicFiltering.ForceEnable;
-            QualitySettings.pixelLightCount = 4;
-            sun.shadowBias = 0.04f;
-            sun.shadowNormalBias = 0.3f;
-            QualitySettings.shadowDistance = 80;
+            if (!(GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset))
+                Debug.LogWarning("Ether Mines: no URP pipeline asset — menu Ether Mines → Set up URP");
 
             var skyMat = new Material(Shader.Find("EtherMines/Sky"));
             RenderSettings.skybox = skyMat;
@@ -77,11 +74,15 @@ namespace EtherMines.Game
             {
                 // a phone: a little less far, crisper shadows nearer, and the screen stays on while you play
                 sun.shadows = LightShadows.Hard;
-                QualitySettings.shadowDistance = 40;
-                QualitySettings.antiAliasing = 2;
-                QualitySettings.shadowCascades = 2;
-                QualitySettings.shadowResolution = ShadowResolution.Medium;
-                QualitySettings.pixelLightCount = 2;
+                // on the phone itself (the editor would keep these in the asset): nearer shadows in two steps,
+                // lighter edges, the image drawn a little smaller and scaled up
+                if (Application.isMobilePlatform && GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset urp)
+                {
+                    urp.shadowDistance = 40;
+                    urp.shadowCascadeCount = 2;
+                    urp.msaaSampleCount = 2;
+                    urp.renderScale = 0.85f;
+                }
                 Screen.sleepTimeout = SleepTimeout.NeverSleep;
             }
             sunLight = sun;

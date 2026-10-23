@@ -1,5 +1,5 @@
 // Ether Mines · grass, flowers, crossed plants (04-render.js plMat): both sides drawn, cut out, and the
-// top of each plant sways in the wind.
+// top of each plant sways in the wind. URP: lit as the web's Lambert (EtherLit.hlsl), casting shadows.
 Shader "EtherMines/Plant"
 {
     Properties
@@ -10,34 +10,103 @@ Shader "EtherMines/Plant"
     }
     SubShader
     {
-        Tags { "RenderType"="TransparentCutout" "Queue"="AlphaTest" }
+        Tags { "RenderType"="TransparentCutout" "Queue"="AlphaTest" "RenderPipeline"="UniversalPipeline" }
         Cull Off
-        CGPROGRAM
-        #pragma surface surf Lambert alphatest:_Cutoff vertex:vert addshadow
-        #pragma target 3.0
-        sampler2D _MainTex;
-        sampler2D _EmissionTex;
-        float _EM_Emis;
-        struct Input { float2 uv_MainTex; float4 color : COLOR; };
-        void vert (inout appdata_full v)
+
+        HLSLINCLUDE
+        #include "EtherLit.hlsl"
+        TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
+        TEXTURE2D(_EmissionTex); SAMPLER(sampler_EmissionTex);
+        CBUFFER_START(UnityPerMaterial)
+            float4 _MainTex_ST;
+            float _Cutoff;
+        CBUFFER_END
+        struct A { float4 pos : POSITION; float3 n : NORMAL; float2 uv : TEXCOORD0; float4 color : COLOR; };
+        struct V { float4 cs : SV_POSITION; float2 uv : TEXCOORD0; float3 ws : TEXCOORD1; half3 n : TEXCOORD2; half4 color : COLOR; half fog : TEXCOORD3; };
+        V vert (A a)
         {
-            float t = _Time.y;
-            float3 p = mul(unity_ObjectToWorld, v.vertex).xyz;
-            if (frac(p.y) > 0.5)
+            V o;
+            o.ws = TransformObjectToWorld(a.pos.xyz);
+            // the top of a plant sways (the cell's upper half)
+            if (frac(o.ws.y) > 0.5)
             {
-                float w = sin(t * 1.6 + p.x * 0.7 + p.z * 0.5) + 0.5 * sin(t * 2.7 + p.z * 1.3);
-                v.vertex.x += w * 0.06;
-                v.vertex.z += w * 0.04;
+                float t = _Time.y;
+                float w = sin(t * 1.6 + o.ws.x * 0.7 + o.ws.z * 0.5) + 0.5 * sin(t * 2.7 + o.ws.z * 1.3);
+                o.ws.x += w * 0.06;
+                o.ws.z += w * 0.04;
             }
+            o.cs = TransformWorldToHClip(o.ws);
+            o.n = TransformObjectToWorldNormal(a.n);
+            o.uv = a.uv;
+            o.color = a.color;
+            o.fog = ComputeFogFactor(o.cs.z);
+            return o;
         }
-        void surf (Input IN, inout SurfaceOutput o)
+        half4 Albedo (float2 uv, half4 vc)
         {
-            fixed4 c = tex2D(_MainTex, IN.uv_MainTex);
-            o.Albedo = c.rgb * IN.color.rgb;
-            o.Emission = tex2D(_EmissionTex, IN.uv_MainTex).rgb * (_EM_Emis > 0 ? _EM_Emis : 1); // brighter at night (emisBoost)
-            o.Alpha = c.a;
+            half4 c = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, uv);
+            return half4(c.rgb * vc.rgb, c.a);
         }
-        ENDCG
+        ENDHLSL
+
+        Pass
+        {
+            Name "ForwardLit"
+            Tags { "LightMode"="UniversalForward" }
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+            #pragma multi_compile _ _ADDITIONAL_LIGHTS
+            #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
+            #pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
+            #pragma multi_compile_fog
+            half4 frag (V i, bool front : SV_IsFrontFace) : SV_Target
+            {
+                half4 c = Albedo(i.uv, i.color);
+                clip(c.a - _Cutoff);
+                half3 col = EtherLambert(c.rgb, i.ws, normalize(i.n) * (front ? 1 : -1), i.cs);
+                col += SAMPLE_TEXTURE2D(_EmissionTex, sampler_EmissionTex, i.uv).rgb * (_EM_Emis > 0 ? _EM_Emis : 1);
+                return half4(MixFog(col, i.fog), 1);
+            }
+            ENDHLSL
+        }
+        Pass
+        {
+            Name "ShadowCaster"
+            Tags { "LightMode"="ShadowCaster" }
+            ZWrite On ZTest LEqual ColorMask 0
+            HLSLPROGRAM
+            #pragma vertex sv
+            #pragma fragment sf
+            #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
+            struct SV { float4 cs : SV_POSITION; float2 uv : TEXCOORD0; };
+            SV sv (A a) { SV o; V v = vert(a); float3 ws = v.ws; o.cs = EtherShadowPos(ws, TransformObjectToWorldNormal(a.n)); o.uv = a.uv; return o; }
+            half4 sf (SV i) : SV_Target { clip(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).a - _Cutoff); return 0; }
+            ENDHLSL
+        }
+        Pass
+        {
+            Name "DepthOnly"
+            Tags { "LightMode"="DepthOnly" }
+            ZWrite On ColorMask R
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment df
+            half4 df (V i) : SV_Target { clip(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).a - _Cutoff); return i.cs.z; }
+            ENDHLSL
+        }
+        Pass
+        {
+            Name "DepthNormals"
+            Tags { "LightMode"="DepthNormals" }
+            ZWrite On
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment nf
+            half4 nf (V i) : SV_Target { clip(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).a - _Cutoff); return half4(NormalizeNormalPerPixel(i.n), 0); }
+            ENDHLSL
+        }
     }
-    Fallback "Legacy Shaders/Transparent/Cutout/Diffuse"
 }

@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using EtherMines.Core;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 namespace EtherMines.Game
 {
@@ -39,6 +40,9 @@ namespace EtherMines.Game
             cam.fieldOfView = 60;
             cam.nearClipPlane = 0.01f;
             cam.farClipPlane = 10;
+            // URP: drawn over the main view (a camera stack), its own depth cleared
+            cam.GetUniversalAdditionalCameraData().renderType = CameraRenderType.Overlay;
+            main.GetUniversalAdditionalCameraData().cameraStack.Add(cam);
             pivot = new GameObject("hand").transform;
             pivot.SetParent(cam.transform, false);
             pivot.gameObject.layer = Layer;

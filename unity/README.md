@@ -21,7 +21,10 @@ accounts** as the web version: same Supabase project, same `act_*` functions, sa
   `Resources/mobs.json`) and fighting them (`Combat.cs`), what you hold (`Hand.cs` in first person,
   `HeldModels.cs`: the items' clay models from `Resources/held.json`, blocks meshed by `Mesher`), the
   touch controls (`TouchPad.cs`).
-- `Assets/Resources/Shaders/` — the clay look (blocks, glass, water, plants, sky), built-in render pipeline.
+- `Assets/Resources/Shaders/` — the clay look (blocks, glass, water, plants, sky), on the Universal Render Pipeline
+  (URP, package `com.unity.render-pipelines.universal`): the lit ones share `EtherLit.hlsl` (the web's Lambert,
+  shadows, lamps, SSAO, fog); `Editor/UrpSetup.cs` makes the pipeline asset and its renderer (`Assets/Settings`,
+  menu Ether Mines → Set up URP).
 - `Assets/Resources/Art/` — the web version's own textures, exported by `tools/export-art.mjs`.
 
 ## Coordinates
@@ -98,7 +101,8 @@ vibrator by strength, a gamepad's rumble: a light tap for blocks and the long pr
 guards, heavy when hurt, a pattern for parries, kills and rewards; the window's ≋ button) and notifications
 when you leave the game on a phone (`Notify.cs`, the `com.unity.mobile.notifications` package: the shop's
 new week, your animals' gifts the next day, never at night).
-The glow (`PostGlow.cs` on the camera, `Shaders/Bloom.shader`: the web's UnrealBloomPass settings) and the
+The glow (`PostGlow.cs` on the camera: a global URP volume, Bloom with the web's UnrealBloomPass settings, a
+touch of saturation and vignette; Settings → Ambient occlusion switches URP's SSAO) and the
 little lives (`Effects.cs`: fireflies at night, butterflies by day, petals from the pink trees, and the clay
 break's flash, facets and ether sparks, also on a parry and a dodge). The window's Settings: sound,
 vibrations, glow, fireflies & co.

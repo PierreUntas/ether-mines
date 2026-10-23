@@ -166,7 +166,7 @@ namespace UnityEngine
         public static float fogStartDistance, fogEndDistance, fogDensity;
         public static Rendering.AmbientMode ambientMode; public static Color ambientSkyColor, ambientEquatorColor, ambientGroundColor, ambientLight;
     }
-    public static class QualitySettings { public static float shadowDistance; public static int antiAliasing, shadowCascades, pixelLightCount; public static ShadowQuality shadows; public static ShadowResolution shadowResolution; public static ShadowProjection shadowProjection; public static AnisotropicFiltering anisotropicFiltering; }
+    public static class QualitySettings { public static string[] names; public static Rendering.RenderPipelineAsset renderPipeline; public static int GetQualityLevel() => 0; public static void SetQualityLevel(int i, bool a) { } public static float shadowDistance; public static int antiAliasing, shadowCascades, pixelLightCount; public static ShadowQuality shadows; public static ShadowResolution shadowResolution; public static ShadowProjection shadowProjection; public static AnisotropicFiltering anisotropicFiltering; }
     public enum ShadowQuality { Disable, HardOnly, All }
     public enum ShadowResolution { Low, Medium, High, VeryHigh }
     public enum ShadowProjection { CloseFit, StableFit }
@@ -196,7 +196,8 @@ namespace UnityEngine
         public void SetFloat(string n, float f) { }
     }
     public class TextAsset : Object { public string text; public byte[] bytes; }
-    public static class Resources { public static T Load<T>(string p) where T : Object => null; public static T GetBuiltinResource<T>(string p) where T : Object => null; }
+    public class ScriptableObject : Object { public static T CreateInstance<T>() where T : ScriptableObject => null; public static ScriptableObject CreateInstance(System.Type t) => null; }
+    public static class Resources { public static T[] FindObjectsOfTypeAll<T>() where T : Object => null; public static T Load<T>(string p) where T : Object => null; public static T GetBuiltinResource<T>(string p) where T : Object => null; }
     public class Mesh : Object
     {
         public void MarkDynamic() { } public Bounds bounds;
@@ -224,6 +225,28 @@ namespace UnityEngine.Rendering
     public enum CompareFunction { Disabled, Never, Less, Equal, LessEqual, Greater, NotEqual, GreaterEqual, Always }
     public enum BlendMode { Zero, One, DstColor, SrcColor, OneMinusDstColor, SrcAlpha, OneMinusSrcColor, DstAlpha, OneMinusDstAlpha, SrcAlphaSaturate, OneMinusSrcAlpha }
     public enum AmbientMode { Skybox, Trilight, Flat }
+    public class RenderPipelineAsset : ScriptableObject { }
+    public static class GraphicsSettings { public static RenderPipelineAsset defaultRenderPipeline, currentRenderPipeline; }
+    public class VolumeParameter<T> { public T value; public void Override(T v) { } }
+    public class ClampedFloatParameter : VolumeParameter<float> { }
+    public class MinFloatParameter : VolumeParameter<float> { }
+    public class VolumeComponent : ScriptableObject { public bool active; }
+    public class VolumeProfile : ScriptableObject { public T Add<T>(bool overrides = false) where T : VolumeComponent => null; }
+    public class Volume : MonoBehaviour { public bool isGlobal; public VolumeProfile sharedProfile, profile; public float weight, priority; }
+}
+namespace UnityEngine.Rendering.Universal
+{
+    public enum CameraRenderType { Base, Overlay }
+    public enum CameraOverrideOption { Off, On, UsePipelineSettings }
+    public class UniversalAdditionalCameraData : MonoBehaviour { public CameraRenderType renderType; public System.Collections.Generic.List<Camera> cameraStack; public bool renderPostProcessing, renderShadows; public CameraOverrideOption requiresDepthOption; }
+    public static class CameraExtensions { public static UniversalAdditionalCameraData GetUniversalAdditionalCameraData(this Camera c) => null; }
+    public class ScriptableRendererFeature : ScriptableObject { public void SetActive(bool a) { } }
+    public class ScriptableRendererData : ScriptableObject { public System.Collections.Generic.List<ScriptableRendererFeature> rendererFeatures; public new void SetDirty() { } }
+    public class UniversalRendererData : ScriptableRendererData { }
+    public class UniversalRenderPipelineAsset : RenderPipelineAsset { public float shadowDistance, renderScale; public int shadowCascadeCount, msaaSampleCount; public static UniversalRenderPipelineAsset Create(ScriptableRendererData d = null) => null; }
+    public class Bloom : VolumeComponent { public MinFloatParameter threshold, intensity; public ClampedFloatParameter scatter; }
+    public class ColorAdjustments : VolumeComponent { public ClampedFloatParameter saturation; }
+    public class Vignette : VolumeComponent { public ClampedFloatParameter intensity, smoothness; }
 }
 namespace UnityEngine.Networking
 {
