@@ -70,9 +70,9 @@ namespace EtherMines.Game
             // what glows in the blocks glows brighter at night (emisBoost)
             Shader.SetGlobalFloat("_EM_Emis", 0.6f + Night * 0.8f);
             Sun.transform.rotation = Quaternion.LookRotation(-lightDir);
-            Sun.intensity = dir.y > 0 ? si * 0.95f * 1.25f : 0.12f;
+            Sun.intensity = dir.y > 0 ? si * 0.95f : 0.12f; // as the web (three's legacy lights and Unity's Lambert light alike)
             Sun.color = dir.y > 0 ? Color.Lerp(sunC, Color.white, 0.35f) : C("#9fb0ff");
-            var ambient = Color.Lerp(hor, Color.white, 0.45f) * amb * 1.6f;
+            var ambient = Color.Lerp(hor, Color.white, 0.45f) * amb * 1.15f; // a touch over the web's hemi: Unity's trilight is softer on the sides
             if (Vision > 0) { var day = new Color(1.3f, 1.3f, 1.35f); if (day.grayscale > ambient.grayscale) ambient = Color.Lerp(ambient, day, Vision * 0.8f); }
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = ambient;

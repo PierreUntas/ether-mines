@@ -267,10 +267,10 @@ namespace EtherMines.Game
                 GUI.Label(new Rect(L + 34, T, cw - 36, 32), clock, lbl);
                 // where you are, and the compass strip under it
                 float bw = Mathf.Max(170, Width(mono, posLine ?? "") + 20);
-                Ui.Chip(new Rect(L, T + 40, bw, 52));
+                Ui.Chip(new Rect(L, T + 40, bw, 64));
                 GUI.Label(new Rect(L, T + 42, bw, 20), posLine, new GUIStyle(mono) { alignment = TextAnchor.MiddleCenter });
                 Compass(new Rect(L + (bw - 150) / 2, T + 66, 150, 18), b);
-                float y = T + 100;
+                float y = T + 112;
                 // the players online (the game server's word)
                 var on = Online();
                 if (!string.IsNullOrEmpty(on))
@@ -417,7 +417,8 @@ namespace EtherMines.Game
             // the middle mark
             Ui.Fill(new Rect(r.x + r.width / 2 - 1, r.y + 1, 2, 4), Ui.Gold);
             var o = GUI.color;
-            void Mark(float bearing, string text, Color c, int size)
+            // the directions on the strip, the places (one glyph each, as the web's ⌂ ⚔) on a row below it
+            void Mark(float bearing, string text, Color c, int size, float dy = 2)
             {
                 float rel = Mathf.Atan2(Mathf.Sin(bearing - heading), Mathf.Cos(bearing - heading));
                 if (Mathf.Abs(rel) > fov / 2) return;
@@ -426,15 +427,15 @@ namespace EtherMines.Game
                 st.normal.textColor = c;
                 float w = Width(st, text);
                 GUI.color = new Color(1, 1, 1, 1 - Mathf.Pow(Mathf.Abs(rel) / (fov / 2), 3));
-                GUI.Label(new Rect(x - w / 2, r.y + 2, w, r.height - 2), text, st);
+                GUI.Label(new Rect(x - w / 2, r.y + dy, w, r.height - 2), text, st);
             }
             string[] dirs = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
             for (int i = 0; i < 8; i++) Mark(i * Mathf.PI / 4, dirs[i], i == 0 ? Ui.Gold : i % 2 == 0 ? Ui.Paper : Ui.Muted, i % 2 == 0 ? 11 : 9);
             float Bear(float x, float z) => Mathf.Atan2((float)(x - b.X), -(float)(z - b.Z));
             int spx = EtherMines.Core.World.SPAWN.X, spz = EtherMines.Core.World.SPAWN.Z;
-            if (EtherMines.Core.World.Hypot(spx - b.X, spz - b.Z) >= 6) Mark(Bear(spx + 0.5f, spz + 0.5f), "Atrium", Ui.Mint, 9);
-            if (arena != null && arena.Value.d <= 400 && arena.Value.d >= EtherMines.Core.World.ARENA_W) Mark(Bear(arena.Value.x, arena.Value.z), $"Mempool {Math.Round(arena.Value.d)} m", new Color(1, 0.62f, 0.78f), 9);
-            if (goal != null) Mark(Bear(goal.Value.x, goal.Value.z), $"• {goal.Value.label} {Math.Round(EtherMines.Core.World.Hypot(goal.Value.x - b.X, goal.Value.z - b.Z))} m", Ui.Cyan, 9);
+            if (EtherMines.Core.World.Hypot(spx - b.X, spz - b.Z) >= 6) Mark(Bear(spx + 0.5f, spz + 0.5f), "⌂", Ui.Mint, 12, 15);
+            if (arena != null && arena.Value.d <= 400 && arena.Value.d >= EtherMines.Core.World.ARENA_W) Mark(Bear(arena.Value.x, arena.Value.z), "⚔", new Color(1, 0.62f, 0.78f), 12, 15);
+            if (goal != null) Mark(Bear(goal.Value.x, goal.Value.z), "◆", Ui.Cyan, 11, 15); // its name and distance are in the objective chip
             GUI.color = o;
         }
     }
