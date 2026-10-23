@@ -2,7 +2,8 @@
 // every Unity player of a world since it follows the world's own clock (Sky.DayN). Rain in the plains and
 // forests, snow up high or on snow, none over the dunes. The sky greys, the fog closes in, the sun dims;
 // drops stop on the first roof above them; a soft hiss, and now and then distant thunder. Nothing about
-// the game changes. Settings → Weather turns it off.
+// the game changes, but the ground stays wet a while after rain and snow settles (EtherLit.hlsl). Settings →
+// Weather turns it off.
 using System;
 using EtherMines.Core;
 using UnityEngine;
@@ -21,6 +22,8 @@ namespace EtherMines.Game
 
         // how much it rains (or snows) here, now: 0..1 (Sky and Effects read it)
         public static float Rain, Snow;
+        // what the weather leaves on the ground (EtherLit.hlsl): wet for a while after rain, snow that settles and melts
+        public static float Wet, Cover;
         static readonly System.Random rnd = new System.Random();
         static float R() => (float)rnd.NextDouble();
 
@@ -100,6 +103,12 @@ namespace EtherMines.Game
             Rain = cold ? 0 : k;
             Snow = cold ? k : 0;
             Shader.SetGlobalFloat("_EM_WindK", 1 + k * 0.9f); // a shower blows harder in the trees (EtherLit.hlsl)
+            // the ground gets wet in about 20 s of rain and dries in about a minute; snow settles in 40 s, melts in 90
+            Wet += (Rain > Wet ? (Rain - Wet) * dt / 20 : (Rain - Wet) * dt / 60);
+            Cover += (Snow > Cover ? (Snow - Cover) * dt / 40 : (Snow - Cover) * dt / 90);
+            if (!On) { Wet = 0; Cover = 0; }
+            float open = 1 - Sky.Cave; // not in a cave
+            Shader.SetGlobalVector("_EM_Weather", new Vector4(Mathf.Clamp01(Wet) * open, Mathf.Clamp01(Cover) * open, EtherMines.Core.World.SEA + 0.95f, 0));
             hiss.volume = Rain * 0.35f * (Sounds.On ? 1 : 0);
             if (Rain > 0.02f && !hiss.isPlaying) hiss.Play();
             else if (Rain <= 0.02f && hiss.isPlaying) hiss.Stop();

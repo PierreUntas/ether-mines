@@ -48,14 +48,42 @@ half EtherCloudShade(float3 posWS)
     return 1 - a * _EM_Cloud.z;
 }
 
+// ---------- the weather on the ground, and the light under the sea (Unity only) ----------
+// Weather.cs: after a while of rain the tops of things darken and shine, more in the puddles; snow settles
+// on them; both fade out again afterwards. Under the sea, the sunlight through the waves dances on the floor.
+float4 _EM_Weather;  // x: how wet, y: how much snow has settled, z: the sea's surface
+half3 EtherCaustics(float3 posWS)
+{
+    float below = _EM_Weather.z - posWS.y;
+    if (below <= 0) return 0;
+    float t = _Time.y;
+    float2 p = posWS.xz;
+    float a = sin(p.x * 1.3 + sin(p.y * 0.9 + t * 0.9) * 1.3 + t * 0.7);
+    float b = sin(p.y * 1.4 + sin(p.x * 1.1 - t * 0.8) * 1.3 - t * 0.6);
+    float c = pow(saturate(1 - abs(a * b)), 7);
+    return c * 0.7 * saturate(below * 2) * (1 - saturate(below / 12));
+}
+
 // diffuse light on a surface of this color (three's MeshLambertMaterial, as Unity's Lambert did): the sky's
 // ambient from the light probe (Sky.cs sets the trilight), the sun and its shadows, every other light near
 half3 EtherLambert(half3 albedo, float3 posWS, half3 nWS, float4 posCS)
 {
     float4 shadowCoord = TransformWorldToShadowCoord(posWS);
     Light sun = GetMainLight(shadowCoord);
+    half sunVis = sun.shadowAttenuation * sun.distanceAttenuation * EtherCloudShade(posWS);
+    // the weather on what faces the sky
+    half wet = 0, puddle = 0;
+    if (_EM_Weather.x + _EM_Weather.y > 0.001)
+    {
+        half up = saturate(nWS.y);
+        puddle = smoothstep(0.35, 0.75, SAMPLE_TEXTURE2D_LOD(_EM_Clouds, sampler_EM_Clouds, posWS.xz / 23.0, 0).a);
+        wet = _EM_Weather.x * up;
+        albedo *= 1 - wet * (0.22 + 0.14 * puddle);
+        albedo = lerp(albedo, half3(0.93, 0.95, 1.0), _EM_Weather.y * smoothstep(0.55, 0.9, nWS.y) * 0.85);
+    }
     half3 ambient = SampleSH(nWS);
-    half3 direct = sun.color * (sun.shadowAttenuation * sun.distanceAttenuation) * saturate(dot(nWS, sun.direction)) * EtherCloudShade(posWS);
+    half3 direct = sun.color * sunVis * saturate(dot(nWS, sun.direction));
+    direct *= 1 + EtherCaustics(posWS);
 #if defined(_SCREEN_SPACE_OCCLUSION)
     AmbientOcclusionFactor ao = GetScreenSpaceAmbientOcclusion(GetNormalizedScreenSpaceUV(posCS));
     ambient *= ao.indirectAmbientOcclusion;
@@ -70,7 +98,14 @@ half3 EtherLambert(half3 albedo, float3 posWS, half3 nWS, float4 posCS)
         lit += l.color * (l.distanceAttenuation * l.shadowAttenuation) * saturate(dot(nWS, l.direction));
     }
 #endif
-    return albedo * lit;
+    half3 shine = 0;
+    if (wet > 0.001)
+    {
+        float3 v = normalize(GetCameraPositionWS() - posWS);
+        float3 hv = normalize(sun.direction + v);
+        shine = sun.color * sunVis * pow(saturate(dot(nWS, hv)), 80.0) * wet * (0.3 + 0.9 * puddle) * 1.4;
+    }
+    return albedo * lit + shine;
 }
 
 // ---------- the haze and the sun's rays (Unity only) ----------
