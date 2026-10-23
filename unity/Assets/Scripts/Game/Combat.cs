@@ -23,7 +23,8 @@ namespace EtherMines.Game
 
         public int Hp = 10;
         const float Reach = 5.2f, BoltSpeed = 28, BoltLife = 1.6f;
-        float atkT, rangedT, hurtFlash, shieldTold = -99, parryTold, guardFlash;
+        float atkT, rangedT, hurtFlash, shieldTold = -99, parryTold, guardFlash, strikeBuf, guardK, hurtK;
+        bool wasClicking;
         string guardWord;
         bool pvpStruck, guard;
         int fq; string fx;
@@ -72,6 +73,10 @@ namespace EtherMines.Game
         public bool Fight(bool clicking, bool rightHeld, Vector3 eye, Vector3 dir, float blockDist, float reach = Reach)
         {
             if (!clicking) pvpStruck = false;
+            // a click a little early still strikes once the blow before it is done (STRIKE.buf: 0.3 s)
+            if (clicking && !wasClicking) strikeBuf = 0.3f;
+            wasClicking = clicking;
+            bool fight = clicking || strikeBuf > 0;
             bool blade = IsBlade(Held) && !(Hover != null && Hover.Aboard);
             bool g = rightHeld && blade;
             if (g != guard)
@@ -82,17 +87,17 @@ namespace EtherMines.Game
             if (guard) return true;
             if (IsRanged(Held))
             {
-                if (clicking && rangedT <= 0) Fire(eye, dir);
+                if (fight && rangedT <= 0) { Fire(eye, dir); strikeBuf = 0; }
                 return clicking; // the pistol fires instead of mining
             }
             if (Hover != null && Hover.Aboard) return false; // both hands on the craft
             // a mob, a player or an animal under the crosshair takes the click (10-loop.js: only while you
             // click; otherwise the right button still pets, places, opens as usual)
-            if (!clicking) return false;
+            if (!fight) return false;
             var mob = Mobs.Pick(eye, dir, reach, blockDist);
             if (mob != null)
             {
-                if (atkT <= 0) Strike(mob, HeldDmg, Player.Body.X, Player.Body.Z, HeldWeapon);
+                if (atkT <= 0) { Strike(mob, HeldDmg, Player.Body.X, Player.Body.Z, HeldWeapon); strikeBuf = 0; }
                 return true;
             }
             if (!Interaction.Sanctuary(Player.Body.X, Player.Body.Z))
@@ -103,6 +108,7 @@ namespace EtherMines.Game
                     if (atkT <= 0 && !pvpStruck)
                     {
                         pvpStruck = true;
+                        strikeBuf = 0;
                         atkT = 0.45f;
                         Act.Swing = Mathf.Max(Act.Swing, 0.6f);
                         Link.Send(new Dictionary<string, object> { ["t"] = "hit", ["to"] = who, ["item"] = HeldWeapon });
@@ -117,6 +123,7 @@ namespace EtherMines.Game
                 if (atkT <= 0)
                 {
                     atkT = 0.45f;
+                    strikeBuf = 0;
                     Act.Swing = Mathf.Max(Act.Swing, 0.6f);
                     Animals.Strike(an, HeldDmg);
                 }
@@ -188,6 +195,10 @@ namespace EtherMines.Game
             atkT = Mathf.Max(0, atkT - dt);
             rangedT = Mathf.Max(0, rangedT - dt);
             hurtFlash = Mathf.Max(0, hurtFlash - dt);
+            strikeBuf = Mathf.Max(0, strikeBuf - dt);
+            // the screen's edge: cyan while the blade is up, red for a moment when a blow lands (0.15 s fades)
+            guardK = Mathf.MoveTowards(guardK, guard ? 1 : 0, dt / 0.15f);
+            hurtK = Mathf.MoveTowards(hurtK, hurtFlash > 0 ? 1 : 0, dt / 0.15f);
             guardFlash = Mathf.Max(0, guardFlash - dt);
             for (int i = bolts.Count - 1; i >= 0; i--)
             {
@@ -294,7 +305,7 @@ namespace EtherMines.Game
         void Hurt(Dictionary<string, object> m)
         {
             var res = m.TryGetValue("res", out var r) ? r as string : "hit";
-            if (res == "parry" || res == "block") Sounds.Hit("stone"); else Sounds.Hurt();
+            if (res == "parry" || res == "block") { Sounds.Hit("stone"); if (res == "parry") Sounds.Click(); } else Sounds.Hurt();
             Haptics.Play(res == "parry" ? Haptics.Kind.Success : res == "block" ? Haptics.Kind.Medium : Haptics.Kind.Heavy);
             if (res == "parry" || res == "block")
             {
@@ -329,7 +340,7 @@ namespace EtherMines.Game
             Hp = Mathf.Clamp(MiniJson.ToInt(m["hp"]), 0, 10);
             bool blocked = res == "block";
             fx = blocked ? "block" : "hurt"; fq = (fq + 1) & 0xffff;
-            hurtFlash = 0.25f;
+            hurtFlash = 0.22f;
             // knocked back, away from the blow
             var b = Player.Body;
             double dx = b.X - F(m, "x"), dz = b.Z - F(m, "z"), dd = Math.Sqrt(dx * dx + dz * dz);
@@ -364,9 +375,59 @@ namespace EtherMines.Game
                 if (r.TryGetValue(key, out var u) && u is Dictionary<string, object> uq)
                 {
                     int uid = MiniJson.ToInt(uq.TryGetValue("id", out var ui) ? ui : null);
-                    Hud.Feed("nft", Interaction.NameOf(uid) + " earned", key == "bonus" ? "bonus drop!" : "a boss's trophy");
+                    string n = Interaction.NameOf(uid);
+                    if (key == "bonus") Hud.Feed("nft", $"Bonus drop: {n}!", "");
+                    else Hud.Feed("nft", BossToast(uid, n), "");
                     _ = Session.LoadInventory();
                 }
+            // a combat trophy (a cosmetic, 041_game_server.sql: about 3% of ordinary mobs, 8% of corrupted nodes)
+            if (r.TryGetValue("cosmetic", out var cv) && cv != null)
+            {
+                int cid = MiniJson.ToInt(cv);
+                var prog = GetComponent<Progress>();
+                if (prog != null && !prog.Cosmetics.Contains(cid)) prog.Cosmetics.Add(cid);
+                string cn = Rules.Cosmetics.TryGetValue(cid, out var co) ? co.N : "A trophy";
+                Hud.Feed("nft", $"{cn} earned — a combat trophy, check the Shop tab", "");
+            }
+        }
+
+        // a boss's trophy, said as the web says it (BOSS_TOAST)
+        static string BossToast(int id, string n) => id switch
+        {
+            205 => $"The Genesis Titan falls! {n} earned — a cape of its own hide. Hold jump while falling to glide.",
+            206 => $"The Plasma Core shatters! {n} earned — hold it and click to fire.",
+            209 => $"The Merge is complete! {n} earned — equip it from your chest to shrug off most of a hit.",
+            211 => $"The Front-Runner is outrun! {n} earned — wear them from your chest: faster on your feet, and Q to dodge.",
+            _ => $"{n} earned",
+        };
+
+        // the screen's edges (#vignette): a soft dark rim always, cyan while guarding, red when a blow lands
+        static Texture2D vRest, vGuard, vHurt;
+        static Texture2D Vignette(Color inner, float from, Color outer)
+        {
+            var t = new Texture2D(64, 64, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            for (int y = 0; y < 64; y++)
+                for (int x = 0; x < 64; x++)
+                {
+                    // CSS's ellipse at center: 100% at the corners
+                    float dx = (x + 0.5f) / 32f - 1, dy = (y + 0.5f) / 32f - 1, r = Mathf.Sqrt(dx * dx + dy * dy) / Mathf.Sqrt(2);
+                    t.SetPixel(x, y, Color.Lerp(inner, outer, Mathf.Clamp01((r - from) / (1 - from))));
+                }
+            t.Apply();
+            return t;
+        }
+        void DrawVignettes(float W, float H)
+        {
+            vRest ??= Vignette(new Color(20 / 255f, 12 / 255f, 48 / 255f, 0), 0.55f, new Color(20 / 255f, 12 / 255f, 48 / 255f, 0.28f));
+            vGuard ??= Vignette(new Color(127 / 255f, 232 / 255f, 1, 0), 0.5f, new Color(127 / 255f, 232 / 255f, 1, 0.22f));
+            vHurt ??= Vignette(new Color(1, 60 / 255f, 80 / 255f, 0.05f), 0.45f, new Color(1, 40 / 255f, 70 / 255f, 0.6f));
+            var o = GUI.color;
+            var full = new Rect(0, 0, W, H);
+            GUI.color = new Color(1, 1, 1, 1 - Mathf.Max(guardK, hurtK));
+            GUI.DrawTexture(full, vRest);
+            if (guardK > 0 && hurtK < 1) { GUI.color = new Color(1, 1, 1, guardK * (1 - hurtK)); GUI.DrawTexture(full, vGuard); }
+            if (hurtK > 0) { GUI.color = new Color(1, 1, 1, hurtK); GUI.DrawTexture(full, vHurt); }
+            GUI.color = o;
         }
 
         // your hearts, over the bar; a red flash when a blow lands
@@ -374,6 +435,7 @@ namespace EtherMines.Game
         {
             Ui.Begin();
             if (Ui.Cine) return; // a cinematic: the screen is the film's
+            DrawVignettes(Ui.W, Ui.H);
             if (!Link.HpServer) return;
             if (heart == null) heart = new GUIStyle(GUI.skin.label) { fontSize = 22, alignment = TextAnchor.MiddleCenter };
             float W = Ui.W, H = Ui.H, s = 24, x0 = W / 2 - 5 * s, y = H - 54 - 16 - 40;
@@ -391,13 +453,6 @@ namespace EtherMines.Game
                 GUI.color = guardWord == "Parried!" ? new Color(0.62f, 0.89f, 1f, Mathf.Clamp01(guardFlash * 2)) : new Color(1, 1, 1, Mathf.Clamp01(guardFlash * 2));
                 var st = new GUIStyle(heart) { fontSize = 20, fontStyle = FontStyle.Bold };
                 GUI.Label(new Rect(W / 2 - 100, H / 2 + 28, 200, 28), guardWord, st);
-                GUI.color = o;
-            }
-            if (hurtFlash > 0)
-            {
-                var o = GUI.color;
-                GUI.color = new Color(1, 0.1f, 0.2f, hurtFlash);
-                GUI.DrawTexture(new Rect(0, 0, W, H), Texture2D.whiteTexture);
                 GUI.color = o;
             }
         }
