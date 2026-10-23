@@ -16,7 +16,7 @@ TEXTURE2D(_EM_WindMask); SAMPLER(sampler_EM_WindMask); // the atlas's tiles that
 float _EM_WindK;
 float3 EtherWind(float3 ws, float amount)
 {
-    float t = _Time.y;
+    float t = _Time.y * 0.6; // a slow, calm wind
     float gust = 0.55 + 0.45 * sin(t * 0.37 + ws.x * 0.045 + ws.z * 0.031);
     float sway = sin(t * 1.6 + ws.x * 0.55 + ws.z * 0.4) + 0.45 * sin(t * 2.9 + ws.z * 1.1 - ws.x * 0.35);
     float flutter = sin(t * 7.3 + ws.x * 2.1 + ws.y * 1.7 + ws.z * 1.9);
