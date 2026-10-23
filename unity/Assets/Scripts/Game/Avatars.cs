@@ -17,6 +17,8 @@ namespace EtherMines.Game
         public Func<Dictionary<string, int>> MyLook = () => new Dictionary<string, int>();
         public Func<string> MyTitle = () => "";
         public Func<int> MyArmor = () => 0;      // the plating you wear
+        public Func<bool> MyGuard = () => false;
+        public WorldView World; // the blocks around a figure (in water, on a ladder)
         public Func<bool> MyBoots = () => false, MyCape = () => false; // the Front-Runner Boots on, the Titan's cape owned
         public Func<int> MyRide = () => 0;       // the craft you ride (Hover draws it)
         public Func<string> MyOn = () => null;   // the driver whose back seat you're in
@@ -30,7 +32,10 @@ namespace EtherMines.Game
             public Transform Head, Body, LegL, LegR, ArmL, ArmR;
             public Vector3 Target; // game coordinates
             public double Yaw, TYaw, Pitch;
-            public bool Mining, Seen;
+            public bool Mining, Seen, Guard;
+            // the poses' own state (movePose, poseArms): vertical speed, how far into the air, the water, a ladder
+            public float Vy, LastY = float.NaN, AirK, SwimK, ClimbK, Land, FallV, Stroke, Climb, GuardK;
+            public bool WasAir;
             public int Held, ShownHeld = -1; // the tool or weapon in their right hand (`h`), and the one drawn
             public GameObject HeldObj;
             public float HeardAt, Walk, Phase;
@@ -153,7 +158,7 @@ namespace EtherMines.Game
             foreach (var k in gone) { Drop(figs[k]); figs.Remove(k); }
         }
 
-        public void Heard(string id, string name, string color, double x, double y, double z, double yaw, double pitch, bool mining, bool live = true, int held = 0, int armor = 0, bool boots = false, int ride = 0, string on = null)
+        public void Heard(string id, string name, string color, double x, double y, double z, double yaw, double pitch, bool mining, bool live = true, int held = 0, int armor = 0, bool boots = false, int ride = 0, string on = null, bool guard = false)
         {
             if (!figs.TryGetValue(id, out var f) || f.Color != color || f.Name != name)
             {
@@ -163,7 +168,7 @@ namespace EtherMines.Game
                 if (keep != null) { f.Look = keep.Look; f.Title = keep.Title; }
             }
             f.Target = new Vector3((float)x, (float)y, (float)z);
-            if (live) { f.TYaw = yaw; f.Pitch = pitch; f.Mining = mining; f.HeardAt = Time.time; f.Held = held; f.Armor = armor; f.Boots = boots; f.Ride = ride; f.On = on; }
+            if (live) { f.TYaw = yaw; f.Pitch = pitch; f.Mining = mining; f.Guard = guard; f.HeardAt = Time.time; f.Held = held; f.Armor = armor; f.Boots = boots; f.Ride = ride; f.On = on; }
             if (!f.Seen) { f.Seen = true; f.Pos = f.Target; f.Yaw = f.TYaw; f.HeardAt = Time.time; }
         }
 
@@ -191,6 +196,7 @@ namespace EtherMines.Game
 
         void Update()
         {
+            worldRef = World;
             float dt = Time.deltaTime;
             foreach (var f in figs.Values)
             {
@@ -220,6 +226,7 @@ namespace EtherMines.Game
                     me.Target = Player.GamePos;
                     me.TYaw = Player.Yaw; me.Pitch = Player.Pitch;
                     me.Mining = Act != null && Act.Swing > 0;
+                    me.Guard = MyGuard();
                     int h = Act != null && Act.Inv.Held != null ? Act.Inv.HeldId : 0;
                     me.Held = h > 0 && EtherMines.Core.Rules.Block(h) == null ? h : 0;
                     if (!me.Seen) { me.Seen = true; me.Pos = me.Target; me.Yaw = me.TYaw; }
@@ -532,6 +539,12 @@ namespace EtherMines.Game
             return lifts[id] = Mathf.Max(0, Hover.Gap + seat - 0.47f + 0.04f);
         }
 
+        // a block near a figure (game coordinates)
+        static WorldView worldRef;
+        static int At(Vector3 p, float dy) => worldRef == null ? 0 : worldRef.Get((int)Math.Floor(p.x), (int)Math.Floor(p.y + dy), (int)Math.Floor(p.z));
+        static bool LadderAt(Vector3 p, float dy) { var b = EtherMines.Core.Rules.Block(At(p, dy)); return b != null && b.Shape == "ladder"; }
+        static float R(float web) => web * Mathf.Rad2Deg; // the web's radians to degrees (x is negated by the caller: Unity mirrors z)
+
         static void Animate(Fig f, float dt, float k)
         {
             HoldIn(f);
@@ -544,19 +557,67 @@ namespace EtherMines.Game
             f.Root.transform.SetPositionAndRotation(View(f.Pos) + Vector3.up * (f.Ride > 0 ? f.Lift : f.Behind ? f.BehindLift : 0), Quaternion.Euler(0, (float)(-f.Yaw * Mathf.Rad2Deg), 0));
             float sp = new Vector2(d.x, d.z).magnitude * k / Mathf.Max(dt, 0.001f);
             f.Walk += Mathf.Min(sp, 8) * dt * 1.6f;
-            float mv = Mathf.Min(1, sp / 2), a = mv * Mathf.Sin(f.Walk) * 0.7f * Mathf.Rad2Deg;
-            f.LegL.localRotation = Quaternion.Euler(-a, 0, 0);
-            f.LegR.localRotation = Quaternion.Euler(a, 0, 0);
-            f.ArmL.localRotation = Quaternion.Euler(a * 0.8f, 0, 0);
-            // swinging (mining, striking): a blow every 0.45 s, the right arm raised forward and brought down
-            float sw = f.Mining ? Mathf.Max(0, 0.6f - (Time.time / 0.45f % 1) * 1.35f) : 0;
-            f.ArmR.localRotation = Quaternion.Euler(f.Mining ? -(70 + sw * 80) : -a * 0.8f, 0, 0);
+            float mv = Mathf.Min(1, sp / 2), a = mv * Mathf.Sin(f.Walk) * 0.7f;
             f.Phase += dt;
-            float br = Mathf.Sin(f.Phase * 2.2f), hop = Mathf.Abs(Mathf.Sin(f.Walk)) * 0.07f * mv;
-            f.Body.localPosition = new Vector3(0, 0.74f + hop, 0);
-            f.Head.localPosition = new Vector3(0, 1.32f + hop + br * 0.012f, 0);
+            float br = Mathf.Sin(f.Phase * 2.2f), hop = Mathf.Abs(Mathf.Sin(f.Walk)) * 0.07f * mv, idle = br * 0.03f * (1 - mv);
+            // the arms (poseArms), in the web's radians: the guard raises the blade across, a blow thrusts it forward
+            float up = Mathf.Clamp((float)f.Pitch, -0.6f, 0.8f);
+            float rx = a, rz = 0.06f + idle, lx = -a, lz = -0.06f - idle, tw = 0;
+            f.GuardK += ((f.Guard ? 1 : 0) - f.GuardK) * Mathf.Min(1, dt * 14);
+            float g = f.GuardK;
+            rx = (1.25f + up * 0.5f) * g + rx * (1 - g); rz = -0.45f * g + rz * (1 - g); lx *= 1 - g; lz = lz * (1 - g) - 0.04f * g; tw = 0.12f * g;
+            float sw = f.Mining ? Mathf.Max(0, 0.6f - (Time.time / 0.45f % 1) * 1.35f) : 0;
+            float s = sw > 0 ? Mathf.Min(1, Mathf.Sin((1 - sw) * Mathf.PI) * sw / 0.57f) : 0;
+            rx += (1.55f + up - rx) * s; rz += (-0.28f - rz) * s; tw += (-0.3f - tw) * s;
+            float legL = a, legR = -a;
+            // how they move (movePose): in the air, landing, swimming, on a ladder, leaning into a run
+            if (dt > 0 && !float.IsNaN(f.LastY)) f.Vy += ((f.Pos.y - f.LastY) / dt - f.Vy) * Mathf.Min(1, dt * 12);
+            f.LastY = f.Pos.y;
+            bool riding = f.Ride > 0 || f.Behind;
+            bool water = At(f.Pos, 0.5f) == 11, ladder = !water && (LadderAt(f.Pos, 0.2f) || LadderAt(f.Pos, 1.2f)), air = !water && !ladder && !riding && Mathf.Abs(f.Vy) > 1.6f;
+            if (air) f.FallV = Mathf.Min(f.FallV, f.Vy);
+            else { if (f.WasAir && f.FallV < -6) f.Land = 1; f.FallV = 0; }
+            f.WasAir = air;
+            f.Land = Mathf.Max(0, f.Land - dt * 5);
+            float dip = 0.13f * Mathf.Sin(f.Land * Mathf.PI);
+            f.AirK += ((air ? 1 : 0) - f.AirK) * Mathf.Min(1, dt * 10);
+            f.ClimbK += ((ladder ? 1 : 0) - f.ClimbK) * Mathf.Min(1, dt * 10);
+            f.SwimK += ((water ? 1 : 0) - f.SwimK) * Mathf.Min(1, dt * 6);
+            float run = Mathf.Clamp01((sp - 4.2f) / 2) * (1 - f.SwimK) * (1 - f.ClimbK);
+            float lean = -0.14f * run - 0.55f * f.SwimK * Mathf.Min(1, sp / 1.5f);
+            bool busy = f.Mining || f.Guard;
+            if (!riding)
+            {
+                float ak = f.AirK;
+                legL = legL * (1 - ak) - 0.45f * ak; legR = legR * (1 - ak) + 0.25f * ak;
+                if (!busy) { rz = rz * (1 - ak) - 0.5f * ak; lz = lz * (1 - ak) + 0.5f * ak; rx = rx * (1 - ak) + 0.35f * ak; lx = lx * (1 - ak) + 0.35f * ak; }
+                if (f.SwimK > 0.01f)
+                {
+                    f.Stroke += dt * (2.2f + Mathf.Min(sp, 4) * 0.8f);
+                    float wk = f.SwimK, st = Mathf.Sin(f.Stroke);
+                    legL = legL * (1 - wk) + Mathf.Sin(f.Stroke * 3) * 0.3f * wk; legR = legR * (1 - wk) - Mathf.Sin(f.Stroke * 3) * 0.3f * wk;
+                    if (!busy) { rx = rx * (1 - wk) + (1.6f + 1.6f * st) * wk; lx = lx * (1 - wk) + (1.6f - 1.6f * st) * wk; }
+                }
+                if (f.ClimbK > 0.01f)
+                {
+                    f.Climb += dt * Mathf.Min(Mathf.Abs(f.Vy), 5) * 2.4f;
+                    float ck = f.ClimbK, cl = Mathf.Sin(f.Climb);
+                    legL = legL * (1 - ck) + 0.5f * cl * ck; legR = legR * (1 - ck) - 0.5f * cl * ck;
+                    if (!busy) { rx = rx * (1 - ck) + (2.7f + 0.35f * cl) * ck; lx = lx * (1 - ck) + (2.7f - 0.35f * cl) * ck; rz = rz * (1 - ck) - 0.1f * ck; lz = lz * (1 - ck) + 0.1f * ck; }
+                }
+            }
+            f.Root.transform.rotation = Quaternion.Euler(0, (float)(-f.Yaw * Mathf.Rad2Deg), 0) * Quaternion.Euler(riding ? 0 : -R(lean), 0, 0);
+            f.LegL.localRotation = Quaternion.Euler(-R(legL), 0, 0);
+            f.LegR.localRotation = Quaternion.Euler(-R(legR), 0, 0);
+            f.ArmR.localRotation = Quaternion.Euler(-R(rx), 0, R(rz));
+            f.ArmL.localRotation = Quaternion.Euler(-R(lx), 0, R(lz));
+            // breathing: the body swells a little, the head and arms ride on it; a landing dips them
+            f.Body.localPosition = new Vector3(0, 0.74f + hop - dip, 0);
+            f.Body.localScale = new Vector3(1 + br * 0.02f, 1 + br * 0.012f, 1 + br * 0.035f);
+            f.Body.localRotation = Quaternion.Euler(0, -R(tw), 0);
+            f.Head.localPosition = new Vector3(0, 1.32f + hop + br * 0.012f - dip, 0);
             f.Head.localRotation = Quaternion.Euler((float)(-f.Pitch * 0.6 * Mathf.Rad2Deg), 0, Mathf.Sin(f.Walk) * 0.06f * mv * Mathf.Rad2Deg);
-            if (f.Ride > 0 || f.Behind)
+            if (riding)
             {
                 // seated (sitAvatar): knees forward, both hands forward on the controls, still
                 f.LegL.localRotation = f.LegR.localRotation = Quaternion.Euler(-1.45f * Mathf.Rad2Deg, 0, 0);

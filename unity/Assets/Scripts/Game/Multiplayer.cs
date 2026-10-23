@@ -81,6 +81,8 @@ namespace EtherMines.Game
             if (animals != null) { animals.Link = link; animals.Combat = combat; combat.Animals = animals; }
             avatars.MyArmor = () => combat.Armor;
             avatars.MyBoots = () => combat.Boots;
+            avatars.MyGuard = () => combat.Guarding;
+            avatars.World = World;
             avatars.MyCape = () => Session.Inv.Uniques.Exists(u => u.Id == 205);
             var hand = GetComponent<Hand>();
             if (hand != null) hand.Combat = combat;
@@ -97,7 +99,7 @@ namespace EtherMines.Game
                 names.Clear();
                 foreach (var p in list) if (p.Id != link.SelfId) names.Add(p.Name);
             };
-            link.Pos += m => { if (m.Id != link.SelfId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride, m.On); };
+            link.Pos += m => { if (m.Id != link.SelfId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride, m.On, m.Guard); };
 
             signs = gameObject.AddComponent<Signs>();
             signs.Session = Session;
