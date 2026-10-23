@@ -247,6 +247,9 @@ namespace UnityEngine.Rendering.Universal
     public class UniversalRenderPipelineAsset : RenderPipelineAsset { public float shadowDistance, renderScale; public int shadowCascadeCount, msaaSampleCount; public static UniversalRenderPipelineAsset Create(ScriptableRendererData d = null) => null; }
     public class Bloom : VolumeComponent { public MinFloatParameter threshold, intensity; public ClampedFloatParameter scatter; }
     public class ColorAdjustments : VolumeComponent { public ClampedFloatParameter saturation; }
+    public enum MotionBlurQuality { Low, Medium, High }
+    public class MotionBlurQualityParameter : VolumeParameter<MotionBlurQuality> { }
+    public class MotionBlur : VolumeComponent { public MotionBlurQualityParameter quality; public ClampedFloatParameter intensity, clamp; }
     public class Vignette : VolumeComponent { public ClampedFloatParameter intensity, smoothness; }
 }
 namespace UnityEngine.Networking

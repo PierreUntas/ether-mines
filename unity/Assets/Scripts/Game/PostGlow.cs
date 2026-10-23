@@ -2,7 +2,8 @@
 // lanterns, lamps, ether ore, neon, the sun on the clouds bleed a soft light around them, as three's
 // UnrealBloomPass does on the web (threshold, strength, radius); the colors a touch richer and the corners a
 // touch darker, as the old grade did. A global URP volume made here, with its Bloom, Color Adjustments and
-// Vignette; the camera renders it. Settings → Ambient occlusion turns URP's SSAO (UrpSetup.cs) on or off.
+// Vignette, and a light motion blur when the view turns fast; the camera renders it. Settings → Ambient
+// occlusion turns URP's SSAO (UrpSetup.cs) on or off; Sun rays and Motion blur, theirs.
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -11,18 +12,21 @@ namespace EtherMines.Game
 {
     public sealed class PostGlow : MonoBehaviour
     {
-        const string Key = "ether-mines:glow", AoKey = "ether-mines:ao", RaysKey = "ether-mines:rays";
+        const string Key = "ether-mines:glow", AoKey = "ether-mines:ao", RaysKey = "ether-mines:rays", BlurKey = "ether-mines:blur";
         public static bool On { get; private set; } = true;
         public static bool Ao { get; private set; } = true;
         public static bool Rays { get; private set; } = true; // the sun's beams in the haze (EtherLit.hlsl)
+        public static bool Blur { get; private set; } = true; // a light motion blur when the view turns fast
         static PostGlow I;
         public static void Toggle() { On = !On; PlayerPrefs.SetString(Key, On ? "1" : "0"); I?.Apply(); }
         public static void ToggleAo() { Ao = !Ao; PlayerPrefs.SetString(AoKey, Ao ? "1" : "0"); I?.Apply(); }
+        public static void ToggleBlur() { Blur = !Blur; PlayerPrefs.SetString(BlurKey, Blur ? "1" : "0"); I?.Apply(); }
         public static void ToggleRays() { Rays = !Rays; PlayerPrefs.SetString(RaysKey, Rays ? "1" : "0"); I?.Apply(); }
 
         public float Threshold = 0.95f, Strength = 0.45f, Scatter = 0.6f;
         Volume volume;
         Bloom bloom;
+        MotionBlur blur;
 
         void Awake()
         {
@@ -30,6 +34,7 @@ namespace EtherMines.Game
             On = PlayerPrefs.GetString(Key, "1") != "0";
             Ao = PlayerPrefs.GetString(AoKey, TouchPad.Active ? "0" : "1") != "0"; // costly on a phone: off there unless chosen
             Rays = PlayerPrefs.GetString(RaysKey, TouchPad.Active ? "0" : "1") != "0"; // the same
+            Blur = PlayerPrefs.GetString(BlurKey, TouchPad.Active ? "0" : "1") != "0"; // the same
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
             bloom = profile.Add<Bloom>(true);
             bloom.threshold.Override(Threshold);
@@ -40,6 +45,12 @@ namespace EtherMines.Game
             var vig = profile.Add<Vignette>(true);
             vig.intensity.Override(0.22f);
             vig.smoothness.Override(0.45f);
+            // the view smears a little when it turns fast (the camera's own motion only: cheap, and the world stays sharp
+            // when you stand still)
+            blur = profile.Add<MotionBlur>(true);
+            blur.quality.Override(MotionBlurQuality.Low);
+            blur.intensity.Override(0.25f);
+            blur.clamp.Override(0.05f);
             var go = new GameObject("Picture volume");
             go.transform.SetParent(transform, false);
             volume = go.AddComponent<Volume>();
@@ -53,6 +64,7 @@ namespace EtherMines.Game
         void Apply()
         {
             if (bloom != null) bloom.active = On;
+            if (blur != null) blur.active = Blur;
             Shader.SetGlobalFloat("_EM_Rays", Rays ? 1 : 0);
             // URP's ambient occlusion, a feature of the renderer (UrpSetup.cs added it)
             foreach (var f in Resources.FindObjectsOfTypeAll<ScriptableRendererFeature>())
