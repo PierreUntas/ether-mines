@@ -167,6 +167,14 @@ namespace EtherMines.Game
                 interaction.World = world;
                 interaction.Player = player;
                 interaction.Session = session;
+                player.HasCape = () => session != null && session.Inv.Uniques.Exists(u => u.Id == 205);
+                player.AimDist = () =>
+                {
+                    var t = interaction.Target;
+                    if (t == null || player.Body == null) return 8;
+                    float dx = t.X + 0.5f - (float)player.Body.X, dy = t.Y + 0.5f - (float)(player.Body.Y + PlayerPhysics.EYE), dz = t.Z + 0.5f - (float)player.Body.Z;
+                    return Mathf.Clamp(Mathf.Sqrt(dx * dx + dy * dy + dz * dz), 2, 12);
+                };
                 gameObject.AddComponent<Hud>().Act = interaction;
                 HeldModels.World = world;
                 var hand = gameObject.AddComponent<Hand>();

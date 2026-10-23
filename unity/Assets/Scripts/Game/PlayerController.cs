@@ -24,6 +24,11 @@ namespace EtherMines.Game
         public float MoveX, MoveZ; // the way you push (strafe, forward), for the dodge
         public Func<float> Lift = () => 0; // on board a craft: seated higher, the eyes go up as much
         public Action<bool> AfterStep;     // after the physics (the back seat puts you where it is), given the jump key
+        public Func<bool> HasCape = () => false; // the Genesis Titan's cape: hold jump while falling to glide
+        public Func<float> AimDist = () => 8;    // how far the crosshair's block is (the shoulder camera looks there)
+        public float Bob;                         // the walk's sway (10-loop.js bob), shared with the hand
+        float crouch;
+        const string ViewKey = "ether-mines:view"; // the web's key: the view you chose (V)
         readonly double[] boxBuf = new double[64 * 6];
         double eyeLag;
         bool ready;
@@ -51,6 +56,13 @@ namespace EtherMines.Game
 
         static bool IsLadder(int id) { var b = Rules.Block(id); return b != null && b.Shape == "ladder"; }
 
+        void Awake()
+        {
+            // the clay look starts from behind (initView), unless you chose otherwise on this device
+            var v = PlayerPrefs.GetString(ViewKey, "");
+            View = v.Length > 0 && int.TryParse(v, out var n) ? ((n % 3) + 3) % 3 : 1;
+        }
+
         void Start()
         {
             Cursor.lockState = CursorLockMode.Locked;
@@ -70,7 +82,12 @@ namespace EtherMines.Game
             if (!TouchPad.Active && Cursor.lockState != CursorLockMode.Locked && !Ui.Blocking && !Story.ScreenUp && ClickedIn()) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
             Yaw -= lookX * 0.0025 * Sensitivity;
             Pitch = Math.Max(-1.55, Math.Min(1.55, Pitch - lookY * 0.0025 * Sensitivity * -1));
-            if (toggleView) View = (View + 1) % 3;
+            if (toggleView)
+            {
+                View = (View + 1) % 3;
+                PlayerPrefs.SetString(ViewKey, View.ToString());
+                Hud.Feed("nft", View == 0 ? "Through your eyes" : View == 1 ? "View from behind" : "View from the front", TouchPad.Active ? "" : "press V to change");
+            }
             if (toggleFly)
             {
                 // the web's F is full screen (toggleFullscreen); flying stays a tool for the editor and test builds
@@ -90,11 +107,15 @@ namespace EtherMines.Game
             {
                 bool was = Body.On;
                 double vy0 = Body.Vy;
+                Body.Cape = HasCape();
                 Body.Step(dt, fx, fz, Yaw, jump, run, sneak, IsLadder);
                 Footsteps(dt, Math.Sqrt(fx * fx + fz * fz), run, was, vy0);
                 if (Body.Y < -10) { Body.X = World_SpawnX; Body.Y = EtherMines.Core.World.SPAWN.Y + 0.1; Body.Z = World_SpawnZ; Body.Vy = 0; }
             }
             AfterStep?.Invoke(jump);
+            // the head's sway while walking on the ground, and the eyes lower when crouching (10-loop.js)
+            if (Math.Sqrt(fx * fx + fz * fz) > 0.1 && Body.On) Bob += dt * (run ? 13 : 9);
+            crouch += ((sneak && !Body.InWater ? 0.22f : 0) - crouch) * Mathf.Min(1, dt * 12);
             // the eye catches up smoothly after a step up
             eyeLag = Math.Max(0, eyeLag + Body.StepUp - dt * 4);
             Body.StepUp = 0;
@@ -131,14 +152,33 @@ namespace EtherMines.Game
                 Sky.Underwater = false;
                 return;
             }
-            var eye = new Vector3((float)Body.X, (float)(Body.Y + PlayerPhysics.EYE - Math.Min(eyeLag, 0.6)) + Lift(), -(float)Body.Z);
+            float lift = Lift();
+            var eye = new Vector3((float)Body.X, (float)(Body.Y + PlayerPhysics.EYE - Math.Min(eyeLag, 0.6)) + lift - crouch + (lift > 0 ? 0 : Mathf.Sin(Bob) * 0.04f), -(float)Body.Z);
             var rot = Quaternion.Euler((float)(-Pitch * Mathf.Rad2Deg), (float)(-Yaw * Mathf.Rad2Deg), 0);
             if (View == 0) Cam.transform.SetPositionAndRotation(eye, rot);
             else
             {
-                var back = View == 1 ? rot : rot * Quaternion.Euler(0, 180, 0);
-                var target = eye + back * new Vector3(0.6f, 0.2f, -3.6f);
-                Cam.transform.SetPositionAndRotation(target, back);
+                // from outside (viewFromOutside): back along the view until a block is in the way (4 at most,
+                // 0.4 at least, water doesn't count); from behind, over the shoulder when there's room, looking
+                // where the crosshair points so it still lines up
+                var dir = View == 1 ? rot * Vector3.back : rot * Vector3.forward;
+                float d = 0;
+                while (d < 4)
+                {
+                    var q = eye + dir * (d + 0.3f);
+                    int id = World.Get((int)Math.Floor(q.x), (int)Math.Floor(q.y), (int)Math.Floor(-q.z));
+                    if (id != 0 && id != 11 && Mesher.IsSolid(id)) break;
+                    d += 0.1f;
+                }
+                var at = eye + dir * Mathf.Max(0.4f, d);
+                if (View == 2) Cam.transform.SetPositionAndRotation(at, rot * Quaternion.Euler(0, 180, 0));
+                else if (d > 1.2f)
+                {
+                    var aim = eye + rot * Vector3.forward * AimDist();
+                    at += rot * Vector3.right * 0.55f + Vector3.up * 0.2f;
+                    Cam.transform.SetPositionAndRotation(at, Quaternion.LookRotation(aim - at));
+                }
+                else Cam.transform.SetPositionAndRotation(at, rot);
             }
             // the camera's eye in water: the fog turns blue-green (Sky)
             var cp = Cam.transform.position;

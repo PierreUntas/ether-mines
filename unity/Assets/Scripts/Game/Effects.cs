@@ -276,6 +276,15 @@ namespace EtherMines.Game
             return q;
         }
 
+        // a glowing speck flying off (the hovercraft's spray): an ether octahedron, gravity g, shrinking over its life
+        static readonly Dictionary<Color, Material> glowMats = new Dictionary<Color, Material>();
+        public static void Speck(Vector3 game, Vector3 vel, Color c, float life, float g, float s)
+        {
+            if (I == null) return;
+            if (!glowMats.TryGetValue(c, out var m)) glowMats[c] = m = Mat(Texture2D.whiteTexture, c * 0.9f, true);
+            I.Add(Octa(), m, game, vel, life, life, g, s);
+        }
+
         static Mesh cube;
         /// <summary>A burst at the cell (x, y, z) (its corner), in color c (null: ether sparks only, a parry, a dodge).</summary>
         public static void Burst(float x, float y, float z, Color? c)

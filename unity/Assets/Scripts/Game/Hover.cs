@@ -27,6 +27,8 @@ namespace EtherMines.Game
         Vector3 last;
         bool seen;
         static bool told; // the tip, once a session
+        float sprayT;
+        static readonly string[] Glows = { "#7fe8ff", "#c9a6ff", "#ffb347", "#ffe9a8" }; // HOVER_COLORS' glow
 
         public static bool IsHover(int id) { var it = Rules.Item(id); return it != null && it.HoverModel != null; }
         int Held => Act.Inv.Held != null ? Act.Inv.HeldId : 0;
@@ -143,6 +145,19 @@ namespace EtherMines.Game
             last = p;
             float rx = Mathf.Cos(yaw), rz = -Mathf.Sin(yaw), lat = vx * rx + vz * rz;
             roll += (Mathf.Clamp(lat * 0.05f, -0.32f, 0.32f) - roll) * Mathf.Min(1, dt * 6);
+            // a sliding turn throws a spray of the craft's glow from its outer side (driftFx)
+            sprayT -= dt;
+            if (Mathf.Abs(lat) > 2.6f && new Vector2(vx, vz).magnitude > 4 && sprayT <= 0)
+            {
+                sprayT = 0.03f;
+                float side = -Mathf.Sign(lat);
+                float R() => UnityEngine.Random.value;
+                var it = Rules.Item(Riding);
+                var glow = Avatars.Hex(Glows[Mathf.Clamp(it != null ? it.HoverK : 0, 0, Glows.Length - 1)], Color.white);
+                var at = new Vector3(p.x + rx * side * 0.7f + Mathf.Sin(yaw) * 0.6f, p.y + 0.15f, p.z + rz * side * 0.7f + Mathf.Cos(yaw) * 0.6f);
+                var v = new Vector3(rx * side * (1.5f + R() * 2) - vx * 0.15f, 1.5f + R() * 2, rz * side * (1.5f + R() * 2) - vz * 0.15f);
+                Effects.Speck(at, v, glow, 0.5f, 6, 1.6f);
+            }
             float bob = Mathf.Sin(Time.time * 2.2f) * 0.03f * 1.3f;
             craft.transform.SetPositionAndRotation(new Vector3(p.x, p.y + Gap + bob, -p.z), Mobs.Mirror(new Vector3(0, yaw, roll), true));
         }

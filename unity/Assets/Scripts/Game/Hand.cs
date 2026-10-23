@@ -112,7 +112,7 @@ namespace EtherMines.Game
             float dt = Time.deltaTime, swing = Act.Swing;
             // a blow: forward and in, the tip leaning into the target, then back
             float s = Mathf.Sin((1 - swing) * Mathf.PI) * swing;
-            bob += dt * (Player.Moving ? 9 : 0);
+            bob = Player.Bob; // the walk's own sway (13 running, on the ground only)
             float bx = Mathf.Sin(bob * 0.5f) * 0.015f, by = Mathf.Abs(Mathf.Cos(bob * 0.5f)) * 0.012f;
             guardAmt += ((Combat != null && Combat.Guarding ? 1 : 0) - guardAmt) * Mathf.Min(1, dt * 14);
             float g = guardAmt;

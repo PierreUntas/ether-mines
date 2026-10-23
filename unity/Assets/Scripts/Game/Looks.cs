@@ -116,8 +116,8 @@ namespace EtherMines.Game
         public static bool Bubbles(string style) => style == "bubbles" || style == "pinkbubbles" || style == "deepbubbles";
         public static Color TrailColor(string style, float t)
         {
-            if (style == "spectrum") return Color.HSVToRGB(t * 0.4f % 1, 0.75f, 1);
-            if (style == "pastel") return Color.HSVToRGB(t * 0.4f % 1, 0.35f, 1);
+            if (style == "spectrum") return Color.HSVToRGB(t * 0.4f % 1, 0.63f, 0.95f); // the web's HSL(h, 0.85, 0.65)
+            if (style == "pastel") return Color.HSVToRGB(t * 0.4f % 1, 0.21f, 0.96f);   // HSL(h, 0.7, 0.86)
             var l = TrailColors.TryGetValue(style ?? "", out var a) ? a : TrailColors["bubbles"];
             return Avatars.Hex(l[Random.Range(0, l.Length)], Color.white);
         }

@@ -18,6 +18,7 @@ namespace EtherMines.Core
         public bool Riding;
         // a touch screen (10-loop.js `touch`): walking into a one-block step hops it, swimming into the bank climbs out
         public bool AutoJump;
+        public bool Cape; // the Genesis Titan's cape (205): holding jump while falling glides (10-loop.js)
         double rideVx, rideVz;
         const double HoverAccel = 3.5, HoverGrip = 1.4;
         static readonly double[] Steps = { 0.26, 0.52 }, RideSteps = { 0.26, 0.52, 1.05 };
@@ -146,6 +147,14 @@ namespace EtherMines.Core
             bool was = On;
             Bumped = false;
             bool guard = sneak && was && !inW;
+            // the ladder you're on, before the move: its panel side holds you like a wall, even with nothing behind it
+            int lcx = 0, lcz = 0, lo = -1;
+            for (int d = 0; d < 2 && lo < 0; d++)
+            {
+                int cx = (int)Math.Floor(X), cy = (int)Math.Floor(Y + 0.2 + d), cz = (int)Math.Floor(Z);
+                var lb = Rules.Block(get(cx, cy, cz));
+                if (lb != null && lb.Shape == "ladder") { lcx = cx; lcz = cz; lo = lb.O; }
+            }
             {
                 double ox = X, oy = Y;
                 MoveAxis(0, vx * dt);
@@ -155,6 +164,15 @@ namespace EtherMines.Core
                 double oz = Z, oy = Y;
                 MoveAxis(2, vz * dt);
                 if (guard && !Collides(X, Y - 0.1, Z)) { Z = oz; Y = oy; }
+            }
+            if (lo >= 0)
+            {
+                // the panel is on the cell's -z face (o 0), -x (1), +z (2), +x (3), an eighth of a block thick
+                double m = 0.125 + PW;
+                bool alongZ = lo == 0 || lo == 2;
+                double edge = lo == 0 ? lcz + m : lo == 1 ? lcx + m : lo == 2 ? lcz + 1 - m : lcx + 1 - m, sgn = lo < 2 ? 1 : -1;
+                double v = alongZ ? Z : X;
+                if ((v - edge) * sgn < 0) { if (alongZ) Z = edge; else X = edge; Bumped = true; }
             }
             bool onLadder = isLadder(get((int)Math.Floor(X), (int)Math.Floor(Y + 0.2), (int)Math.Floor(Z))) ||
                             isLadder(get((int)Math.Floor(X), (int)Math.Floor(Y + 1.2), (int)Math.Floor(Z)));
@@ -172,7 +190,8 @@ namespace EtherMines.Core
             {
                 if (jump && was) Vy = 8.2;
                 else if (AutoJump && Bumped && was && l > 0.3) Vy = 8.2;
-                Vy = Math.Max(Vy - 24 * dt, -30);
+                bool gliding = (jump || AutoJump) && !was && Vy < 0 && Cape;
+                Vy = gliding ? Math.Max(Vy - 3 * dt, -3) : Math.Max(Vy - 24 * dt, -30);
             }
             On = false;
             MoveAxis(1, Vy * dt);
