@@ -2,7 +2,8 @@
 // circuit blocks of the 5 x 5 chunks around you go through Core.Circuits, with your feet and the others' on
 // the plates and the clock beating every second; what changed is drawn again (lamps lit, doors open, plates
 // down, cables glowing) and an open door lets you through. The objectives' shapes are saved when first
-// built. The nearest lanterns, lamps and glowing blocks also light their surroundings, more so at night.
+// built. The nearest lanterns, lamps and glowing blocks also light their surroundings, more so at night and
+// underground (Unity: each light fades in and out, a lantern's flame flickers, a mushroom lights less far).
 using System;
 using System.Collections.Generic;
 using EtherMines.Core;
@@ -34,11 +35,16 @@ namespace EtherMines.Game
             [84] = 0xff8fc8, [85] = 0x5fb8ff, [126] = 0xb98aff, [128] = 0x7fe8ff, [130] = 0xc9b8ff,
         };
         Light[] lamps;
+        // what each light shows now: its source (or -1), how bright it should be, how far, and its flicker's phase
+        long[] lampKey;
+        float[] lampTarget, lampRange, lampPhase;
 
         void Start()
         {
             World.Changed += (cx, cz) => stale.Add(ChunkStore.Key(cx, cz));
-            lamps = new Light[TouchPad.Active ? 2 : 4];
+            lamps = new Light[TouchPad.Active ? 2 : 8];
+            lampKey = new long[lamps.Length]; lampTarget = new float[lamps.Length]; lampRange = new float[lamps.Length]; lampPhase = new float[lamps.Length];
+            for (int i = 0; i < lamps.Length; i++) { lampKey[i] = -1; lampPhase[i] = i * 1.7f; }
             for (int i = 0; i < lamps.Length; i++)
             {
                 var l = new GameObject("Lamp light " + i).AddComponent<Light>();
@@ -87,6 +93,18 @@ namespace EtherMines.Game
             {
                 lumT = 0.25f;
                 Lights(pcx, pcz, b);
+            }
+            // every frame: each light eases toward what it should be; a lantern's flame flickers a little
+            float t = Time.time, ease = Mathf.Min(1, dt * 4);
+            for (int i = 0; i < lamps.Length; i++)
+            {
+                var l = lamps[i];
+                float target = lampTarget[i];
+                if (lampKey[i] >= 0 && lampRange[i] >= 10)
+                    target *= 0.9f + 0.06f * Mathf.Sin(t * 9.1f + lampPhase[i]) + 0.04f * Mathf.Sin(t * 23.7f + lampPhase[i] * 2.3f);
+                l.intensity += (target - l.intensity) * ease;
+                l.range = lampRange[i] > 0 ? lampRange[i] : l.range;
+                l.enabled = l.intensity > 0.01f;
             }
         }
 
@@ -165,18 +183,40 @@ namespace EtherMines.Game
                     }
                 }
             near.Sort((p, q) => p.d.CompareTo(q.d));
-            // more visible at night; during the day, just a soft halo (the sun below the horizon: 08-sky.js night)
+            // more visible at night and in a cave; during the day, just a soft halo (the sun below the horizon:
+            // 08-sky.js night)
             float ang = ((Sky != null ? Sky.Day : 0.5f) - 0.25f) * Mathf.PI * 2, dirY = Mathf.Sin(ang) / 1.0595f;
-            float force = 0.25f + 0.85f * Mathf.Clamp01(-dirY * 4);
+            float force = 0.25f + 0.85f * Mathf.Max(Mathf.Clamp01(-dirY * 4), Sky.Cave);
+            int want = Math.Min(near.Count, lamps.Length);
+            // the sources no longer among the nearest fade out; the ones still there keep their light
             for (int i = 0; i < lamps.Length; i++)
             {
-                if (i >= near.Count) { lamps[i].intensity = 0; continue; }
-                Circuits.D(near[i].k, out var x, out var y, out var z);
-                lamps[i].transform.position = new Vector3(x + 0.5f, y + 0.5f, -(z + 0.5f));
-                int c = LumCol[near[i].id];
-                lamps[i].color = new Color(((c >> 16) & 255) / 255f, ((c >> 8) & 255) / 255f, (c & 255) / 255f);
-                lamps[i].intensity = force * 1.6f;
+                if (lampKey[i] < 0) continue;
+                bool keep = false;
+                for (int j = 0; j < want; j++) if (near[j].k == lampKey[i]) { keep = true; break; }
+                if (!keep) { lampTarget[i] = 0; if (lamps[i].intensity < 0.02f) lampKey[i] = -1; }
+            }
+            for (int j = 0; j < want; j++)
+            {
+                int slot = -1;
+                for (int i = 0; i < lamps.Length; i++) if (lampKey[i] == near[j].k) { slot = i; break; }
+                if (slot < 0) for (int i = 0; i < lamps.Length; i++) if (lampKey[i] < 0) { slot = i; break; }
+                if (slot < 0) continue; // every light is busy fading: this one waits its turn
+                int id = near[j].id;
+                if (lampKey[slot] != near[j].k)
+                {
+                    lampKey[slot] = near[j].k;
+                    Circuits.D(near[j].k, out var x, out var y, out var z);
+                    lamps[slot].transform.position = new Vector3(x + 0.5f, y + 0.5f, -(z + 0.5f));
+                    int c = LumCol[id];
+                    lamps[slot].color = new Color(((c >> 16) & 255) / 255f, ((c >> 8) & 255) / 255f, (c & 255) / 255f);
+                    lamps[slot].intensity = 0;
+                }
+                // a lantern or a lamp lights far, a crystal less, a mushroom or a cluster only close by
+                lampRange[slot] = id == 14 || id == 68 || id == 84 || id == 85 ? 10 : id == 75 || id == 126 ? 5 : 7.5f;
+                lampTarget[slot] = force * (lampRange[slot] >= 10 ? 1.6f : 1.3f);
             }
         }
+
     }
 }
