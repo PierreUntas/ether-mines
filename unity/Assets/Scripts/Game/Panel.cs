@@ -55,7 +55,7 @@ namespace EtherMines.Game
 
         void Update()
         {
-            if (Chat.Typing) return;
+            if (Chat.Typing || Ui.Paused) return;
 #if ENABLE_INPUT_SYSTEM
             var k = Keyboard.current;
             bool e = k != null && k.eKey.wasPressedThisFrame, esc = k != null && k.escapeKey.wasPressedThisFrame, o = k != null && k.oKey.wasPressedThisFrame;

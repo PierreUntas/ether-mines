@@ -8,6 +8,7 @@ namespace EtherMines.Game
         public const string SupabaseUrl = "https://euytymfcncakzqzdynbq.supabase.co";
         public const string SupabaseAnonKey =
             "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1eXR5bWZjbmNha3pxemR5bmJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3NzIwNjksImV4cCI6MjEwNjM0ODA2OX0.fqVxk4YpTVJctgrr7wcf8iAzwduI8JUcm6mxL75kmog";
+        public const string Site = "https://ethermines.org"; // the web version: the wiki, the terms, the link to invite friends
         public const string GameServer = "wss://ethermines-game.fly.dev";
         // the players' world (never test on it); a test world is any other name, e.g. "test-unity"
         public const string DefaultWorld = "test-unity";

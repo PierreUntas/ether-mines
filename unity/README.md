@@ -46,6 +46,7 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
   `node unity/tools/export-held.mjs` (opens the game in a headless browser: Playwright, as for
   `tests/navigateur.mjs`).
 - The animals or villagers (`src/game/09-animals.js`) changed → `node unity/tools/export-animals.mjs` (a test checks it).
+- What's new (`src/news.js`) changed → `node unity/tools/export-news.mjs` (a test checks it): the title screen shows it.
 - A look (`src/game/17-looks.js`) changed, or a cosmetic added → `node unity/tools/export-looks.mjs` (the same way).
 - Type-check the Unity scripts without the editor: `cd unity/CompileCheck && dotnet build -c Release`
   (and `-p:Legacy=1` for the old Input Manager branch). `UnityStubs.cs` holds the API they use.

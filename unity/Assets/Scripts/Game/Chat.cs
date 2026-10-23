@@ -57,7 +57,7 @@ namespace EtherMines.Game
                 else if (kb.status != TouchScreenKeyboard.Status.Visible) { kb = null; Typing = false; }
                 return;
             }
-            if (Typing || Session == null || Ui.PanelOpen || Signs.Open) return;
+            if (Typing || Session == null || Ui.PanelOpen || Ui.Paused || Signs.Open) return;
             TouchPad.Poll();
             if (TouchPad.Chat)
             {

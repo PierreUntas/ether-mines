@@ -92,7 +92,8 @@ namespace UnityEngine
     public enum TextAnchor { UpperLeft, UpperCenter, UpperRight, MiddleLeft, MiddleCenter, MiddleRight, LowerLeft, LowerCenter, LowerRight }
     public enum FontStyle { Normal, Bold }
     public class GUIStyle { public GUIStyle(GUIStyle s) { } public GUIStyle() { } public bool richText; public int fontSize; public TextAnchor alignment; public FontStyle fontStyle; public RectOffset padding, border; public bool wordWrap; public TextClipping clipping; public GUIStyleState normal = new GUIStyleState(), hover = new GUIStyleState(); public static GUIStyle none; public Vector2 CalcSize(GUIContent c) => default; public float CalcHeight(GUIContent c, float w) => 0; }
-    public class GUISkin { public GUIStyle box, label, button, textField; }
+    public class GUISkin { public GUIStyle box, label, button, textField, verticalScrollbar; }
+    public static class GUIUtility { public static string systemCopyBuffer; }
     public static class GUI
     {
         public static Matrix4x4 matrix; public static string tooltip;
@@ -105,9 +106,10 @@ namespace UnityEngine
         public static void Label(Rect r, string s) { }
         public static void Label(Rect r, string s, GUIStyle st) { }
         public static bool Button(Rect r, string s) => false; public static bool Button(Rect r, string s, GUIStyle st) => false; public static bool Button(Rect r, GUIContent c, GUIStyle st) => false;
-        public static int depth; public static bool enabled; public static Vector2 BeginScrollView(Rect r, Vector2 p, Rect v) => p; public static void EndScrollView() { }
+        public static int depth; public static bool enabled; public static Vector2 BeginScrollView(Rect r, Vector2 p, Rect v) => p; public static Vector2 BeginScrollView(Rect r, Vector2 p, Rect v, bool h, bool vv, GUIStyle hs, GUIStyle vs) => p; public static void EndScrollView() { }
         public static string TextField(Rect r, string s, int max) => s; public static string TextField(Rect r, string s, int max, GUIStyle st) => s; public static void SetNextControlName(string n) { } public static void FocusControl(string n) { }
         public static string PasswordField(Rect r, string s, char c, int max) => s;
+        public static string PasswordField(Rect r, string s, char c, int max, GUIStyle st) => s;
     }
     public static class Screen { public static int width, height, sleepTimeout; public static Rect safeArea; }
     public static class SleepTimeout { public const int NeverSleep = -1; }
@@ -136,7 +138,7 @@ namespace UnityEngine
         public static float Floor(float a) => a; public static int FloorToInt(float a) => 0;
     }
     public static class Debug { public static void Log(object o) { } public static void LogWarning(object o) { } public static void LogError(object o) { } public static void LogException(Exception e) { } }
-    public static class Application { public static int targetFrameRate; public static string persistentDataPath; public static bool isMobilePlatform, isBatchMode; }
+    public static class Application { public static int targetFrameRate; public static string persistentDataPath; public static bool isMobilePlatform, isBatchMode, isEditor; public static void OpenURL(string u) { } public static void Quit() { } }
     public static class PlayerPrefs
     {
         public static string GetString(string k, string d) => d; public static void SetString(string k, string v) { }
@@ -252,7 +254,7 @@ namespace UnityEngine.InputSystem
     public class IntegerControl { public int ReadValue() => 0; }
     public class TouchControl { public ButtonControl press; public Vector2Control position; public IntegerControl touchId; }
     public class Touchscreen { public static Touchscreen current; public TouchControl[] touches; }
-    public class Gamepad { public static Gamepad current; public Vector2Control leftStick, rightStick; public void SetMotorSpeeds(float lo, float hi) { } public ButtonControl buttonSouth, buttonEast, buttonWest, buttonNorth, leftStickButton, rightTrigger, leftTrigger; }
+    public class Gamepad { public static Gamepad current; public Vector2Control leftStick, rightStick; public void SetMotorSpeeds(float lo, float hi) { } public ButtonControl buttonSouth, buttonEast, buttonWest, buttonNorth, leftStickButton, rightTrigger, leftTrigger, startButton; }
 }
 namespace UnityEngine
 {

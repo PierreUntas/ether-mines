@@ -27,6 +27,7 @@ namespace EtherMines.Game
         readonly double[] boxBuf = new double[64 * 6];
         double eyeLag;
         bool ready;
+        public bool Ready => ready; // the ground under you has come in
 
         public Vector3 GamePos => new Vector3((float)Body.X, (float)Body.Y, (float)Body.Z);
 

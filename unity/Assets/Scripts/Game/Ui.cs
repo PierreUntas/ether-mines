@@ -10,7 +10,8 @@ namespace EtherMines.Game
     public static class Ui
     {
         public static bool PanelOpen;   // the inventory, crafting, chest... window
-        public static bool Blocking => PanelOpen || Chat.Typing || Signs.Open;
+        public static bool Paused;      // the menu (Esc, or the touch screen's Menu button): the game goes on, your hands rest
+        public static bool Blocking => PanelOpen || Paused || Chat.Typing || Signs.Open;
         // aiming at the world: the mouse captured (a computer), or no window open (a touch screen)
         public static bool Aiming => TouchPad.Active ? !Blocking : Cursor.lockState == CursorLockMode.Locked;
 

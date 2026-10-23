@@ -1,7 +1,7 @@
 // What's new: the update log the players read (title screen, and the wiki). Newest first. Add an entry
 // with each update worth telling: a date (YYYY-MM-DD), a short title, and a few lines written for the
 // players (what changes for them, not how it was done). The title screen lights a dot until the newest
-// entry has been opened. After a change: node tools/wiki.mjs > wiki.html
+// entry has been opened. After a change: node tools/wiki.mjs > wiki.html, and node unity/tools/export-news.mjs
 (function (root) {
   root.NEWS = [
     {

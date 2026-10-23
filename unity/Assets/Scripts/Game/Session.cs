@@ -51,7 +51,25 @@ namespace EtherMines.Game
             var r = D(await Net.Rpc("act_my_login", "{}"));
             Login = Str(r, "login");
             MustChange = r != null && MiniJson.Truthy(r.TryGetValue("must_change", out var m) ? m : null);
+            Moved = Str(r, "moved");
             return Login != null;
+        }
+        public string Moved; // this device's game left for another one, with this nickname (net.js movedLogin)
+
+        // one nickname per player per world (is_username_taken): someone else's can't enter here
+        public async Task<bool> NameTaken(string world, string name)
+        {
+            var r = await Net.Rpc("is_username_taken", MiniJson.Write(new Dictionary<string, object> { ["w"] = world, ["uname"] = name, ["uid"] = Net.UserId, ["previous"] = null }));
+            return r is bool b && b;
+        }
+
+        // "Not you? Log out": this device takes a fresh guest session; the game stays with its nickname and password
+        public async Task LogOut()
+        {
+            await Net.FreshSession();
+            Login = null;
+            MustChange = false;
+            Moved = null;
         }
 
         // your nickname and password (047_nickname_password.sql): null when in, otherwise what went wrong

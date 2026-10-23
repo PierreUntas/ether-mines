@@ -15,6 +15,11 @@ test('unity mobs.json is up to date (node unity/tools/export-mobs.mjs)', () => {
   assert.doesNotThrow(() => execFileSync(process.execPath, [tool, '--check'], { encoding: 'utf8', stdio: 'pipe' }));
 });
 
+test('unity news.json is up to date (node unity/tools/export-news.mjs)', () => {
+  const tool = new URL('../unity/tools/export-news.mjs', import.meta.url).pathname;
+  assert.doesNotThrow(() => execFileSync(process.execPath, [tool, '--check'], { encoding: 'utf8', stdio: 'pipe' }));
+});
+
 test('unity animals.json is up to date (node unity/tools/export-animals.mjs)', () => {
   const tool = new URL('../unity/tools/export-animals.mjs', import.meta.url).pathname;
   assert.doesNotThrow(() => execFileSync(process.execPath, [tool, '--check'], { encoding: 'utf8', stdio: 'pipe' }));

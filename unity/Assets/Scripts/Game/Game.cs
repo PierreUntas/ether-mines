@@ -1,13 +1,14 @@
 // Ether Mines · the game's entry point. Nothing to set up in the editor: in any scene, pressing Play builds
 // the camera, the sun, the sky, the world and you, from code. A small start screen asks which world to
-// visit (read from the same server as the web version; offline, the generator alone draws it).
+// visit (read from the same server as the web version; offline, the generator alone draws it). The title
+// screen and the menu are GameTitle.cs.
 using System;
 using EtherMines.Core;
 using UnityEngine;
 
 namespace EtherMines.Game
 {
-    public sealed class Game : MonoBehaviour
+    public sealed partial class Game : MonoBehaviour
     {
         WorldView world;
         PlayerController player;
@@ -15,7 +16,6 @@ namespace EtherMines.Game
         string worldName;
         bool started;
         string status = "";
-        GUIStyle box, big;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
@@ -106,29 +106,53 @@ namespace EtherMines.Game
                 session.Log += Hud.Feed;
                 known = await session.Known();
                 if (known) nick = session.Login;
+                else if (session.Moved != null)
+                {
+                    // this device's game was opened on another one: it's there now
+                    nick = session.Moved;
+                    status = "Your game was opened on another device: enter your password to bring it back here.";
+                }
             }
             catch (Exception e) { status = "Offline (" + e.Message + ")"; session = null; Debug.LogWarning(e); }
         }
 
         async void Enter(bool online)
         {
-            if (busy) return;
+            if (busy || started) return;
             busy = true;
+            failed = false;
             try
             {
                 worldName = CleanWorld(worldName);
+                if (online && session == null)
+                {
+                    // the first try failed (no network then?): once more now, rather than slipping into offline
+                    Step("Connecting to your account…", 2);
+                    var s = new Session(new Supabase());
+                    s.Log += Hud.Feed;
+                    known = await s.Known();
+                    session = s;
+                    if (known) nick = session.Login;
+                }
                 if (online && session != null)
                 {
                     if (!known || session.Login == null || !string.Equals(session.Login, nick.Trim(), StringComparison.OrdinalIgnoreCase))
                     {
-                        status = "Checking your nickname and password…";
+                        Step("Checking your nickname and password…", 3);
                         var err = await session.Enter(nick, password);
                         if (err != null) { status = err; return; }
                         password = "";
                         known = true;
                     }
                     if (session.MustChange) { status = "Choose your own password first."; return; }
-                    status = "Loading your game…";
+                    // one nickname per player per world: you can't enter with someone else's
+                    Step("Checking nickname…", 6);
+                    if (await session.NameTaken(worldName, session.Login))
+                    {
+                        status = $"The nickname \"{session.Login}\" is already taken in this world by another account. Write to contact@ethermines.org to sort it out.";
+                        return;
+                    }
+                    Step("Loading your save and your chest…", 10);
                     await session.Load(worldName);
                     world.Net = session.Net;
                 }
@@ -240,10 +264,12 @@ namespace EtherMines.Game
                 guide.Combat = () => GetComponent<Combat>();
                 player.enabled = true;
                 started = true;
-                status = "";
+                Step(online ? "Joining the world and the other players…" : "Generating the world…", 14);
+                loading = true; // the title stays up until the ground under you has come in (GameTitle.cs)
+                Ui.Paused = true; // and the keys wait for it
             }
-            catch (Exception e) { status = "Connection failed: " + e.Message; Debug.LogWarning(e); }
-            finally { busy = false; }
+            catch (Exception e) { status = "Connection failed: " + e.Message; failed = true; Debug.LogWarning(e); }
+            finally { busy = false; if (!started) stepAt = -1; }
         }
 
         async void ChangePassword()
@@ -312,57 +338,6 @@ namespace EtherMines.Game
         void OnApplicationQuit() { if (started && session != null) SaveNow(); }
         // a phone sends the game to the background (and may close it there without a word): save now
         void OnApplicationPause(bool paused) { if (paused && started && session != null && player.Body != null) SaveNow(); }
-        void OnApplicationFocus(bool focus) { if (!focus && started && session != null && player.Body != null && Application.isMobilePlatform) SaveNow(); }
 
-        void OnGUI()
-        {
-            Ui.Begin();
-            if (box == null)
-            {
-                box = new GUIStyle(GUI.skin.box) { fontSize = 16, alignment = TextAnchor.UpperLeft, padding = new RectOffset(10, 10, 8, 8) };
-                big = new GUIStyle(GUI.skin.label) { fontSize = 40, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
-            }
-            if (!started)
-            {
-                float w = 460, h = (session != null && session.MustChange ? 400 : 360) + 64, x = (Ui.W - w) / 2, y = Mathf.Max(8, (Ui.H - h) / 2);
-                GUI.Box(new Rect(x, y, w, h), "");
-                GUI.Label(new Rect(x, y + 10, w, 60), "Ether Mines", big);
-                float ly = y + 85;
-                GUI.Label(new Rect(x + 20, ly, 110, 24), "Nickname");
-                nick = GUI.TextField(new Rect(x + 130, ly, w - 150, 26), nick, 16);
-                ly += 36;
-                bool asKnown = known && session != null && session.Login != null && string.Equals(session.Login, nick.Trim(), StringComparison.OrdinalIgnoreCase);
-                if (!asKnown)
-                {
-                    GUI.Label(new Rect(x + 20, ly, 110, 24), "Password");
-                    password = GUI.PasswordField(new Rect(x + 130, ly, w - 150, 26), password, '•', 72);
-                    ly += 36;
-                }
-                GUI.Label(new Rect(x + 20, ly, 110, 24), "World");
-                worldName = GUI.TextField(new Rect(x + 130, ly, w - 150, 26), worldName, 32);
-                ly += 44;
-                if (session != null && session.MustChange)
-                {
-                    GUI.Label(new Rect(x + 20, ly, 110, 24), "New password");
-                    newPassword = GUI.PasswordField(new Rect(x + 130, ly, w - 260, 26), newPassword, '•', 72);
-                    if (GUI.Button(new Rect(x + w - 120, ly, 100, 26), "Save")) ChangePassword();
-                    ly += 40;
-                }
-                if (GUI.Button(new Rect(x + 20, ly, w - 40, 36), busy ? "…" : "Enter the world")) Enter(true);
-                ly += 44;
-                if (GUI.Button(new Rect(x + 20, ly, w - 40, 28), "Explore offline (nothing is saved)")) Enter(false);
-                ly += 36;
-                GUI.Label(new Rect(x + 20, ly, w - 40, 40), status);
-                ly += 40;
-                // the controls (index.html's list)
-                var keys = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true };
-                keys.normal.textColor = Ui.Muted;
-                GUI.Label(new Rect(x + 20, ly, w - 40, 60), TouchPad.Active
-                    ? "Left thumb: walk · drag: look · tap: place, open, pet · hold: mine, strike · the buttons: jump, run, crouch, guard, ride · top: bag, chat, view, objectives"
-                    : "ZQSD / WASD: walk · Space: jump · Shift: run · C: crouch · left click: mine, strike · right click: place, open, use, guard · 1-9, wheel: bar · E: bag · O: objectives · Enter: chat · V: view · M: sound", keys);
-                return;
-            }
-            // in the game, the HUD is Guide's and Hud's
-        }
     }
 }
