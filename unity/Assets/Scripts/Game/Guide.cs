@@ -381,7 +381,15 @@ namespace EtherMines.Game
                 Ui.Chip(new Rect(tx, ty, tw, targetSub != null ? 40 : 26), targetMine ? Ui.Violet : (Color?)null);
                 GUI.Label(new Rect(tx, ty + 2, tw, 20), target, title);
                 if (targetSub != null) GUI.Label(new Rect(tx, ty + 20, tw, 16), targetSub, new GUIStyle(small) { alignment = TextAnchor.MiddleCenter });
+                // on a touch screen the label itself opens the block explorer (a computer has I)
+                if (touch)
+                {
+                    var lr = new Rect(tx, ty, tw, targetSub != null ? 40 : 26);
+                    TouchPad.Reserved = lr;
+                    if (GUI.Button(lr, GUIContent.none, GUIStyle.none) && Act.Target != null) Ledger.Show(Act.Target);
+                }
             }
+            else if (touch) TouchPad.Reserved = Rect.zero;
         }
 
         string ArmorLine()

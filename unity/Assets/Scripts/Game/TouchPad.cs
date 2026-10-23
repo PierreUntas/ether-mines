@@ -131,9 +131,12 @@ namespace EtherMines.Game
         static readonly string[] tops = { "Bag", "Chat", "View", "Goals", "Menu" };
         static Rect Top(int i) { float w = tops.Length * 54 + (tops.Length - 1) * 6; return new Rect((Ui.W - w) / 2 + i * 60, Ui.Safe.y + 8, 54, 40); }
 
+        public static Rect Reserved; // a label that takes its own taps this frame (the aimed block's, for the explorer)
+
         static void Begin(int id, Vector2 p)
         {
             owners[id] = Own.Ignored;
+            if (Reserved.Contains(p)) return;
             for (int i = 0; i < tops.Length; i++)
                 if (Top(i).Contains(p))
                 {

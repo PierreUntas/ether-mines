@@ -270,6 +270,12 @@ namespace EtherMines.Game
                 guide.Online = () => mpRef != null ? mpRef.Line : null;
                 guide.Progress = () => GetComponent<Progress>();
                 guide.Combat = () => GetComponent<Combat>();
+                // the ledger, seen: T outlines your blocks, I opens the block explorer
+                var ledger = gameObject.AddComponent<Ledger>();
+                ledger.Session = session;
+                ledger.World = world;
+                ledger.Player = player;
+                ledger.Act = interaction;
                 // the story on screen: Thea's lines, the intro and the finale, the network's milestones, the leaderboard
                 var story = gameObject.AddComponent<Story>();
                 story.Session = session;

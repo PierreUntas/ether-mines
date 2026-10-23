@@ -87,6 +87,15 @@ namespace EtherMines.Core
         }
 
         public Owner OwnerOf(int x, int y, int z) { owners.TryGetValue(CellKey(x, y, z), out var o); return o; }
+        // every placed block known here, with who placed it (the ledger view)
+        public IEnumerable<(int x, int y, int z, Owner o)> Owners()
+        {
+            foreach (var kv in owners)
+            {
+                long k = kv.Key;
+                yield return ((int)(k >> 36) - 0x200000, (int)(k & 0x3fff), (int)((k >> 14) & 0x3fffff) - 0x200000, kv.Value);
+            }
+        }
 
         // everything forgotten (the world was restored as generated): read again from the server
         public void Clear()

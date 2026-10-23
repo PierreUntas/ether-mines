@@ -87,7 +87,7 @@ namespace UnityEngine
     }
     public struct Color32 { public byte r, g, b, a; }
     public static class ColorUtility { public static bool TryParseHtmlString(string s, out Color c) { c = default; return true; } public static string ToHtmlStringRGB(Color c) => ""; }
-    public struct Rect { public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; } public float x, y, width, height; public Vector2 center => default; public float xMax => x + width; public float yMax => y + height; public bool Contains(Vector2 p) => false; }
+    public struct Rect { public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; } public float x, y, width, height; public Vector2 center => default; public float xMax => x + width; public float yMax => y + height; public bool Contains(Vector2 p) => false; public static Rect zero => default; }
     public class RectOffset { public RectOffset(int l, int r, int t, int b) { } }
     public enum TextAnchor { UpperLeft, UpperCenter, UpperRight, MiddleLeft, MiddleCenter, MiddleRight, LowerLeft, LowerCenter, LowerRight }
     public enum FontStyle { Normal, Bold }
@@ -221,6 +221,7 @@ namespace UnityEngine.Rendering
 {
     public enum IndexFormat { UInt16, UInt32 }
     public enum ShadowCastingMode { Off, On }
+    public enum CompareFunction { Disabled, Never, Less, Equal, LessEqual, Greater, NotEqual, GreaterEqual, Always }
     public enum BlendMode { Zero, One, DstColor, SrcColor, OneMinusDstColor, SrcAlpha, OneMinusSrcColor, DstAlpha, OneMinusDstAlpha, SrcAlphaSaturate, OneMinusSrcAlpha }
     public enum AmbientMode { Skybox, Trilight, Flat }
 }
