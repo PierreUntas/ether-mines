@@ -16,7 +16,7 @@ namespace EtherMines.Game
         public Camera Cam;
         public PlayerPhysics Body;
         public double Yaw, Pitch = -0.12; // radians, as the web version: yaw 0 looks toward -z, pitch > 0 looks up
-        public bool Fly; // F: flying freely (exploring, debugging)
+        public bool Fly; // F in the editor or a development build: flying freely (debugging); the web has no flying
         public int View; // 0 first person, 1 from behind, 2 from the front
         public float Sensitivity = 1f;
         public bool Sneaking; // crouching: place against a door instead of opening it
@@ -71,7 +71,12 @@ namespace EtherMines.Game
             Yaw -= lookX * 0.0025 * Sensitivity;
             Pitch = Math.Max(-1.55, Math.Min(1.55, Pitch - lookY * 0.0025 * Sensitivity * -1));
             if (toggleView) View = (View + 1) % 3;
-            if (toggleFly) { Fly = !Fly; Body.Vy = 0; }
+            if (toggleFly)
+            {
+                // the web's F is full screen (toggleFullscreen); flying stays a tool for the editor and test builds
+                if (Application.isEditor || Debug.isDebugBuild) { Fly = !Fly; Body.Vy = 0; }
+                else if (!Application.isMobilePlatform) Screen.fullScreen = !Screen.fullScreen;
+            }
             // wait for the ground under you before falling
             if (!ready) ready = World.Loaded((int)Math.Floor(Body.X), (int)Math.Floor(Body.Z)) && World.Store.Count > 20;
             if (Fly)

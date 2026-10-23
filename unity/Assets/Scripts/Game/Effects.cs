@@ -226,6 +226,7 @@ namespace EtherMines.Game
             }
             petals.Apply();
 
+            UpdatePops(dt);
             // the bursts' pieces: gravity (each its own), drift, shrinking
             for (int i = parts.Count - 1; i >= 0; i--)
             {
@@ -296,6 +297,101 @@ namespace EtherMines.Game
                 float life = 0.9f + R() * 0.4f;
                 I.Add(o, sparkMats[i % 3], new Vector3(x + 0.15f + R() * 0.7f, y + 0.3f + R() * 0.6f, z + 0.15f + R() * 0.7f), new Vector3((R() - 0.5f) * 0.8f, 0.8f + R() * 1.2f, (R() - 0.5f) * 0.8f), life, 1.3f, -1.2f, 1, true);
             }
+        }
+
+        // ---------- the place's pop (popAt, updatePops): a pale box swelling and fading, its edges, ten sparks ----------
+        sealed class Pop { public Transform Box, Edge; public Material BoxM, EdgeM; public float T, H; }
+        readonly List<Pop> pops = new List<Pop>();
+        static Mesh edgeMesh;
+        static Material[] popSparks;
+
+        /// <summary>A block (h = 2: a door, a bed) just placed at the cell (x, y, z), or an old validator relit.</summary>
+        public static void PopAt(int x, int y, int z, int h = 1)
+        {
+            if (I == null) return;
+            if (cube == null) { var tmp = GameObject.CreatePrimitive(PrimitiveType.Cube); cube = tmp.GetComponent<MeshFilter>().sharedMesh; Destroy(tmp); }
+            if (edgeMesh == null)
+            {
+                // a unit cube's twelve edges, centered
+                var v = new List<Vector3>(); var idx = new List<int>();
+                float[] a = { -0.5f, 0.5f };
+                foreach (var i in a) foreach (var j in a)
+                    {
+                        v.Add(new Vector3(i, j, -0.5f)); v.Add(new Vector3(i, j, 0.5f));
+                        v.Add(new Vector3(i, -0.5f, j)); v.Add(new Vector3(i, 0.5f, j));
+                        v.Add(new Vector3(-0.5f, i, j)); v.Add(new Vector3(0.5f, i, j));
+                    }
+                for (int i = 0; i < v.Count; i++) idx.Add(i);
+                edgeMesh = new Mesh { vertices = v.ToArray(), colors = v.ConvertAll(_ => Color.white).ToArray() };
+                edgeMesh.SetIndices(idx.ToArray(), MeshTopology.Lines, 0);
+            }
+            popSparks ??= new[] { Mat(Texture2D.whiteTexture, Avatars.Hex("#7fe8ff", Color.white), true), Mat(Texture2D.whiteTexture, Avatars.Hex("#ffd95e", Color.white), true) };
+            var c = new Vector3(x + 0.5f, y + h / 2f, -(z + 0.5f));
+            Transform Make(string name, Mesh m, Material mat)
+            {
+                var go = new GameObject(name);
+                go.transform.SetParent(I.transform, false);
+                go.AddComponent<MeshFilter>().sharedMesh = m;
+                var r = go.AddComponent<MeshRenderer>();
+                r.sharedMaterial = mat;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                go.transform.position = c;
+                return go.transform;
+            }
+            var p = new Pop { T = 0, H = h, BoxM = Mat(Texture2D.whiteTexture, Color.black, true), EdgeM = Mat(Texture2D.whiteTexture, Color.black, true) };
+            p.Box = Make("pop", cube, p.BoxM);
+            p.Edge = Make("pop edges", edgeMesh, p.EdgeM);
+            p.Edge.localScale = new Vector3(1.04f, h + 0.04f, 1.04f);
+            I.pops.Add(p);
+            for (int i = 0; i < 10; i++)
+            {
+                float a = R() * Mathf.PI * 2;
+                I.Add(cube, popSparks[i % 2], new Vector3(x + 0.5f + Mathf.Cos(a) * 0.6f, y + R() * h, z + 0.5f + Mathf.Sin(a) * 0.6f), new Vector3(Mathf.Cos(a) * 0.8f, 1.2f + R() * 1.4f, Mathf.Sin(a) * 0.8f), 0.45f, 0.45f, 3, 0.07f, true);
+            }
+        }
+
+        void UpdatePops(float dt)
+        {
+            for (int i = pops.Count - 1; i >= 0; i--)
+            {
+                var p = pops[i];
+                p.T += dt;
+                float k = p.T / 0.45f, e = 1 + Mathf.Sin(Mathf.Min(1, k) * Mathf.PI) * 0.12f; // swell, then back
+                p.Box.localScale = new Vector3(1.02f * e, (p.H + 0.02f) * e, 1.02f * e);
+                p.BoxM.color = Avatars.Hex("#c2b8ff", Color.white) * (0.35f * Mathf.Max(0, 1 - k));
+                p.EdgeM.color = Avatars.Hex("#e9e4ff", Color.white) * (0.9f * Mathf.Max(0, 1 - k));
+                if (k < 1) continue;
+                Destroy(p.Box.gameObject); Destroy(p.Edge.gameObject); Destroy(p.BoxM); Destroy(p.EdgeM);
+                pops.RemoveAt(i);
+            }
+        }
+
+        // ---------- the cracks on a block being mined (crackTex, clay look): eight stages of a glow at its edges ----------
+        static Texture2D[] cracks;
+        public static Texture2D Crack(int stage)
+        {
+            if (cracks == null)
+            {
+                cracks = new Texture2D[8];
+                for (int s = 0; s < 8; s++)
+                {
+                    float k = (s + 1) / 8f;
+                    var t = new Texture2D(32, 32, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+                    // the web's radial gradient from radius 2 to 23, added onto the block (premultiplied here)
+                    Color a = new Color(190 / 255f, 170 / 255f, 1f) * (0.05f * k), b = new Color(220 / 255f, 245 / 255f, 1f) * (0.55f * k);
+                    for (int y = 0; y < 32; y++)
+                        for (int x = 0; x < 32; x++)
+                        {
+                            float r = Mathf.Sqrt((x + 0.5f - 16) * (x + 0.5f - 16) + (y + 0.5f - 16) * (y + 0.5f - 16));
+                            var c = Color.Lerp(a, b, Mathf.Clamp01((r - 2) / 21f));
+                            c.a = 1;
+                            t.SetPixel(x, y, c);
+                        }
+                    t.Apply();
+                    cracks[s] = t;
+                }
+            }
+            return cracks[Mathf.Clamp(stage, 0, 7)];
         }
 
         /// <summary>A block broken at (x, y, z): its own color.</summary>

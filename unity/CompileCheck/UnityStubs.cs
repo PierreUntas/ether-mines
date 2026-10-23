@@ -111,7 +111,7 @@ namespace UnityEngine
         public static string PasswordField(Rect r, string s, char c, int max) => s;
         public static string PasswordField(Rect r, string s, char c, int max, GUIStyle st) => s;
     }
-    public static class Screen { public static int width, height, sleepTimeout; public static Rect safeArea; }
+    public static class Screen { public static int width, height, sleepTimeout; public static Rect safeArea; public static bool fullScreen; }
     public static class SleepTimeout { public const int NeverSleep = -1; }
     public enum TouchScreenKeyboardType { Default }
     public class TouchScreenKeyboard
@@ -137,7 +137,7 @@ namespace UnityEngine
         public static float Sin(float a) => a; public static float Cos(float a) => a; public static float Abs(float a) => a;
         public static float Floor(float a) => a; public static int FloorToInt(float a) => 0;
     }
-    public static class Debug { public static void Log(object o) { } public static void LogWarning(object o) { } public static void LogError(object o) { } public static void LogException(Exception e) { } }
+    public static class Debug { public static bool isDebugBuild; public static void Log(object o) { } public static void LogWarning(object o) { } public static void LogError(object o) { } public static void LogException(Exception e) { } }
     public static class Application { public static int targetFrameRate; public static string persistentDataPath; public static bool isMobilePlatform, isBatchMode, isEditor; public static void OpenURL(string u) { } public static void Quit() { } }
     public static class PlayerPrefs
     {

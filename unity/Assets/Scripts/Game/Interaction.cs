@@ -38,6 +38,27 @@ namespace EtherMines.Game
         void Start()
         {
             outline = MakeOutline();
+            // the cracks on the block being mined (05-player.js crack): a box a hair bigger, glowing more each stage
+            crack = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Destroy(crack.GetComponent<Collider>());
+            crack.name = "Mining cracks";
+            crack.transform.localScale = Vector3.one * 1.006f;
+            crackMat = Effects.Mat(Effects.Crack(0), Color.white, true);
+            var cr = crack.GetComponent<MeshRenderer>();
+            cr.sharedMaterial = crackMat;
+            cr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            crack.SetActive(false);
+        }
+        GameObject crack;
+        Material crackMat;
+
+        void LateUpdate()
+        {
+            bool on = MineProgress > 0 && Target != null && !Ui.Cine;
+            if (crack.activeSelf != on) crack.SetActive(on);
+            if (!on) return;
+            crack.transform.position = new Vector3(Target.X + 0.5f, Target.Y + 0.5f, -(Target.Z + 0.5f));
+            crackMat.mainTexture = Effects.Crack((int)Math.Floor(MineProgress * 8));
         }
 
         void Update()
@@ -268,6 +289,7 @@ namespace EtherMines.Game
             Swing = 1;
             Sounds.Place(Sounds.MatOf(it));
             Haptics.Play(Haptics.Kind.Light);
+            Effects.PopAt(t.PX, t.PY, t.PZ, plan.Cells.Count > 1 ? 2 : 1);
             if (Session == null) { if (inv.Counts[it] <= 0) inv.SetCounts(new Dictionary<string, object> { [it.ToString()] = 0.0 }); return; }
             var r2 = await Session.Act("place", new Dictionary<string, object> { ["px"] = t.PX, ["py"] = t.PY, ["pz"] = t.PZ, ["it"] = it, ["bid"] = plan.Id }, b.X, b.Y, b.Z);
             if (r2 == null || r2.ContainsKey("refused")) { Revert(rec2); await Session.LoadInventory(); return; }

@@ -75,6 +75,7 @@ namespace EtherMines.Game
                 var r = await Session.Act("relight", new Dictionary<string, object> { ["px"] = t.X, ["py"] = t.Y, ["pz"] = t.Z }, b.X, b.Y, b.Z);
                 if (r == null || r.ContainsKey("refused")) return;
                 Hud.Feed("burn", "1 Validator heart", "→ old validator relit: one crystal a minute, under your name");
+                Effects.PopAt(t.X, t.Y, t.Z);
                 if (r.ContainsKey("star")) Hud.Feed("nft", Ui.NameOf(204), "a network milestone!");
                 await Session.LoadInventory();
             }

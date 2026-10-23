@@ -83,32 +83,68 @@ namespace EtherMines.Game
                 tgo.transform.SetParent(g.transform, false);
                 tgo.transform.localPosition = n * 0.08f;
                 tgo.transform.rotation = Quaternion.LookRotation(-n); // readable from the side it faces
-                var tm = tgo.AddComponent<TextMesh>();
-                tm.font = font;
-                tm.text = Wrap(text);
-                tm.anchor = TextAnchor.MiddleCenter;
-                tm.alignment = TextAlignment.Center;
-                tm.fontSize = 48;
-                tm.characterSize = 0.022f;
-                tm.color = new Color(1f, 0.95f, 0.84f);
-                tgo.GetComponent<MeshRenderer>().sharedMaterial = font.material;
+                // the web's lettering (signTexture): the biggest size from 40 down to 20 that fits the board,
+                // cream letters outlined in dark wood; behind what stands in front of them (EtherMines/Text)
+                var (lines, size) = Fit(text);
+                if (textMat == null)
+                {
+                    textMat = new Material(Shader.Find("EtherMines/Text")) { mainTexture = font.material.mainTexture };
+                    Font.textureRebuilt += f => { if (f == font && textMat != null) textMat.mainTexture = f.material.mainTexture; };
+                }
+                float cs = size * 0.0007f, o2 = size * 0.00336f * Mathf.Max(4, size / 6f) / 2 / 3; // the outline, about a third of the web's stroke on each side
+                for (int k = 0; k < 9; k++)
+                {
+                    var lg = k == 8 ? tgo : new GameObject("outline");
+                    if (k < 8)
+                    {
+                        lg.transform.SetParent(tgo.transform, false);
+                        float a = k * Mathf.PI / 4;
+                        lg.transform.localPosition = new Vector3(Mathf.Cos(a) * o2, Mathf.Sin(a) * o2, 0.002f);
+                    }
+                    var tm = lg.AddComponent<TextMesh>();
+                    tm.font = font;
+                    tm.text = lines;
+                    tm.anchor = TextAnchor.MiddleCenter;
+                    tm.alignment = TextAlignment.Center;
+                    tm.fontSize = 48;
+                    tm.characterSize = cs;
+                    tm.color = k == 8 ? new Color(1f, 0.953f, 0.84f) : new Color(0.165f, 0.1f, 0.063f);
+                    lg.GetComponent<MeshRenderer>().sharedMaterial = textMat;
+                }
             }
             return g;
         }
 
-        // up to three lines, about 18 characters each
-        static string Wrap(string text)
+        static Material textMat;
+
+        // the board is 256 x 128 on the web: from size 40 down to 20 by 4, words wrapped at 232 wide, until the
+        // lines fit in 124 high (a letter about 0.55 of its size wide); at 20 what's left is cut with "…"
+        static (string, int) Fit(string text)
+        {
+            List<string> lines = null;
+            int size = 40;
+            for (; size >= 20; size -= 4)
+            {
+                lines = Wrap(text, (int)(232 / (0.55f * size)));
+                if (lines.Count * size * 1.1f <= 124 && lines.TrueForAll(l => l.Length <= (int)(240 / (0.55f * size)))) return (string.Join("\n", lines), size);
+            }
+            size = 20;
+            int max = (int)(124 / (size * 1.1f));
+            if (lines.Count > max) { lines = lines.GetRange(0, max); lines[max - 1] += "…"; }
+            return (string.Join("\n", lines), size);
+        }
+
+        static List<string> Wrap(string text, int perLine)
         {
             var lines = new List<string>();
             var cur = "";
             foreach (var w in text.Split(' '))
             {
                 var t = cur.Length > 0 ? cur + " " + w : w;
-                if (t.Length > 18 && cur.Length > 0) { lines.Add(cur); cur = w; } else cur = t;
+                if (t.Length > perLine && cur.Length > 0) { lines.Add(cur); cur = w; } else cur = t;
             }
             if (cur.Length > 0) lines.Add(cur);
-            if (lines.Count > 3) { lines = lines.GetRange(0, 3); lines[2] += "…"; }
-            return string.Join("\n", lines);
+            return lines;
         }
 
         // ---------- a right-click on a sign ----------
