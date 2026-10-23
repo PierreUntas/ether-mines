@@ -147,22 +147,22 @@ namespace EtherMines.Game
                     }
                 Peers?.Invoke(ps);
             }
-            else if (t == "pos")
-            {
-                Pos?.Invoke(new Move
-                {
-                    Id = m["id"] as string, Name = m.TryGetValue("name", out var n) ? n as string : "?", Color = m.TryGetValue("color", out var c) ? c as string : "#8a7bef",
-                    X = MiniJson.ToDouble(m["x"]), Y = MiniJson.ToDouble(m["y"]), Z = MiniJson.ToDouble(m["z"]),
-                    Yaw = MiniJson.ToDouble(m.TryGetValue("yaw", out var yw) ? yw : null), Pitch = MiniJson.ToDouble(m.TryGetValue("pitch", out var pt) ? pt : null),
-                    Mining = MiniJson.Truthy(m.TryGetValue("m", out var mm) ? mm : null), Held = MiniJson.ToInt(m.TryGetValue("h", out var h) ? h : null),
-                    Guard = MiniJson.Truthy(m.TryGetValue("gd", out var gd) ? gd : null),
-                    Ride = MiniJson.ToInt(m.TryGetValue("rd", out var rdv) ? rdv : null),
-                    On = m.TryGetValue("on", out var onv) ? onv as string : null, // in that driver's back seat
-                    Armor = MiniJson.ToInt(m.TryGetValue("ar", out var ar) ? ar : null), Boots = MiniJson.Truthy(m.TryGetValue("bt", out var bt) ? bt : null),
-                });
-            }
+            else if (t == "pos") Pos?.Invoke(ParseMove(m));
             else Message?.Invoke(t, m);
         }
+
+        // a player's move, as the game server and the web's region channels both send it (14-startup.js sendPos)
+        public static Move ParseMove(Dictionary<string, object> m) => new Move
+        {
+            Id = m.TryGetValue("id", out var id) ? id as string : null, Name = m.TryGetValue("name", out var n) ? n as string : "?", Color = m.TryGetValue("color", out var c) ? c as string : "#8a7bef",
+            X = MiniJson.ToDouble(m.TryGetValue("x", out var x) ? x : null), Y = MiniJson.ToDouble(m.TryGetValue("y", out var y) ? y : null), Z = MiniJson.ToDouble(m.TryGetValue("z", out var z) ? z : null),
+            Yaw = MiniJson.ToDouble(m.TryGetValue("yaw", out var yw) ? yw : null), Pitch = MiniJson.ToDouble(m.TryGetValue("pitch", out var pt) ? pt : null),
+            Mining = MiniJson.Truthy(m.TryGetValue("m", out var mm) ? mm : null), Held = MiniJson.ToInt(m.TryGetValue("h", out var h) ? h : null),
+            Guard = MiniJson.Truthy(m.TryGetValue("gd", out var gd) ? gd : null),
+            Ride = MiniJson.ToInt(m.TryGetValue("rd", out var rdv) ? rdv : null),
+            On = m.TryGetValue("on", out var onv) ? onv as string : null, // in that driver's back seat
+            Armor = MiniJson.ToInt(m.TryGetValue("ar", out var ar) ? ar : null), Boots = MiniJson.Truthy(m.TryGetValue("bt", out var bt) ? bt : null),
+        };
 
         // your position (14-startup.js): only when you moved, at most 5 times a second, a sign of life every 4 s
         // gd: the blade up; ar: the plating you wear; bt: the Front-Runner Boots on; fx/fq: the last blow you
