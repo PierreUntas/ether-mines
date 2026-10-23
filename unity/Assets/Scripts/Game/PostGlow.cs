@@ -11,12 +11,14 @@ namespace EtherMines.Game
 {
     public sealed class PostGlow : MonoBehaviour
     {
-        const string Key = "ether-mines:glow", AoKey = "ether-mines:ao";
+        const string Key = "ether-mines:glow", AoKey = "ether-mines:ao", RaysKey = "ether-mines:rays";
         public static bool On { get; private set; } = true;
         public static bool Ao { get; private set; } = true;
+        public static bool Rays { get; private set; } = true; // the sun's beams in the haze (EtherLit.hlsl)
         static PostGlow I;
         public static void Toggle() { On = !On; PlayerPrefs.SetString(Key, On ? "1" : "0"); I?.Apply(); }
         public static void ToggleAo() { Ao = !Ao; PlayerPrefs.SetString(AoKey, Ao ? "1" : "0"); I?.Apply(); }
+        public static void ToggleRays() { Rays = !Rays; PlayerPrefs.SetString(RaysKey, Rays ? "1" : "0"); I?.Apply(); }
 
         public float Threshold = 0.95f, Strength = 0.45f, Scatter = 0.6f;
         Volume volume;
@@ -27,6 +29,7 @@ namespace EtherMines.Game
             I = this;
             On = PlayerPrefs.GetString(Key, "1") != "0";
             Ao = PlayerPrefs.GetString(AoKey, TouchPad.Active ? "0" : "1") != "0"; // costly on a phone: off there unless chosen
+            Rays = PlayerPrefs.GetString(RaysKey, TouchPad.Active ? "0" : "1") != "0"; // the same
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
             bloom = profile.Add<Bloom>(true);
             bloom.threshold.Override(Threshold);
@@ -50,6 +53,7 @@ namespace EtherMines.Game
         void Apply()
         {
             if (bloom != null) bloom.active = On;
+            Shader.SetGlobalFloat("_EM_Rays", Rays ? 1 : 0);
             // URP's ambient occlusion, a feature of the renderer (UrpSetup.cs added it)
             foreach (var f in Resources.FindObjectsOfTypeAll<ScriptableRendererFeature>())
                 if (f != null && f.GetType().Name == "ScreenSpaceAmbientOcclusion") f.SetActive(Ao);

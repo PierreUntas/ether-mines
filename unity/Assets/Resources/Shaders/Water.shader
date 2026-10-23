@@ -92,7 +92,7 @@ Shader "EtherMines/Water"
                 c = lerp(c, sky, fres * 0.75 * (front ? 1 : 0));
                 c += sun.color * pow(saturate(dot(r, l)), 220) * 1.6 * step(0, l.y) * sun.shadowAttenuation;
                 a = saturate(a + fres * 0.3);
-                return half4(MixFog(c, i.fog), a);
+                return half4(EtherFog(c, i.fog, i.ws, i.cs, false), a);
             }
             ENDHLSL
         }

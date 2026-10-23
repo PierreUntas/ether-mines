@@ -94,6 +94,11 @@ namespace EtherMines.Game
             // the sky's colors, for the water's reflection
             Shader.SetGlobalColor("_EM_SkyTop", top);
             Shader.SetGlobalColor("_EM_SkyHor", hor);
+            // the haze's glow toward the sun and its beams (EtherLit.hlsl EtherFog): none at night, none under water,
+            // dimmer in a shower
+            Shader.SetGlobalVector("_EM_SunDir", dir);
+            var glow = Underwater ? Color.black : sunC * (0.5f + 0.5f * Mathf.Clamp01(si * 1.5f)) * (1 - wet * 0.7f);
+            Shader.SetGlobalColor("_EM_SunGlow", glow);
             Hor = hor;
             if (SkyMat != null)
             {

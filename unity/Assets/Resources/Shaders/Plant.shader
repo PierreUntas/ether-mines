@@ -66,7 +66,7 @@ Shader "EtherMines/Plant"
                 clip(c.a - _Cutoff);
                 half3 col = EtherLambert(c.rgb, i.ws, normalize(i.n) * (front ? 1 : -1), i.cs);
                 col += SAMPLE_TEXTURE2D(_EmissionTex, sampler_EmissionTex, i.uv).rgb * (_EM_Emis > 0 ? _EM_Emis : 1);
-                return half4(MixFog(col, i.fog), 1);
+                return half4(EtherFog(col, i.fog, i.ws, i.cs, true), 1);
             }
             ENDHLSL
         }

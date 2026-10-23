@@ -48,7 +48,7 @@ Shader "EtherMines/Avatar"
             half4 frag (V i) : SV_Target
             {
                 half3 col = EtherLambert(_Color.rgb, i.ws, normalize(i.n), i.cs) + _Glow.rgb + _Color.rgb * 0.12;
-                return half4(MixFog(col, i.fog), 1);
+                return half4(EtherFog(col, i.fog, i.ws, i.cs, true), 1);
             }
             ENDHLSL
         }

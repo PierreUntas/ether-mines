@@ -56,6 +56,45 @@ half3 EtherLambert(half3 albedo, float3 posWS, half3 nWS, float4 posCS)
     return albedo * lit;
 }
 
+// ---------- the haze and the sun's rays (Unity only) ----------
+// The fog glows warm toward the sun, and where its light comes through (between trunks, out of a cave's
+// mouth, past a tower) the air itself shows the beams: a few steps along the view ray, each asking the
+// sun's shadow map whether that bit of air is lit. Sky.cs gives the sun's direction and glow (none at
+// night or under water); _EM_Rays turns the beams off (Settings → Sun rays, off on phones by default).
+float4 _EM_SunDir;   // toward the sun
+half4 _EM_SunGlow;   // the light it lends the haze
+float _EM_Rays;      // 1: march the beams
+float EtherNoise(float2 px) { return frac(52.9829189 * frac(dot(px, float2(0.06711056, 0.00583715)))); }
+half3 EtherFog(half3 col, half fogFactor, float3 posWS, float4 posCS, bool beams)
+{
+    float3 cam = GetCameraPositionWS();
+    float3 ray = posWS - cam;
+    float dist = max(length(ray), 1e-4);
+    float3 v = ray / dist;
+    float s = saturate(dot(v, _EM_SunDir.xyz));
+    half3 glow = _EM_SunGlow.rgb;
+    // the fog itself: lit golden toward the sun, as the sky's halo is
+    half3 fogC = unity_FogColor.rgb + glow * (pow(s, 5.0) * 0.5 + pow(s, 40.0) * 0.45);
+    half3 c = MixFogColor(col, fogC, fogFactor);
+#if !defined(_MAIN_LIGHT_SHADOWS_SCREEN)
+    if (beams && _EM_Rays > 0.5 && glow.r + glow.g + glow.b > 0.01)
+    {
+        const int N = 10;
+        float len = min(dist, 56.0);
+        float stepL = len / N;
+        float j = EtherNoise(posCS.xy); // each pixel starts a little further: no bands, a fine grain instead
+        float lit = 0;
+        for (int k = 0; k < N; k++)
+            lit += MainLightRealtimeShadow(TransformWorldToShadowCoord(cam + v * ((k + j) * stepL)));
+        lit /= N;
+        float phase = pow(s, 6.0) * 1.4 + pow(s, 30.0) * 1.2 + 0.04; // the air shines forward, toward the sun
+        float air = 1 - exp(-len * 0.015);
+        c += glow * (lit * phase * air * 0.45);
+    }
+#endif
+    return c;
+}
+
 // ---------- the shadow it casts (ShadowCaster): biased along the light, as URP's own ----------
 float3 _LightDirection;
 float3 _LightPosition;

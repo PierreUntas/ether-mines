@@ -47,7 +47,7 @@ Shader "EtherMines/Glass"
                 half4 c = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
                 half3 col = EtherLambert(c.rgb * i.color.rgb, i.ws, normalize(i.n), i.cs);
                 col += SAMPLE_TEXTURE2D(_EmissionTex, sampler_EmissionTex, i.uv).rgb * (_EM_Emis > 0 ? _EM_Emis : 1);
-                return half4(MixFog(col, i.fog), c.a);
+                return half4(EtherFog(col, i.fog, i.ws, i.cs, false), c.a);
             }
             ENDHLSL
         }
