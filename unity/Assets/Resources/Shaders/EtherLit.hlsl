@@ -31,6 +31,23 @@ float3 EtherLeafWind(float3 ws, float2 uv)
     return leaf > 0.5 ? EtherWind(ws, 2.0) : float3(0, 0, 0); // twice the grass's base sway
 }
 
+// ---------- the clouds' shadows (Unity only) ----------
+// The clouds' own pattern (Decor.cs, the plane high over the world), read where the sun's ray through this
+// point crosses it: the sunlight dims under a cloud, and the shadows drift over the land with them.
+float4 _EM_SunDir;   // toward the sun (Sky.cs)
+TEXTURE2D(_EM_Clouds); SAMPLER(sampler_EM_Clouds);
+float4 _EM_Cloud;    // x: the pattern's drift, y: the clouds' height, z: how dark their shadow (0: none)
+half EtherCloudShade(float3 posWS)
+{
+    if (_EM_Cloud.z <= 0.001) return 1;
+    float3 sd = _EM_SunDir.xyz;
+    float up = max(sd.y, 0.25);
+    float2 p = posWS.xz + sd.xz * ((_EM_Cloud.y - posWS.y) / up);
+    float2 uv = float2(p.x / 300.0 + _EM_Cloud.x, -p.y / 300.0); // as Clouds.shader
+    half a = SAMPLE_TEXTURE2D_LOD(_EM_Clouds, sampler_EM_Clouds, uv, 2).a;
+    return 1 - a * _EM_Cloud.z;
+}
+
 // diffuse light on a surface of this color (three's MeshLambertMaterial, as Unity's Lambert did): the sky's
 // ambient from the light probe (Sky.cs sets the trilight), the sun and its shadows, every other light near
 half3 EtherLambert(half3 albedo, float3 posWS, half3 nWS, float4 posCS)
@@ -38,7 +55,7 @@ half3 EtherLambert(half3 albedo, float3 posWS, half3 nWS, float4 posCS)
     float4 shadowCoord = TransformWorldToShadowCoord(posWS);
     Light sun = GetMainLight(shadowCoord);
     half3 ambient = SampleSH(nWS);
-    half3 direct = sun.color * (sun.shadowAttenuation * sun.distanceAttenuation) * saturate(dot(nWS, sun.direction));
+    half3 direct = sun.color * (sun.shadowAttenuation * sun.distanceAttenuation) * saturate(dot(nWS, sun.direction)) * EtherCloudShade(posWS);
 #if defined(_SCREEN_SPACE_OCCLUSION)
     AmbientOcclusionFactor ao = GetScreenSpaceAmbientOcclusion(GetNormalizedScreenSpaceUV(posCS));
     ambient *= ao.indirectAmbientOcclusion;
@@ -61,7 +78,6 @@ half3 EtherLambert(half3 albedo, float3 posWS, half3 nWS, float4 posCS)
 // mouth, past a tower) the air itself shows the beams: a few steps along the view ray, each asking the
 // sun's shadow map whether that bit of air is lit. Sky.cs gives the sun's direction and glow (none at
 // night or under water); a low mist along the sea and in the valleys; _EM_Rays turns the beams off (Settings → Sun rays, off on phones by default).
-float4 _EM_SunDir;   // toward the sun
 half4 _EM_SunGlow;   // the light it lends the haze
 float _EM_Rays;      // 1: march the beams
 float4 _EM_Mist;     // x: how thick the low mist is, y: the height it lies under

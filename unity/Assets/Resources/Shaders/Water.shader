@@ -104,7 +104,8 @@ Shader "EtherMines/Water"
                 float3 l = sun.direction;
                 half4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv) * _Color;
                 // lit as the web's Lambert: the sky's ambient and the sun
-                half3 c = tex.rgb * (SampleSH(n) + sun.color * sun.shadowAttenuation * saturate(dot(n, l)));
+                half shade = sun.shadowAttenuation * EtherCloudShade(i.ws);
+                half3 c = tex.rgb * (SampleSH(n) + sun.color * shade * saturate(dot(n, l)));
                 float a = _Color.a;
                 // deep and shallow, and the shore's foam (the distance to what's behind the surface)
                 if (_EM_Depth > 0.5)
@@ -132,7 +133,7 @@ Shader "EtherMines/Water"
                 }
                 float fres = 0.04 + 0.96 * pow(1 - saturate(dot(n, v)), 5);
                 c = lerp(c, sky, fres * 0.75 * (front ? 1 : 0));
-                c += sun.color * pow(saturate(dot(r, l)), 220) * 1.6 * step(0, l.y) * sun.shadowAttenuation;
+                c += sun.color * pow(saturate(dot(r, l)), 220) * 1.6 * step(0, l.y) * shade;
                 a = saturate(a + fres * 0.3);
                 return half4(EtherFog(c, i.fog, i.ws, i.cs, false), a);
             }

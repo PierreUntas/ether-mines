@@ -219,6 +219,7 @@ namespace EtherMines.Game
                 Obj("curtain", Cylinder(r, r, h, 48, st, len), auroraMat, auroraT).transform.localPosition = new Vector3(0, 58 + h / 2, 0);
             // the clouds
             cloudMat = new Material(Shader.Find("EtherMines/Clouds")) { mainTexture = CloudTexture() };
+            Shader.SetGlobalTexture("_EM_Clouds", cloudMat.mainTexture); // their shadows on the land (EtherLit.hlsl)
             var plane = new List<Vector3> { new Vector3(-450, 0, -450), new Vector3(450, 0, -450), new Vector3(450, 0, 450), new Vector3(-450, 0, 450) };
             cloudsT = Obj("clouds", GameMesh(plane, new List<Color> { Color.white, Color.white, Color.white, Color.white }, new List<int> { 0, 2, 1, 0, 3, 2 }), cloudMat).transform;
             // the validators' beams and gems
@@ -392,6 +393,8 @@ namespace EtherMines.Game
             var cc = Color.Lerp(Sky.Hor, Color.white, 0.6f - 0.4f * night);
             cc.a = Mathf.Min(1, 0.85f - 0.35f * night + Weather.Rain * 0.15f);
             cloudMat.color = cc;
+            // their shadows: by day only, softer in a shower (the whole sky is grey then)
+            Shader.SetGlobalVector("_EM_Cloud", new Vector4(cloudDrift, EtherMines.Core.World.SY + 26, 0.5f * (1 - night) * (1 - Weather.Rain * 0.7f), 0));
             // the beams: brighter at night; the gems turning and bobbing
             beamMat.color = Hex("#ffe68a") * (0.25f + night * 0.45f);
             if ((beamScanT -= dt) <= 0) { beamScanT = 1; ScanBeams(p); }
