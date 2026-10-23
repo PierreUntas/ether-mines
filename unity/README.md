@@ -33,12 +33,16 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
 - `rules.js` changed → `node unity/tools/export-rules.mjs` (a test in `tests/unity.test.mjs` checks it).
 - `world.js` (the generator, `GEN`) or `src/mesh.js` changed → port the change to `WorldGen*.cs` /
   `Mesher.cs`, then run the parity checks:
-  `cd unity/CoreTests && node golden.mjs && node golden-mesh.mjs && node golden-circuits.mjs && node golden-audio.mjs && dotnet build -c Release && dotnet bin/Release/net8.0/CoreTests.dll`
+  `cd unity/CoreTests && node golden.mjs && node golden-mesh.mjs && node golden-circuits.mjs && node golden-audio.mjs && node golden-mobs.mjs && dotnet build -c Release && dotnet bin/Release/net8.0/CoreTests.dll`
   (every chunk must match the JavaScript byte for byte, every mesh vertex for vertex).
 - The sounds (`src/audio.js`) changed → port the recipe to `Game/Sounds.cs` (a new shape of sound to
   `Core/Synth.cs`, then `node golden-audio.mjs` and the parity checks).
 - The circuits (`src/game/12-circuits.js`) changed → port the change to `Core/Circuits.cs` and run the
   parity checks above (`golden-circuits.mjs` runs the web's own file on test circuits).
+- The mobs' logic (`src/mobs-core.js`) or the game server's mobs, hearts and mob blows (`server/src/mobs.js`,
+  `health.js`, `server.js` mobBlow) changed → port it to `Core/MobsCore.cs` / `Core/MobSim.cs` (the
+  offline mobs) and run the parity checks (`golden-mobs.mjs` runs the real server over WebSockets with a
+  fake clock; needs `npm ci --prefix server`).
 - Textures changed (`src/game/01-textures.js`) → `node unity/tools/export-art.mjs`.
 - A mob's model (`buildMob` in `src/game/16-mobs.js`) or stats (`MK` in `src/mobs-core.js`) changed →
   `node unity/tools/export-mobs.mjs` (a test checks it).
