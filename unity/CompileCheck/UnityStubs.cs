@@ -238,7 +238,7 @@ namespace UnityEngine.Rendering.Universal
 {
     public enum CameraRenderType { Base, Overlay }
     public enum CameraOverrideOption { Off, On, UsePipelineSettings }
-    public class UniversalAdditionalCameraData : MonoBehaviour { public CameraRenderType renderType; public System.Collections.Generic.List<Camera> cameraStack; public bool renderPostProcessing, renderShadows; public CameraOverrideOption requiresDepthOption; }
+    public class UniversalAdditionalCameraData : MonoBehaviour { public CameraRenderType renderType; public System.Collections.Generic.List<Camera> cameraStack; public bool renderPostProcessing, renderShadows; public CameraOverrideOption requiresDepthOption, requiresColorOption; }
     public static class CameraExtensions { public static UniversalAdditionalCameraData GetUniversalAdditionalCameraData(this Camera c) => null; }
     public class ScriptableRendererFeature : ScriptableObject { public void SetActive(bool a) { } }
     public class ScriptableRendererData : ScriptableObject { public System.Collections.Generic.List<ScriptableRendererFeature> rendererFeatures; public new void SetDirty() { } }

@@ -1,8 +1,9 @@
 // Ether Mines · water (04-render.js waMat): the surface (vertices high in their block) ripples, tinted light
-// blue as on the web; here it also mirrors the sky (more at a grazing look, Fresnel), catches a glint of
+// blue as on the web; here it also mirrors the sky and what stands around it, the shore, the trees, the
+// towers (more at a grazing look, Fresnel; a march in the picture already drawn), catches a glint of
 // the sun, is clearer where it's shallow and deeper blue where it's deep, with a little foam along the
 // shore (where the camera's depth is at hand: not on phones); and it can be seen from below. URP: the sun
-// and the sky's ambient as EtherLit.hlsl has them, the scene's depth from URP's depth texture.
+// and the sky's ambient as EtherLit.hlsl has them, the scene's depth and color from URP's camera copies.
 Shader "EtherMines/Water"
 {
     Properties
@@ -28,6 +29,7 @@ Shader "EtherMines/Water"
             #pragma multi_compile_fog
             #include "EtherLit.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareOpaqueTexture.hlsl"
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
@@ -35,6 +37,40 @@ Shader "EtherMines/Water"
             CBUFFER_END
             float _EM_Depth;               // 1: the camera's depth is there (Game.cs)
             half4 _EM_SkyTop, _EM_SkyHor;  // the sky's colors now (Sky.cs)
+            // what the water mirrors: a march along the reflected ray in the picture already drawn (the camera's
+            // depth and its opaque copy); a hit returns that pixel, faded toward the screen's edges and the far
+            // end of the march; a miss (or off the screen) leaves the sky. x: how sure the hit is (0 = sky).
+            float4 Mirror(float3 ws, float3 r)
+            {
+                float3 p = ws + r * 0.25;
+                float stepL = 0.45;
+                float4 res = 0;
+                bool done = false;
+                [unroll] for (int k = 0; k < 20; k++)
+                {
+                    if (!done)
+                    {
+                        p += r * stepL;
+                        stepL *= 1.15;
+                        float4 cp = TransformWorldToHClip(p);
+                        // as URP's positionNDC: right side up on every platform
+                        float2 uv = float2(cp.x, cp.y * _ProjectionParams.x) / cp.w * 0.5 + 0.5;
+                        if (cp.w <= 0 || any(uv < 0) || any(uv > 1)) done = true;
+                        else
+                        {
+                            float scene = LinearEyeDepth(LoadSceneDepth(uint2(uv * _CameraDepthTexture_TexelSize.zw)), _ZBufferParams);
+                            float d = cp.w - scene;
+                            if (d > 0.02 && d < stepL * 1.5 + 0.6)
+                            {
+                                float2 edge = min(uv, 1 - uv);
+                                res = float4(saturate(min(edge.x, edge.y) * 8) * (1 - k / 20.0), uv, 1);
+                                done = true;
+                            }
+                        }
+                    }
+                }
+                return res;
+            }
             struct A { float4 pos : POSITION; float3 n : NORMAL; float2 uv : TEXCOORD0; };
             struct V { float4 cs : SV_POSITION; float2 uv : TEXCOORD0; float3 ws : TEXCOORD1; float3 n : TEXCOORD2; half fog : TEXCOORD3; };
             V vert (A a)
@@ -88,6 +124,12 @@ Shader "EtherMines/Water"
                 // the sky in it, more at a grazing look; a glint of the sun
                 float3 r = reflect(-v, n);
                 half3 sky = lerp(_EM_SkyHor.rgb, _EM_SkyTop.rgb, saturate(r.y * 1.6));
+                // the shore, the trees, the towers in it (not on phones, where the camera's copies aren't made)
+                if (_EM_Depth > 0.5 && front)
+                {
+                    float4 m = Mirror(i.ws, r);
+                    if (m.w > 0.5) sky = lerp(sky, SampleSceneColor(m.yz), saturate(m.x));
+                }
                 float fres = 0.04 + 0.96 * pow(1 - saturate(dot(n, v)), 5);
                 c = lerp(c, sky, fres * 0.75 * (front ? 1 : 0));
                 c += sun.color * pow(saturate(dot(r, l)), 220) * 1.6 * step(0, l.y) * sun.shadowAttenuation;

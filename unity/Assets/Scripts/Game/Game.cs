@@ -39,10 +39,11 @@ namespace EtherMines.Game
             cam.farClipPlane = 400;
             cam.fieldOfView = 70;
             cam.clearFlags = CameraClearFlags.Skybox;
-            // the camera's depth, for the water's shallows and its foam (not on a phone: it costs a pass)
+            // the camera's depth and its copy of the picture, for the water's shallows, foam and reflections (not on a phone: they cost passes)
             bool depth = !TouchPad.Active;
             var camData = cam.GetUniversalAdditionalCameraData();
             camData.requiresDepthOption = depth ? CameraOverrideOption.On : CameraOverrideOption.Off;
+            camData.requiresColorOption = depth ? CameraOverrideOption.On : CameraOverrideOption.Off; // the water's reflections
             camData.renderShadows = true;
             Shader.SetGlobalFloat("_EM_Depth", depth ? 1 : 0);
             Shader.SetGlobalFloat("_EM_WindK", 1); // the wind in the leaves and the grass (Weather.cs: stronger in a shower)
