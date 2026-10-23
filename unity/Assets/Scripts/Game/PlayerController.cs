@@ -183,6 +183,9 @@ namespace EtherMines.Game
             // the camera's eye in water: the fog turns blue-green (Sky)
             var cp = Cam.transform.position;
             Sky.Underwater = World.Get((int)Math.Floor(cp.x), (int)Math.Floor(cp.y), (int)Math.Floor(-cp.z)) == 11;
+            // and how far under the ground it is: the caves' own fog (Sky)
+            Sky.Below = EtherMines.Core.World.HeightAt((int)Math.Floor(cp.x), (int)Math.Floor(-cp.z)) - cp.y;
+            Sky.EyeY = cp.y;
         }
 
         static bool ClickedIn()

@@ -60,10 +60,11 @@ half3 EtherLambert(half3 albedo, float3 posWS, half3 nWS, float4 posCS)
 // The fog glows warm toward the sun, and where its light comes through (between trunks, out of a cave's
 // mouth, past a tower) the air itself shows the beams: a few steps along the view ray, each asking the
 // sun's shadow map whether that bit of air is lit. Sky.cs gives the sun's direction and glow (none at
-// night or under water); _EM_Rays turns the beams off (Settings → Sun rays, off on phones by default).
+// night or under water); a low mist along the sea and in the valleys; _EM_Rays turns the beams off (Settings → Sun rays, off on phones by default).
 float4 _EM_SunDir;   // toward the sun
 half4 _EM_SunGlow;   // the light it lends the haze
 float _EM_Rays;      // 1: march the beams
+float4 _EM_Mist;     // x: how thick the low mist is, y: the height it lies under
 float EtherNoise(float2 px) { return frac(52.9829189 * frac(dot(px, float2(0.06711056, 0.00583715)))); }
 half3 EtherFog(half3 col, half fogFactor, float3 posWS, float4 posCS, bool beams)
 {
@@ -76,6 +77,10 @@ half3 EtherFog(half3 col, half fogFactor, float3 posWS, float4 posCS, bool beams
     // the fog itself: lit golden toward the sun, as the sky's halo is
     half3 fogC = unity_FogColor.rgb + glow * (pow(s, 5.0) * 0.5 + pow(s, 40.0) * 0.45);
     half3 c = MixFogColor(col, fogC, fogFactor);
+    // the low mist (Sky.cs: thick at dawn, light by day): it lies along the sea and fills the valleys, thinning
+    // out over a few blocks of height, and gathers with the distance
+    float mist = _EM_Mist.x * saturate(1 - (posWS.y - _EM_Mist.y) / 7) * (1 - exp(-dist * 0.03));
+    c = lerp(c, fogC * 1.04, saturate(mist));
 #if !defined(_MAIN_LIGHT_SHADOWS_SCREEN)
     if (beams && _EM_Rays > 0.5 && glow.r + glow.g + glow.b > 0.01)
     {

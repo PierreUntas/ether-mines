@@ -12,6 +12,8 @@ namespace EtherMines.Game
         public Material SkyMat;
         public float Day; // 0..1: 0.25 sunrise, 0.5 noon, 0.75 sunset
         public static bool Underwater; // the camera is in water (PlayerController): a close blue-green fog
+        public static float Below, EyeY = 40; // how far under the ground the camera is, and its height (PlayerController)
+        public static float Cave;      // 0 in the open .. 1 deep in a cave (eased): the fog turns a close, dark violet
         public static Color Hor = Color.white; // the horizon's color now (the clouds take it)
         public static float Night;     // 0 by day .. 1 deep in the night (08-sky.js night: the sun under the horizon)
         public int DayN;
@@ -35,6 +37,8 @@ namespace EtherMines.Game
             (1f, "#141048", "#2e2870", "#000000", 0f, 0.2f, "#231d55"),
         };
 
+        static readonly float SeaY = EtherMines.Core.World.SEA;
+        static float Bell(float t, float c, float w) { float d = (t - c) / w; return (float)Math.Exp(-d * d); }
         static Color C(string hex) { ColorUtility.TryParseHtmlString(hex, out var c); return c; }
 
         void Update()
@@ -84,6 +88,21 @@ namespace EtherMines.Game
             RenderSettings.fogEndDistance = FogFar;
             RenderSettings.fogStartDistance = FogFar * 0.37f;
             if (wet > 0) { RenderSettings.fogEndDistance = FogFar * (1 - wet * 0.45f); RenderSettings.fogStartDistance = FogFar * 0.37f * (1 - wet * 0.6f); }
+            // under the ground: the daylight's fog gives way to the caves' own, closer and darker; violet, then
+            // the ether's teal-violet in the deep layers (World.DEEP, the geodes)
+            float caveT = Mathf.Clamp01((Below - 3) / 5);
+            Cave += (caveT - Cave) * Mathf.Min(1, Time.deltaTime / 1.2f);
+            if (Cave > 0.001f)
+            {
+                var caveC = Color.Lerp(C("#1d1540"), C("#1a2448"), Mathf.Clamp01((20 - EyeY) / 8));
+                RenderSettings.fogColor = Color.Lerp(RenderSettings.fogColor, caveC, Cave);
+                RenderSettings.fogStartDistance = Mathf.Lerp(RenderSettings.fogStartDistance, 4, Cave);
+                RenderSettings.fogEndDistance = Mathf.Lerp(RenderSettings.fogEndDistance, 44, Cave);
+            }
+            // the low mist (EtherLit.hlsl EtherFog): along the sea and in the valleys, thick at dawn, light by day,
+            // thicker in a shower; none in a cave or under water
+            float mist = 0.08f + 0.5f * Bell(t, 0.27f, 0.07f) + 0.25f * Bell(t, 0.8f, 0.05f) + 0.12f * Night + wet * 0.35f;
+            Shader.SetGlobalVector("_EM_Mist", new Vector4(Underwater ? 0 : mist * (1 - Cave), SeaY + 2, 0, 0));
             if (Underwater)
             {
                 // under the surface: the world fades into the water's own color a few blocks away
@@ -97,7 +116,7 @@ namespace EtherMines.Game
             // the haze's glow toward the sun and its beams (EtherLit.hlsl EtherFog): none at night, none under water,
             // dimmer in a shower
             Shader.SetGlobalVector("_EM_SunDir", dir);
-            var glow = Underwater ? Color.black : sunC * (0.5f + 0.5f * Mathf.Clamp01(si * 1.5f)) * (1 - wet * 0.7f);
+            var glow = Underwater ? Color.black : Cave > 0.99f ? Color.black : sunC * (0.5f + 0.5f * Mathf.Clamp01(si * 1.5f)) * (1 - wet * 0.7f);
             Shader.SetGlobalColor("_EM_SunGlow", glow);
             Hor = hor;
             if (SkyMat != null)
