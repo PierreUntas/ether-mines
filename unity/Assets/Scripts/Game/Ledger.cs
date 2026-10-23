@@ -225,7 +225,7 @@ namespace EtherMines.Game
                     }
             float ch = 0;
             foreach (var l in lines2) ch += row.CalcHeight(new GUIContent(l), w - 56) + 4;
-            scroll = GUI.BeginScrollView(new Rect(x + 18, yy, w - 36, listH), scroll, new Rect(0, 0, w - 56, ch));
+            scroll = Ui.Scroll(new Rect(x + 18, yy, w - 36, listH), scroll, new Rect(0, 0, w - 56, ch));
             float ly = 0;
             foreach (var l in lines2) { float lh = row.CalcHeight(new GUIContent(l), w - 56); GUI.Label(new Rect(0, ly, w - 56, lh), l, row); ly += lh + 4; }
             GUI.EndScrollView();

@@ -280,7 +280,7 @@ namespace EtherMines.Game
             float h = 0;
             foreach (var c in Chapters) h += 90 + (Open(c) && !Done(c) ? c.Q.Length * 44 : 0);
             var view = new Rect(0, 0, body.width - 20, h + 60 + topH);
-            scroll = GUI.BeginScrollView(body, scroll, view);
+            scroll = Ui.Scroll(body, scroll, view);
             float y = 0;
             // the epilogue, kept at the top once the story is done; then the network, the shared goal
             if (Seen("epilogue")) y = Story.DrawEpilogue(this, view.width, y) + 12;
@@ -382,7 +382,7 @@ namespace EtherMines.Game
             if (!validatorsLoaded) { GUI.Label(r, "Loading your validators…", Ui.Label); return; }
             if (Validators.Count == 0) { GUI.Label(r, "No validator yet. Relight a dark one in the ruins.", Ui.Label); return; }
             var view = new Rect(0, 0, r.width - 20, Validators.Count * 104);
-            vscroll = GUI.BeginScrollView(r, vscroll, view);
+            vscroll = Ui.Scroll(r, vscroll, view);
             float y = 0;
             foreach (var v in Validators)
             {

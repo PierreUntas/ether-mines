@@ -207,7 +207,7 @@ namespace EtherMines.Game
                 var r = settingsRect;
                 // a phone's screen is short: the list scrolls (its content at the same coordinates as the box)
                 bool scrolls = settingsH > r.height + 1;
-                settingsScroll = GUI.BeginScrollView(r, settingsScroll, new Rect(r.x, r.y, r.width - (scrolls ? 18 : 0), settingsH));
+                settingsScroll = Ui.Scroll(r, settingsScroll, new Rect(r.x, r.y, r.width - (scrolls ? 18 : 0), settingsH));
                 if (scrolls) r.width -= 18;
                 float ly = r.y + 8;
                 void Row(string label, bool on, Action toggle)
@@ -303,7 +303,7 @@ namespace EtherMines.Game
             var view = new Rect(0, 0, gw - 14, gridH + (under ? cardH + 14 : 0));
             gridRect = new Rect(body.x, body.y, gw, body.height);
             gridOverflows = view.height > body.height;
-            scroll = GUI.BeginScrollView(new Rect(body.x, body.y, gw, body.height), scroll, view);
+            scroll = Ui.Scroll(new Rect(body.x, body.y, gw, body.height), scroll, view);
             if (all.Count == 0) GUI.Label(new Rect(0, 0, gw - 20, 40), "Your chest is empty. Mine a few blocks.", Ui.Small);
             for (int i = 0; i < all.Count; i++)
             {
@@ -414,7 +414,7 @@ namespace EtherMines.Game
             var list = Rules.Recipes.Where(r => craftCat == "" || r.Cat == craftCat).ToList();
             float rh = 92;
             var view = new Rect(0, 0, body.width - 14, list.Count * rh + 40 * cats.Count);
-            scroll = GUI.BeginScrollView(new Rect(body.x, body.y + top, body.width, body.height - top), scroll, view);
+            scroll = Ui.Scroll(new Rect(body.x, body.y + top, body.width, body.height - top), scroll, view);
             float y = 0;
             string cat = null;
             foreach (var r in list)
@@ -485,7 +485,7 @@ namespace EtherMines.Game
             int cols = Mathf.Max(1, (int)((r.width - 20) / (cs + 6)));
             var area = new Rect(r.x, r.y + 30, r.width, r.height - 30);
             var view = new Rect(0, 0, r.width - 20, Mathf.Ceil(list.Count / (float)cols) * (cs + 6));
-            sc = GUI.BeginScrollView(area, sc, view);
+            sc = Ui.Scroll(area, sc, view);
             for (int i = 0; i < list.Count; i++)
             {
                 var cell = new Rect((i % cols) * (cs + 6), (i / cols) * (cs + 6), cs, cs);

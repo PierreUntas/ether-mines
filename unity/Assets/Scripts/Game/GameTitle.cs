@@ -214,7 +214,7 @@ namespace EtherMines.Game
             float top = sa.y + 12, avail = sa.height - 24, h = Mathf.Min(contentH, avail), y0 = top + Mathf.Max(0, (avail - h) / 2);
             var view = new Rect(x - 10, y0, w + 20, h);
             bool scrolls = contentH > avail;
-            scroll = GUI.BeginScrollView(view, scroll, new Rect(0, 0, w - (scrolls ? 16 : 0), contentH - 8), false, false, GUIStyle.none, scrolls ? GUI.skin.verticalScrollbar : GUIStyle.none);
+            scroll = Ui.Scroll(view, scroll, new Rect(0, 0, w - (scrolls ? 16 : 0), contentH - 8), false, false, GUIStyle.none, scrolls ? GUI.skin.verticalScrollbar : GUIStyle.none);
             float iw = w - (scrolls ? 16 : 0), ix = 10, y = 0;
             y = Body(ix, y, iw);
             GUI.EndScrollView();
@@ -226,14 +226,17 @@ namespace EtherMines.Game
             bool paused = started && !loading;
             var ev = Event.current;
             if (!started && !busy && ev.type == EventType.KeyDown && (ev.keyCode == KeyCode.Return || ev.keyCode == KeyCode.KeypadEnter)) { ev.Use(); Enter(true); } // Enter in a field: in
-            // the title, on two lines, its violet shadow under it and a cyan glow around
-            int ts = Mathf.RoundToInt(Mathf.Clamp(Ui.W * 0.09f, 44, 72));
+            // the title, on two lines, its violet shadow under it and a cyan glow around (on one line, smaller, on
+            // a screen too short for it: a phone held sideways, where the button must stay within reach)
+            bool shortScreen = Ui.H < 560;
+            int ts = shortScreen ? 42 : Mathf.RoundToInt(Mathf.Clamp(Ui.W * 0.09f, 44, 72));
             sTitle.fontSize = ts;
             float lh = ts * 0.95f;
+            int lines = shortScreen ? 1 : 2;
             var o = GUI.color;
-            for (int line = 0; line < 2; line++)
+            for (int line = 0; line < lines; line++)
             {
-                string t = line == 0 ? "Ether" : "Mines";
+                string t = shortScreen ? "Ether Mines" : line == 0 ? "Ether" : "Mines";
                 var r = new Rect(x, y + line * lh, w, lh + 8);
                 GUI.color = new Color(Ui.Cyan.r, Ui.Cyan.g, Ui.Cyan.b, 0.18f);
                 for (int k = 0; k < 4; k++) GUI.Label(new Rect(r.x + (k % 2 == 0 ? -2 : 2), r.y + (k < 2 ? -2 : 2), r.width, r.height), t, sTitle);
@@ -242,8 +245,8 @@ namespace EtherMines.Game
                 GUI.color = o;
                 GUI.Label(r, t, sTitle);
             }
-            y += lh * 2 + 18;
-            var center = new GUIStyle(sText) { alignment = TextAnchor.UpperCenter, fontSize = 16 }; center.normal.textColor = Ui.Lavender;
+            y += lh * lines + (shortScreen ? 10 : 18);
+            var center = new GUIStyle(sText) { alignment = TextAnchor.UpperCenter, fontSize = shortScreen ? 14 : 16 }; center.normal.textColor = Ui.Lavender;
             if (!started) { y += Text(x, y, w, "A block world in Ethereum's colors, built with friends. Every block remembers who placed it: the world keeps a ledger of everything you build.", center) + 14; }
             else if (paused) { y += Text(x, y, w, (session != null ? $"{session.Login} · " : "") + $"world \"{worldName}\"" + (session == null || session.Net.Offline ? " · offline, saved on this device" : ""), center) + 14; }
 
@@ -266,7 +269,7 @@ namespace EtherMines.Game
                     y += 22;
                     password = GUI.PasswordField(new Rect(x, y, w, 42), password, '•', 72, sField);
                     y += 50;
-                    y += Text(x, y, w, "New here? Pick a nickname and a password: they're your account. Coming back on another device? The same nickname and password bring your game.", new GUIStyle(sSmall) { alignment = TextAnchor.UpperCenter }) + 10;
+                    if (!shortScreen) y += Text(x, y, w, "New here? Pick a nickname and a password: they're your account. Coming back on another device? The same nickname and password bring your game.", new GUIStyle(sSmall) { alignment = TextAnchor.UpperCenter }) + 10;
                 }
                 if (session != null && session.MustChange)
                 {

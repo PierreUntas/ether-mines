@@ -19,8 +19,11 @@ namespace EtherMines.Game
 
         // the interface is laid out in points: on a phone a point is a few pixels, so the bar, the buttons and
         // the windows keep a size a thumb can use (about as tall as the web page on the same phone)
-        // a point is the web page's CSS pixel on the same phone: the screen's density over 163 (iOS) or 160 (Android)
-        public static float Scale => TouchPad.Active ? Mathf.Max(1, Screen.dpi > 50 ? Screen.dpi / (Application.platform == RuntimePlatform.IPhonePlayer ? 163f : 160f) : Mathf.Min(Screen.width, Screen.height) / 400f) : 1;
+        // a point is the web page's CSS pixel on the same phone: the screen's density over 163 (iOS) or 160 (Android);
+        // on a computer, the window's height over 900 (a Retina screen, or a big window, draws it larger)
+        public static float Scale => TouchPad.Active
+            ? Mathf.Max(1, Screen.dpi > 50 ? Screen.dpi / (Application.platform == RuntimePlatform.IPhonePlayer ? 163f : 160f) : Mathf.Min(Screen.width, Screen.height) / 400f)
+            : Mathf.Max(1, Screen.height / 900f);
         public static float W => Screen.width / Scale;
         public static float H => Screen.height / Scale;
         public static void Begin()
@@ -95,6 +98,30 @@ namespace EtherMines.Game
             if (fill.a > 0) GUI.DrawTexture(r, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0, fill, Vector4.zero, rad);
             if (width > 0 && edge.a > 0) GUI.DrawTexture(r, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0, edge, new Vector4(width, width, width, width), rad);
         }
+
+        // a list that scrolls: on a touch screen a finger drags it (IMGUI only scrolls with a wheel or its bar);
+        // a drag past a few points is a scroll, not a tap on what it started on
+        static bool tracking, dragging;
+        static Vector2 dragFrom;
+        static Rect dragArea;
+        static void Drag(Rect area, ref Vector2 scroll)
+        {
+            if (!TouchPad.Active) return;
+            var e = Event.current;
+            if (e.type == EventType.MouseDown && area.Contains(e.mousePosition)) { tracking = true; dragging = false; dragFrom = e.mousePosition; dragArea = area; }
+            else if (e.type == EventType.MouseDrag && tracking && dragArea == area)
+            {
+                if (!dragging && (e.mousePosition - dragFrom).magnitude > 8) dragging = true;
+                if (dragging) { scroll.y = Mathf.Max(0, scroll.y - e.delta.y); e.Use(); }
+            }
+            else if (e.type == EventType.MouseUp && tracking && dragArea == area)
+            {
+                tracking = false;
+                if (dragging) { dragging = false; GUIUtility.hotControl = 0; e.Use(); }
+            }
+        }
+        public static Vector2 Scroll(Rect area, Vector2 scroll, Rect view) { Drag(area, ref scroll); return GUI.BeginScrollView(area, scroll, view); }
+        public static Vector2 Scroll(Rect area, Vector2 scroll, Rect view, bool h, bool v, GUIStyle hs, GUIStyle vs) { Drag(area, ref scroll); return GUI.BeginScrollView(area, scroll, view, h, v, hs, vs); }
 
         // the web's button icons (unity/tools/export-ui-icons.mjs: chest, chat, view, menu, jump, run, crouch,
         // guard, ride, dodge, fullscreen), white, tinted by the color given

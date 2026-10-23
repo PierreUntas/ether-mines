@@ -52,7 +52,7 @@ namespace UnityEngine
     public class GUIStyleState { public Color textColor; public Texture2D background; }
     public class GUISettings { public Color cursorColor, selectionColor; }
     public class GUIContent { public GUIContent(string s) { } public GUIContent(string s, string tip) { } public static GUIContent none; }
-    public enum EventType { KeyDown, KeyUp, Repaint, ScrollWheel, MouseDown, MouseUp }
+    public enum EventType { KeyDown, KeyUp, Repaint, ScrollWheel, MouseDown, MouseUp, MouseDrag }
     public class Event { public static Event current; public EventType type; public KeyCode keyCode; public Vector2 mousePosition, delta; public void Use() { } }
     public struct Vector3
     {
@@ -90,13 +90,13 @@ namespace UnityEngine
     }
     public struct Color32 { public byte r, g, b, a; }
     public static class ColorUtility { public static bool TryParseHtmlString(string s, out Color c) { c = default; return true; } public static string ToHtmlStringRGB(Color c) => ""; }
-    public struct Rect { public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; } public float x, y, width, height; public Vector2 center => default; public float xMax => x + width; public float yMax => y + height; public bool Contains(Vector2 p) => false; public static Rect zero => default; }
+    public struct Rect { public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; } public float x, y, width, height; public Vector2 center => default; public float xMax => x + width; public float yMax => y + height; public bool Contains(Vector2 p) => false; public static Rect zero => default; public static bool operator ==(Rect a, Rect b) => true; public static bool operator !=(Rect a, Rect b) => false; public override bool Equals(object o) => true; public override int GetHashCode() => 0; }
     public class RectOffset { public RectOffset(int l, int r, int t, int b) { } }
     public enum TextAnchor { UpperLeft, UpperCenter, UpperRight, MiddleLeft, MiddleCenter, MiddleRight, LowerLeft, LowerCenter, LowerRight }
     public enum FontStyle { Normal, Bold }
     public class GUIStyle { public GUIStyle(GUIStyle s) { } public GUIStyle() { } public bool richText; public int fontSize; public TextAnchor alignment; public FontStyle fontStyle; public RectOffset padding, border, margin; public bool wordWrap; public TextClipping clipping; public Font font; public float fixedWidth, fixedHeight; public GUIStyleState normal = new GUIStyleState(), hover = new GUIStyleState(), active = new GUIStyleState(), focused = new GUIStyleState(), onNormal = new GUIStyleState(), onHover = new GUIStyleState(), onActive = new GUIStyleState(), onFocused = new GUIStyleState(); public static GUIStyle none; public Vector2 CalcSize(GUIContent c) => default; public float CalcHeight(GUIContent c, float w) => 0; }
     public class GUISkin : Object { public Font font; public GUISettings settings; public GUIStyle box, label, button, textField, textArea, window, toggle, verticalScrollbar, verticalScrollbarThumb, horizontalScrollbar, horizontalScrollbarThumb; }
-    public static class GUIUtility { public static string systemCopyBuffer; }
+    public static class GUIUtility { public static string systemCopyBuffer; public static int hotControl; }
     public static class GUI
     {
         public static Matrix4x4 matrix; public static string tooltip;

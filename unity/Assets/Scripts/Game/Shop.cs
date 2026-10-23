@@ -112,7 +112,7 @@ namespace EtherMines.Game
             GUI.Label(new Rect(lb.x, lb.y, lb.width, 36), $"Cosmetics only: no combat, speed, harvesting or access advantage. You have <b>{Session.Gwei:0} Gwei</b>, earned by your validators, mobs and chapters.", Ui.Small);
             float h = rows.Sum(r => 58 + (r.head != null ? 34 : 0) + (r.note != null ? 22 : 0));
             var view = new Rect(0, 0, lb.width - 20, h);
-            scroll = GUI.BeginScrollView(new Rect(lb.x, lb.y + 40, lb.width, lb.height - 40), scroll, view);
+            scroll = Ui.Scroll(new Rect(lb.x, lb.y + 40, lb.width, lb.height - 40), scroll, view);
             float y = 0;
             foreach (var (head, note, id) in rows)
             {

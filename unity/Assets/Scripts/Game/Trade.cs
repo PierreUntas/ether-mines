@@ -150,7 +150,7 @@ namespace EtherMines.Game
             var inv = Session.Inv;
             GUI.enabled = !busy;
             var view = new Rect(0, 0, body.width - 20, contentH);
-            scroll = GUI.BeginScrollView(body, scroll, view);
+            scroll = Ui.Scroll(body, scroll, view);
             float w = view.width, y = 0;
             GUI.Label(new Rect(0, y, w, 40), "Offer a trade to another player: resources, unique pickaxes, plots. Nothing moves until they accept, and everything changes hands at once. Validator seals can't be traded.", Ui.Small);
             y += 42;
