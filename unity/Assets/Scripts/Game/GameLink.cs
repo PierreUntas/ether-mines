@@ -77,8 +77,36 @@ namespace EtherMines.Game
 
         void Later() => retryT = Math.Min(10, 2 << Math.Min(retries++, 3)) + UnityEngine.Random.value;
 
+        // offline: the game server is this device's own (MobSim), spoken to without a socket
+        public MobSim Local;
+        MobPlayer localMe;
+        readonly Queue<Dictionary<string, object>> inbox = new Queue<Dictionary<string, object>>();
+        double localT;
+        static double NowMs => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        // what you own (a weapon not in it strikes as bare hands, as on the server)
+        public void Owned(Inventory inv)
+        {
+            if (localMe == null) return;
+            localMe.Owned.Clear();
+            foreach (var kv in inv.Counts) if (kv.Value > 0) localMe.Owned.Add(kv.Key);
+            foreach (var u in inv.Uniques) localMe.Owned.Add(u.Id);
+        }
+        void LocalTick()
+        {
+            if (localMe == null)
+            {
+                Local.Send += (p, m) => { if (p.Id == "me") inbox.Enqueue(m); };
+                localMe = Local.Join("me", HelloExtra != null ? HelloExtra() : new Dictionary<string, object>(), NowMs, "me");
+                localT = NowMs;
+            }
+            double now = NowMs;
+            if (now - localT >= MobSim.TICK_MS) { localT = now; Local.Tick(now); }
+            while (inbox.Count > 0) Handle(inbox.Dequeue());
+        }
+
         public void Tick(float dt)
         {
+            if (Local != null) { LocalTick(); return; }
             if (off) return;
             if (sock == null)
             {
@@ -108,9 +136,10 @@ namespace EtherMines.Game
             catch (Exception) { }
         }
 
-        void Handle(string raw)
+        void Handle(string raw) { if (MiniJson.Parse(raw) is Dictionary<string, object> m) Handle(m); }
+        void Handle(Dictionary<string, object> m)
         {
-            if (!(MiniJson.Parse(raw) is Dictionary<string, object> m) || !(m.TryGetValue("t", out var tv) && tv is string t)) return;
+            if (!(m.TryGetValue("t", out var tv) && tv is string t)) return;
             if (t == "welcome")
             {
                 SelfId = m["id"] as string;
@@ -177,18 +206,24 @@ namespace EtherMines.Game
             sentOnce = true;
             lx = x; ly = y; lz = z; lyaw = yaw; lpitch = pitch; lm = mining; lh = held; lg = guard; lar = armor; lbt = boots; lnm = NoMobs; lfq = fq; lwd = ward; lrd = ride; lon = on;
             lastSent = now;
-            sock?.Send(MiniJson.Write(new Dictionary<string, object>
+            Out(new Dictionary<string, object>
             {
                 ["t"] = "pos", ["x"] = Math.Round(x, 2), ["y"] = Math.Round(y, 2), ["z"] = Math.Round(z, 2), ["yaw"] = Math.Round(yaw, 2), ["pitch"] = Math.Round(pitch, 2),
                 ["m"] = mining, ["h"] = held, ["gd"] = guard ? 1 : 0, ["rd"] = ride, ["on"] = on ?? (object)0, ["ar"] = armor, ["bt"] = boots ? 1 : 0, ["nm"] = NoMobs ? 1 : 0,
                 ["fx"] = fx ?? (object)0, ["fq"] = fq, ["wd"] = ward ? 1 : 0,
-            }));
+            });
         }
 
         // any other word to the server (mob, hit, shot, guard, parry...): only once it has welcomed you
         public void Send(Dictionary<string, object> m)
         {
-            if (Ready) sock?.Send(MiniJson.Write(m));
+            if (Ready) Out(m);
+        }
+        // to the game server: over the socket, or to this device's own (a copy: it reads numbers as JSON does)
+        void Out(Dictionary<string, object> m)
+        {
+            if (Local != null) { if (localMe != null) Local.Receive(localMe, MiniJson.Parse(MiniJson.Write(m)) as Dictionary<string, object>, NowMs); }
+            else sock?.Send(MiniJson.Write(m));
         }
 
         // your title or look changed: the others see it at once
@@ -203,7 +238,7 @@ namespace EtherMines.Game
         // a block changed (heard from the database's feed): the server's mobs walk the new terrain
         public void Edit(int x, int y, int z, int id)
         {
-            if (Ready) sock?.Send(MiniJson.Write(new Dictionary<string, object> { ["t"] = "edit", ["x"] = x, ["y"] = y, ["z"] = z, ["id"] = id }));
+            if (Ready) Out(new Dictionary<string, object> { ["t"] = "edit", ["x"] = x, ["y"] = y, ["z"] = z, ["id"] = id });
         }
 
         public void Close() { off = true; sock?.Dispose(); sock = null; }

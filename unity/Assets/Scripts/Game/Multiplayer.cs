@@ -67,6 +67,14 @@ namespace EtherMines.Game
             chat.MyColor = Session.Color;
 
             link = new GameLink(Session.World, net.Token);
+            if (net.Offline)
+            {
+                // offline: the game server's mobs and hearts on this device, on the world as this screen has it
+                var sim = new MobSim(new StoreTerrain(World.Store), DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) { PaysLoot = true };
+                sim.Loot += l => sim.SendLoot(l.PlayerId, l.Type, net.Local.LootMob(Session.World, l.Type));
+                sim.UseItem = (p, item) => net.Local.UseTonic(Session.World);
+                link.Local = sim;
+            }
             mobs = GetComponent<Mobs>() ?? gameObject.AddComponent<Mobs>();
             mobs.Player = Player;
             combat = gameObject.AddComponent<Combat>();
@@ -246,10 +254,16 @@ namespace EtherMines.Game
             float dt = Time.deltaTime;
             link.NoMobs = !Reg.MobsOn; // Settings → Hostile mobs (always on in the main world)
             var b = Player.Body;
-            if (Offline) { OfflineTick(dt); return; }
             link.Tick(dt);
-            feed.Tick(dt);
             if (b == null) return;
+            if (Offline)
+            {
+                // the game server's part runs on this device (MobSim): the mobs, your hearts, their loot
+                link.Owned(Act.Inv);
+                link.SendPos(b.X, b.Y, b.Z, Player.Yaw, Player.Pitch, Act.Swing > 0, Act.Inv.HeldId > 0 && Rules.Block(Act.Inv.HeldId) == null ? Act.Inv.HeldId : 0, Time.time, combat.Guarding, combat.Armor, combat.Boots, combat.Fx, combat.Fq, items != null && items.Warded, hover != null ? hover.Riding : 0, hover?.Boarded);
+                return;
+            }
+            feed.Tick(dt);
             if (wasReady && !link.Ready) presence.Resync();
             wasReady = link.Ready;
             presence.Fallback = !link.Ready;
@@ -271,9 +285,6 @@ namespace EtherMines.Game
                     ["fx"] = combat.Fx ?? (object)0, ["fq"] = combat.Fq,
                 }, Time.time);
         }
-
-        // offline: what the game server would do runs here (the mobs, your hearts: LocalGame), nothing goes out
-        void OfflineTick(float dt) { }
 
         void OnDestroy()
         {

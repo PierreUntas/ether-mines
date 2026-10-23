@@ -628,7 +628,7 @@ namespace EtherMines.Game
             {
                 ["ok"] = true, ["n"] = (double)n,
                 ["top"] = n > 0 ? new List<object> { new Dictionary<string, object> { ["name"] = Login, ["n"] = (double)n } } : new List<object>(),
-                ["attack"] = new Dictionary<string, object> { ["window_id"] = (double)(now / 3600), ["active"] = now % 3600 < 600, ["ends_at"] = DateTimeOffset.FromUnixTimeSeconds(now / 3600 * 3600 + 600).UtcDateTime.ToString("o"), ["kills"] = w.Num("attackKills"), ["score"] = w.Num("attackScore") },
+                ["attack"] = new Dictionary<string, object> { ["window_id"] = (double)(now / 3600), ["active"] = now % 3600 < 600, ["ends_at"] = DateTimeOffset.FromUnixTimeSeconds(now / 3600 * 3600 + 600).UtcDateTime.ToString("o"), ["kills"] = w.Num("attackWindow") == now / 3600 ? w.Num("attackKills") : 0.0, ["score"] = w.Num("attackScore") },
             };
         }
 
@@ -655,20 +655,86 @@ namespace EtherMines.Game
             };
         }
 
-        // ---------- the loot of a mob killed on this device (the game server's srv_loot, MobSim's decision) ----------
-        public Dictionary<string, object> Loot(string world, Dictionary<string, object> pay)
+        // ---------- the loot of a mob killed on this device (_loot_mob, 041_game_server.sql) ----------
+        public Dictionary<string, object> LootMob(string world, string type)
         {
             var w = World(world);
             var inv = new Dictionary<string, object>();
-            var r = new Dictionary<string, object> { ["ok"] = true, ["inv"] = inv };
-            if (pay.TryGetValue("item", out var it) && it != null) { Give(w, inv, MiniJson.ToInt(it), Math.Max(1, MiniJson.ToInt(pay.TryGetValue("n", out var n) ? n : 1.0))); r["item"] = it; }
-            if (pay.TryGetValue("shards", out var sh) && sh != null && MiniJson.ToInt(sh) > 0) { Give(w, inv, 110, MiniJson.ToInt(sh)); r["shards"] = sh; }
-            if (pay.TryGetValue("gwei", out var g) && g != null) { w.Set("gwei", w.Num("gwei") + MiniJson.ToDouble(g)); r["gwei"] = g; r["total_gwei"] = w.Num("gwei"); }
-            foreach (var k in new[] { "unique", "bonus" })
-                if (pay.TryGetValue(k, out var u) && u != null && !HasUnique(w, MiniJson.ToInt(u))) r[k] = Mint(w, MiniJson.ToInt(u), "dropped by a boss");
-            if (pay.TryGetValue("cosmetic", out var c) && c != null && !Owns(w, MiniJson.ToInt(c))) { Cosmetics(w).Add(MiniJson.ToDouble(c)); r["cosmetic"] = c; }
-            if (pay.TryGetValue("defense", out var df) && MiniJson.Truthy(df)) { w.Set("defenses", w.Num("defenses") + 1); w.Set("attackKills", w.Num("attackKills") + 1); w.Set("attackScore", w.Num("attackScore") + 1); }
-            return r;
+            Dictionary<string, object> Boss(int trophy, int bonusId, int shards)
+            {
+                var r = new Dictionary<string, object> { ["ok"] = true, ["inv"] = inv, ["unique"] = Mint(w, trophy) };
+                r["bonus"] = R() < 0.2 ? Mint(w, bonusId) : null;
+                Give(w, inv, 110, shards);
+                r["shards"] = (double)shards;
+                return r;
+            }
+            if (type == "merge_twins") return Boss(209, 210, 2);
+            if (type == "front_runner") return Boss(211, 212, 2);
+            if (type == "titan") return Boss(205, 207, 1 + rnd.Next(2));
+            if (type == "plasma_core") return Boss(206, 208, 1 + rnd.Next(2));
+            // a cosmetic of this kind not owned yet, picked at random
+            Dictionary<string, object> Cosmetic(string cat)
+            {
+                var free = Rules.Cosmetics.Values.Where(c => c.Category == cat && !Owns(w, c.Id)).Select(c => c.Id).ToList();
+                if (free.Count == 0) return null;
+                int cid = free[rnd.Next(free.Count)];
+                Cosmetics(w).Add((double)cid);
+                w.Dirty = true;
+                return new Dictionary<string, object> { ["ok"] = true, ["inv"] = inv, ["cosmetic"] = (double)cid };
+            }
+            Dictionary<string, object> Gwei()
+            {
+                int g = 10 + rnd.Next(41);
+                w.Set("gwei", w.Num("gwei") + g);
+                w.Set("gweiEarned", w.Num("gweiEarned") + g);
+                return new Dictionary<string, object> { ["ok"] = true, ["inv"] = inv, ["gwei"] = (double)g, ["total_gwei"] = w.Num("gwei") };
+            }
+            double r0 = R();
+            if (type == "corrupted_node")
+            {
+                // the hourly attack on the Atrium: counted for the network's defense, then its loot
+                w.Set("attackKills", (w.Num("attackWindow") == Math.Floor(NowS / 3600) ? w.Num("attackKills") : 0) + 1);
+                w.Set("attackWindow", Math.Floor(NowS / 3600));
+                w.Set("attackScore", w.Num("attackScore") + 1);
+                w.Set("defenses", w.Num("defenses") + 1);
+                if (r0 < 0.08) { var c = Cosmetic("event"); if (c != null) return c; }
+                else if (r0 < 0.33) return Gwei();
+                Give(w, inv, 101, 1 + rnd.Next(2));
+                return new Dictionary<string, object> { ["ok"] = true, ["inv"] = inv };
+            }
+            if (r0 < 0.03) { var c = Cosmetic("combat"); if (c != null) return c; }
+            else if (r0 < 0.15) return Gwei();
+            double r = R();
+            int it = type switch
+            {
+                "shadow" => r < 0.5 ? 101 : 0,
+                "guardian" => r < 0.35 ? 101 : r < 0.5 ? 103 : 0,
+                "sentinel" => r < 0.4 ? 103 : 0,
+                "wraith" => r < 0.25 ? 104 : r < 0.65 ? 103 : 0,
+                "warden" => r < 0.3 ? 101 : r < 0.45 ? 103 : 0,
+                "garden_guardian" => r < 0.35 ? 101 : r < 0.5 ? 103 : 0,
+                "prowler" => r < 0.5 ? 101 : 0,
+                "sky_raider" => r < 0.3 ? 101 : r < 0.45 ? 103 : 0,
+                "water_lurker" => r < 0.25 ? 103 : r < 0.5 ? 104 : 0,
+                "bat" => r < 0.45 ? 101 : 0,
+                "crawler" => r < 0.3 ? 101 : r < 0.45 ? 103 : 0,
+                "golem" => r < 0.3 ? 103 : r < 0.55 ? 104 : 0,
+                "mev_bot" => r < 0.5 ? 101 : 0,
+                _ => 0,
+            };
+            if (it == 0) return new Dictionary<string, object> { ["ok"] = true, ["inv"] = inv };
+            Give(w, inv, it, 1);
+            return new Dictionary<string, object> { ["ok"] = true, ["inv"] = inv, ["item"] = (double)it };
+        }
+
+        // an Ether Tonic drunk (srv_use_item): taken from the bag before it heals
+        public Dictionary<string, object> UseTonic(string world)
+        {
+            var w = World(world);
+            if (Count(w, 303) < 1) return No("none left");
+            var inv = new Dictionary<string, object>();
+            Give(w, inv, 303, -1);
+            return new Dictionary<string, object> { ["ok"] = true, ["inv"] = inv, ["item"] = 303.0 };
         }
 
         // ---------- the tables (Select) ----------
