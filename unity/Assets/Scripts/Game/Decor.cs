@@ -112,6 +112,12 @@ namespace EtherMines.Game
         Material starMat, auroraMat, cloudMat, beamMat;
         Mesh gemMesh, beamMesh;
         float cloudDrift;
+        // a shooting star now and then on a clear night (Unity only): its streak, where it started, where it goes
+        Transform meteor;
+        Material meteorMat;
+        float meteorWait = 6, meteorAge = -1;
+        Vector3 meteorFrom, meteorDir;
+        readonly System.Random meteorRnd = new System.Random();
 
         static readonly string[] EthCols = { "#9a8cf5", "#c2b8ff", "#6a58e0", "#8a7bef" };
 
@@ -211,6 +217,19 @@ namespace EtherMines.Game
             }
             // the stars: 700 points on the upper half of a great sphere around you
             starsT = Obj("stars", StarMesh(), starMat = Effects.Mat(Texture2D.whiteTexture, new Color(1, 1, 1, 0), true)).transform;
+            // the shooting star: two crossed strips, dark at the tail and bright at the head (added light)
+            {
+                var mm = new Mesh();
+                const float w = 0.45f;
+                mm.vertices = new[] { new Vector3(0, -w, 0), new Vector3(1, -w, 0), new Vector3(1, w, 0), new Vector3(0, w, 0), new Vector3(0, 0, -w), new Vector3(1, 0, -w), new Vector3(1, 0, w), new Vector3(0, 0, w) };
+                Color tail = Color.black, head = new Color(1, 0.97f, 0.9f);
+                mm.colors = new[] { tail, head, head, tail, tail, head, head, tail };
+                mm.uv = new Vector2[8];
+                mm.triangles = new[] { 0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7 };
+                mm.bounds = new Bounds(new Vector3(0.5f, 0, 0), new Vector3(1, 1, 1));
+                meteor = Obj("shooting star", mm, meteorMat = Effects.Mat(Texture2D.whiteTexture, Color.black, true)).transform;
+                meteor.gameObject.SetActive(false);
+            }
             // the aurora: two long curtains low over the horizon
             auroraMat = new Material(Shader.Find("EtherMines/Aurora"));
             auroraT = new GameObject("aurora").transform;
@@ -384,6 +403,31 @@ namespace EtherMines.Game
                 for (int k = 0; k < birds.Length; k++) birds[k].localScale = new Vector3(1, 0.6f + Mathf.Abs(Mathf.Sin(t * 1000 / 180 + k)), 1);
             }
             starsT.position = cp;
+            // a shooting star every 6 to 20 seconds of a clear night: it crosses a slice of the sky in under a second
+            if (meteorAge < 0 && night > 0.6f && Weather.Rain < 0.2f && Weather.Snow < 0.2f && (meteorWait -= dt) <= 0)
+            {
+                meteorWait = 6 + (float)meteorRnd.NextDouble() * 14;
+                float az = (float)meteorRnd.NextDouble() * Mathf.PI * 2, el = (25 + (float)meteorRnd.NextDouble() * 35) * Mathf.Deg2Rad;
+                var d = new Vector3(Mathf.Cos(az) * Mathf.Cos(el), Mathf.Sin(el), Mathf.Sin(az) * Mathf.Cos(el));
+                meteorFrom = cp + d * 250;
+                var side = Vector3.Cross(d, Vector3.up).normalized * (meteorRnd.NextDouble() < 0.5 ? 1 : -1);
+                meteorDir = (side + Vector3.down * (0.35f + (float)meteorRnd.NextDouble() * 0.4f)).normalized;
+                meteorAge = 0;
+                meteor.gameObject.SetActive(true);
+            }
+            if (meteorAge >= 0)
+            {
+                const float life = 0.85f;
+                meteorAge += dt;
+                float k = meteorAge / life, s = Mathf.Sin(Mathf.PI * Mathf.Clamp01(k));
+                var head = meteorFrom + meteorDir * (k * 70);
+                float len = 4 + 30 * s;
+                meteor.position = head - meteorDir * len;
+                meteor.rotation = Quaternion.FromToRotation(Vector3.right, meteorDir);
+                meteor.localScale = new Vector3(len, 1, 1);
+                meteorMat.color = Color.white * (s * night);
+                if (k >= 1) { meteorAge = -1; meteor.gameObject.SetActive(false); }
+            }
             starMat.color = new Color(1, 1, 1, 1) * (night * 0.9f * (1 - Weather.Rain));
             auroraT.position = new Vector3(cp.x, 0, cp.z);
             auroraMat.SetFloat("_Night", night * (1 - Weather.Rain));
