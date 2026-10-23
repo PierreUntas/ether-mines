@@ -280,7 +280,7 @@ namespace EtherMines.Game
                 for (int dz = -3; dz <= 3; dz++)
                     for (int dx = -3; dx <= 3; dx++)
                     {
-                        if (!World.Store.Has(pcx + dx, pcz + dz)) continue;
+                        if (!On || !World.Store.Has(pcx + dx, pcz + dz)) continue;
                         want.Add(Key(pcx + dx, pcz + dz));
                         Spawn(pcx + dx, pcz + dz);
                     }
@@ -410,6 +410,7 @@ namespace EtherMines.Game
             return K.N;
         }
         // the world's network (act_network, read every minute): validators relit by everyone, the hour's attack
+        public static bool On = true; // Settings → Animals: off, they leave (the villagers too)
         public static int NetworkN, AttackKills, AttackScore, NetworkReads;
         public static readonly List<(string name, int n)> NetworkTop = new List<(string, int)>();
         public static long AttackWindow = -1;

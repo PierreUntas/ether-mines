@@ -87,6 +87,7 @@ namespace EtherMines.Game
         {
             if (Session == null || busy) return;
             busy = true;
+            Sounds.Door(new Vector3(x + 0.5f, y + 0.5f, z + 0.5f));
             try
             {
                 var r = await Session.Act("chest", new Dictionary<string, object> { ["px"] = x, ["py"] = y, ["pz"] = z }, 0, 0, 0);
@@ -109,6 +110,7 @@ namespace EtherMines.Game
         {
             if (busy || Open == null || n == 0) return;
             busy = true;
+            Sounds.Click();
             try
             {
                 var r = await Session.Act("chest_move", new Dictionary<string, object> { ["px"] = Open.X, ["py"] = Open.Y, ["pz"] = Open.Z, ["item"] = item, ["n"] = n }, 0, 0, 0,
@@ -178,7 +180,7 @@ namespace EtherMines.Game
             if (GUI.Button(new Rect(x + W - 170, y + 12, 94, 30), "Settings", settingsOpen ? Ui.Primary : Ui.Button)) settingsOpen = !settingsOpen;
             var body = new Rect(x + 16, y + 54, W - 32, H - 70);
             // the settings' list: it takes the clicks first (before the tab under it), and is painted last, over it
-            settingsRect = new Rect(x + W - 290, y + 46, 274, 5 * 36 + 12);
+            settingsRect = new Rect(x + W - 330, y + 46, 314, Mathf.Min(settingsH, Ui.H - y - 56));
             if (settingsOpen && Event.current.type != EventType.Repaint) Settings();
             if (Tab == "bag") Bag(body);
             else if (Tab == "craft") CraftTab(body);
@@ -197,6 +199,10 @@ namespace EtherMines.Game
                 var r = settingsRect;
                 Ui.Fill(r, new Color(0.09f, 0.07f, 0.2f, 0.98f));
                 Ui.Frame(r, new Color(1, 1, 1, 0.2f));
+                // a phone's screen is short: the list scrolls (its content at the same coordinates as the box)
+                bool scrolls = settingsH > r.height + 1;
+                settingsScroll = GUI.BeginScrollView(r, settingsScroll, new Rect(r.x, r.y, r.width - (scrolls ? 18 : 0), settingsH));
+                if (scrolls) r.width -= 18;
                 float ly = r.y + 8;
                 void Row(string label, bool on, Action toggle)
                 {
@@ -204,15 +210,48 @@ namespace EtherMines.Game
                     if (GUI.Button(new Rect(r.xMax - 82, ly, 70, 30), on ? "On" : "Off", on ? Ui.Primary : Ui.Button)) toggle();
                     ly += 36;
                 }
+                // a setting with several choices (SETTINGS_CHOICES), its line of explanation under it
+                void Choice<T>(string label, string note, (T v, string t)[] opts, T cur, Action<T> set, bool locked = false)
+                {
+                    GUI.Label(new Rect(r.x + 12, ly, r.width - 24, 20), label, Ui.Label);
+                    ly += 20;
+                    float nh = Ui.Small.CalcHeight(new GUIContent(note), r.width - 24);
+                    GUI.Label(new Rect(r.x + 12, ly, r.width - 24, nh), note, Ui.Small);
+                    ly += nh + 2;
+                    float bw = (r.width - 24 - (opts.Length - 1) * 4) / opts.Length;
+                    GUI.enabled = !locked;
+                    for (int i = 0; i < opts.Length; i++)
+                    {
+                        bool sel = EqualityComparer<T>.Default.Equals(opts[i].v, cur);
+                        if (GUI.Button(new Rect(r.x + 12 + i * (bw + 4), ly, bw, 28), opts[i].t, sel ? Ui.Primary : Ui.Button) && !sel) { set(opts[i].v); Reg.Save(); }
+                    }
+                    GUI.enabled = true;
+                    ly += 38;
+                }
                 Row("Sound (M)", Sounds.On, Sounds.Toggle);
                 Row("Vibrations", Haptics.On, Haptics.Toggle);
                 Row("Glow", PostGlow.On, PostGlow.Toggle);
                 Row("Fireflies & co", Effects.Life, Effects.Toggle);
                 Row("Weather", Weather.On, Weather.Toggle);
+                ly += 4;
+                Choice("View distance", "Chunks of 16 blocks drawn around you. Less = smoother.", new[] { (3, "Short"), (4, "Medium"), (5, "Long"), (6, "Very long") }, Reg.View, v => Reg.View = v);
+                Choice("Cast shadows", "Nice but costly, especially on a phone.", new[] { (false, "No"), (true, "Yes") }, Reg.Shadows, v => Reg.Shadows = v);
+                Choice("Animals", "Sheep, foxes, jellyfish… and the villagers.", new[] { (false, "No"), (true, "Yes") }, Reg.Animals, v => Reg.Animals = v);
+                Choice("Hostile mobs", Reg.MobsForced ? "Not in the main world: everyone there faces the same mobs. In a private world of your own, it’s your choice." : "Shadows, guardians and the rest. Off: they leave you be.",
+                       new[] { (false, "No"), (true, "Yes") }, Reg.MobsOn, v => Reg.Mobs = v, Reg.MobsForced);
+                Choice("Camera sensitivity", "How fast the view turns.", new[] { (0.6f, "Gentle"), (1f, "Normal"), (1.5f, "Brisk") }, Reg.Sensitivity, v => Reg.Sensitivity = v);
+                Choice("Show FPS", "Smoothness next to the clock (60 = perfect, under 30 = choppy).", new[] { (false, "Hide"), (true, "Show") }, Reg.Fps, v => Reg.Fps = v);
+                if (GUI.Button(new Rect(r.x + 12, ly, r.width - 24, 30), "Back to recommended settings", Ui.Button)) Reg.Reset();
+                ly += 38;
+                settingsH = ly - r.y;
+                GUI.EndScrollView();
+                r = settingsRect;
                 // a click on the list stays in it
                 if (Event.current.type == EventType.MouseDown && r.Contains(Event.current.mousePosition)) Event.current.Use();
             }
         }
+        float settingsH = 600;
+        Vector2 settingsScroll;
         bool settingsOpen;
         Rect settingsRect;
 

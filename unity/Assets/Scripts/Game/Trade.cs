@@ -33,6 +33,7 @@ namespace EtherMines.Game
         float pollT = 1;
         bool busy;
         string msg = "", to = "";
+        public void Prefill(string nick) { if (!string.IsNullOrWhiteSpace(nick)) to = nick.Trim(); } // /trade nickname
         Side give = new Side(), want = new Side();
         bool askOpen; // the list of everything there is to ask for, shown
         Vector2 scroll;

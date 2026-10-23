@@ -123,6 +123,7 @@ namespace EtherMines.Game
             trade.Avatars = avatars;
             feed.Offer += trade.Changed;
             if (panel != null) panel.Trade = trade;
+            tradeRef = trade; panelRef = panel;
             feed.Block += OnBlock;
             feed.Chat += (uid, name, color, text) => { if (uid != net.UserId) chat.Add(name, color, text); };
             feed.Restored += () =>
@@ -134,6 +135,8 @@ namespace EtherMines.Game
                 restoring = false;
             };
         }
+
+        Trade tradeRef; Panel panelRef;
 
         // the chat's commands (14-startup.js command)
         void Command(string line)
@@ -166,12 +169,17 @@ namespace EtherMines.Game
                     chat.SaveIgnores();
                     Say(c == "ignore" ? $"You will no longer see messages from {arg}." : $"You see messages from {arg} again.");
                     return;
+                case "trade":
+                    // the Trade tab, its recipient filled in (the nickname as typed)
+                    if (tradeRef != null) tradeRef.Prefill(rest);
+                    panelRef?.Show("trade");
+                    return;
                 case "report":
                     if (arg.Length == 0) { Say("Type /report followed by a nickname."); return; }
                     Report(arg);
                     return;
             }
-            Say("Commands: /join nickname · /sanctuary · /claim · /unclaim · /invite nickname · /kick nickname · /claims · /ignore nickname · /listen nickname · /report nickname");
+            Say("Commands: /join nickname · /sanctuary · /claim · /unclaim · /invite nickname · /kick nickname · /claims · /trade nickname · /ignore nickname · /listen nickname · /report nickname");
         }
 
         async void Report(string who)
@@ -221,6 +229,7 @@ namespace EtherMines.Game
         void Update()
         {
             float dt = Time.deltaTime;
+            link.NoMobs = !Reg.MobsOn; // Settings → Hostile mobs (always on in the main world)
             link.Tick(dt);
             feed.Tick(dt);
             var b = Player.Body;

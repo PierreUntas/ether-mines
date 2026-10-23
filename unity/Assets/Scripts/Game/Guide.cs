@@ -32,6 +32,7 @@ namespace EtherMines.Game
         GUIStyle lbl, small, mono, place, placeSub, arrow, title;
         float t4, placeAt = -99, questFlash = -99;
         string placeName, placeSub2, placeSeen, lastQuest;
+        float fps = 60;
         // a moment worth the place names' big letters (announce): the network awakening, holding
         static string annT, annS;
         public static void Announce(string title, string sub) { annT = title; annS = sub; }
@@ -278,6 +279,9 @@ namespace EtherMines.Game
             {
                 // the clock: the sun or the moon, the day and the hour
                 string clock = $"Day {Sky.DayN} · {(int)(Sky.Day * 24):00}:{(int)(Sky.Day * 24 * 60 % 60):00}";
+                // Settings → Show FPS: smoothness next to the clock (60 = perfect, under 30 = choppy)
+                if (Event.current.type == EventType.Repaint) fps += (1 / Mathf.Max(0.001f, Time.unscaledDeltaTime) - fps) * 0.05f;
+                if (Reg.Fps) clock += $"  ·  {Mathf.RoundToInt(fps)} fps";
                 float cw = Width(lbl, clock) + 44;
                 Ui.Chip(new Rect(L, T, cw, 32));
                 SunIcon(new Rect(L + 10, T + 7, 18, 18), Sky.Night < 0.5f);
@@ -385,11 +389,10 @@ namespace EtherMines.Game
                 if (touch)
                 {
                     var lr = new Rect(tx, ty, tw, targetSub != null ? 40 : 26);
-                    TouchPad.Reserved = lr;
+                    if (Event.current.type == EventType.Repaint) TouchPad.Reserved.Add(lr);
                     if (GUI.Button(lr, GUIContent.none, GUIStyle.none) && Act.Target != null) Ledger.Show(Act.Target);
                 }
             }
-            else if (touch) TouchPad.Reserved = Rect.zero;
         }
 
         string ArmorLine()

@@ -157,6 +157,7 @@ namespace EtherMines.Game
             else if (string.IsNullOrEmpty(text) || Session == null) { Hud.Feed("nft", string.IsNullOrEmpty(text) ? "An empty sign" : "“" + text + "”", own?.Name != null ? "a sign by " + own.Name : ""); return; }
             else { editing = false; readText = text; readBy = own?.Name; }
             Open = true;
+            Sounds.Click();
             openedFrame = Time.frameCount;
             if (editing && TouchPad.Active) kb = TouchScreenKeyboard.Open(draft, TouchScreenKeyboardType.Default, false, false, false, false, "Write on your sign", 60);
             Cursor.lockState = CursorLockMode.None;

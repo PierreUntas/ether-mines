@@ -76,7 +76,6 @@ namespace EtherMines.Game
             if (TouchPad.Active)
             {
                 // a phone: a little less far, crisper shadows nearer, and the screen stays on while you play
-                world.ViewRadius = 5;
                 sun.shadows = LightShadows.Hard;
                 QualitySettings.shadowDistance = 40;
                 QualitySettings.antiAliasing = 2;
@@ -85,7 +84,21 @@ namespace EtherMines.Game
                 QualitySettings.pixelLightCount = 2;
                 Screen.sleepTimeout = SleepTimeout.NeverSleep;
             }
+            sunLight = sun;
+            // the device's settings (Settings in the window): how far, shadows, animals, sensitivity
+            Reg.Load();
+            ApplyReg();
+            Reg.Changed += ApplyReg;
+        }
+
+        Light sunLight;
+        void ApplyReg()
+        {
+            world.ViewRadius = Reg.View;
             sky.FogFar = world.ViewRadius * World.CH + 12;
+            sunLight.shadows = !Reg.Shadows ? LightShadows.None : TouchPad.Active ? LightShadows.Hard : LightShadows.Soft;
+            player.Sensitivity = Reg.Sensitivity;
+            Animals.On = Reg.Animals;
         }
 
         Session session;
@@ -158,6 +171,7 @@ namespace EtherMines.Game
                 }
                 else session = null;
                 PlayerPrefs.SetString("ether-mines:world", worldName);
+                Reg.World = worldName;
                 world.WorldName = worldName;
                 var p = session?.SavedPos();
                 if (p != null && World.InWorld(p[0], p[2])) { player.Init(p[0], p[1], p[2]); player.Yaw = p[3]; player.Pitch = p[4]; }

@@ -281,7 +281,7 @@ namespace EtherMines.Game
             if (held == null || !int.TryParse(held, out var it) || Rules.Block(it) == null || inv.Count(it) <= 0) return;
             if (Protected(t.PX, t.PZ)) return;
             var plan = Placement.Plan(it, t.PX, t.PY, t.PZ, Player.Yaw, b.X, b.Y, b.Z, World.Get, World.Loaded);
-            if (!plan.Ok) { if (plan.Refusal != null) Say("burn", "Can't place " + NameOf(it).ToLowerInvariant(), plan.Refusal); return; }
+            if (!plan.Ok) { Sounds.Hit("stone"); if (plan.Refusal != null) Say("burn", "Can't place " + NameOf(it).ToLowerInvariant(), plan.Refusal); return; }
             var rec2 = Record(plan.Cells);
             var own = new Owner { By = Session?.Net.UserId ?? "me", Name = Session?.Login ?? "me", Serial = 0 };
             foreach (var c in plan.Cells) Write(c[0], c[1], c[2], c[3], own);

@@ -184,7 +184,40 @@ namespace EtherMines.Game
                 }
             foreach (var (x, z, gx, gz) in new[] { (x0, z0, x0, z0), (x0 + 16, z0, x0 + 15, z0), (x0, z0 + 16, x0, z0 + 15), (x0 + 16, z0 + 16, x0 + 15, z0 + 15) })
                 Seg(new Vector3(x, Ground(gx, gz), -z), new Vector3(x, Ground(gx, gz) + 10, -z));
+            // where the ground steps up or down along the edge, a short upright joins the two heights
+            for (int k = 0; k < 15; k++)
+            {
+                void Step(int ax, int az, int bx, int bz, Vector3 at)
+                {
+                    float a = Ground(ax, az), b2 = Ground(bx, bz);
+                    if (a != b2) Seg(new Vector3(at.x, a, at.z), new Vector3(at.x, b2, at.z));
+                }
+                Step(x0 + k, z0, x0 + k + 1, z0, new Vector3(x0 + k + 1, 0, -z0));
+                Step(x0 + k, z0 + 15, x0 + k + 1, z0 + 15, new Vector3(x0 + k + 1, 0, -(z0 + 16)));
+                Step(x0, z0 + k, x0, z0 + k + 1, new Vector3(x0, 0, -(z0 + k + 1)));
+                Step(x0 + 15, z0 + k, x0 + 15, z0 + k + 1, new Vector3(x0 + 16, 0, -(z0 + k + 1)));
+            }
             pick = LineObject("plot to claim", v, col);
+            // and the plot itself, tinted over its ground, column by column, following the slopes
+            var fv = new List<Vector3>(); var ft = new List<int>(); var fc = new List<Color>();
+            for (int i = 0; i < 16; i++)
+                for (int j = 0; j < 16; j++)
+                {
+                    float hy = Ground(x0 + i, z0 + j) - 0.01f; // the web's +1.04 over the top block
+                    int q = fv.Count;
+                    fv.Add(new Vector3(x0 + i, hy, -(z0 + j))); fv.Add(new Vector3(x0 + i + 1, hy, -(z0 + j)));
+                    fv.Add(new Vector3(x0 + i + 1, hy, -(z0 + j + 1))); fv.Add(new Vector3(x0 + i, hy, -(z0 + j + 1)));
+                    for (int c = 0; c < 4; c++) fc.Add(Color.white);
+                    ft.AddRange(new[] { q, q + 2, q + 1, q, q + 3, q + 2 });
+                }
+            var fm = new Mesh { name = "plot fill", vertices = fv.ToArray(), colors = fc.ToArray(), triangles = ft.ToArray() };
+            fm.RecalculateBounds();
+            var fill = new GameObject("fill");
+            fill.transform.SetParent(pick.transform, false);
+            fill.AddComponent<MeshFilter>().sharedMesh = fm;
+            var fr = fill.AddComponent<MeshRenderer>();
+            fr.sharedMaterial = Effects.Mat(Texture2D.whiteTexture, new Color(cl.r, cl.g, cl.b, 0.26f), false);
+            fr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
 
         public void StartPick() { Picking = true; pickKey = ""; }
@@ -246,9 +279,21 @@ namespace EtherMines.Game
             Ui.Begin();
             if (Ui.Cine) return; // a cinematic: the screen is the film's
             if (!Picking) return;
-            float w = 560, x = (Ui.W - w) / 2, y = Ui.Safe.y + (TouchPad.Active ? 124 : 88);
-            Ui.Fill(new Rect(x, y, w, 40), pickOk ? new Color(0.25f, 0.2f, 0.05f, 0.85f) : new Color(0.3f, 0.08f, 0.12f, 0.85f));
-            GUI.Label(new Rect(x + 14, y + 10, w - 28, 24), $"Plot {pqx}, {pqz} · {pickWhy}" + (pickOk ? " · Enter: claim · X: cancel" : " · walk to another plot · X: cancel"), Ui.Label);
+            // the claim bar (#claimBar): where you stand, why or why not, and its two buttons
+            bool touch = TouchPad.Active;
+            float w = Mathf.Min(640, Ui.W - 24), x = (Ui.W - w) / 2, y = Ui.Safe.y + (touch ? 124 : 88);
+            Ui.Chip(new Rect(x, y, w, 44), pickOk ? Ui.Gold : Ui.Burn);
+            float bw = pickOk ? 200 : 96;
+            GUI.Label(new Rect(x + 14, y + 4, w - bw - 28, 36), $"Plot {pqx}, {pqz} · {pickWhy}" + (pickOk ? (touch ? "" : " · Enter: claim · X: cancel") : " · walk to another plot"), new GUIStyle(Ui.Label) { alignment = TextAnchor.MiddleLeft });
+            var no = new Rect(x + w - 96, y + 7, 86, 30);
+            if (pickOk)
+            {
+                var ok = new Rect(x + w - 200, y + 7, 98, 30);
+                if (Event.current.type == EventType.Repaint) TouchPad.Reserved.Add(ok);
+                if (GUI.Button(ok, "Claim it", Ui.Primary)) ConfirmPick();
+            }
+            if (Event.current.type == EventType.Repaint) TouchPad.Reserved.Add(no);
+            if (GUI.Button(no, "Cancel", Ui.Button)) StopPick();
         }
     }
 }

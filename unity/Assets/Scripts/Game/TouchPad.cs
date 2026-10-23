@@ -65,6 +65,7 @@ namespace EtherMines.Game
             Look = Vector2.zero;
             Tap = Dash = Ride = Bag = Chat = View = Goals = Menu = false;
             Slot = -1;
+            reservedNow.Clear(); reservedNow.AddRange(Reserved); Reserved.Clear();
             Read(now);
             if (now.Count > 0) seen = true;
             if (!Active) return;
@@ -131,12 +132,14 @@ namespace EtherMines.Game
         static readonly string[] tops = { "Bag", "Chat", "View", "Goals", "Menu" };
         static Rect Top(int i) { float w = tops.Length * 54 + (tops.Length - 1) * 6; return new Rect((Ui.W - w) / 2 + i * 60, Ui.Safe.y + 8, 54, 40); }
 
-        public static Rect Reserved; // a label that takes its own taps this frame (the aimed block's, for the explorer)
+        // what takes its own taps (the aimed block's label, the claim bar's buttons): drawn last frame, read here once
+        public static readonly List<Rect> Reserved = new List<Rect>();
+        static readonly List<Rect> reservedNow = new List<Rect>();
 
         static void Begin(int id, Vector2 p)
         {
             owners[id] = Own.Ignored;
-            if (Reserved.Contains(p)) return;
+            foreach (var rr in reservedNow) if (rr.Contains(p)) return;
             for (int i = 0; i < tops.Length; i++)
                 if (Top(i).Contains(p))
                 {

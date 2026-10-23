@@ -73,10 +73,11 @@ namespace EtherMines.Game
             {
                 var b = Player.Body;
                 var r = await Session.Act("relight", new Dictionary<string, object> { ["px"] = t.X, ["py"] = t.Y, ["pz"] = t.Z }, b.X, b.Y, b.Z);
-                if (r == null || r.ContainsKey("refused")) return;
+                if (r == null || r.ContainsKey("refused")) { Sounds.Hit("stone"); return; }
+                Sounds.Chime();
                 Hud.Feed("burn", "1 Validator heart", "→ old validator relit: one crystal a minute, under your name");
                 Effects.PopAt(t.X, t.Y, t.Z);
-                if (r.ContainsKey("star")) Hud.Feed("nft", Ui.NameOf(204), "a network milestone!");
+                if (r.ContainsKey("star")) { Hud.Feed("nft", Ui.NameOf(204), "a network milestone!"); Sounds.Theme(); }
                 await Session.LoadInventory();
             }
             finally { busy = false; }
@@ -111,6 +112,7 @@ namespace EtherMines.Game
             if (Link != null && Link.HpServer) Link.Send(new Dictionary<string, object> { ["t"] = "heal", ["kind"] = "bed" });
             if (Session != null && !(Session.State.TryGetValue("slept", out var sl) && MiniJson.Truthy(sl))) { Session.State["slept"] = 1.0; Session.Dirty = true; }
             Act.Swing = 0.6f;
+            Sounds.Door();
             Hud.Feed("mint", "You rest", "full hearts. The night goes on for everyone in this world");
         }
 
