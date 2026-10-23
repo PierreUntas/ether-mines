@@ -150,7 +150,7 @@ namespace UnityEngine
         public static Camera main;
         public float nearClipPlane, farClipPlane, fieldOfView;
         public CameraClearFlags clearFlags;
-        public Color backgroundColor; public int cullingMask; public float depth; public RenderTexture targetTexture; public Vector3 WorldToScreenPoint(Vector3 p) => default; public Ray ScreenPointToRay(Vector3 p) => default;
+        public Color backgroundColor; public int cullingMask; public float depth; public RenderTexture targetTexture; public DepthTextureMode depthTextureMode; public Vector3 WorldToScreenPoint(Vector3 p) => default; public Ray ScreenPointToRay(Vector3 p) => default;
     }
     public enum LightType { Directional, Point, Spot }
     public enum LightShadows { None, Hard, Soft }
@@ -163,7 +163,8 @@ namespace UnityEngine
         public static Rendering.AmbientMode ambientMode; public static Color ambientSkyColor, ambientEquatorColor, ambientGroundColor, ambientLight;
     }
     public static class QualitySettings { public static float shadowDistance; }
-    public class Shader : Object { public static Shader Find(string n) => null; public bool isSupported; }
+    public class Shader : Object { public static Shader Find(string n) => null; public bool isSupported; public static void SetGlobalColor(string n, Color c) { } public static void SetGlobalFloat(string n, float v) { } }
+    [System.Flags] public enum DepthTextureMode { None = 0, Depth = 1, DepthNormals = 2 }
     public class Texture : Object { public FilterMode filterMode; public TextureWrapMode wrapMode; public int anisoLevel, width, height; }
     public class Font : Object { public Material material; }
     public enum TextAlignment { Left, Center, Right }
@@ -251,7 +252,7 @@ namespace UnityEngine
 {
     public class AudioClip : Object { public static AudioClip Create(string n, int len, int ch, int rate, bool stream) => null; public bool SetData(float[] d, int off) => true; }
     public enum AudioRolloffMode { Logarithmic, Linear, Custom }
-    public class AudioSource : Behaviour { public AudioClip clip; public float volume, spatialBlend, minDistance, maxDistance, dopplerLevel; public bool playOnAwake, isPlaying; public AudioRolloffMode rolloffMode; public void Play() { } public void Stop() { } }
+    public class AudioSource : Behaviour { public AudioClip clip; public float volume, spatialBlend, minDistance, maxDistance, dopplerLevel; public bool playOnAwake, isPlaying, loop; public AudioRolloffMode rolloffMode; public void Play() { } public void Stop() { } }
     public class AudioListener : Behaviour { public static float volume; }
     public class AudioLowPassFilter : Behaviour { public float cutoffFrequency; }
     public enum AudioReverbPreset { Off, Generic, Hallway, Concerthall, User }

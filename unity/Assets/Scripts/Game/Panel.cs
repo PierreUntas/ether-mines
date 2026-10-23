@@ -178,7 +178,7 @@ namespace EtherMines.Game
             if (GUI.Button(new Rect(x + W - 170, y + 12, 94, 30), "Settings", settingsOpen ? Ui.Primary : Ui.Button)) settingsOpen = !settingsOpen;
             var body = new Rect(x + 16, y + 54, W - 32, H - 70);
             // the settings' list: it takes the clicks first (before the tab under it), and is painted last, over it
-            settingsRect = new Rect(x + W - 290, y + 46, 274, 4 * 36 + 12);
+            settingsRect = new Rect(x + W - 290, y + 46, 274, 5 * 36 + 12);
             if (settingsOpen && Event.current.type != EventType.Repaint) Settings();
             if (Tab == "bag") Bag(body);
             else if (Tab == "craft") CraftTab(body);
@@ -208,6 +208,7 @@ namespace EtherMines.Game
                 Row("Vibrations", Haptics.On, Haptics.Toggle);
                 Row("Glow", PostGlow.On, PostGlow.Toggle);
                 Row("Fireflies & co", Effects.Life, Effects.Toggle);
+                Row("Weather", Weather.On, Weather.Toggle);
                 // a click on the list stays in it
                 if (Event.current.type == EventType.MouseDown && r.Contains(Event.current.mousePosition)) Event.current.Use();
             }

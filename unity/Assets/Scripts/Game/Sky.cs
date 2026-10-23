@@ -11,6 +11,7 @@ namespace EtherMines.Game
         public Light Sun;
         public Material SkyMat;
         public float Day; // 0..1: 0.25 sunrise, 0.5 noon, 0.75 sunset
+        public static bool Underwater; // the camera is in water (PlayerController): a close blue-green fog
         public int DayN;
         public float? FixedDay; // a fixed time of day (captures), otherwise the world's clock
         public float FogFar = 108;
@@ -51,6 +52,14 @@ namespace EtherMines.Game
             float k = (t - a.t) / (b.t - a.t);
             Color top = Color.Lerp(C(a.top), C(b.top), k), hor = Color.Lerp(C(a.hor), C(b.hor), k), sunC = Color.Lerp(C(a.sun), C(b.sun), k), fog = Color.Lerp(C(a.fog), C(b.fog), k);
             float si = Mathf.Lerp(a.si, b.si, k), amb = Mathf.Lerp(a.amb, b.amb, k);
+            // a shower (Weather, Unity only): the sky greys, the light dims, the fog closes in
+            float wet = Mathf.Max(Weather.Rain, Weather.Snow * 0.7f);
+            if (wet > 0)
+            {
+                Color grey(Color c, float lift) { float g = c.grayscale * lift; return Color.Lerp(c, new Color(g, g, g * 1.06f), wet * 0.75f); }
+                top = grey(top, 0.85f); hor = grey(hor, 0.95f); fog = grey(fog, 0.9f);
+                si *= 1 - wet * 0.6f; amb *= 1 - wet * 0.2f;
+            }
             float ang = (t - 0.25f) * Mathf.PI * 2;
             // the web's sun direction (x, y, z) in game coordinates; Unity flips z
             var dir = new Vector3(Mathf.Cos(ang), Mathf.Sin(ang), -0.35f).normalized;
@@ -69,6 +78,17 @@ namespace EtherMines.Game
             RenderSettings.fogColor = fog;
             RenderSettings.fogEndDistance = FogFar;
             RenderSettings.fogStartDistance = FogFar * 0.37f;
+            if (wet > 0) { RenderSettings.fogEndDistance = FogFar * (1 - wet * 0.45f); RenderSettings.fogStartDistance = FogFar * 0.37f * (1 - wet * 0.6f); }
+            if (Underwater)
+            {
+                // under the surface: the world fades into the water's own color a few blocks away
+                RenderSettings.fogColor = Color.Lerp(new Color(0.07f, 0.24f, 0.36f), fog, 0.2f) * Mathf.Max(0.35f, Mathf.Min(1, amb * 1.4f));
+                RenderSettings.fogStartDistance = 0.5f;
+                RenderSettings.fogEndDistance = 16;
+            }
+            // the sky's colors, for the water's reflection
+            Shader.SetGlobalColor("_EM_SkyTop", top);
+            Shader.SetGlobalColor("_EM_SkyHor", hor);
             if (SkyMat != null)
             {
                 SkyMat.SetColor("_Top", top);

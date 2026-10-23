@@ -24,7 +24,7 @@ namespace EtherMines.Game
         static float R() => (float)rnd.NextDouble();
 
         // ---------- many little quads facing the camera, in one mesh ----------
-        sealed class Specks
+        public sealed class Specks
         {
             readonly Mesh mesh = new Mesh();
             readonly Vector3[] v; readonly Color[] c; readonly Vector2[] uv;
@@ -61,7 +61,7 @@ namespace EtherMines.Game
             }
         }
 
-        static Material Mat(Texture2D tex, Color col, bool additive)
+        public static Material Mat(Texture2D tex, Color col, bool additive)
         {
             var m = new Material(Shader.Find("EtherMines/Billboard"));
             m.mainTexture = tex;
@@ -192,7 +192,7 @@ namespace EtherMines.Game
             flies.Apply();
 
             // butterflies, by day
-            bool day = Life && night < 0.4f;
+            bool day = Life && night < 0.4f && Weather.Rain < 0.3f; // no butterflies in the rain
             for (int i = 0; i < pp.Length; i++)
             {
                 var m = pp[i];

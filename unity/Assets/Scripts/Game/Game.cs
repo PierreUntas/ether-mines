@@ -37,6 +37,10 @@ namespace EtherMines.Game
             cam.farClipPlane = 400;
             cam.fieldOfView = 70;
             cam.clearFlags = CameraClearFlags.Skybox;
+            // the camera's depth, for the water's shallows and its foam (not on a phone: it costs a pass)
+            bool depth = !TouchPad.Active;
+            if (depth) cam.depthTextureMode |= DepthTextureMode.Depth;
+            Shader.SetGlobalFloat("_EM_Depth", depth ? 1 : 0);
             if (cam.GetComponent<AudioListener>() == null) cam.gameObject.AddComponent<AudioListener>(); // the ears: where the camera is
             foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None)) l.enabled = false; // the scene's default light: ours replaces it
 
@@ -163,6 +167,10 @@ namespace EtherMines.Game
                 fx.World = world;
                 fx.Player = player;
                 fx.Sky = sky;
+                var weather = gameObject.AddComponent<Weather>();
+                weather.World = world;
+                weather.Player = player;
+                weather.Sky = sky;
                 if (player.Cam.GetComponent<PostGlow>() == null) player.Cam.gameObject.AddComponent<PostGlow>();
                 gameObject.AddComponent<Notify>().Session = session; // a word for later, when you leave (a phone)
                 var sounds = gameObject.AddComponent<Sounds>();

@@ -186,6 +186,13 @@ namespace EtherMines.Game
         public static void Shoot(Vector3? at = null) => Fx(new Synth().Tone(1900, Saw, 0.14, 0.1, 0, 0.28, 0.002).Noise(Synth.Filt.Highpass, 3000, 2, 0.12, 0.05), "shoot", at);
         public static void Door(Vector3? at = null) => Fx(new Synth().Noise(Synth.Filt.Bandpass, 380, 2.5, 0.35, 0.22, 0, 0.8).Tone(110, Saw, 0.03, 0.25, 0, 1.3, 0.03).Noise(Synth.Filt.Lowpass, 250, 1, 0.4, 0.08, 0.22), "door", at);
 
+        // distant thunder (the weather, Unity only): a long low rumble, a crack in it
+        public static void Thunder()
+        {
+            var s = new Synth().Noise(Synth.Filt.Lowpass, 110, 0.5, 0.7, 2.6, 0, 0.5).Noise(Synth.Filt.Lowpass, 320, 0.5, 0.35, 1.1, 0.12, 0.7).Noise(Synth.Filt.Lowpass, 90, 0.5, 0.5, 3.2, 0.6, 0.4);
+            Play(I?.amb, s, "thunder", 0.6f);
+        }
+
         // the animals' and mobs' calls (on the web, softer with distance: here, from where they are)
         public static void Animal(string type, Vector3? at = null)
         {

@@ -97,6 +97,11 @@ The glow (`PostGlow.cs` on the camera, `Shaders/Bloom.shader`: the web's UnrealB
 little lives (`Effects.cs`: fireflies at night, butterflies by day, petals from the pink trees, and the clay
 break's flash, facets and ether sparks, also on a parry and a dodge). The window's Settings: sound,
 vibrations, glow, fireflies & co.
+The water (`Shaders/Water.shader`: the sky mirrored at a grazing look, the sun's glint, clear shallows,
+deep blue and shore foam from the camera's depth, not on phones; seen from below, a blue-green fog under the
+surface) and the weather (`Weather.cs`, Unity only: about one day in four a shower, the same for every
+Unity player since it follows the world's clock; rain, snow up high, none over the dunes; a grey sky, a
+closer fog, the hiss and distant thunder; drops stop on roofs). Both in Settings.
 Then the circuits (`Core/Circuits.cs`, checked tick for tick against 12-circuits.js; `CircuitsView.cs`:
 lamps, doors, plates, gates and the clock live around you, the objectives' shapes, the lanterns' light).
 Trades (`Trade.cs`, the window's Trade tab: offers received and sent, accept, decline, cancel, a new offer

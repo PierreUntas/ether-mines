@@ -122,6 +122,9 @@ namespace EtherMines.Game
                 var target = eye + back * new Vector3(0.6f, 0.2f, -3.6f);
                 Cam.transform.SetPositionAndRotation(target, back);
             }
+            // the camera's eye in water: the fog turns blue-green (Sky)
+            var cp = Cam.transform.position;
+            Sky.Underwater = World.Get((int)Math.Floor(cp.x), (int)Math.Floor(cp.y), (int)Math.Floor(-cp.z)) == 11;
         }
 
         static bool ClickedIn()
