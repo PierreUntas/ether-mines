@@ -8,7 +8,7 @@ namespace UnityEngine
 {
     public class Object
     {
-        public string name;
+        public string name; public HideFlags hideFlags;
         public static void Destroy(Object o) { }
         public static void DontDestroyOnLoad(Object o) { }
         public static T FindAnyObjectByType<T>() where T : Object => null;
@@ -16,6 +16,7 @@ namespace UnityEngine
         public static T Instantiate<T>(T o) where T : Object => o;
         public static implicit operator bool(Object o) => o != null;
     }
+    public enum HideFlags { None = 0, DontSave = 52 }
     public enum FindObjectsSortMode { None, InstanceID }
     public class Component : Object
     {
@@ -49,6 +50,7 @@ namespace UnityEngine
     public enum PrimitiveType { Cube, Sphere, Quad }
     public enum TextClipping { Overflow, Clip }
     public class GUIStyleState { public Color textColor; public Texture2D background; }
+    public class GUISettings { public Color cursorColor, selectionColor; }
     public class GUIContent { public GUIContent(string s) { } public GUIContent(string s, string tip) { } public static GUIContent none; }
     public enum EventType { KeyDown, KeyUp, Repaint, ScrollWheel, MouseDown, MouseUp }
     public class Event { public static Event current; public EventType type; public KeyCode keyCode; public Vector2 mousePosition, delta; public void Use() { } }
@@ -68,7 +70,7 @@ namespace UnityEngine
         public static Vector3 operator *(float b, Vector3 a) => a;
         public static implicit operator Vector4(Vector3 v) => default;
     }
-    public struct Vector4 { public float x, y, z, w; public Vector4(float x, float y, float z, float w) { this.x = x; this.y = y; this.z = z; this.w = w; } }
+    public struct Vector4 { public static Vector4 zero; public float x, y, z, w; public Vector4(float x, float y, float z, float w) { this.x = x; this.y = y; this.z = z; this.w = w; } }
     public struct Quaternion
     {
         public Quaternion(float x, float y, float z, float w) { } public static Quaternion identity => default;
@@ -92,15 +94,15 @@ namespace UnityEngine
     public class RectOffset { public RectOffset(int l, int r, int t, int b) { } }
     public enum TextAnchor { UpperLeft, UpperCenter, UpperRight, MiddleLeft, MiddleCenter, MiddleRight, LowerLeft, LowerCenter, LowerRight }
     public enum FontStyle { Normal, Bold }
-    public class GUIStyle { public GUIStyle(GUIStyle s) { } public GUIStyle() { } public bool richText; public int fontSize; public TextAnchor alignment; public FontStyle fontStyle; public RectOffset padding, border; public bool wordWrap; public TextClipping clipping; public GUIStyleState normal = new GUIStyleState(), hover = new GUIStyleState(); public static GUIStyle none; public Vector2 CalcSize(GUIContent c) => default; public float CalcHeight(GUIContent c, float w) => 0; }
-    public class GUISkin { public GUIStyle box, label, button, textField, verticalScrollbar; }
+    public class GUIStyle { public GUIStyle(GUIStyle s) { } public GUIStyle() { } public bool richText; public int fontSize; public TextAnchor alignment; public FontStyle fontStyle; public RectOffset padding, border, margin; public bool wordWrap; public TextClipping clipping; public Font font; public float fixedWidth, fixedHeight; public GUIStyleState normal = new GUIStyleState(), hover = new GUIStyleState(), active = new GUIStyleState(), focused = new GUIStyleState(), onNormal = new GUIStyleState(), onHover = new GUIStyleState(), onActive = new GUIStyleState(), onFocused = new GUIStyleState(); public static GUIStyle none; public Vector2 CalcSize(GUIContent c) => default; public float CalcHeight(GUIContent c, float w) => 0; }
+    public class GUISkin : Object { public Font font; public GUISettings settings; public GUIStyle box, label, button, textField, textArea, window, toggle, verticalScrollbar, verticalScrollbarThumb, horizontalScrollbar, horizontalScrollbarThumb; }
     public static class GUIUtility { public static string systemCopyBuffer; }
     public static class GUI
     {
         public static Matrix4x4 matrix; public static string tooltip;
         public static GUISkin skin;
         public static Color color;
-        public static void DrawTexture(Rect r, Texture t) { } public static void DrawTexture(Rect r, Texture t, ScaleMode m, bool a) { }
+        public static void DrawTexture(Rect r, Texture t) { } public static void DrawTexture(Rect r, Texture t, ScaleMode m, bool a, float aspect, Color c, Vector4 bw, Vector4 br) { } public static void DrawTexture(Rect r, Texture t, ScaleMode m, bool a) { }
         public static void DrawTextureWithTexCoords(Rect r, Texture t, Rect uv) { }
         public static void Box(Rect r, string s) { } public static void Box(Rect r, GUIContent c, GUIStyle st) { }
         public static void Box(Rect r, string s, GUIStyle st) { }
@@ -112,7 +114,7 @@ namespace UnityEngine
         public static string PasswordField(Rect r, string s, char c, int max) => s;
         public static string PasswordField(Rect r, string s, char c, int max, GUIStyle st) => s;
     }
-    public static class Screen { public static int width, height, sleepTimeout; public static Rect safeArea; public static bool fullScreen; }
+    public static class Screen { public static int width, height, sleepTimeout; public static Rect safeArea; public static float dpi; public static bool fullScreen; }
     public static class SleepTimeout { public const int NeverSleep = -1; }
     public enum TouchScreenKeyboardType { Default }
     public class TouchScreenKeyboard
@@ -133,13 +135,14 @@ namespace UnityEngine
         public const float PI = 3.14159265f, Rad2Deg = 57.29578f, Deg2Rad = 0.0174533f;
         public static float Min(float a, float b) => a; public static float Max(float a, float b) => a;
         public static float Lerp(float a, float b, float t) => a; public static float Clamp(float v, float a, float b) => v;
-        public static float Clamp01(float v) => v; public static float MoveTowards(float a, float b, float d) => a; public static float Sign(float v) => v; public static int RoundToInt(float v) => 0; public static float Sqrt(float v) => v; public static float Ceil(float v) => v; public static int Max(int a, int b) => a; public static int Min(int a, int b) => a; public static float Atan2(float y, float x) => 0;
+        public static float Clamp01(float v) => v; public static float MoveTowards(float a, float b, float d) => a; public static float Sign(float v) => v; public static int RoundToInt(float v) => 0; public static int CeilToInt(float v) => 0; public static float Sqrt(float v) => v; public static float Ceil(float v) => v; public static int Max(int a, int b) => a; public static int Min(int a, int b) => a; public static float Atan2(float y, float x) => 0;
         public static int Clamp(int v, int a, int b) => v;
         public static float Sin(float a) => a; public static float Cos(float a) => a; public static float Abs(float a) => a;
         public static float Floor(float a) => a; public static int FloorToInt(float a) => 0;
     }
     public static class Debug { public static bool isDebugBuild; public static void Log(object o) { } public static void LogWarning(object o) { } public static void LogError(object o) { } public static void LogException(Exception e) { } }
-    public static class Application { public static int targetFrameRate; public static string persistentDataPath; public static bool isMobilePlatform, isBatchMode, isEditor; public static void OpenURL(string u) { } public static void Quit() { } }
+    public static class Application { public static int targetFrameRate; public static string persistentDataPath; public static RuntimePlatform platform; public static bool isMobilePlatform, isBatchMode, isEditor; public static void OpenURL(string u) { } public static void Quit() { } }
+    public enum RuntimePlatform { OSXEditor, OSXPlayer, WindowsPlayer, IPhonePlayer, Android }
     public static class PlayerPrefs
     {
         public static string GetString(string k, string d) => d; public static void SetString(string k, string v) { }

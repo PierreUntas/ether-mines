@@ -1,5 +1,6 @@
 // Ether Mines · the window (E): your bag, crafting, and the chest you opened (07-interface.js renderPanel,
-// renderChest). Your bag: every item you hold, a sheet for the one you pick, put it in the bar's selected
+// renderChest), drawn as the web's .win (a rounded dark glass, its tabs on top, "Close" at the end).
+// Your chest: every item you hold, a sheet for the one you pick, put it in the bar's selected
 // slot, wear a plating or the boots. Crafting: the recipes by category, what each needs and what you have,
 // made by the server (act_craft). A chest: what's in it and in your bag, a click moves 1, 10 or all.
 using System;
@@ -160,29 +161,37 @@ namespace EtherMines.Game
                     ev.Use();
                 }
             }
-            Ui.Fill(new Rect(0, 0, Ui.W, Ui.H), new Color(0.05f, 0.04f, 0.12f, 0.45f));
-            Ui.Fill(new Rect(x, y, W, H), new Color(0.13f, 0.1f, 0.27f, 0.96f));
-            Ui.Frame(new Rect(x, y, W, H), new Color(1, 1, 1, 0.12f));
-            // the tabs
-            float tx = x + 16, tw = Mathf.Min(120, (W - (W < 1000 ? 200 : 350)) / (Open != null ? 7 : 6) - 8); // narrower on a small screen
-            foreach (var (k, t) in new[] { ("bag", "Your bag"), ("craft", "Crafting"), ("quest", "Objectives"), ("validators", "Validators"), ("shop", "Shop"), ("trade", Trade != null && Trade.Received > 0 ? $"Trade ({Trade.Received})" : "Trade"), ("chest", "Chest") })
+            // the backdrop, the window (.panel, .win)
+            Ui.Fill(new Rect(0, 0, Ui.W, Ui.H), new Color(10 / 255f, 8 / 255f, 24 / 255f, 0.45f));
+            Ui.Round(new Rect(x, y, W, H), Ui.Glass2, 16, Ui.Line, 1);
+            // the tabs (.tab), as many lines as they need, "Close" at the end of the first
+            bool touch = TouchPad.Active;
+            string close = touch ? "Close" : "Close · E";
+            var cs = new GUIStyle(Ui.Button) { fontSize = 14, padding = new RectOffset(10, 10, 5, 5) };
+            float closeW = cs.CalcSize(new GUIContent(close)).x + 4;
+            var closeR = new Rect(x + W - 14 - closeW, y + 12, closeW, 32);
+            if (GUI.Button(closeR, close, cs)) { Hide(); return; }
+            float tx = x + 14, ty = y + 12, right = closeR.x - 8;
+            foreach (var (k, t) in new[] { ("bag", "Chest"), ("craft", "Crafting"), ("quest", "Objectives"), ("validators", "Validators"), ("shop", "Shop"), ("trade", Trade != null && Trade.Received > 0 ? $"Trade ({Trade.Received})" : "Trade"), ("chest", "This chest"), ("settings", "Settings") })
             {
                 if (k == "chest" && Open == null) continue;
                 if ((k == "quest" || k == "validators" || k == "shop") && Progress == null) continue;
                 if (k == "trade" && Trade == null) continue;
-                if (GUI.Button(new Rect(tx, y + 12, tw, 30), t, Tab == k ? Ui.Primary : Ui.Button)) { Tab = k; scroll = Vector2.zero; }
-                tx += tw + 8;
+                var st = Ui.Tab(Tab == k);
+                float w = st.CalcSize(new GUIContent(t)).x + 2;
+                if (tx + w > right && tx > x + 14) { tx = x + 14; ty += 38; right = x + W - 14; }
+                if (GUI.Button(new Rect(tx, ty, w, 32), t, st)) { Tab = k; scroll = Vector2.zero; settingsScroll = Vector2.zero; }
+                tx += w + 6;
             }
-            bool narrow = W < 1000; // a phone: the Gwei go to the bottom corner, the tabs keep the room
-            GUI.Label(narrow ? new Rect(x + W - 170, y + H - 28, 150, 24) : new Rect(x + W - 350, y + 16, 150, 24), Session != null ? $"{Session.Gwei:0} Gwei" : "offline", Ui.Label);
-            if (GUI.Button(new Rect(x + W - 70, y + 12, 54, 30), "✕", Ui.Button)) { Hide(); return; }
-            // the settings: sound, vibrations, glow, the little lives (a short list under the button)
-            if (GUI.Button(new Rect(x + W - 170, y + 12, 94, 30), "Settings", settingsOpen ? Ui.Primary : Ui.Button)) settingsOpen = !settingsOpen;
-            var body = new Rect(x + 16, y + 54, W - 32, H - 70);
-            // the settings' list: it takes the clicks first (before the tab under it), and is painted last, over it
-            settingsRect = new Rect(x + W - 330, y + 46, 314, Mathf.Min(settingsH, Ui.H - y - 56));
-            if (settingsOpen && Event.current.type != EventType.Repaint) Settings();
-            if (Tab == "bag") Bag(body);
+            float headH = ty + 32 + 12 - y;
+            Ui.Fill(new Rect(x + 1, y + headH, W - 2, 1), Ui.Line);
+            // your Gwei, in the window's lower corner
+            var gs = new GUIStyle(Ui.MonoSmall) { fontSize = 12, alignment = TextAnchor.MiddleRight, wordWrap = false };
+            gs.normal.textColor = Ui.Gold;
+            GUI.Label(new Rect(x + W - 220, y + H - 24, 206, 20), Session != null ? $"{Session.Gwei:0} Gwei" : "offline", gs);
+            var body = new Rect(x + 14, y + headH + 14, W - 28, H - headH - 14 - 26);
+            if (Tab == "settings") { settingsRect = body; Settings(); }
+            else if (Tab == "bag") Bag(body);
             else if (Tab == "craft") CraftTab(body);
             else if (Tab == "chest" && Open != null) ChestTab(body);
             else if (Tab == "quest" && Progress != null) Progress.DrawObjectives(body);
@@ -190,15 +199,12 @@ namespace EtherMines.Game
             else if (Tab == "trade" && Trade != null) Trade.Draw(body);
             else if (Tab == "shop" && Progress != null) (shop ??= new Shop { Session = Session, Progress = Progress, Avatars = Avatars }).Draw(body);
             if (Tab != "shop" && Avatars != null) { Avatars.TryLook = null; Avatars.TryColor = null; }
-            if (settingsOpen && Event.current.type == EventType.Repaint) Settings();
         }
 
         void Settings()
         {
             {
                 var r = settingsRect;
-                Ui.Fill(r, new Color(0.09f, 0.07f, 0.2f, 0.98f));
-                Ui.Frame(r, new Color(1, 1, 1, 0.2f));
                 // a phone's screen is short: the list scrolls (its content at the same coordinates as the box)
                 bool scrolls = settingsH > r.height + 1;
                 settingsScroll = GUI.BeginScrollView(r, settingsScroll, new Rect(r.x, r.y, r.width - (scrolls ? 18 : 0), settingsH));
@@ -248,14 +254,11 @@ namespace EtherMines.Game
                 ly += 38;
                 settingsH = ly - r.y;
                 GUI.EndScrollView();
-                r = settingsRect;
-                // a click on the list stays in it
-                if (Event.current.type == EventType.MouseDown && r.Contains(Event.current.mousePosition)) Event.current.Use();
+
             }
         }
         float settingsH = 600;
         Vector2 settingsScroll;
-        bool settingsOpen;
         Rect settingsRect;
 
         // ---------- your bag ----------
@@ -268,26 +271,40 @@ namespace EtherMines.Game
             return l;
         }
 
-        void Cell(Rect r, int id, string count, bool sel, bool nft)
+        // an item's square (.it): rounded, a light edge (cyan when picked, iridescent for a unique one), its
+        // icon at 70%, the count in its lower right
+        static GUIStyle itCount;
+        public static void Cell(Rect r, int id, string count, bool sel, bool nft)
         {
-            Ui.Fill(r, sel ? new Color(1, 1, 1, 0.28f) : new Color(1, 1, 1, 0.07f));
-            if (nft) Ui.Frame(r, new Color(Ui.Cyan.r, Ui.Cyan.g, Ui.Cyan.b, 0.6f));
-            if (sel) Ui.Frame(r, Color.white);
-            Ui.Icon(new Rect(r.x + 6, r.y + 6, r.width - 12, r.height - 12), id);
-            if (count != null) GUI.Label(new Rect(r.x, r.y, r.width - 4, r.height - 2), count, Ui.Count);
+            Ui.Round(r, new Color(1, 1, 1, sel ? 0.1f : 0.05f), 10, sel ? Ui.Cyan : nft ? new Color(0.62f, 0.62f, 1f, 0.9f) : Ui.Line, sel ? 2 : 1);
+            float i = r.width * 0.7f;
+            Ui.Icon(new Rect(r.center.x - i / 2, r.center.y - i / 2, i, i), id);
+            if (count == null) return;
+            if (itCount == null) itCount = new GUIStyle(Ui.Count) { fontSize = 14, alignment = TextAnchor.LowerRight };
+            var cr = new Rect(r.x, r.y, r.width - 5, r.height - 2);
+            var o = GUI.color;
+            GUI.color = new Color(0, 0, 0, 0.8f);
+            GUI.Label(new Rect(cr.x + 1, cr.y + 1, cr.width, cr.height), count, itCount);
+            GUI.color = o;
+            GUI.Label(cr, count, itCount);
         }
 
         void Bag(Rect body)
         {
             var all = Entries();
             if (selKey == null || !all.Any(a => a.Key == selKey)) selKey = all.Count > 0 ? all[0].Key : null;
-            float gw = body.width - 330, cs = 58;
-            int cols = Mathf.Max(1, (int)(gw / (cs + 6)));
-            var view = new Rect(0, 0, gw - 20, Mathf.Ceil(all.Count / (float)cols) * (cs + 6) + 10);
+            // (.inv: the grid, and the item's card 280 wide beside it; on a phone, one column: the card under the grid)
+            bool under = TouchPad.Active;
+            float gw = under ? body.width : body.width - 294;
+            int cols = Mathf.Max(1, (int)((gw - 14 + 6) / (64 + 6)));
+            float cs = (gw - 14 - (cols - 1) * 6) / cols;
+            float gridH = Mathf.Ceil(all.Count / (float)cols) * (cs + 6);
+            float cardH = (Avatars != null ? 220 : 0) + 430;
+            var view = new Rect(0, 0, gw - 14, gridH + (under ? cardH + 14 : 0));
             gridRect = new Rect(body.x, body.y, gw, body.height);
             gridOverflows = view.height > body.height;
             scroll = GUI.BeginScrollView(new Rect(body.x, body.y, gw, body.height), scroll, view);
-            if (all.Count == 0) GUI.Label(new Rect(0, 0, gw - 20, 40), "Your bag is empty. Mine a few blocks.", Ui.Small);
+            if (all.Count == 0) GUI.Label(new Rect(0, 0, gw - 20, 40), "Your chest is empty. Mine a few blocks.", Ui.Small);
             for (int i = 0; i < all.Count; i++)
             {
                 var a = all[i];
@@ -295,23 +312,41 @@ namespace EtherMines.Game
                 Cell(r, a.Id, a.U == null ? a.N.ToString() : null, a.Key == selKey, a.U != null);
                 if (GUI.Button(r, GUIContent.none, GUIStyle.none)) selKey = a.Key;
             }
-            GUI.EndScrollView();
-            // the sheet of the item picked
-            var c = new Rect(body.xMax - 310, body.y, 310, body.height);
-            Ui.Fill(c, new Color(1, 1, 1, 0.06f));
+            // the sheet of the item picked (.card): beside the grid, or under it in the same scroll on a phone
+            var c = under ? new Rect(0, gridH + 8, Mathf.Min(view.width, 420), cardH) : new Rect(body.xMax - 280, body.y, 280, body.height);
+            if (!under) GUI.EndScrollView();
+            Card(c, all);
+            if (under) GUI.EndScrollView();
+        }
+
+        void Card(Rect c, List<Entry> all)
+        {
+            Ui.Round(c, new Color(0.55f, 0.55f, 0.95f, 0.14f), 14, Ui.Line, 1);
             if (Avatars != null)
             {
-                float ph = Mathf.Min(260, body.height * 0.45f);
+                float ph = Mathf.Min(220, c.height * 0.4f);
                 DrawPreview(Avatars, new Rect(c.x, c.y, c.width, ph));
                 c = new Rect(c.x, c.y + ph, c.width, c.height - ph);
             }
             if (selKey == null) return;
             var e = all.First(z => z.Key == selKey);
+            float cw = c.width - 28;
             Ui.Icon(new Rect(c.x + 14, c.y + 14, 64, 64), e.Id);
-            GUI.Label(new Rect(c.x + 90, c.y + 18, 210, 50), Ui.NameOf(e.Id) + (e.U != null ? " #" + e.U.Serial : ""), Ui.Title);
-            GUI.Label(new Rect(c.x + 90, c.y + 56, 210, 22), e.U != null ? "Sealed · unique" : "Minted · fungible", Ui.Small);
-            float ly = c.y + 96;
-            void Row(string k, string v) { GUI.Label(new Rect(c.x + 14, ly, 140, 22), k, Ui.Small); GUI.Label(new Rect(c.x + 150, ly, 150, 22), v, Ui.Label); ly += 24; }
+            var h3 = new GUIStyle(Ui.Title) { fontSize = 22, wordWrap = true };
+            GUI.Label(new Rect(c.x + 90, c.y + 14, cw - 76, 50), Ui.NameOf(e.Id) + (e.U != null ? " #" + e.U.Serial : ""), h3);
+            var std = new GUIStyle(Ui.MonoSmall); std.normal.textColor = Ui.Cyan;
+            GUI.Label(new Rect(c.x + 90, c.y + 60, cw - 76, 18), e.U != null ? "Sealed · unique" : "Minted · fungible", std);
+            float ly = c.y + 92;
+            // its facts (.card dl): the name muted on the left, the value in mono on the right, a dashed line under
+            var dd = new GUIStyle(Ui.MonoSmall) { fontSize = 12, alignment = TextAnchor.UpperRight, wordWrap = false }; dd.normal.textColor = Ui.Paper;
+            var dt = new GUIStyle(Ui.Label) { fontSize = 13, wordWrap = false }; dt.normal.textColor = Ui.Muted;
+            void Row(string k, string v)
+            {
+                GUI.Label(new Rect(c.x + 14, ly, cw * 0.55f, 20), k, dt);
+                GUI.Label(new Rect(c.x + 14, ly + 1, cw, 20), v, dd);
+                for (float dx = 0; dx < cw; dx += 6) Ui.Fill(new Rect(c.x + 14 + dx, ly + 23, 3, 1), Ui.Line);
+                ly += 29;
+            }
             if (e.U != null)
             {
                 Row("Token", "#" + e.Id + "-" + e.U.Serial.ToString("0000"));
@@ -319,9 +354,9 @@ namespace EtherMines.Game
                 var it = Rules.Item(e.Id);
                 if (it != null && it.HasTool) Row("Blocks mined with", e.U.Mined.ToString());
             }
-            else { Row("ID", "#" + e.Id); Row("In your bag", e.N.ToString()); }
+            else { Row("ID", "#" + e.Id); Row("In your chest", e.N.ToString()); }
             ly += 8;
-            if (GUI.Button(new Rect(c.x + 14, ly, 282, 32), "Place in slot " + (Inv.Sel + 1), Ui.Primary))
+            if (GUI.Button(new Rect(c.x + 14, ly, cw, 34), "Place in slot " + (Inv.Sel + 1), Ui.Primary))
             {
                 int ex = Array.IndexOf(Inv.Bar, e.Key);
                 if (ex >= 0) Inv.Bar[ex] = null;
@@ -333,16 +368,16 @@ namespace EtherMines.Game
             if (Session != null && def != null && def.HasArmor)
             {
                 bool on = State("armor") == e.Id.ToString();
-                if (GUI.Button(new Rect(c.x + 14, ly, 282, 30), on ? "Unequip" : "Equip", Ui.Button)) { Session.State["armor"] = on ? null : e.Id.ToString(); Session.Dirty = true; }
+                if (GUI.Button(new Rect(c.x + 14, ly, cw, 32), on ? "Unequip" : "Equip", Ui.Button)) { Session.State["armor"] = on ? null : e.Id.ToString(); Session.Dirty = true; }
                 ly += 38;
             }
             if (Session != null && def != null && def.HasBoots)
             {
                 bool on = State("boots") == e.Id.ToString();
-                if (GUI.Button(new Rect(c.x + 14, ly, 282, 30), on ? "Take off" : "Wear", Ui.Button)) { Session.State["boots"] = on ? null : e.Id.ToString(); Session.Dirty = true; }
+                if (GUI.Button(new Rect(c.x + 14, ly, cw, 32), on ? "Take off" : "Wear", Ui.Button)) { Session.State["boots"] = on ? null : e.Id.ToString(); Session.Dirty = true; }
                 ly += 38;
             }
-            GUI.Label(new Rect(c.x + 14, ly, 282, 120), e.U != null
+            GUI.Label(new Rect(c.x + 14, ly, cw, 120), e.U != null
                 ? "A unique item has its own number and keeps its history: who forged it, where, and what it has accomplished."
                 : Rules.Block(e.Id) != null ? "Mining this block mints a token. Placing it burns it, and the placed block carries your serial number in the ledger."
                 : "A fungible resource: every unit is worth exactly the same as another.", Ui.Small);
@@ -364,43 +399,58 @@ namespace EtherMines.Game
         {
             var cats = Rules.Recipes.Select(r => r.Cat).Distinct().ToList();
             float cx = body.x, cy = body.y;
-            if (GUI.Button(new Rect(cx, cy, 70, 26), "All", craftCat == "" ? Ui.Primary : Ui.Button)) { craftCat = ""; scroll = Vector2.zero; }
-            cx += 76;
+            float aw = Ui.Pill(false).CalcSize(new GUIContent("All")).x + 2;
+            if (GUI.Button(new Rect(cx, cy, aw, 30), "All", Ui.Pill(craftCat == ""))) { craftCat = ""; scroll = Vector2.zero; }
+            cx += aw + 8;
             // the categories, on as many lines as they need
             foreach (var c in cats)
             {
-                float w = Ui.Button.CalcSize(new GUIContent(c)).x + 8;
-                if (cx + w > body.xMax) { cx = body.x; cy += 32; }
-                if (GUI.Button(new Rect(cx, cy, w, 26), c, craftCat == c ? Ui.Primary : Ui.Button)) { craftCat = c; scroll = Vector2.zero; }
-                cx += w + 6;
+                float w = Ui.Pill(false).CalcSize(new GUIContent(c)).x + 2;
+                if (cx + w > body.xMax) { cx = body.x; cy += 36; }
+                if (GUI.Button(new Rect(cx, cy, w, 30), c, Ui.Pill(craftCat == c))) { craftCat = c; scroll = Vector2.zero; }
+                cx += w + 8;
             }
-            float top = cy + 36 - body.y;
+            float top = cy + 40 - body.y;
             var list = Rules.Recipes.Where(r => craftCat == "" || r.Cat == craftCat).ToList();
-            float rh = 74;
-            var view = new Rect(0, 0, body.width - 20, list.Count * rh + 40 * cats.Count);
+            float rh = 92;
+            var view = new Rect(0, 0, body.width - 14, list.Count * rh + 40 * cats.Count);
             scroll = GUI.BeginScrollView(new Rect(body.x, body.y + top, body.width, body.height - top), scroll, view);
             float y = 0;
             string cat = null;
             foreach (var r in list)
             {
-                if (r.Cat != cat) { cat = r.Cat; GUI.Label(new Rect(0, y + 6, 400, 26), cat, Ui.Title); y += 34; }
+                if (r.Cat != cat) { cat = r.Cat; GUI.Label(new Rect(0, y + 8, 400, 22), cat.ToUpperInvariant(), Ui.Cat); y += 34; }
                 bool hasReq = !r.HasReq || Owns(r.Req);
                 bool ok = hasReq;
-                var need = new List<string>();
+                var need = new List<(bool, string)>();
                 for (int i = 0; i < r.NeedIds.Length; i++)
                 {
                     int have = Inv.Count(r.NeedIds[i]);
                     bool enough = have >= r.NeedCounts[i];
                     ok &= enough;
-                    need.Add($"<color={(enough ? "#9fe3c4" : "#ff9ab8")}>{r.NeedCounts[i]} {Ui.NameOf(r.NeedIds[i])} ({have})</color>");
+                    need.Add((enough, $"{r.NeedCounts[i]} {Ui.NameOf(r.NeedIds[i])} ({have})"));
                 }
-                if (r.HasReq) need.Add($"<color={(hasReq ? "#9fe3c4" : "#ff9ab8")}>owning the {Ui.NameOf(r.Req)} (kept)</color>");
-                Ui.Fill(new Rect(0, y, view.width, rh - 6), new Color(1, 1, 1, 0.05f));
-                Ui.Icon(new Rect(8, y + 8, 52, 52), r.Out);
-                GUI.Label(new Rect(70, y + 4, view.width - 200, 22), $"<b>{(r.N > 1 ? r.N + " × " : "")}{Ui.NameOf(r.Out)}</b>  <color=#c9c2f2>{r.D}</color>", Ui.Label);
-                GUI.Label(new Rect(70, y + 28, view.width - 200, 40), string.Join("   ", need), Ui.Small);
+                if (r.HasReq) need.Add((hasReq, $"owning the {Ui.NameOf(r.Req)} (kept)"));
+                // the recipe's card (.rec): its icon, "4 × Planks", what it is (mono, muted), what it needs (chips)
+                var card = new Rect(0, y, view.width, rh - 8);
+                Ui.Round(card, new Color(1, 1, 1, 0.04f), 12, Ui.Line, 1);
+                Ui.Icon(new Rect(10, y + (rh - 8 - 48) / 2, 48, 48), r.Out);
+                var strong = new GUIStyle(Ui.Title) { fontSize = 17, wordWrap = false };
+                GUI.Label(new Rect(70, y + 8, view.width - 190, 24), (r.N > 1 ? r.N + " × " : "") + Ui.NameOf(r.Out), strong);
+                GUI.Label(new Rect(70, y + 32, view.width - 190, 18), r.D, new GUIStyle(Ui.MonoSmall) { wordWrap = false });
+                float nx = 70;
+                foreach (var (enough, t) in need)
+                {
+                    var ns = new GUIStyle(Ui.MonoSmall) { wordWrap = false, alignment = TextAnchor.MiddleCenter };
+                    ns.normal.textColor = enough ? Ui.Paper : Ui.Burn;
+                    float nw = ns.CalcSize(new GUIContent(t)).x + 12;
+                    if (nx + nw > view.width - 120) break;
+                    Ui.Round(new Rect(nx, y + 54, nw, 20), new Color(1, 1, 1, 0.08f), 5);
+                    GUI.Label(new Rect(nx, y + 54, nw, 20), t, ns);
+                    nx += nw + 8;
+                }
                 GUI.enabled = ok && !busy;
-                if (GUI.Button(new Rect(view.width - 110, y + 18, 100, 32), "Craft", ok ? Ui.Primary : Ui.Button)) Craft(r);
+                if (GUI.Button(new Rect(view.width - 120, y + (rh - 8 - 40) / 2, 108, 40), "Craft", ok ? Ui.Primary : Ui.Button)) Craft(r);
                 GUI.enabled = true;
                 y += rh;
             }

@@ -1,8 +1,9 @@
 // Ether Mines · the touch controls (05-player.js on a phone): the left thumb walks with a stick (bottom
 // left), a finger anywhere else turns the view by dragging, a short tap places (or opens a door, pets,
 // strikes a mob or a player) where it touches, a long press mines where it touches; buttons on the right
-// to jump, run, crouch, guard, dodge and ride, and on top to open the bag, the chat, change the view and see
-// the objectives. A tap on the bar picks the slot. The other scripts read what it says each frame.
+// to jump, run, crouch, guard, dodge and ride, and on top to open the chest, the chat, change the view and the
+// menu (the objectives: a tap on the objective's chip). A tap on the bar picks the slot. Drawn as the web's
+// (style.css .stick, .tbtn, .abtn, #press, with its icons). The other scripts read what it says each frame.
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -31,6 +32,7 @@ namespace EtherMines.Game
         // which buttons show (set by Game): the guard with a blade, the ride with a craft, the dodge with the boots
         public static Func<bool> ShowGuard = () => false, ShowRide = () => false, ShowDash = () => false, Riding = () => false, Ranged = () => false;
         public static Func<int, Rect> SlotRect;   // the bar's slots (Hud)
+        public static bool GoalsTapped;           // the objective's chip was tapped (Guide): Goals next frame
 
         const float HoldS = 0.3f, Slop = 12, StickR = 46;
 
@@ -63,7 +65,8 @@ namespace EtherMines.Game
             if (polled == Time.frameCount) return;
             polled = Time.frameCount;
             Look = Vector2.zero;
-            Tap = Dash = Ride = Bag = Chat = View = Goals = Menu = false;
+            Tap = Dash = Ride = Bag = Chat = View = Menu = false;
+            Goals = GoalsTapped; GoalsTapped = false;
             Slot = -1;
             reservedNow.Clear(); reservedNow.AddRange(Reserved); Reserved.Clear();
             Read(now);
@@ -129,8 +132,9 @@ namespace EtherMines.Game
         static Rect SprintR => Btn(0, 70);
         static Rect GuardR => Btn(0, 140); // the ride button takes the same place (never both)
         static Rect DashR => Btn(0, 0);
-        static readonly string[] tops = { "Bag", "Chat", "View", "Goals", "Menu" };
-        static Rect Top(int i) { float w = tops.Length * 54 + (tops.Length - 1) * 6; return new Rect((Ui.W - w) / 2 + i * 60, Ui.Safe.y + 8, 54, 40); }
+        // the four on top (#topBtns: 44 x 44, 6 apart), their icons
+        static readonly string[] tops = { "chest", "chat", "view", "menu" };
+        static Rect Top(int i) { float w = tops.Length * 44 + (tops.Length - 1) * 6; return new Rect((Ui.W - w) / 2 + i * 50, Ui.Safe.y + 8, 44, 44); }
 
         // what takes its own taps (the aimed block's label, the claim bar's buttons): drawn last frame, read here once
         public static readonly List<Rect> Reserved = new List<Rect>();
@@ -143,7 +147,7 @@ namespace EtherMines.Game
             for (int i = 0; i < tops.Length; i++)
                 if (Top(i).Contains(p))
                 {
-                    if (i == 0) Bag = true; else if (i == 1) Chat = true; else if (i == 2) View = true; else if (i == 3) Goals = true; else Menu = true;
+                    if (i == 0) Bag = true; else if (i == 1) Chat = true; else if (i == 2) View = true; else Menu = true;
                     return;
                 }
             if (JumpR.Contains(p)) { owners[id] = Own.Jump; return; }
@@ -156,8 +160,11 @@ namespace EtherMines.Game
             }
             if (DashR.Contains(p) && ShowDash()) { Dash = true; return; }
             if (SlotRect != null)
+            {
                 for (int i = 0; i < 9; i++)
                     if (SlotRect(i).Contains(p)) { Slot = i; return; }
+                if (SlotRect(9).Contains(p)) { Bag = true; return; } // "…": the whole chest
+            }
             if (p.x < Ui.W * 0.4f && p.y > Ui.H * 0.25f && !Holding(Own.Stick))
             {
                 owners[id] = Own.Stick;
@@ -221,15 +228,14 @@ namespace EtherMines.Game
         // the app sent to the background: nothing stays held
         void OnApplicationPause(bool paused) { if (paused) ReleaseAll(); }
 
-        // ---------- drawing ----------
-        static GUIStyle glyph;
-        static readonly Color glass = new Color(0.11f, 0.09f, 0.23f, 0.45f), edge = new Color(1, 1, 1, 0.28f), lit = new Color(0.54f, 0.48f, 0.94f, 0.9f);
+        // ---------- drawing (style.css: .stick, .tbtn, .abtn, #press) ----------
+        static readonly Color edge = new Color(1, 1, 1, 0.28f), edgeOn = new Color(1, 1, 1, 0.6f);
 
-        static void Button(Rect r, string text, bool on)
+        // a rounded glass button with its icon (violet when on, as .abtn.on)
+        static void Button(Rect r, string icon, bool on, float iconSize)
         {
-            Ui.Fill(r, on ? lit : glass);
-            Ui.Frame(r, on ? new Color(1, 1, 1, 0.6f) : edge);
-            GUI.Label(r, text, glyph);
+            Ui.Round(r, on ? Ui.Violet : Ui.Glass, 10, on ? edgeOn : edge, 2);
+            Ui.Glyph(new Rect(r.center.x - iconSize / 2, r.center.y - iconSize / 2, iconSize, iconSize), icon, Ui.Text);
         }
 
         void OnGUI()
@@ -237,28 +243,37 @@ namespace EtherMines.Game
             if (!Active || Ui.Blocking) return;
             Ui.Begin();
             GUI.depth = 5;
-            if (glyph == null) { glyph = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter }; glyph.normal.textColor = Ui.Paper; }
-            // the stick, where the thumb put it (or at home)
+            // the stick (128 x 128, rounded, its knob 52 x 52), where the thumb put it (or at home), dimmer at rest
             var o = stickOn ? stickO : StickHome();
             var c = GUI.color;
             GUI.color = new Color(1, 1, 1, stickOn ? 1 : 0.75f);
-            Ui.Fill(new Rect(o.x - 64, o.y - 64, 128, 128), new Color(1, 1, 1, 0.1f));
-            Ui.Frame(new Rect(o.x - 64, o.y - 64, 128, 128), edge);
-            Ui.Fill(new Rect(o.x + knob.x - 26, o.y + knob.y - 26, 52, 52), new Color(1, 1, 1, 0.35f));
-            Ui.Frame(new Rect(o.x + knob.x - 26, o.y + knob.y - 26, 52, 52), new Color(1, 1, 1, 0.5f));
+            Ui.Round(new Rect(o.x - 64, o.y - 64, 128, 128), new Color(1, 1, 1, 0.1f), 14, edge, 2);
+            Ui.Round(new Rect(o.x + knob.x - 26, o.y + knob.y - 26, 52, 52), new Color(1, 1, 1, 0.35f), 10, new Color(1, 1, 1, 0.5f), 2);
             GUI.color = c;
-            Button(JumpR, "▲", Jump);
-            Button(SneakR, "▼", Sneak);
-            Button(SprintR, "»", Sprint);
-            if (ShowRide()) Button(GuardR, "Ride", Riding());
-            else if (ShowGuard()) Button(GuardR, "Guard", Guard);
-            if (ShowDash()) Button(DashR, "Dodge", false);
-            for (int i = 0; i < tops.Length; i++) Button(Top(i), tops[i], false);
-            // the ring under the finger: charging, then mining
+            Button(JumpR, "jump", Jump, 28);
+            Button(SneakR, "crouch", Sneak, 28);
+            Button(SprintR, "run", Sprint, 28);
+            if (ShowRide()) Button(GuardR, "ride", Riding(), 28);
+            else if (ShowGuard()) Button(GuardR, "guard", Guard, 28);
+            if (ShowDash()) Button(DashR, "dodge", false, 28);
+            for (int i = 0; i < tops.Length; i++) Button(Top(i), tops[i], false, 22);
+            // the ring under the finger (#press, 104 across): it closes in while charging, then glows cyan and
+            // pulses while mining
             if (pressing && !drag)
             {
-                float rr = mine ? 30 : 22;
-                Ui.Frame(new Rect(pressAt.x - rr, pressAt.y - rr, rr * 2, rr * 2), mine ? Ui.Mint : new Color(1, 1, 1, 0.7f), 3);
+                float k = Mathf.Clamp01((Time.unscaledTime - pressT) / HoldS);
+                if (mine)
+                {
+                    float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * Mathf.PI * 4);
+                    float rr = 52 + pulse * 3;
+                    Ui.Round(new Rect(pressAt.x - rr - 6, pressAt.y - rr - 6, rr * 2 + 12, rr * 2 + 12), Color.clear, rr + 6, new Color(Ui.Cyan.r, Ui.Cyan.g, Ui.Cyan.b, 0.25f), 6);
+                    Ui.Round(new Rect(pressAt.x - rr, pressAt.y - rr, rr * 2, rr * 2), Color.clear, rr, Ui.Cyan, 4);
+                }
+                else
+                {
+                    float rr = Mathf.Lerp(80, 52, k);
+                    Ui.Round(new Rect(pressAt.x - rr, pressAt.y - rr, rr * 2, rr * 2), Color.clear, rr, new Color(1, 1, 1, 0.85f * k), 3);
+                }
             }
         }
     }

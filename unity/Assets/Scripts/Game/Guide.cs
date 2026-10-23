@@ -258,6 +258,8 @@ namespace EtherMines.Game
             lbl = S(14, Ui.Paper);
             small = S(11, Ui.Muted);
             mono = S(12, Ui.Paper);
+            mono.font = Ui.Mono;
+            small.font = Ui.Mono;
             title = S(13, Ui.Paper, FontStyle.Normal, TextAnchor.MiddleCenter);
             place = S(40, Color.white, FontStyle.Bold, TextAnchor.MiddleCenter);
             placeSub = S(13, Ui.Cyan, FontStyle.Normal, TextAnchor.MiddleCenter);
@@ -282,10 +284,17 @@ namespace EtherMines.Game
                 // Settings → Show FPS: smoothness next to the clock (60 = perfect, under 30 = choppy)
                 if (Event.current.type == EventType.Repaint) fps += (1 / Mathf.Max(0.001f, Time.unscaledDeltaTime) - fps) * 0.05f;
                 if (Reg.Fps) clock += $"  ·  {Mathf.RoundToInt(fps)} fps";
-                float cw = Width(lbl, clock) + 44;
+                float cw = Width(lbl, clock) + 44 + 34;
                 Ui.Chip(new Rect(L, T, cw, 32));
                 SunIcon(new Rect(L + 10, T + 7, 18, 18), Sky.Night < 0.5f);
                 GUI.Label(new Rect(L + 34, T, cw - 36, 32), clock, lbl);
+                // the sound, as the web's ♪ in the clock (a line before it); dimmed when off
+                var snd = new Rect(L + cw - 32, T, 28, 32);
+                Ui.Fill(new Rect(snd.x - 2, T + 9, 1, 14), Ui.Line);
+                var ss = new GUIStyle(lbl) { alignment = TextAnchor.MiddleCenter, fontSize = 16 };
+                ss.normal.textColor = Sounds.On ? Ui.Paper : new Color(1, 1, 1, 0.35f);
+                if (Event.current.type == EventType.Repaint && touch) TouchPad.Reserved.Add(snd);
+                if (GUI.Button(snd, "♪", ss)) Sounds.Toggle();
                 // where you are, and the compass strip under it
                 float bw = Mathf.Max(170, Width(mono, posLine ?? "") + 20);
                 Ui.Chip(new Rect(L, T + 40, bw, 64));
@@ -327,30 +336,39 @@ namespace EtherMines.Game
                 float qy = touch ? sa.y + 56 : T;
                 if (questText != null)
                 {
-                    var parts = new List<(string t, Color c)> { (questHead + "  ", Ui.Gold), (questText, Ui.Paper) };
-                    if (netLine != null) parts.Add(("   " + netLine, Ui.Gold));
+                    var head = new GUIStyle(mono) { fontSize = touch ? 11 : 12 };
+                    head.normal.textColor = Ui.Gold;
+                    var body = new GUIStyle(lbl) { fontSize = touch ? 12 : 14 };
+                    var parts = new List<(string t, GUIStyle st)> { (questHead + "  ", head), (questText, body) };
+                    if (netLine != null) parts.Add(("   " + netLine, head));
                     float qw = 24;
-                    foreach (var (t, _) in parts) qw += Width(lbl, t);
+                    foreach (var (t, st) in parts) qw += Width(st, t);
                     if (questWay != null) qw += Width(lbl, "    " + questWay) + 18;
                     qw = Mathf.Min(qw, W - 380);
                     float qx = (W - qw) / 2;
                     float fl = Mathf.Clamp01(1 - (Time.time - questFlash) / 1.2f);
                     Ui.Chip(new Rect(qx, qy, qw, 32), fl > 0 ? Color.Lerp(Ui.Line, Ui.Gold, fl) : (Color?)null);
                     float cx = qx + 12;
-                    foreach (var (t, c) in parts)
+                    foreach (var (t, st) in parts)
                     {
-                        var st = new GUIStyle(lbl); st.normal.textColor = c;
-                        float w = Width(lbl, t);
+                        float w = Width(st, t);
                         GUI.Label(new Rect(cx, qy, Mathf.Min(w, qx + qw - cx), 32), t, st);
                         cx += w;
                     }
                     if (questWay != null && cx < qx + qw - 40)
                     {
-                        cx += 10;
+                        // the way, after a thin line (#quest .compass: mono, cyan)
+                        cx += 6;
+                        Ui.Fill(new Rect(cx, qy + 9, 1, 14), Ui.Line);
+                        cx += 6;
                         Arrow(new Rect(cx, qy + 7, 18, 18), b, wayX, wayZ);
-                        var st = new GUIStyle(lbl); st.normal.textColor = Ui.Cyan;
+                        var st = new GUIStyle(mono) { fontSize = 12 }; st.normal.textColor = Ui.Cyan;
                         GUI.Label(new Rect(cx + 20, qy, qx + qw - cx - 24, 32), questWay, st);
                     }
+                    // a tap on it opens the objectives (the web's #quest)
+                    var qr = new Rect(qx, qy, qw, 32);
+                    if (touch && Event.current.type == EventType.Repaint) TouchPad.Reserved.Add(qr);
+                    if (GUI.Button(qr, GUIContent.none, GUIStyle.none)) TouchPad.GoalsTapped = true;
                     qy += 40;
                 }
                 // the hourly attack on the network

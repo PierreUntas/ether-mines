@@ -145,23 +145,40 @@ namespace EtherMines.Game
         }
 
         // ---------- drawing ----------
+        // the web's title screen (style.css .title): a big two-line title with its violet shadow, the text muted and
+        // centered, the fields with their label above, the violet "Enter the world" with its edge under it
+        GUIStyle sPlay, sLabel;
         void Styles()
         {
             if (sTitle != null) return;
-            sTitle = new GUIStyle(GUI.skin.label) { fontSize = 44, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
-            sTitle.normal.textColor = Ui.Paper;
-            sText = new GUIStyle(GUI.skin.label) { fontSize = 14, wordWrap = true, richText = true };
+            sTitle = new GUIStyle(GUI.skin.label) { fontSize = 64, alignment = TextAnchor.MiddleCenter, font = Ui.SansBold, wordWrap = false };
+            sTitle.normal.textColor = Ui.Text;
+            sText = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true, richText = true };
             sText.normal.textColor = Ui.Paper;
-            sSmall = new GUIStyle(sText) { fontSize = 12 };
-            sSmall.normal.textColor = Ui.Muted;
-            sHead = new GUIStyle(sText) { fontSize = 15, fontStyle = FontStyle.Bold };
+            sSmall = new GUIStyle(sText) { fontSize = 13 };
+            sSmall.normal.textColor = Ui.Lavender;
+            sHead = new GUIStyle(sText) { fontSize = 15, font = Ui.SansBold };
             sHead.normal.textColor = Ui.Gold;
-            sLink = new GUIStyle(sSmall);
+            sLink = new GUIStyle(sSmall) { font = Ui.Mono, fontSize = 12, alignment = TextAnchor.MiddleCenter };
             sLink.normal.textColor = sLink.hover.textColor = Ui.Cyan;
-            sFold = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, richText = true };
-            sFold.normal.textColor = sFold.hover.textColor = Ui.Paper;
-            sButton = new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold };
-            sField = new GUIStyle(GUI.skin.textField) { fontSize = 15, padding = new RectOffset(8, 8, 5, 5) };
+            sFold = new GUIStyle(GUI.skin.label) { fontSize = 12, font = Ui.Mono, richText = true, alignment = TextAnchor.MiddleCenter };
+            sFold.normal.textColor = sFold.hover.textColor = Ui.Cyan;
+            sButton = new GUIStyle(GUI.skin.label) { fontSize = 22, alignment = TextAnchor.MiddleCenter, font = Ui.SansMed };
+            sButton.normal.textColor = sButton.hover.textColor = Color.white;
+            sField = new GUIStyle(GUI.skin.textField) { fontSize = 18, padding = new RectOffset(12, 12, 9, 9) };
+            sLabel = new GUIStyle(GUI.skin.label) { fontSize = 15 };
+            sLabel.normal.textColor = Ui.Paper;
+        }
+
+        // the violet button with its darker edge under it (#play)
+        bool Play(Rect r, string label, bool big = true)
+        {
+            var dark = new Color(0x4f / 255f, 0x40 / 255f, 0xbf / 255f);
+            Ui.Round(new Rect(r.x, r.y + 5, r.width, r.height), dark, 12);
+            var face = r;
+            Ui.Round(face, Ui.Violet, 12);
+            var st = big ? sButton : new GUIStyle(sButton) { fontSize = 16 };
+            return GUI.Button(face, label, st);
         }
 
         float Text(float x, float y, float w, string t, GUIStyle st)
@@ -173,10 +190,13 @@ namespace EtherMines.Game
 
         bool Link(float x, float y, float w, string t) => GUI.Button(new Rect(x, y, w, 20), t, sLink);
 
-        bool Fold(float x, float y, float w, string t, ref bool open)
+        // a folding part (.morekeys summary): a small rounded cyan chip, centered
+        bool FoldChip(float x, float y, float w, string t, ref bool open)
         {
-            Ui.Fill(new Rect(x, y + 27, w, 1), Ui.Line);
-            if (GUI.Button(new Rect(x, y, w, 26), (open ? "▾  " : "▸  ") + t, sFold)) open = !open;
+            float tw = sFold.CalcSize(new GUIContent(t)).x + 22;
+            var r = new Rect(x + (w - tw) / 2, y, tw, 26);
+            Ui.Round(r, Color.clear, 13, Ui.Line, 1);
+            if (GUI.Button(r, t, sFold)) open = !open;
             return open;
         }
 
@@ -187,15 +207,15 @@ namespace EtherMines.Game
             Styles();
             if (news == null) news = LoadNews();
             GUI.depth = -10; // over the HUD
-            if (started) Ui.Fill(new Rect(0, 0, Ui.W, Ui.H), new Color(0.06f, 0.05f, 0.14f, 0.55f));
+            // the backdrop (.title): the world dimmed behind
+            Ui.Fill(new Rect(0, 0, Ui.W, Ui.H), new Color(20 / 255f, 16 / 255f, 44 / 255f, started ? 0.7f : 0.6f));
             var sa = Ui.Safe;
-            float w = Mathf.Min(500, sa.width - 24), x = sa.x + (sa.width - w) / 2;
+            float w = Mathf.Min(480, sa.width - 32), x = sa.x + (sa.width - w) / 2;
             float top = sa.y + 12, avail = sa.height - 24, h = Mathf.Min(contentH, avail), y0 = top + Mathf.Max(0, (avail - h) / 2);
-            Ui.Chip(new Rect(x, y0, w, h));
-            var view = new Rect(x, y0 + 4, w, h - 8);
+            var view = new Rect(x - 10, y0, w + 20, h);
             bool scrolls = contentH > avail;
             scroll = GUI.BeginScrollView(view, scroll, new Rect(0, 0, w - (scrolls ? 16 : 0), contentH - 8), false, false, GUIStyle.none, scrolls ? GUI.skin.verticalScrollbar : GUIStyle.none);
-            float iw = w - 40 - (scrolls ? 16 : 0), ix = 20, y = 8;
+            float iw = w - (scrolls ? 16 : 0), ix = 10, y = 0;
             y = Body(ix, y, iw);
             GUI.EndScrollView();
             if (Event.current.type == EventType.Repaint) contentH = y + 16;
@@ -206,30 +226,48 @@ namespace EtherMines.Game
             bool paused = started && !loading;
             var ev = Event.current;
             if (!started && !busy && ev.type == EventType.KeyDown && (ev.keyCode == KeyCode.Return || ev.keyCode == KeyCode.KeypadEnter)) { ev.Use(); Enter(true); } // Enter in a field: in
-            GUI.Label(new Rect(x, y, w, 56), "Ether Mines", sTitle);
-            y += 58;
-            if (!started) { y += Text(x, y, w, "A block world in Ethereum's colors, built with friends. Every block remembers who placed it: the world keeps a ledger of everything you build.", sSmall) + 12; }
-            else if (paused) { y += Text(x, y, w, (session != null ? $"{session.Login} · " : "") + $"world \"{worldName}\"" + (session == null || session.Net.Offline ? " · offline, saved on this device" : ""), new GUIStyle(sSmall) { alignment = TextAnchor.MiddleCenter }) + 12; }
+            // the title, on two lines, its violet shadow under it and a cyan glow around
+            int ts = Mathf.RoundToInt(Mathf.Clamp(Ui.W * 0.09f, 44, 72));
+            sTitle.fontSize = ts;
+            float lh = ts * 0.95f;
+            var o = GUI.color;
+            for (int line = 0; line < 2; line++)
+            {
+                string t = line == 0 ? "Ether" : "Mines";
+                var r = new Rect(x, y + line * lh, w, lh + 8);
+                GUI.color = new Color(Ui.Cyan.r, Ui.Cyan.g, Ui.Cyan.b, 0.18f);
+                for (int k = 0; k < 4; k++) GUI.Label(new Rect(r.x + (k % 2 == 0 ? -2 : 2), r.y + (k < 2 ? -2 : 2), r.width, r.height), t, sTitle);
+                GUI.color = new Color(0x4f / 255f, 0x40 / 255f, 0xbf / 255f);
+                GUI.Label(new Rect(r.x, r.y + 4, r.width, r.height), t, sTitle);
+                GUI.color = o;
+                GUI.Label(r, t, sTitle);
+            }
+            y += lh * 2 + 18;
+            var center = new GUIStyle(sText) { alignment = TextAnchor.UpperCenter, fontSize = 16 }; center.normal.textColor = Ui.Lavender;
+            if (!started) { y += Text(x, y, w, "A block world in Ethereum's colors, built with friends. Every block remembers who placed it: the world keeps a ledger of everything you build.", center) + 14; }
+            else if (paused) { y += Text(x, y, w, (session != null ? $"{session.Login} · " : "") + $"world \"{worldName}\"" + (session == null || session.Net.Offline ? " · offline, saved on this device" : ""), center) + 14; }
 
             if (!started)
             {
                 // your nickname (read-only when this device knows you: Account → Log out to change), password, world
+                // (.fields: each label above its field; the nickname and the world side by side, the password under)
                 bool asKnown = known && session != null && session.Login != null;
-                float lw = 110, fw = w - lw;
-                GUI.Label(new Rect(x, y + 3, lw, 24), "Nickname", sText);
-                if (asKnown) GUI.Label(new Rect(x + lw, y, fw, 28), session.Login, sField);
-                else nick = GUI.TextField(new Rect(x + lw, y, fw, 28), nick, 16, sField);
-                y += 36;
+                float half = (w - 10) / 2;
+                GUI.Label(new Rect(x, y, half, 20), "Your nickname", sLabel);
+                GUI.Label(new Rect(x + half + 10, y, half, 20), "World", sLabel);
+                y += 22;
+                if (asKnown) GUI.Label(new Rect(x, y, half, 42), session.Login, sField);
+                else nick = GUI.TextField(new Rect(x, y, half, 42), nick, 16, sField);
+                worldName = GUI.TextField(new Rect(x + half + 10, y, half, 42), worldName, 32, sField);
+                y += 52;
                 if (!asKnown)
                 {
-                    GUI.Label(new Rect(x, y + 3, lw, 24), "Password", sText);
-                    password = GUI.PasswordField(new Rect(x + lw, y, fw, 28), password, '•', 72, sField);
-                    y += 34;
-                    y += Text(x, y, w, "New here? Pick a nickname and a password: they're your account. Coming back on another device? The same nickname and password bring your game.", sSmall) + 8;
+                    GUI.Label(new Rect(x, y, w, 20), "Password", sLabel);
+                    y += 22;
+                    password = GUI.PasswordField(new Rect(x, y, w, 42), password, '•', 72, sField);
+                    y += 50;
+                    y += Text(x, y, w, "New here? Pick a nickname and a password: they're your account. Coming back on another device? The same nickname and password bring your game.", new GUIStyle(sSmall) { alignment = TextAnchor.UpperCenter }) + 10;
                 }
-                GUI.Label(new Rect(x, y + 3, lw, 24), "World", sText);
-                worldName = GUI.TextField(new Rect(x + lw, y, fw, 28), worldName, 32, sField);
-                y += 40;
                 if (session != null && session.MustChange)
                 {
                     y += Text(x, y, w, "This password was given to you: choose your own to keep your game safe.", sText) + 4;
@@ -246,8 +284,8 @@ namespace EtherMines.Game
             if (!string.IsNullOrEmpty(say)) y += Text(x, y, w, say, sText) + 6;
             if (busy || loading)
             {
-                Ui.Fill(new Rect(x, y, w, 6), new Color(1, 1, 1, 0.12f));
-                Ui.Fill(new Rect(x, y, w * Mathf.Clamp01(progress / 100f), 6), Ui.Mint);
+                Ui.Round(new Rect(x, y, w, 6), new Color(1, 1, 1, 0.12f), 3);
+                Ui.Round(new Rect(x, y, Mathf.Max(6, w * Mathf.Clamp01(progress / 100f)), 6), Ui.Mint, 3);
                 y += 14;
             }
 
@@ -255,27 +293,30 @@ namespace EtherMines.Game
             if (!loading)
             {
                 string label = paused ? "Resume" : busy ? "…" : failed ? "Retry" : "Enter the world";
-                if (GUI.Button(new Rect(x, y, w, 40), label, sButton)) { if (paused) Resume(); else Enter(true); }
-                y += 48;
+                float pw = Mathf.Min(w, sButton.CalcSize(new GUIContent(label)).x + 52);
+                if (Play(new Rect(x + (w - pw) / 2, y, pw, 50), label)) { if (paused) Resume(); else Enter(true); }
+                y += 64;
                 if (!started)
                 {
-                    if (GUI.Button(new Rect(x, y, w, 28), "Play offline (saved on this device, apart from the online worlds)")) Enter(false);
-                    y += 34;
-                    y += Text(x, y, w, "By entering, you accept the terms of use: be kind, no cheating, and in-game items have no real-world value.", sSmall);
+                    if (GUI.Button(new Rect(x, y, w, 32), "Play offline (saved on this device, apart from the online worlds)")) Enter(false);
+                    y += 40;
+                    var terms = new GUIStyle(sSmall) { font = Ui.Mono, fontSize = 11, alignment = TextAnchor.UpperCenter };
+                    y += Text(x, y, w, "By entering, you accept the terms of use: be kind, no cheating, and in-game items have no real-world value.", terms);
                     if (Link(x, y, w, "Read the terms of use")) Application.OpenURL(Config.Site + "/legal.html#conditions");
                     y += 26;
                 }
             }
 
             // the controls
+            var keysSt = new GUIStyle(sSmall) { alignment = TextAnchor.UpperCenter };
             y += Text(x, y, w, TouchPad.Active
-                ? "Left thumb: walk · drag: look · short tap: place, open, pet · long press: mine, strike · the buttons on the right: jump, run, crouch, guard with a blade (hold, just before a blow to parry) · on top: bag, chat, view, objectives, menu"
-                : "WASD (ZQSD) · Shift: walk · run · Space: jump · left click: hold to mine · right click: place the selected block; with a blade, hold to guard, just before a blow to parry · 1–9: the bar · E: chest and crafting · Enter: chat", sSmall) + 8;
-            if (Fold(x, y, w, "All controls", ref openKeys))
+                ? "Left thumb: walk · drag: look · short tap: place, open, pet · long press: mine, strike · the buttons on the right: jump, run, crouch, guard with a blade (hold, just before a blow to parry) · on top: chest, chat, view, menu · tap the objective to see them all"
+                : "WASD (ZQSD) · Shift: walk · run · Space: jump · left click: hold to mine · right click: place the selected block; with a blade, hold to guard, just before a blow to parry · 1–9: the bar · E: chest and crafting · Enter: chat", keysSt) + 10;
+            if (FoldChip(x, y, w, "All controls", ref openKeys))
             {
                 y += 34;
                 string keys = TouchPad.Active
-                    ? "On top: bag, chat, view, objectives, menu\nChat: /join · /sanctuary — teleport to a friend · back to the sanctuary\nChat: /claim · /unclaim — protect the chunk you're in · release it\nChat: /invite · /kick · /claims — manage who can build on your plots\nChat: /trade — open the Trade tab\nChat: /ignore · /listen · /report — hide, unhide, or report a player"
+                    ? "On top: chest, chat, view, menu · the objective (tap it): all the objectives\nChat: /join · /sanctuary — teleport to a friend · back to the sanctuary\nChat: /claim · /unclaim — protect the chunk you're in · release it\nChat: /invite · /kick · /claims — manage who can build on your plots\nChat: /trade — open the Trade tab\nChat: /ignore · /listen · /report — hide, unhide, or report a player"
                     : "1–9 · wheel — choose from the bar\nE · O · Enter — chest and crafting · objectives · chat\nV · F — view from behind or in front · full screen\nQ — dodge, with the Front-Runner Boots · M — sound\nChat: /join · /sanctuary — teleport to an online friend · back to the sanctuary\nChat: /claim · /unclaim — protect the chunk you're in (500 Gwei, twice as much for each next one, 9 at most) · release it\nChat: /invite · /kick · /claims — allow or disallow a player on your plots · list them\nChat: /trade nickname — open the Trade tab with that player\nChat: /ignore · /listen · /report — hide, unhide, or report a player";
                 y += Text(x, y, w, keys, sSmall) + 6;
             }
@@ -285,7 +326,7 @@ namespace EtherMines.Game
             if (news.Count > 0)
             {
                 bool was = openNews;
-                Fold(x, y, w, "What's new" + (NewsUnread ? "  <color=#9fe3c4>●</color>" : ""), ref openNews);
+                FoldChip(x, y, w, "What's new" + (NewsUnread ? "  <color=#9fe3c4>●</color>" : ""), ref openNews);
                 if (openNews && !was) { PlayerPrefs.SetString(NewsKey, news[0].Date); PlayerPrefs.Save(); }
                 y += 34;
                 if (openNews)
@@ -301,7 +342,7 @@ namespace EtherMines.Game
             // game it would have to start again)
             if (known && session != null && session.Login != null && !session.Net.Offline)
             {
-                Fold(x, y, w, $"Account · logged in as {session.Login}", ref openAccount);
+                FoldChip(x, y, w, $"Account · {session.Login}", ref openAccount);
                 y += 34;
                 if (openAccount)
                 {

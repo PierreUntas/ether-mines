@@ -55,6 +55,7 @@ camera's yaw/pitch are converted in `PlayerController.PlaceCamera`.
 - The animals or villagers (`src/game/09-animals.js`) changed → `node unity/tools/export-animals.mjs` (a test checks it).
 - What's new (`src/news.js`) changed → `node unity/tools/export-news.mjs` (a test checks it): the title screen shows it.
 - A look (`src/game/17-looks.js`) changed, or a cosmetic added → `node unity/tools/export-looks.mjs` (the same way).
+- A touch or top button's icon changed in `index.html` → `node unity/tools/export-ui-icons.mjs` (the same way): the interface draws the web's own icons, with its fonts (Fredoka, IBM Plex Mono, in `Resources/Fonts`, SIL Open Font License).
 - Type-check the Unity scripts without the editor: `cd unity/CompileCheck && dotnet build -c Release`
   (and `-p:Legacy=1` for the old Input Manager branch). `UnityStubs.cs` holds the API they use.
 
