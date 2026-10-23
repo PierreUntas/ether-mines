@@ -20,7 +20,9 @@ namespace EtherMines.Game
         public Action<string> Command;      // a line starting with "/" (Multiplayer: /claim, /join...)
         public Func<bool> EnterTaken;       // Enter is for something else right now (confirming a plot)
         // ignored players (by nickname, kept on this device): their messages no longer show up
-        public readonly HashSet<string> Ignores = new HashSet<string>(LoadIgnores());
+        // (read in Awake: Unity refuses PlayerPrefs in a field initializer, and the whole component then breaks)
+        public readonly HashSet<string> Ignores = new HashSet<string>();
+        void Awake() { foreach (var n in LoadIgnores()) Ignores.Add(n); }
         static IEnumerable<string> LoadIgnores()
         {
             var l = MiniJson.Parse(PlayerPrefs.GetString("ether-mines:ignores", "[]")) as List<object>;
