@@ -28,7 +28,7 @@ float3 EtherLeafWind(float3 ws, float2 uv)
 {
     float2 tile = floor(uv * 16.0);
     float leaf = SAMPLE_TEXTURE2D_LOD(_EM_WindMask, sampler_EM_WindMask, (tile + 0.5) / 16.0, 0).r;
-    return leaf > 0.5 ? EtherWind(ws, 1.0) : float3(0, 0, 0);
+    return leaf > 0.5 ? EtherWind(ws, 2.0) : float3(0, 0, 0); // twice the grass's base sway
 }
 
 // diffuse light on a surface of this color (three's MeshLambertMaterial, as Unity's Lambert did): the sky's

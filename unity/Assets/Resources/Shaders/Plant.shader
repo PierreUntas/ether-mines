@@ -31,7 +31,7 @@ Shader "EtherMines/Plant"
             if (frac(o.ws.y) > 0.5)
             {
                 // the web's sway, carried by the same wind as the leaves (its gusts, a shower)
-                o.ws += EtherWind(o.ws, 1.15);
+                o.ws += EtherWind(o.ws, 1.5);
             }
             o.cs = TransformWorldToHClip(o.ws);
             o.n = TransformObjectToWorldNormal(a.n);
