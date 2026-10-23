@@ -106,7 +106,7 @@ namespace EtherMines.Game
 
         Material LineMat()
         {
-            if (lineMat == null) lineMat = new Material(Shader.Find("Hidden/Internal-Colored"));
+            if (lineMat == null) lineMat = new Material(Shader.Find("EtherMines/Line"));
             return lineMat;
         }
 

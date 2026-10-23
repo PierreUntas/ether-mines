@@ -62,8 +62,9 @@ namespace EtherMines.Builds
             Debug.Log("Ether Mines: player settings ready (" + Id + " " + Version + " build " + code + ")");
         }
 
-        // the sky sets a linear fog at run time and the HUD draws with Hidden/Internal-Colored: a build must
-        // keep both (by default Unity strips the fog the scene doesn't use, and that shader isn't included)
+        // the sky sets a linear fog at run time: a build must keep it (by default Unity strips the fog the scene
+        // doesn't use). Unity's Hidden/Internal-Colored can't go in a build (it fails it): the game draws its
+        // lines with its own EtherMines/Line, and an older Prepare's entry for it is taken out again.
         static void KeepShaders()
         {
             var assets = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset");
@@ -76,15 +77,12 @@ namespace EtherMines.Builds
             var list = so.FindProperty("m_AlwaysIncludedShaders");
             var colored = Shader.Find("Hidden/Internal-Colored");
             if (list != null && colored != null)
-            {
-                bool has = false;
-                for (int i = 0; i < list.arraySize; i++) if (list.GetArrayElementAtIndex(i).objectReferenceValue == colored) has = true;
-                if (!has)
-                {
-                    list.InsertArrayElementAtIndex(list.arraySize);
-                    list.GetArrayElementAtIndex(list.arraySize - 1).objectReferenceValue = colored;
-                }
-            }
+                for (int i = list.arraySize - 1; i >= 0; i--)
+                    if (list.GetArrayElementAtIndex(i).objectReferenceValue == colored)
+                    {
+                        list.GetArrayElementAtIndex(i).objectReferenceValue = null;
+                        list.DeleteArrayElementAtIndex(i);
+                    }
             so.ApplyModifiedProperties();
         }
 

@@ -316,7 +316,7 @@ namespace EtherMines.Game
             for (int i = 0; i < idx.Length; i++) idx[i] = i;
             m.SetIndices(idx, MeshTopology.Lines, 0);
             go.AddComponent<MeshFilter>().sharedMesh = m;
-            var mat = new Material(Shader.Find("Hidden/Internal-Colored")) { color = new Color(0.12f, 0.08f, 0.3f, 0.75f) };
+            var mat = new Material(Shader.Find("EtherMines/Line")) { color = new Color(0.12f, 0.08f, 0.3f, 0.75f) };
             go.AddComponent<MeshRenderer>().sharedMaterial = mat;
             go.SetActive(false);
             return go;

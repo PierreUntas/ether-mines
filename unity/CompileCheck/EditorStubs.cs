@@ -27,7 +27,7 @@ namespace UnityEditor
         public static void AddObjectToAsset(Object o, Object a) { }
         public static bool TryGetGUIDAndLocalFileIdentifier(Object o, out string g, out long id) { g = null; id = 0; return false; }
     }
-    public class SerializedProperty { public int intValue, arraySize; public long longValue; public float floatValue; public bool boolValue; public Object objectReferenceValue; public SerializedProperty GetArrayElementAtIndex(int i) => null; public void InsertArrayElementAtIndex(int i) { } }
+    public class SerializedProperty { public int intValue, arraySize; public long longValue; public float floatValue; public bool boolValue; public Object objectReferenceValue; public SerializedProperty GetArrayElementAtIndex(int i) => null; public void InsertArrayElementAtIndex(int i) { } public void DeleteArrayElementAtIndex(int i) { } }
     public class SerializedObject { public SerializedObject(Object o) { } public SerializedProperty FindProperty(string n) => null; public bool ApplyModifiedProperties() => true; public void Update() { } }
     public class InitializeOnLoadAttribute : Attribute { }
     public static class EditorUtility { public static void SetDirty(Object o) { } }

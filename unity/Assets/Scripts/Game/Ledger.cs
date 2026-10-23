@@ -50,7 +50,7 @@ namespace EtherMines.Game
             if (v.Count == 0) return;
             if (lineMat == null)
             {
-                lineMat = new Material(Shader.Find("Hidden/Internal-Colored")) { color = new Color(0xb4 / 255f, 0xa8 / 255f, 1, 0.9f) };
+                lineMat = new Material(Shader.Find("EtherMines/Line")) { color = new Color(0xb4 / 255f, 0xa8 / 255f, 1, 0.9f) };
                 lineMat.SetFloat("_ZTest", (float)UnityEngine.Rendering.CompareFunction.Always); // through walls, as the web's depthTest: false
                 lineMat.SetFloat("_ZWrite", 0);
                 lineMat.renderQueue = 3100;
