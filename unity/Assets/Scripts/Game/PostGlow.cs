@@ -1,6 +1,7 @@
 // Ether Mines · the glow over the picture (04-render.js glowComposer, Settings → Glow): crystals, lanterns,
 // lamps, ether ore, neon, the sun on the clouds bleed a soft light around them, as three's UnrealBloomPass
-// does on the web (strength 0.42, radius 0.6, threshold 0.84). On the camera; on by default, phones too.
+// does on the web (strength 0.42, radius 0.6, threshold 0.84; a little softer here, since
+// Unity's sunlit blocks run brighter than three's). On the camera; on by default, phones too.
 using UnityEngine;
 
 namespace EtherMines.Game
@@ -11,7 +12,7 @@ namespace EtherMines.Game
         public static bool On { get; private set; } = true;
         public static void Toggle() { On = !On; PlayerPrefs.SetString(Key, On ? "1" : "0"); }
 
-        public float Threshold = 0.84f, Strength = 0.42f, Radius = 0.6f;
+        public float Threshold = 0.95f, Strength = 0.3f, Radius = 0.6f;
         const int Levels = 5;
         Material mat;
         readonly RenderTexture[] chain = new RenderTexture[Levels];

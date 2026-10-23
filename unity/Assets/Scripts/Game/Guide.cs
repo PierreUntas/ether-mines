@@ -281,7 +281,7 @@ namespace EtherMines.Game
                     GUI.Label(new Rect(L + 24, y, ow - 28, 28), on, mono);
                     y += 36;
                 }
-                if (World.Status.Length > 0) { GUI.Label(new Rect(L, y, 400, 20), World.Status, small); y += 22; }
+                if (World.Status != null && World.Status.StartsWith("offline")) { GUI.Label(new Rect(L, y, 400, 20), World.Status, small); y += 22; }
                 // your plating and boots
                 string armor = ArmorLine();
                 if (armor != null)

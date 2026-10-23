@@ -29,7 +29,8 @@ namespace EtherMines.Game
         public void SaveIgnores() { PlayerPrefs.SetString("ether-mines:ignores", MiniJson.Write(Ignores.Cast<object>().ToList())); PlayerPrefs.Save(); }
 
         struct Msg { public string Name, Color, Text; public float At; }
-        readonly List<Msg> lines = new List<Msg>();
+        // not readonly: a script reload during Play leaves unserialized fields null, so they're rebuilt when needed
+        List<Msg> lines = new List<Msg>();
         string draft = "";
         int openedFrame;
         bool sending;
@@ -38,6 +39,7 @@ namespace EtherMines.Game
         public void Add(string name, string color, string text)
         {
             if (name != null && Ignores.Contains(name.ToLowerInvariant())) return;
+            if (lines == null) lines = new List<Msg>();
             lines.Add(new Msg { Name = name, Color = color, Text = text, At = Time.time });
             if (lines.Count > 30) lines.RemoveAt(0);
         }
@@ -97,7 +99,9 @@ namespace EtherMines.Game
         void OnGUI()
         {
             Ui.Begin();
-            if (style == null)
+            if (lines == null) lines = new List<Msg>();
+            if (draft == null) draft = "";
+            if (style == null || input == null)
             {
                 style = new GUIStyle(GUI.skin.label) { fontSize = 15, richText = true, wordWrap = true };
                 input = new GUIStyle(GUI.skin.textField) { fontSize = 16, padding = new RectOffset(8, 8, 6, 6) };
