@@ -30,6 +30,7 @@ Shader "EtherMines/Block"
         {
             V o;
             o.ws = TransformObjectToWorld(a.pos.xyz);
+            o.ws += EtherLeafWind(o.ws, a.uv); // leaves in the wind
             o.cs = TransformWorldToHClip(o.ws);
             o.n = TransformObjectToWorldNormal(a.n);
             o.uv = a.uv;
@@ -80,7 +81,7 @@ Shader "EtherMines/Block"
             #pragma fragment sf
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
             struct SV { float4 cs : SV_POSITION; float2 uv : TEXCOORD0; };
-            SV sv (A a) { SV o; float3 ws = TransformObjectToWorld(a.pos.xyz); o.cs = EtherShadowPos(ws, TransformObjectToWorldNormal(a.n)); o.uv = a.uv; return o; }
+            SV sv (A a) { SV o; float3 ws = TransformObjectToWorld(a.pos.xyz); ws += EtherLeafWind(ws, a.uv); o.cs = EtherShadowPos(ws, TransformObjectToWorldNormal(a.n)); o.uv = a.uv; return o; }
             half4 sf (SV i) : SV_Target { clip(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).a - _Cutoff); return 0; }
             ENDHLSL
         }

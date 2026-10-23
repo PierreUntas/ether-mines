@@ -171,7 +171,7 @@ namespace UnityEngine
     public enum ShadowResolution { Low, Medium, High, VeryHigh }
     public enum ShadowProjection { CloseFit, StableFit }
     public enum AnisotropicFiltering { Disable, Enable, ForceEnable }
-    public class Shader : Object { public static Shader Find(string n) => null; public bool isSupported; public static void SetGlobalColor(string n, Color c) { } public static void SetGlobalFloat(string n, float v) { } }
+    public class Shader : Object { public static Shader Find(string n) => null; public bool isSupported; public static void SetGlobalColor(string n, Color c) { } public static void SetGlobalFloat(string n, float v) { } public static void SetGlobalTexture(string n, Texture t) { } }
     [System.Flags] public enum DepthTextureMode { None = 0, Depth = 1, DepthNormals = 2 }
     public class Texture : Object { public FilterMode filterMode; public TextureWrapMode wrapMode; public int anisoLevel, width, height; }
     public class Font : Object { public Material material; public static event System.Action<Font> textureRebuilt; static void Touch() => textureRebuilt?.Invoke(null); }
@@ -185,7 +185,7 @@ namespace UnityEngine
     public enum MeshTopology { Triangles, Lines }
     public enum FilterMode { Point, Bilinear, Trilinear }
     public enum TextureWrapMode { Repeat, Clamp }
-    public enum TextureFormat { RGBA32, ARGB32 }
+    public enum TextureFormat { RGBA32, ARGB32, R8 }
     public class Texture2D : Texture { public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void Apply() { } public static Texture2D whiteTexture; public void SetPixel(int x, int y, Color c) { } public void SetPixels(Color[] c) { } public Color[] GetPixels(int x, int y, int w, int h) => null; }
     public static class ImageConversion { public static bool LoadImage(this Texture2D t, byte[] data) => true; }
     public class Material : Object

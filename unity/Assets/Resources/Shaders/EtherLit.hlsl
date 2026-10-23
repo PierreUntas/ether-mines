@@ -9,6 +9,28 @@
 
 float _EM_Emis; // what glows in the blocks glows brighter at night (Sky.cs)
 
+// ---------- the wind (Unity only: the web's leaves stand still) ----------
+// One field over the whole world, so neighbouring leaves move together and no seam opens between them: a
+// sway, a quicker flutter on top, and slow gusts that roll across the land; stronger in a shower (Weather.cs)
+TEXTURE2D(_EM_WindMask); SAMPLER(sampler_EM_WindMask); // the atlas's tiles that are leaves (WorldView.cs)
+float _EM_WindK;
+float3 EtherWind(float3 ws, float amount)
+{
+    float t = _Time.y;
+    float gust = 0.55 + 0.45 * sin(t * 0.37 + ws.x * 0.045 + ws.z * 0.031);
+    float sway = sin(t * 1.6 + ws.x * 0.55 + ws.z * 0.4) + 0.45 * sin(t * 2.9 + ws.z * 1.1 - ws.x * 0.35);
+    float flutter = sin(t * 7.3 + ws.x * 2.1 + ws.y * 1.7 + ws.z * 1.9);
+    float k = amount * gust * _EM_WindK;
+    return float3(sway * 0.055 + flutter * 0.012, flutter * 0.012, sway * 0.04 - flutter * 0.01) * k;
+}
+// a block's vertex, moved if its face shows a leaf tile (the tile from the UV, inset by the mesher)
+float3 EtherLeafWind(float3 ws, float2 uv)
+{
+    float2 tile = floor(uv * 16.0);
+    float leaf = SAMPLE_TEXTURE2D_LOD(_EM_WindMask, sampler_EM_WindMask, (tile + 0.5) / 16.0, 0).r;
+    return leaf > 0.5 ? EtherWind(ws, 1.0) : float3(0, 0, 0);
+}
+
 // diffuse light on a surface of this color (three's MeshLambertMaterial, as Unity's Lambert did): the sky's
 // ambient from the light probe (Sky.cs sets the trilight), the sun and its shadows, every other light near
 half3 EtherLambert(half3 albedo, float3 posWS, half3 nWS, float4 posCS)

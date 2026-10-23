@@ -49,6 +49,15 @@ namespace EtherMines.Game
             glMat = Mat("EtherMines/Glass", atlas, emis);
             waMat = Mat("EtherMines/Water", water, null);
             plMat = Mat("EtherMines/Plant", atlas, emis);
+            // which tiles of the atlas are leaves: the wind moves those (Shaders/EtherLit.hlsl)
+            var mask = new Texture2D(16, 16, TextureFormat.R8, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            var px = new Color[256];
+            foreach (var b in Rules.Blocks)
+                if (b != null && b.Leaf && b.T != null)
+                    foreach (var ti in b.T) if (ti >= 0 && ti < 256) px[(15 - ti / 16) * 16 + ti % 16] = Color.white;
+            mask.SetPixels(px);
+            mask.Apply();
+            Shader.SetGlobalTexture("_EM_WindMask", mask);
         }
 
         static Texture2D LoadTex(string path, FilterMode f, TextureWrapMode w)

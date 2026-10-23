@@ -30,10 +30,8 @@ Shader "EtherMines/Plant"
             // the top of a plant sways (the cell's upper half)
             if (frac(o.ws.y) > 0.5)
             {
-                float t = _Time.y;
-                float w = sin(t * 1.6 + o.ws.x * 0.7 + o.ws.z * 0.5) + 0.5 * sin(t * 2.7 + o.ws.z * 1.3);
-                o.ws.x += w * 0.06;
-                o.ws.z += w * 0.04;
+                // the web's sway, carried by the same wind as the leaves (its gusts, a shower)
+                o.ws += EtherWind(o.ws, 1.15);
             }
             o.cs = TransformWorldToHClip(o.ws);
             o.n = TransformObjectToWorldNormal(a.n);

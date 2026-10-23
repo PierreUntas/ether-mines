@@ -99,6 +99,7 @@ namespace EtherMines.Game
             k += (target - k) * Mathf.Min(1, dt / 3);
             Rain = cold ? 0 : k;
             Snow = cold ? k : 0;
+            Shader.SetGlobalFloat("_EM_WindK", 1 + k * 0.9f); // a shower blows harder in the trees (EtherLit.hlsl)
             hiss.volume = Rain * 0.35f * (Sounds.On ? 1 : 0);
             if (Rain > 0.02f && !hiss.isPlaying) hiss.Play();
             else if (Rain <= 0.02f && hiss.isPlaying) hiss.Stop();

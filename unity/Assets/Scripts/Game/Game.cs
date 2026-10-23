@@ -45,6 +45,7 @@ namespace EtherMines.Game
             camData.requiresDepthOption = depth ? CameraOverrideOption.On : CameraOverrideOption.Off;
             camData.renderShadows = true;
             Shader.SetGlobalFloat("_EM_Depth", depth ? 1 : 0);
+            Shader.SetGlobalFloat("_EM_WindK", 1); // the wind in the leaves and the grass (Weather.cs: stronger in a shower)
             if (cam.GetComponent<AudioListener>() == null) cam.gameObject.AddComponent<AudioListener>(); // the ears: where the camera is
             foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None)) l.enabled = false; // the scene's default light: ours replaces it
 
