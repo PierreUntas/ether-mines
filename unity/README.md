@@ -107,6 +107,13 @@ the great Ethereum diamond and its ring of orange blocks, the floating ethers ov
 over the City, flocks of birds, stars, the moon and the aurora at night, the clouds, the validators' beams and
 gems; the blocks' glow brighter at night (emisBoost). And beyond the web: smooth edges (MSAA), sharper shadows
 reaching further (four cascades), crisper textures at a slant, a touch of grading with the glow.
+The HUD that guides you (`Guide.cs`, 07-interface.js's chips): the clock with its sun or moon, your position
+and whose plot you stand in over a compass strip (north, the Atrium, the nearest Mempool, your objective), who's
+online, the objective at the top (chapter, next step, the network's count, the way to the ruin, tower, sanctum or
+Titan, a flash when it moves on), the hourly attack's banner, your Gwei, plating and boots, the names of places
+as you enter them, and the label under the crosshair (a block's owner or token, what it needs, a mob's health, a
+player, an animal's gift, a villager's role). The save also runs when a phone sends the game to the background,
+and a refused save is said in the log; the chest's and the bag's grids scroll.
 Then the circuits (`Core/Circuits.cs`, checked tick for tick against 12-circuits.js; `CircuitsView.cs`:
 lamps, doors, plates, gates and the clock live around you, the objectives' shapes, the lanterns' light).
 Trades (`Trade.cs`, the window's Trade tab: offers received and sent, accept, decline, cancel, a new offer

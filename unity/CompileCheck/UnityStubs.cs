@@ -47,7 +47,8 @@ namespace UnityEngine
     }
     public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public float magnitude => 0; public static Vector2 zero => default; public static Vector2 operator -(Vector2 a, Vector2 b) => a; public static Vector2 operator +(Vector2 a, Vector2 b) => a; public static Vector2 operator *(Vector2 a, float b) => a; public Vector2 normalized => this; }
     public enum PrimitiveType { Cube, Sphere }
-    public class GUIStyleState { public Color textColor; }
+    public enum TextClipping { Overflow, Clip }
+    public class GUIStyleState { public Color textColor; public Texture2D background; }
     public class GUIContent { public GUIContent(string s) { } public GUIContent(string s, string tip) { } public static GUIContent none; }
     public enum EventType { KeyDown, KeyUp, Repaint, ScrollWheel, MouseDown, MouseUp }
     public class Event { public static Event current; public EventType type; public KeyCode keyCode; public Vector2 mousePosition, delta; public void Use() { } }
@@ -86,11 +87,11 @@ namespace UnityEngine
     }
     public struct Color32 { public byte r, g, b, a; }
     public static class ColorUtility { public static bool TryParseHtmlString(string s, out Color c) { c = default; return true; } public static string ToHtmlStringRGB(Color c) => ""; }
-    public struct Rect { public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; } public float x, y, width, height; public float xMax => x + width; public float yMax => y + height; public bool Contains(Vector2 p) => false; }
+    public struct Rect { public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; } public float x, y, width, height; public Vector2 center => default; public float xMax => x + width; public float yMax => y + height; public bool Contains(Vector2 p) => false; }
     public class RectOffset { public RectOffset(int l, int r, int t, int b) { } }
     public enum TextAnchor { UpperLeft, UpperCenter, UpperRight, MiddleLeft, MiddleCenter, MiddleRight, LowerLeft, LowerCenter, LowerRight }
     public enum FontStyle { Normal, Bold }
-    public class GUIStyle { public GUIStyle(GUIStyle s) { } public GUIStyle() { } public bool richText; public int fontSize; public TextAnchor alignment; public FontStyle fontStyle; public RectOffset padding; public bool wordWrap; public GUIStyleState normal = new GUIStyleState(), hover = new GUIStyleState(); public static GUIStyle none; public Vector2 CalcSize(GUIContent c) => default; public float CalcHeight(GUIContent c, float w) => 0; }
+    public class GUIStyle { public GUIStyle(GUIStyle s) { } public GUIStyle() { } public bool richText; public int fontSize; public TextAnchor alignment; public FontStyle fontStyle; public RectOffset padding, border; public bool wordWrap; public TextClipping clipping; public GUIStyleState normal = new GUIStyleState(), hover = new GUIStyleState(); public static GUIStyle none; public Vector2 CalcSize(GUIContent c) => default; public float CalcHeight(GUIContent c, float w) => 0; }
     public class GUISkin { public GUIStyle box, label, button, textField; }
     public static class GUI
     {
@@ -99,7 +100,7 @@ namespace UnityEngine
         public static Color color;
         public static void DrawTexture(Rect r, Texture t) { } public static void DrawTexture(Rect r, Texture t, ScaleMode m, bool a) { }
         public static void DrawTextureWithTexCoords(Rect r, Texture t, Rect uv) { }
-        public static void Box(Rect r, string s) { }
+        public static void Box(Rect r, string s) { } public static void Box(Rect r, GUIContent c, GUIStyle st) { }
         public static void Box(Rect r, string s, GUIStyle st) { }
         public static void Label(Rect r, string s) { }
         public static void Label(Rect r, string s, GUIStyle st) { }
@@ -117,7 +118,7 @@ namespace UnityEngine
         public static TouchScreenKeyboard Open(string text, TouchScreenKeyboardType t, bool autocorrection, bool multiline, bool secure, bool alert, string placeholder, int limit) => null;
         public string text; public Status status; public bool active;
     }
-    public struct Matrix4x4 { public static Matrix4x4 Scale(Vector3 v) => default; }
+    public struct Matrix4x4 { public static Matrix4x4 Scale(Vector3 v) => default; public static Matrix4x4 TRS(Vector3 p, Quaternion q, Vector3 s) => default; public static Matrix4x4 operator *(Matrix4x4 a, Matrix4x4 b) => a; }
     public struct Ray { public Vector3 origin, direction; }
     public enum TouchPhase { Began, Moved, Stationary, Ended, Canceled }
     public struct Touch { public int fingerId; public Vector2 position; public TouchPhase phase; }
@@ -125,7 +126,7 @@ namespace UnityEngine
     public static class Random { public static int Range(int a, int b) => a; public static float Range(float a, float b) => a; public static float value; }
     public static class Mathf
     {
-        public static float Tan(float a) => a; public static float PerlinNoise(float x, float y) => x;
+        public static float Tan(float a) => a; public static float Pow(float a, float b) => a; public static float PerlinNoise(float x, float y) => x;
         public const float PI = 3.14159265f, Rad2Deg = 57.29578f, Deg2Rad = 0.0174533f;
         public static float Min(float a, float b) => a; public static float Max(float a, float b) => a;
         public static float Lerp(float a, float b, float t) => a; public static float Clamp(float v, float a, float b) => v;

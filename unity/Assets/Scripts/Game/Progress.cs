@@ -147,6 +147,20 @@ namespace EtherMines.Game
         }
 
         bool Done(Chapter c) => c.Q.All(id => QBy[id].Ok(this));
+        // the objective shown at the top of the screen (updateQuest): the current chapter, how far, the next one
+        public bool Objective(out string chapter, out int done, out int total, out string id, out string text)
+        {
+            var c = Current;
+            chapter = c?.N; done = 0; total = 0; id = null; text = null;
+            if (c == null) return false;
+            total = c.Q.Length;
+            foreach (var q in c.Q) if (QBy[q].Ok(this)) done++; else if (id == null) { id = q; text = QBy[q].T; }
+            return id != null;
+        }
+        public int Relit => OwnedValidators;
+        public bool Has(int id) => Got(id);
+        public bool Seen(string k) => Session.State.TryGetValue("seen", out var s) && s is Dictionary<string, object> d && d.ContainsKey(k);
+
         bool Open(Chapter c) => c.Side != null ? Done(Chapters.First(o => o.Id == c.Side)) : Mains.TakeWhile(m => m != c).All(Done);
         Chapter Current => Mains.FirstOrDefault(c => !Done(c));
 

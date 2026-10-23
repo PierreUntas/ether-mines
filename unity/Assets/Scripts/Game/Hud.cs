@@ -11,6 +11,8 @@ namespace EtherMines.Game
     public sealed class Hud : MonoBehaviour
     {
         public Interaction Act;
+        string selKey;
+        float selAt = -99;
         Texture2D icons, white;
         int iconSize = 48, iconCols = 16;
         readonly Dictionary<int, int> iconIndex = new Dictionary<int, int>();
@@ -86,8 +88,18 @@ namespace EtherMines.Game
                 DrawIcon(new Rect(r.x + 4, r.y + 4, s - 8, s - 8), id);
                 if (!key.StartsWith("nft", StringComparison.Ordinal)) GUI.Label(new Rect(r.x, r.y, s - 4, s - 2), inv.Count(id).ToString(), count);
             }
+            // the item's name for a moment after you change slot ("Bare hand" when it's empty), then it fades (select)
             var held = inv.Held;
-            if (held != null) GUI.Label(new Rect(0, y0 - 34, W, 24), Interaction.NameOf(inv.ItemId(held)), tag);
+            string slotKey = inv.Sel + ":" + held;
+            if (slotKey != selKey) { if (selKey != null) selAt = Time.time; selKey = slotKey; }
+            float sa = Mathf.Clamp01(1 - (Time.time - selAt - 1.6f) / 0.5f);
+            if (sa > 0)
+            {
+                var o = GUI.color;
+                GUI.color = new Color(1, 1, 1, sa);
+                GUI.Label(new Rect(0, y0 - 34, W, 24), held != null ? Interaction.NameOf(inv.ItemId(held)) : "Bare hand", tag);
+                GUI.color = o;
+            }
             // the feed
             float fy = H - s - 70;
             for (int i = 0; i < feed.Count; i++)
@@ -98,8 +110,9 @@ namespace EtherMines.Game
                 var c = GUI.color;
                 GUI.color = new Color(1, 1, 1, Mathf.Clamp01(7 - age));
                 string k = l.Kind == "mint" ? "<color=#9fe3c4><b>MINT</b></color>" : l.Kind == "nft" ? "<color=#7fe8ff><b>NFT</b></color>" : l.Kind == "craft" ? "<color=#ffd95e><b>CRAFT</b></color>" : "<color=#ff9ab8><b>BURN</b></color>";
-                // on a touch screen, top left: the stick has the bottom left
-                GUI.Label(TouchPad.Active ? new Rect(16 + Ui.Safe.x, Ui.Safe.y + 56 + i * 24, Mathf.Min(520, Ui.W * 0.4f), 24) : new Rect(16, fy - i * 24, 700, 24), $"{k} {l.Text} <color=#c9c2f2>{l.Detail}</color>", feedStyle);
+                // on a touch screen, top right under the Gwei: the stick has the bottom left, the HUD the top left
+                float fw = Mathf.Min(420, Ui.W * 0.4f);
+                GUI.Label(TouchPad.Active ? new Rect(Ui.Safe.xMax - 16 - fw, Ui.Safe.y + 92 + i * 24, fw, 24) : new Rect(16, fy - i * 24, 700, 24), $"{k} {l.Text} <color=#c9c2f2>{l.Detail}</color>", feedStyle);
                 GUI.color = c;
             }
         }

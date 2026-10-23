@@ -245,7 +245,7 @@ namespace EtherMines.Game
         {
             Ui.Begin();
             if (!Picking) return;
-            float w = 560, x = (Ui.W - w) / 2, y = 60;
+            float w = 560, x = (Ui.W - w) / 2, y = Ui.Safe.y + (TouchPad.Active ? 124 : 88);
             Ui.Fill(new Rect(x, y, w, 40), pickOk ? new Color(0.25f, 0.2f, 0.05f, 0.85f) : new Color(0.3f, 0.08f, 0.12f, 0.85f));
             GUI.Label(new Rect(x + 14, y + 10, w - 28, 24), $"Plot {pqx}, {pqz} · {pickWhy}" + (pickOk ? " · Enter: claim · X: cancel" : " · walk to another plot · X: cancel"), Ui.Label);
         }

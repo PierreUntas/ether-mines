@@ -390,6 +390,19 @@ namespace EtherMines.Game
         }
 
         public bool Fightable(Animal a) => kinds[a.Type].Hp > 0;
+        // what the label under the crosshair says of it (10-loop.js): its name, then what you can do
+        public string Label(Animal a, out string sub)
+        {
+            bool touch = TouchPad.Active;
+            if (a.VillagerIx >= 0) { var h = villagers[a.VillagerIx]; sub = h.Role + " · " + (touch ? "tap" : "right-click") + ": talk"; return h.Name; }
+            var K = kinds[a.Type];
+            bool gift = K.Gift && Session != null && !(Session.State.TryGetValue("pets", out var po) && po is Dictionary<string, object> pets && pets.TryGetValue(a.K + ":" + a.I, out var d) && d as string == DateTime.UtcNow.ToString("yyyy-MM-dd"));
+            sub = (touch ? "tap" : "right-click") + ": pet" + (gift ? " · has a gift for you" : "") + (K.Hp > 0 ? " · " + (touch ? "tap and hold" : "left-click") + ": fight for a heart" : "");
+            return K.N;
+        }
+        // the world's network (act_network, read every minute): validators relit by everyone, the hour's attack
+        public static int NetworkN, AttackKills;
+        public static long AttackWindow = -1;
 
         // a blow on an animal (attackAnimal): at 0 it falls, and gives you a heart back if you're hurt
         public void Strike(Animal a, double dmg)
@@ -489,6 +502,12 @@ namespace EtherMines.Game
                 var r = await Session.Act("network", new Dictionary<string, object>(), 0, 0, 0);
                 if (r == null || r.ContainsKey("refused")) return;
                 network = MiniJson.ToInt(r.TryGetValue("n", out var n) ? n : null);
+                NetworkN = network;
+                if (r.TryGetValue("attack", out var at) && at is Dictionary<string, object> atk)
+                {
+                    AttackWindow = (long)MiniJson.ToDouble(atk.TryGetValue("window_id", out var wi) ? wi : null);
+                    AttackKills = MiniJson.ToInt(atk.TryGetValue("kills", out var ki) ? ki : null);
+                }
                 if (r.TryGetValue("top", out var t) && t is List<object> top && top.Count > 0 && top[0] is Dictionary<string, object> f)
                 { topName = f["name"] as string; topN = MiniJson.ToInt(f["n"]); }
             }

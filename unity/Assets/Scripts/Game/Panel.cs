@@ -321,20 +321,22 @@ namespace EtherMines.Game
         void CraftTab(Rect body)
         {
             var cats = Rules.Recipes.Select(r => r.Cat).Distinct().ToList();
-            float cx = body.x;
-            if (GUI.Button(new Rect(cx, body.y, 70, 26), "All", craftCat == "" ? Ui.Primary : Ui.Button)) { craftCat = ""; scroll = Vector2.zero; }
+            float cx = body.x, cy = body.y;
+            if (GUI.Button(new Rect(cx, cy, 70, 26), "All", craftCat == "" ? Ui.Primary : Ui.Button)) { craftCat = ""; scroll = Vector2.zero; }
             cx += 76;
+            // the categories, on as many lines as they need
             foreach (var c in cats)
             {
                 float w = Ui.Button.CalcSize(new GUIContent(c)).x + 8;
-                if (cx + w > body.xMax) break;
-                if (GUI.Button(new Rect(cx, body.y, w, 26), c, craftCat == c ? Ui.Primary : Ui.Button)) { craftCat = c; scroll = Vector2.zero; }
+                if (cx + w > body.xMax) { cx = body.x; cy += 32; }
+                if (GUI.Button(new Rect(cx, cy, w, 26), c, craftCat == c ? Ui.Primary : Ui.Button)) { craftCat = c; scroll = Vector2.zero; }
                 cx += w + 6;
             }
+            float top = cy + 36 - body.y;
             var list = Rules.Recipes.Where(r => craftCat == "" || r.Cat == craftCat).ToList();
             float rh = 74;
             var view = new Rect(0, 0, body.width - 20, list.Count * rh + 40 * cats.Count);
-            scroll = GUI.BeginScrollView(new Rect(body.x, body.y + 36, body.width, body.height - 36), scroll, view);
+            scroll = GUI.BeginScrollView(new Rect(body.x, body.y + top, body.width, body.height - top), scroll, view);
             float y = 0;
             string cat = null;
             foreach (var r in list)
@@ -366,7 +368,7 @@ namespace EtherMines.Game
         // ---------- a chest ----------
         void ChestTab(Rect body)
         {
-            GUI.Label(new Rect(body.x, body.y, body.width, 22), $"Chest at {Open.X}, {Open.Y}, {Open.Z}. Click an item to move it. Inside a plot, only its owner and their invites can open it.", Ui.Small);
+            GUI.Label(new Rect(body.x, body.y, body.width, 22), $"Chest at {Open.X}, {Open.Y}, {Open.Z}. Click an item to move it. Inside a plot, only its owner and their invites can open it; elsewhere, everyone can.", Ui.Small);
             float qx = body.x;
             GUI.Label(new Rect(qx, body.y + 28, 70, 26), "Quantity", Ui.Label);
             qx += 76;
@@ -376,25 +378,31 @@ namespace EtherMines.Game
                 qx += 60;
             }
             float half = (body.height - 70) / 2;
-            Zone(new Rect(body.x, body.y + 62, body.width, half), "In the chest", Open.Items, -1);
-            Zone(new Rect(body.x, body.y + 70 + half, body.width, half), "In your bag", Inv.Counts, 1);
+            chestScroll = Zone(new Rect(body.x, body.y + 62, body.width, half), "In the chest", Open.Items, -1, chestScroll);
+            bagScroll = Zone(new Rect(body.x, body.y + 70 + half, body.width, half), "In your bag", Inv.Counts, 1, bagScroll);
         }
+        Vector2 chestScroll, bagScroll;
 
-        void Zone(Rect r, string title, Dictionary<int, int> items, int dir)
+        // one side of the chest window, its cells scrolling when there are more than fit
+        Vector2 Zone(Rect r, string title, Dictionary<int, int> items, int dir, Vector2 sc)
         {
             GUI.Label(new Rect(r.x, r.y, 300, 24), title, Ui.Title);
             var list = items.Where(kv => kv.Value > 0).OrderBy(kv => kv.Key).ToList();
             if (list.Count == 0) GUI.Label(new Rect(r.x, r.y + 30, 400, 22), dir < 0 ? "The chest is empty." : "Nothing to deposit.", Ui.Small);
             float cs = 52;
-            int cols = Mathf.Max(1, (int)(r.width / (cs + 6)));
+            int cols = Mathf.Max(1, (int)((r.width - 20) / (cs + 6)));
+            var area = new Rect(r.x, r.y + 30, r.width, r.height - 30);
+            var view = new Rect(0, 0, r.width - 20, Mathf.Ceil(list.Count / (float)cols) * (cs + 6));
+            sc = GUI.BeginScrollView(area, sc, view);
             for (int i = 0; i < list.Count; i++)
             {
-                var cell = new Rect(r.x + (i % cols) * (cs + 6), r.y + 30 + (i / cols) * (cs + 6), cs, cs);
-                if (cell.yMax > r.yMax) break;
+                var cell = new Rect((i % cols) * (cs + 6), (i / cols) * (cs + 6), cs, cs);
                 Cell(cell, list[i].Key, list[i].Value.ToString(), false, false);
                 if (GUI.Button(cell, GUIContent.none, GUIStyle.none) && !busy)
                     MoveChest(list[i].Key, dir * (chestQty > 0 ? Math.Min(chestQty, list[i].Value) : list[i].Value));
             }
+            GUI.EndScrollView();
+            return sc;
         }
     }
 }

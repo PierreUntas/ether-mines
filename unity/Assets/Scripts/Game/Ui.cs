@@ -70,6 +70,37 @@ namespace EtherMines.Game
             GUI.DrawTextureWithTexCoords(r, icons, new Rect(u, v, iconSize / (float)icons.width, iconSize / (float)icons.height));
         }
 
+        // the web's .chip: a rounded dark glass with a thin light edge (border: the edge's color, if other)
+        static Texture2D chipTex;
+        static GUIStyle chipStyle;
+        public static readonly Color Glass = new Color(28 / 255f, 22 / 255f, 58 / 255f, 0.78f), Line = new Color(190 / 255f, 178 / 255f, 1, 0.28f);
+        public static void Chip(Rect r, Color? border = null)
+        {
+            if (chipTex == null)
+            {
+                const int n = 32; const float rad = 10;
+                chipTex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+                for (int y = 0; y < n; y++)
+                    for (int x = 0; x < n; x++)
+                    {
+                        // the distance to the rounded rectangle's edge: a soft corner
+                        float cx = Mathf.Clamp(x + 0.5f, rad, n - rad), cy = Mathf.Clamp(y + 0.5f, rad, n - rad);
+                        float d = rad - Mathf.Sqrt((x + 0.5f - cx) * (x + 0.5f - cx) + (y + 0.5f - cy) * (y + 0.5f - cy));
+                        chipTex.SetPixel(x, y, new Color(1, 1, 1, Mathf.Clamp01(d + 0.5f)));
+                    }
+                chipTex.Apply();
+                chipStyle = new GUIStyle { border = new RectOffset(12, 12, 12, 12) };
+                chipStyle.normal.background = chipTex;
+            }
+            var o = GUI.color;
+            // the rim, then the glass one pixel inside it
+            GUI.color = border ?? Line;
+            GUI.Box(r, GUIContent.none, chipStyle);
+            GUI.color = Glass;
+            GUI.Box(new Rect(r.x + 1, r.y + 1, r.width - 2, r.height - 2), GUIContent.none, chipStyle);
+            GUI.color = o;
+        }
+
         public static void Fill(Rect r, Color c) { var o = GUI.color; GUI.color = c; GUI.DrawTexture(r, Texture2D.whiteTexture); GUI.color = o; }
 
         public static void Frame(Rect r, Color c, float w = 2)

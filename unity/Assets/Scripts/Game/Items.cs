@@ -244,7 +244,7 @@ namespace EtherMines.Game
             if (buffStyle == null) { buffStyle = new GUIStyle(GUI.skin.box) { fontSize = 15, alignment = TextAnchor.MiddleCenter }; }
             var s = string.Join(" · ", on);
             float w = buffStyle.CalcSize(new GUIContent(s)).x + 20;
-            GUI.Box(new Rect(Ui.W - w - 12, 12, w, 30), s, buffStyle);
+            GUI.Box(new Rect(Ui.Safe.xMax - w - 16, Ui.Safe.y + 50, w, 30), s, buffStyle); // under the Gwei
         }
     }
 }

@@ -225,6 +225,19 @@ namespace EtherMines.Game
                     mp.Player = player;
                     mp.Act = interaction;
                 }
+                // the HUD that guides you: clock, position and compass, objective, attack, place names, the target
+                var guide = gameObject.AddComponent<Guide>();
+                guide.Player = player;
+                guide.Act = interaction;
+                guide.Session = session;
+                guide.Sky = sky;
+                guide.Items = items;
+                guide.Animals = animals;
+                guide.World = world;
+                var mpRef = mp;
+                guide.Online = () => mpRef != null ? mpRef.Line : null;
+                guide.Progress = () => GetComponent<Progress>();
+                guide.Combat = () => GetComponent<Combat>();
                 player.enabled = true;
                 started = true;
                 status = "";
@@ -271,13 +284,35 @@ namespace EtherMines.Game
             if ((saveT > 20 && (p - lastSaved).magnitude > 1) || (session.Dirty && saveT > 2)) { saveT = 0; lastSaved = p; session.Dirty = false; SaveNow(); }
         }
 
+        // the save (savePlayer): a refusal is said in the log (once a while), and tried again soon
+        float saveToldAt = -999;
+        bool nameTold;
         async void SaveNow()
         {
             try { var b = player.Body; await session.Save(b.X, b.Y, b.Z, player.Yaw, player.Pitch); }
-            catch (Exception e) { Debug.LogWarning(e); }
+            catch (Exception e)
+            {
+                Debug.LogWarning(e);
+                session.Dirty = true; // again in a moment
+                var m = e.Message ?? "";
+                if (!nameTold && (m.Contains("username already taken") || m.Contains("players_username")))
+                {
+                    nameTold = true;
+                    Hud.Feed("burn", $"The nickname \"{session.Login}\" is already taken in this world", "pick another one to save your progress");
+                }
+                else if (Time.time - saveToldAt > 60)
+                {
+                    saveToldAt = Time.time;
+                    bool down = m.Contains(": 0 ") || m.Contains(": 5");
+                    Hud.Feed("burn", down ? "Online save unavailable" : "Save refused by the server", down ? "no connection: trying again in a moment" : "trying again in a moment");
+                }
+            }
         }
 
         void OnApplicationQuit() { if (started && session != null) SaveNow(); }
+        // a phone sends the game to the background (and may close it there without a word): save now
+        void OnApplicationPause(bool paused) { if (paused && started && session != null && player.Body != null) SaveNow(); }
+        void OnApplicationFocus(bool focus) { if (!focus && started && session != null && player.Body != null && Application.isMobilePlatform) SaveNow(); }
 
         void OnGUI()
         {
@@ -289,7 +324,7 @@ namespace EtherMines.Game
             }
             if (!started)
             {
-                float w = 460, h = session != null && session.MustChange ? 400 : 360, x = (Ui.W - w) / 2, y = (Ui.H - h) / 2;
+                float w = 460, h = (session != null && session.MustChange ? 400 : 360) + 64, x = (Ui.W - w) / 2, y = Mathf.Max(8, (Ui.H - h) / 2);
                 GUI.Box(new Rect(x, y, w, h), "");
                 GUI.Label(new Rect(x, y + 10, w, 60), "Ether Mines", big);
                 float ly = y + 85;
@@ -317,15 +352,17 @@ namespace EtherMines.Game
                 ly += 44;
                 if (GUI.Button(new Rect(x + 20, ly, w - 40, 28), "Explore offline (nothing is saved)")) Enter(false);
                 ly += 36;
-                GUI.Label(new Rect(x + 20, ly, w - 40, 60), status);
+                GUI.Label(new Rect(x + 20, ly, w - 40, 40), status);
+                ly += 40;
+                // the controls (index.html's list)
+                var keys = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true };
+                keys.normal.textColor = Ui.Muted;
+                GUI.Label(new Rect(x + 20, ly, w - 40, 60), TouchPad.Active
+                    ? "Left thumb: walk · drag: look · tap: place, open, pet · hold: mine, strike · the buttons: jump, run, crouch, guard, ride · top: bag, chat, view, objectives"
+                    : "ZQSD / WASD: walk · Space: jump · Shift: run · C: crouch · left click: mine, strike · right click: place, open, use, guard · 1-9, wheel: bar · E: bag · O: objectives · Enter: chat · V: view · M: sound", keys);
                 return;
             }
-            if (player.Body == null) return;
-            var b = player.Body;
-            string s = $"{(session != null ? session.Login + " · " : "")}Position {Math.Floor(b.X)} · {Math.Floor(b.Y)} · {Math.Floor(b.Z)}   Day {sky.DayN} · {(int)(sky.Day * 24):00}:{(int)(sky.Day * 24 * 60 % 60):00}\n" +
-                       $"{(world.Status.Length > 0 ? world.Status : status)}   chunks {world.Store.Count}{(mp != null ? "\n" + mp.Line : "")}\n" +
-                       "Left click: mine, strike · Right click: place, open, use, guard with a blade · 1-9 / wheel: bar · E bag & crafting · O objectives · Enter chat · V view · F fly · Esc mouse";
-            GUI.Box(new Rect(10, 10, 780, mp != null ? 96 : 74), s, box);
+            // in the game, the HUD is Guide's and Hud's
         }
     }
 }

@@ -124,7 +124,7 @@ namespace EtherMines.Game
                 {
                     if ((knockT -= dt) <= 0) { knockT = 0.4; Sounds.Hit("stone"); }
                     hitT -= dt;
-                    if (hitT <= 0) { hitT = 6; Say("burn", "Too hard for this tool", "you need a better pickaxe"); }
+                    if (hitT <= 0) { hitT = 6; Say("burn", "Too hard for " + Guide.Tier(inv.HeldTier), "you need " + Guide.Tier(Rules.ReqTier(Target.Id))); }
                     MineProgress = 0;
                 }
                 else
