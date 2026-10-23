@@ -13,6 +13,8 @@ const PARRY_MS = 350 + 150, // the game's parry window, and room for the guard's
   REMEMBER_MS = 10 * 60000, // hearts kept for a player who left (a reconnection doesn't heal)
   DODGE_SAFE_MS = 350 + 100, // the game's dodge (16-mobs.js DASH), and room for its word to arrive
   DODGE_EVERY_MS = 1400; // its recharge (1.6 s), a little shorter for the network's jitter
+// how often each healing can be asked for (ms): a bed at night, a hunted animal, a tonic the server took
+const HEAL_EVERY = { bed: 30000, hunt: 1500, tonic: 0 };
 export const BLADES = new Set([106, 107, 301]);
 export const ARMOR = Object.fromEntries(
   Object.entries(Rules.ITEM)
@@ -91,7 +93,8 @@ export function createHealth({ send, owns }) {
     },
     // healing the browser asks for: a bed at night (full), a hunted animal (+1), a tonic the server took (+5)
     heal(p, kind, night, now = Date.now()) {
-      const every = { bed: 30000, hunt: 1500, tonic: 0 }[kind];
+      // own keys only: an inherited name (toString, valueOf) is no kind of healing
+      const every = Object.hasOwn(HEAL_EVERY, kind) ? HEAL_EVERY[kind] : undefined;
       if (every === undefined || p.hp === undefined || p.hp <= 0) return false;
       if (now - (p.healAt[kind] ?? -Infinity) < every) return false;
       if (kind === 'bed' && !night) return false;
