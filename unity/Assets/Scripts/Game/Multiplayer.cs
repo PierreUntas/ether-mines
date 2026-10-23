@@ -33,12 +33,14 @@ namespace EtherMines.Game
         readonly List<string> names = new List<string>();
         List<GameLink.Peer> lastPeers = new List<GameLink.Peer>();
         bool restoring;
+        bool Offline => Session.Net.Offline; // a game on this device only: no sockets, no one else
 
         public string Line
         {
             get
             {
                 if (link == null) return "";
+                if (Offline) return "offline · saved on this device";
                 string who = names.Count == 0 ? "" : " · " + string.Join(", ", names.Count > 3 ? names.GetRange(0, 3) : names) + (names.Count > 3 ? " +" + (names.Count - 3) : "");
                 string gs = link.Ready ? $"{names.Count + 1} online ⚡{who}" : presence != null && presence.Joined ? $"{names.Count + 1} online{who}" : link.Status;
                 return gs + (feed.Joined ? "" : "   " + feed.Status);
@@ -243,9 +245,10 @@ namespace EtherMines.Game
         {
             float dt = Time.deltaTime;
             link.NoMobs = !Reg.MobsOn; // Settings → Hostile mobs (always on in the main world)
+            var b = Player.Body;
+            if (Offline) { OfflineTick(dt); return; }
             link.Tick(dt);
             feed.Tick(dt);
-            var b = Player.Body;
             if (b == null) return;
             if (wasReady && !link.Ready) presence.Resync();
             wasReady = link.Ready;
@@ -268,6 +271,9 @@ namespace EtherMines.Game
                     ["fx"] = combat.Fx ?? (object)0, ["fq"] = combat.Fq,
                 }, Time.time);
         }
+
+        // offline: what the game server would do runs here (the mobs, your hearts: LocalGame), nothing goes out
+        void OfflineTick(float dt) { }
 
         void OnDestroy()
         {

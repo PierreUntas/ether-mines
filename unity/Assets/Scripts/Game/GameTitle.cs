@@ -209,7 +209,7 @@ namespace EtherMines.Game
             GUI.Label(new Rect(x, y, w, 56), "Ether Mines", sTitle);
             y += 58;
             if (!started) { y += Text(x, y, w, "A block world in Ethereum's colors, built with friends. Every block remembers who placed it: the world keeps a ledger of everything you build.", sSmall) + 12; }
-            else if (paused) { y += Text(x, y, w, (session != null ? $"{session.Login} · " : "Offline · ") + $"world \"{worldName}\"", new GUIStyle(sSmall) { alignment = TextAnchor.MiddleCenter }) + 12; }
+            else if (paused) { y += Text(x, y, w, (session != null ? $"{session.Login} · " : "") + $"world \"{worldName}\"" + (session == null || session.Net.Offline ? " · offline, saved on this device" : ""), new GUIStyle(sSmall) { alignment = TextAnchor.MiddleCenter }) + 12; }
 
             if (!started)
             {
@@ -259,7 +259,7 @@ namespace EtherMines.Game
                 y += 48;
                 if (!started)
                 {
-                    if (GUI.Button(new Rect(x, y, w, 28), "Explore offline (nothing is saved)")) Enter(false);
+                    if (GUI.Button(new Rect(x, y, w, 28), "Play offline (saved on this device, apart from the online worlds)")) Enter(false);
                     y += 34;
                     y += Text(x, y, w, "By entering, you accept the terms of use: be kind, no cheating, and in-game items have no real-world value.", sSmall);
                     if (Link(x, y, w, "Read the terms of use")) Application.OpenURL(Config.Site + "/legal.html#conditions");
@@ -299,7 +299,7 @@ namespace EtherMines.Game
 
             // your account: who this device knows, your password, log out (from the title screen only: in the
             // game it would have to start again)
-            if (known && session != null && session.Login != null)
+            if (known && session != null && session.Login != null && !session.Net.Offline)
             {
                 Fold(x, y, w, $"Account · logged in as {session.Login}", ref openAccount);
                 y += 34;
@@ -322,7 +322,7 @@ namespace EtherMines.Game
             }
 
             // once in an online world: the link your friends open in their browser to join you there
-            if (paused && session != null)
+            if (paused && session != null && !session.Net.Offline)
             {
                 string url = Config.Site + "/?monde=" + Uri.EscapeDataString(worldName);
                 y += Text(x, y, w, "Invite your friends: " + url, sSmall) + 4;

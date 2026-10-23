@@ -15,6 +15,10 @@ namespace EtherMines.Game
     {
         const string SessionKey = "ether-mines:session"; // PlayerPrefs: the guest session's refresh token
         public string UserId { get; private set; }
+        // playing with no network: every read and every action is answered on the device (LocalServer.cs)
+        public readonly LocalServer Local;
+        public Supabase(LocalServer local = null) { Local = local; if (local != null) UserId = local.UserId; }
+        public bool Offline => Local != null;
         public string AccessToken { get; private set; }
         string refreshToken;
         double expiresAt;
@@ -54,6 +58,7 @@ namespace EtherMines.Game
         // the guest session: the one kept from last time if it still works, a new one otherwise
         public async Task SignIn()
         {
+            if (Local != null) return;
             var kept = PlayerPrefs.GetString(SessionKey, "");
             if (kept.Length > 0 && await Refresh(kept)) return;
             using (var r = Json("POST", Config.SupabaseUrl + "/auth/v1/signup", "{\"data\":{}}"))
@@ -85,6 +90,7 @@ namespace EtherMines.Game
         // the session token, renewed when it's about to run out (for the real-time connections)
         public async Task<string> Token()
         {
+            if (Local != null) return "offline";
             await Fresh();
             return AccessToken;
         }
@@ -92,6 +98,7 @@ namespace EtherMines.Game
         // every row of a REST query, 1000 at a time (readAll in net.js). query: "chunks?select=...&world=eq.x"
         public async Task<List<object>> Select(string query)
         {
+            if (Local != null) return Local.Select(query);
             await Fresh();
             var rows = new List<object>();
             for (int from = 0; ; from += 1000)
@@ -112,6 +119,7 @@ namespace EtherMines.Game
         // a server function (act_*, is_username_taken...): its JSON result, parsed
         public async Task<object> Rpc(string name, string jsonArgs)
         {
+            if (Local != null) return Local.Rpc(name, MiniJson.Parse(jsonArgs) as Dictionary<string, object>);
             await Fresh();
             using (var r = Json("POST", Config.SupabaseUrl + "/rest/v1/rpc/" + name, jsonArgs))
             {
@@ -128,6 +136,7 @@ namespace EtherMines.Game
         // another game than the one you're entering, the server asks for one so that game isn't overwritten
         public async Task FreshSession()
         {
+            if (Local != null) { Local.LogOut(); return; }
             PlayerPrefs.DeleteKey(SessionKey);
             AccessToken = null;
             UserId = null;
@@ -173,6 +182,7 @@ namespace EtherMines.Game
         // insert or update a row (supabase-js upsert): players, keyed by (user_id, world)
         public async Task Upsert(string table, string onConflict, Dictionary<string, object> row)
         {
+            if (Local != null) { Local.Upsert(table, row); return; }
             await Fresh();
             using (var r = Json("POST", Config.SupabaseUrl + "/rest/v1/" + table + "?on_conflict=" + onConflict, MiniJson.Write(new List<object> { row })))
             {

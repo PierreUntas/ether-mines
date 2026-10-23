@@ -126,7 +126,7 @@ namespace EtherMines.Game
                     status = "Your game was opened on another device: enter your password to bring it back here.";
                 }
             }
-            catch (Exception e) { status = "Offline (" + e.Message + ")"; session = null; Debug.LogWarning(e); }
+            catch (Exception e) { status = "No connection right now: Retry, or play offline below. (" + e.Message + ")"; session = null; Debug.LogWarning(e); }
         }
 
         async void Enter(bool online)
@@ -169,7 +169,23 @@ namespace EtherMines.Game
                     await session.Load(worldName);
                     world.Net = session.Net;
                 }
-                else session = null;
+                else
+                {
+                    // offline: the game on this device (LocalServer), its own save per world, nothing online touched
+                    var local = new LocalServer();
+                    var s = new Session(new Supabase(local));
+                    s.Log += Hud.Feed;
+                    if (!await s.Known())
+                    {
+                        var err = await s.Enter(nick, "offline");
+                        if (err != null) { status = err; return; }
+                    }
+                    nick = s.Login;
+                    session = s;
+                    Step("Loading your game on this device…", 10);
+                    await session.Load(worldName);
+                    world.Net = session.Net;
+                }
                 PlayerPrefs.SetString("ether-mines:world", worldName);
                 Reg.World = worldName;
                 world.WorldName = worldName;
@@ -342,6 +358,7 @@ namespace EtherMines.Game
         void Update()
         {
             if (!started || session == null || player.Body == null) return;
+            session.Net.Local?.Tick(Time.deltaTime);
             saveT += Time.deltaTime;
             var p = player.GamePos;
             if ((saveT > 20 && (p - lastSaved).magnitude > 1) || (session.Dirty && saveT > 2)) { saveT = 0; lastSaved = p; session.Dirty = false; SaveNow(); }
@@ -372,9 +389,9 @@ namespace EtherMines.Game
             }
         }
 
-        void OnApplicationQuit() { if (started && session != null) SaveNow(); }
+        void OnApplicationQuit() { if (started && session != null) { SaveNow(); session.Net.Local?.Flush(); } }
         // a phone sends the game to the background (and may close it there without a word): save now
-        void OnApplicationPause(bool paused) { if (paused && started && session != null && player.Body != null) SaveNow(); }
+        void OnApplicationPause(bool paused) { if (paused && started && session != null && player.Body != null) { SaveNow(); session.Net.Local?.Flush(); } }
 
     }
 }
