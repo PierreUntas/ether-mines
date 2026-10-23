@@ -17,6 +17,7 @@ Shader "EtherMines/Plant"
         #pragma target 3.0
         sampler2D _MainTex;
         sampler2D _EmissionTex;
+        float _EM_Emis;
         struct Input { float2 uv_MainTex; float4 color : COLOR; };
         void vert (inout appdata_full v)
         {
@@ -33,7 +34,7 @@ Shader "EtherMines/Plant"
         {
             fixed4 c = tex2D(_MainTex, IN.uv_MainTex);
             o.Albedo = c.rgb * IN.color.rgb;
-            o.Emission = tex2D(_EmissionTex, IN.uv_MainTex).rgb;
+            o.Emission = tex2D(_EmissionTex, IN.uv_MainTex).rgb * (_EM_Emis > 0 ? _EM_Emis : 1); // brighter at night (emisBoost)
             o.Alpha = c.a;
         }
         ENDCG

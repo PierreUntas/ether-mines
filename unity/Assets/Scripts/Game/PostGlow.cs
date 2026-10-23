@@ -28,6 +28,7 @@ namespace EtherMines.Game
             if (!On || mat == null) { Graphics.Blit(src, dst); return; }
             mat.SetFloat("_Threshold", Threshold);
             mat.SetFloat("_Strength", Strength);
+            mat.SetFloat("_Grade", 1);
             // halved, then halved again: each level blurs wider
             int w = src.width / 2, h = src.height / 2, n = 0;
             var fmt = src.format;

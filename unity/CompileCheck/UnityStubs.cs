@@ -45,7 +45,7 @@ namespace UnityEngine
         public void SetParent(Transform p, bool worldPositionStays) { }
         public void SetPositionAndRotation(Vector3 p, Quaternion q) { } public int childCount; public Transform parent; public Transform GetChild(int i) => null;
     }
-    public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public float magnitude => 0; public static Vector2 zero => default; public static Vector2 operator -(Vector2 a, Vector2 b) => a; public static Vector2 operator +(Vector2 a, Vector2 b) => a; public static Vector2 operator *(Vector2 a, float b) => a; }
+    public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public float magnitude => 0; public static Vector2 zero => default; public static Vector2 operator -(Vector2 a, Vector2 b) => a; public static Vector2 operator +(Vector2 a, Vector2 b) => a; public static Vector2 operator *(Vector2 a, float b) => a; public Vector2 normalized => this; }
     public enum PrimitiveType { Cube, Sphere }
     public class GUIStyleState { public Color textColor; }
     public class GUIContent { public GUIContent(string s) { } public GUIContent(string s, string tip) { } public static GUIContent none; }
@@ -57,7 +57,7 @@ namespace UnityEngine
         public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
         public Vector3 normalized => this;
         public float magnitude => 0; public static Vector3 operator *(Vector3 a, double b) => a;
-        public static Vector3 zero => default; public static Vector3 up => default; public static Vector3 forward => default; public static Vector3 one => default; public static Vector3 right => default;
+        public static Vector3 zero => default; public static Vector3 up => default; public static Vector3 forward => default; public static Vector3 one => default; public static Vector3 right => default; public static Vector3 left => default; public static Vector3 down => default; public static Vector3 back => default; public static Vector3 Cross(Vector3 a, Vector3 b) => a;
         public float sqrMagnitude => 0; public static float Distance(Vector3 a, Vector3 b) => 0; public static Vector3 Lerp(Vector3 a, Vector3 b, float t) => a;
         public float this[int i] { get => 0; set { } } public static Vector3 operator /(Vector3 a, float b) => a;
         public static Vector3 operator +(Vector3 a, Vector3 b) => a;
@@ -125,6 +125,7 @@ namespace UnityEngine
     public static class Random { public static int Range(int a, int b) => a; public static float Range(float a, float b) => a; public static float value; }
     public static class Mathf
     {
+        public static float Tan(float a) => a; public static float PerlinNoise(float x, float y) => x;
         public const float PI = 3.14159265f, Rad2Deg = 57.29578f, Deg2Rad = 0.0174533f;
         public static float Min(float a, float b) => a; public static float Max(float a, float b) => a;
         public static float Lerp(float a, float b, float t) => a; public static float Clamp(float v, float a, float b) => v;
@@ -154,7 +155,7 @@ namespace UnityEngine
     }
     public enum LightType { Directional, Point, Spot }
     public enum LightShadows { None, Hard, Soft }
-    public class Light : Behaviour { public LightType type; public LightShadows shadows; public float shadowStrength, intensity, range; public Color color; }
+    public class Light : Behaviour { public float shadowBias, shadowNormalBias; public LightType type; public LightShadows shadows; public float shadowStrength, intensity, range; public Color color; }
     public enum FogMode { Linear = 1, Exponential, ExponentialSquared }
     public static class RenderSettings
     {
@@ -162,7 +163,11 @@ namespace UnityEngine
         public static float fogStartDistance, fogEndDistance, fogDensity;
         public static Rendering.AmbientMode ambientMode; public static Color ambientSkyColor, ambientEquatorColor, ambientGroundColor, ambientLight;
     }
-    public static class QualitySettings { public static float shadowDistance; }
+    public static class QualitySettings { public static float shadowDistance; public static int antiAliasing, shadowCascades, pixelLightCount; public static ShadowQuality shadows; public static ShadowResolution shadowResolution; public static ShadowProjection shadowProjection; public static AnisotropicFiltering anisotropicFiltering; }
+    public enum ShadowQuality { Disable, HardOnly, All }
+    public enum ShadowResolution { Low, Medium, High, VeryHigh }
+    public enum ShadowProjection { CloseFit, StableFit }
+    public enum AnisotropicFiltering { Disable, Enable, ForceEnable }
     public class Shader : Object { public static Shader Find(string n) => null; public bool isSupported; public static void SetGlobalColor(string n, Color c) { } public static void SetGlobalFloat(string n, float v) { } }
     [System.Flags] public enum DepthTextureMode { None = 0, Depth = 1, DepthNormals = 2 }
     public class Texture : Object { public FilterMode filterMode; public TextureWrapMode wrapMode; public int anisoLevel, width, height; }

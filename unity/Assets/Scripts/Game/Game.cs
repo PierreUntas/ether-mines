@@ -49,7 +49,18 @@ namespace EtherMines.Game
             sun.type = LightType.Directional;
             sun.shadows = LightShadows.Soft;
             sun.shadowStrength = 0.55f;
-            QualitySettings.shadowDistance = 60;
+            // the picture, beyond the web's: smooth edges, sharper shadows that reach further in four steps,
+            // textures crisp at a slant, the lamps' lights all lit
+            QualitySettings.antiAliasing = 4;
+            QualitySettings.shadows = ShadowQuality.All;
+            QualitySettings.shadowResolution = ShadowResolution.VeryHigh;
+            QualitySettings.shadowCascades = 4;
+            QualitySettings.shadowProjection = ShadowProjection.StableFit;
+            QualitySettings.anisotropicFiltering = AnisotropicFiltering.ForceEnable;
+            QualitySettings.pixelLightCount = 4;
+            sun.shadowBias = 0.04f;
+            sun.shadowNormalBias = 0.3f;
+            QualitySettings.shadowDistance = 80;
 
             var skyMat = new Material(Shader.Find("EtherMines/Sky"));
             RenderSettings.skybox = skyMat;
@@ -68,6 +79,10 @@ namespace EtherMines.Game
                 world.ViewRadius = 5;
                 sun.shadows = LightShadows.Hard;
                 QualitySettings.shadowDistance = 40;
+                QualitySettings.antiAliasing = 2;
+                QualitySettings.shadowCascades = 2;
+                QualitySettings.shadowResolution = ShadowResolution.Medium;
+                QualitySettings.pixelLightCount = 2;
                 Screen.sleepTimeout = SleepTimeout.NeverSleep;
             }
             sky.FogFar = world.ViewRadius * World.CH + 12;
@@ -167,6 +182,9 @@ namespace EtherMines.Game
                 fx.World = world;
                 fx.Player = player;
                 fx.Sky = sky;
+                var decor = gameObject.AddComponent<Decor>();
+                decor.World = world;
+                decor.Player = player;
                 var weather = gameObject.AddComponent<Weather>();
                 weather.World = world;
                 weather.Player = player;

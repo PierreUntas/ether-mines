@@ -102,6 +102,11 @@ deep blue and shore foam from the camera's depth, not on phones; seen from below
 surface) and the weather (`Weather.cs`, Unity only: about one day in four a shower, the same for every
 Unity player since it follows the world's clock; rain, snow up high, none over the dunes; a grey sky, a
 closer fog, the hiss and distant thunder; drops stop on roofs). Both in Settings.
+The sky and the world's decor as the web draws them (`Decor.cs`, `Shaders/Sky|Clouds|Aurora|Unlit.shader`):
+the great Ethereum diamond and its ring of orange blocks, the floating ethers over the Atrium, the disc ships
+over the City, flocks of birds, stars, the moon and the aurora at night, the clouds, the validators' beams and
+gems; the blocks' glow brighter at night (emisBoost). And beyond the web: smooth edges (MSAA), sharper shadows
+reaching further (four cascades), crisper textures at a slant, a touch of grading with the glow.
 Then the circuits (`Core/Circuits.cs`, checked tick for tick against 12-circuits.js; `CircuitsView.cs`:
 lamps, doors, plates, gates and the clock live around you, the objectives' shapes, the lanterns' light).
 Trades (`Trade.cs`, the window's Trade tab: offers received and sent, accept, decline, cancel, a new offer

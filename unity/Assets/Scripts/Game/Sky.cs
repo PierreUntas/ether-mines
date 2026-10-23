@@ -12,6 +12,8 @@ namespace EtherMines.Game
         public Material SkyMat;
         public float Day; // 0..1: 0.25 sunrise, 0.5 noon, 0.75 sunset
         public static bool Underwater; // the camera is in water (PlayerController): a close blue-green fog
+        public static Color Hor = Color.white; // the horizon's color now (the clouds take it)
+        public static float Night;     // 0 by day .. 1 deep in the night (08-sky.js night: the sun under the horizon)
         public int DayN;
         public float? FixedDay; // a fixed time of day (captures), otherwise the world's clock
         public float FogFar = 108;
@@ -64,6 +66,9 @@ namespace EtherMines.Game
             // the web's sun direction (x, y, z) in game coordinates; Unity flips z
             var dir = new Vector3(Mathf.Cos(ang), Mathf.Sin(ang), -0.35f).normalized;
             var lightDir = dir.y > 0 ? dir : -dir;
+            Night = Mathf.Clamp01(-dir.y * 4);
+            // what glows in the blocks glows brighter at night (emisBoost)
+            Shader.SetGlobalFloat("_EM_Emis", 0.6f + Night * 0.8f);
             Sun.transform.rotation = Quaternion.LookRotation(-lightDir);
             Sun.intensity = dir.y > 0 ? si * 0.95f * 1.25f : 0.12f;
             Sun.color = dir.y > 0 ? Color.Lerp(sunC, Color.white, 0.35f) : C("#9fb0ff");
@@ -89,12 +94,14 @@ namespace EtherMines.Game
             // the sky's colors, for the water's reflection
             Shader.SetGlobalColor("_EM_SkyTop", top);
             Shader.SetGlobalColor("_EM_SkyHor", hor);
+            Hor = hor;
             if (SkyMat != null)
             {
                 SkyMat.SetColor("_Top", top);
                 SkyMat.SetColor("_Horizon", hor);
                 SkyMat.SetColor("_SunColor", sunC);
                 SkyMat.SetVector("_SunDir", dir);
+                SkyMat.SetFloat("_Night", Night);
             }
         }
     }

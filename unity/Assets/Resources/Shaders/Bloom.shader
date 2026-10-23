@@ -8,7 +8,7 @@ Shader "Hidden/EtherMines/Bloom"
     #include "UnityCG.cginc"
     sampler2D _MainTex, _BloomTex;
     float4 _MainTex_TexelSize;
-    float _Threshold, _Strength, _Weight;
+    float _Threshold, _Strength, _Weight, _Grade;
     struct v2f { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };
     v2f vert (appdata_img v) { v2f o; o.pos = UnityObjectToClipPos(v.vertex); o.uv = v.texcoord; return o; }
     half3 S (float2 uv) { return tex2D(_MainTex, uv).rgb; }
@@ -31,6 +31,11 @@ Shader "Hidden/EtherMines/Bloom"
     {
         half4 c = tex2D(_MainTex, i.uv);
         c.rgb += tex2D(_BloomTex, i.uv).rgb * _Strength;
+        // a touch of grading (Unity only): the pastels a little richer, the corners a little darker
+        half l = dot(c.rgb, half3(0.299, 0.587, 0.114));
+        c.rgb = lerp(c.rgb, lerp(l.xxx, c.rgb, 1.08), _Grade);
+        float2 d = i.uv - 0.5;
+        c.rgb *= 1 - dot(d, d) * 0.32 * _Grade;
         return c;
     }
     ENDCG
