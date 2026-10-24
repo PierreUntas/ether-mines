@@ -590,17 +590,20 @@ function updateHpUI() {
   }
   const el = $('hp');
   el.hidden = false;
-  // a life bar: the fill drops at once, a pale trail follows a moment later to show what the blow took
-  // the icon: an Ether crystal in the life's pink (the same facets as the game's Ether)
-  if (!el.firstChild)
-    el.innerHTML =
-      '<svg viewBox="0 0 12 16"><path d="M6 0L12 8 6 11 0 8z" fill="#ff9ab8"/><path d="M6 0L12 8 6 11z" fill="#e45d8c"/>' +
-      '<path d="M6 12.2L12 9.2 6 16 0 9.2z" fill="#ffc2d4"/><path d="M6 12.2L12 9.2 6 16z" fill="#ff9ab8"/></svg>' +
-      '<span class="bar"><i class="lag"></i><i class="fill"></i></span><span class="n"></span>';
-  const k = Math.max(0, Math.min(10, S.hp)) * 10 + '%';
-  el.querySelector('.fill').style.width = k;
-  el.querySelector('.lag').style.width = k;
-  el.querySelector('.n').innerHTML = `<b>${Math.max(0, S.hp)}</b>/10`;
+  // ten slanted cells: red with a lighter red edge while alive, dark grey with a lighter grey edge
+  // once lost; a cell just lost flashes pale before it goes dark
+  if (!el.firstChild) el.innerHTML = '<i></i>'.repeat(10);
+  const hp = clamp(S.hp, 0, 10);
+  [...el.children].forEach((c, i) => {
+    const on = i < hp,
+      was = c.classList.contains('on');
+    c.classList.toggle('on', on);
+    if (was && !on) {
+      c.classList.remove('lost');
+      void c.offsetWidth; // restart the flash
+      c.classList.add('lost');
+    }
+  });
   el.classList.toggle('low', S.hp <= 3);
 }
 // ---------- the mobs' life bars ----------

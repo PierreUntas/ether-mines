@@ -170,20 +170,32 @@ namespace EtherMines.Game
             }
         }
 
-        // the Ether crystal (the life's icon): two rhombi, the upper one bigger, each with a darker right half
-        public static void Crystal(Rect r, Color light, Color dark)
+        // a slanted life cell (16-mobs.js, #hp i): a parallelogram leaning right, a fill and a lighter edge,
+        // drawn once per colour pair into a small texture (4x the interface's pixels, antialiased)
+        static readonly Dictionary<string, Texture2D> cells = new Dictionary<string, Texture2D>();
+        public const float CellW = 27, CellH = 9, CellSlant = 7; // the cell's box, and how far its top leans
+        public static Texture2D Cell(Color fill, Color edge)
         {
-            void Rhombus(Rect q, Color c)
-            {
-                var m = GUI.matrix;
-                var ctr = new Vector3(q.center.x, q.center.y, 0);
-                float side = q.width / 1.4142f;
-                GUI.matrix = m * Matrix4x4.TRS(ctr, Quaternion.identity, new Vector3(1, q.height / q.width, 1)) * Matrix4x4.TRS(Vector3.zero, Quaternion.Euler(0, 0, 45), Vector3.one) * Matrix4x4.TRS(-new Vector3(side / 2, side / 2, 0), Quaternion.identity, Vector3.one);
-                Round(new Rect(0, 0, side, side), c, 1.5f);
-                GUI.matrix = m;
-            }
-            Rhombus(new Rect(r.x, r.y, r.width, r.height * 0.68f), light);
-            Rhombus(new Rect(r.x + r.width * 0.2f, r.y + r.height * 0.6f, r.width * 0.6f, r.height * 0.4f), dark);
+            string key = fill.ToString() + edge.ToString();
+            if (cells.TryGetValue(key, out var t)) return t;
+            const int S = 4;
+            int w = (int)(CellW * S), h = (int)(CellH * S);
+            float sl = CellSlant * S, bw = 2 * S, cos = Mathf.Cos(Mathf.Atan2(sl, h));
+            t = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            var px = new Color[w * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    float v = (y + 0.5f) / h, fx = x + 0.5f, fy = y + 0.5f; // v: 0 at the bottom row
+                    float dl = (fx - sl * v) * cos, dr = (w - sl + sl * v - fx) * cos;
+                    float d = Mathf.Min(Mathf.Min(dl, dr), Mathf.Min(fy, h - fy));
+                    var c = d >= bw ? fill : Color.Lerp(edge, fill, Mathf.Clamp01(d - bw + 0.5f));
+                    c.a *= Mathf.Clamp01(d + 0.5f);
+                    px[y * w + x] = c;
+                }
+            t.SetPixels(px);
+            t.Apply();
+            return cells[key] = t;
         }
 
         public static void Chip(Rect r, Color? border = null) => Round(r, Glass, 14, border ?? Line, 1);

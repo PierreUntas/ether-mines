@@ -34,7 +34,6 @@ namespace EtherMines.Game
         readonly List<Bolt> bolts = new List<Bolt>();
         Mesh sphere;
         GUIStyle heart;
-        GUIStyle num;
         float lagK = 1, lagWait;        // the life bar's pale trail
 
         void Start()
@@ -449,18 +448,33 @@ namespace EtherMines.Game
                 if (lagWait > 0) lagWait -= Time.deltaTime;
                 else lagK = Mathf.Max(k, lagK - Time.deltaTime * 1.6f);
             }
-            float bw = 132, cw = bw + 82, ch = 28, cx = W / 2 - cw / 2, cy = H - 54 - 16 - 42;
-            Ui.Chip(new Rect(cx, cy, cw, ch));
-            // low: the crystal beats and the fill brightens
+            // ten slanted cells (16-mobs.js updateHpUI): red with a lighter red edge while alive, dark grey
+            // with a lighter grey edge once lost; a cell just lost flashes pale while the trail passes it
+            float step = Ui.CellW - Ui.CellSlant + 3, x0 = W / 2 - (step * 9 + Ui.CellW) / 2, y0 = H - 54 - 16 - 30;
             float pulse = Hp <= 3 ? Mathf.Max(0, Mathf.Sin(Time.time * 6.28f)) : 0;
-            var ic = new Rect(cx + 10, cy + 5, 13, 18);
-            float sc = 1 + pulse * 0.15f;
-            ic = new Rect(ic.center.x - ic.width * sc / 2, ic.center.y - ic.height * sc / 2, ic.width * sc, ic.height * sc);
-            Ui.Crystal(ic, new Color(1f, 0.6f, 0.72f), new Color(0.89f, 0.36f, 0.55f));
-            var fill = Color.Lerp(new Color(1f, 0.6f, 0.72f), new Color(1f, 0.82f, 0.88f), pulse * 0.6f);
-            Ui.LifeBar(new Rect(cx + 32, cy + 8, bw, 12), k, lagK, fill, new Color(0.89f, 0.36f, 0.55f), 10);
-            if (num == null) num = new GUIStyle(heart) { fontSize = 11, alignment = TextAnchor.MiddleLeft, font = Ui.Mono, richText = true };
-            GUI.Label(new Rect(cx + 32 + bw + 7, cy, 44, ch), "<b><color=#f4f1ff>" + Hp + "</color></b><color=#b8b0e6>/10</color>", num);
+            Texture2D on = Ui.Cell(new Color(0.84f, 0.18f, 0.27f), new Color(1f, 0.5f, 0.55f)),
+                bright = Ui.Cell(new Color(1f, 0.3f, 0.39f), new Color(1f, 0.69f, 0.72f)),
+                off = Ui.Cell(new Color(0.17f, 0.16f, 0.2f), new Color(0.42f, 0.4f, 0.45f)),
+                flash = Ui.Cell(new Color(1f, 0.89f, 0.9f), Color.white);
+            var oc = GUI.color;
+            for (int i = 0; i < 10; i++)
+            {
+                var r = new Rect(x0 + i * step, y0, Ui.CellW, Ui.CellH);
+                GUI.color = new Color(0.04f, 0.02f, 0.12f, 0.45f);
+                GUI.DrawTexture(new Rect(r.x, r.y + 1.5f, r.width, r.height), off); // a soft shadow under it
+                GUI.color = oc;
+                if (i < Hp)
+                {
+                    GUI.DrawTexture(r, on);
+                    if (pulse > 0) { GUI.color = new Color(1, 1, 1, pulse); GUI.DrawTexture(r, bright); GUI.color = oc; }
+                }
+                else
+                {
+                    GUI.DrawTexture(r, off);
+                    float f = Mathf.Clamp01(lagK * 10 - i);
+                    if (f > 0) { GUI.color = new Color(1, 1, 1, f * 0.9f); GUI.DrawTexture(r, flash); GUI.color = oc; }
+                }
+            }
             // a blow met by your blade: said under the crosshair
             if (guardFlash > 0)
             {
