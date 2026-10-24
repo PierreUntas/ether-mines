@@ -193,6 +193,12 @@
     },
   ];
   const AOF = [0.36, 0.58, 0.8, 1];
+  // the clay look's rounded outer edges: how far in the round starts (a block = 1), and tan(22.5°), the
+  // middle step of each quarter round
+  // the steps of each quarter round (0 → 1: the face, then the half-way line around the edge): one, its
+  // normals smooth across it so the light rounds it (fewer triangles: phones draw a lot of land)
+  const ROUND = 0.18,
+    ROUND_STEPS = [0, 1];
   // per-face shading, like in Minecraft: block edges stay readable even under a vertical sun
   const faceShade = n => (n[1] > 0 ? 1 : n[1] < 0 ? 0.6 : n[0] !== 0 ? 0.8 : 0.9);
   function uvRect(ti) {
@@ -225,6 +231,134 @@
       const ix = cols ? G[4] : G[3];
       if (flipTri) ix.push(base + 1, base + 2, base + 3, base + 1, base + 3, base);
       else ix.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    };
+    // a full block's face with rounded outer edges (the clay look's soft land): the face shrinks by ROUND on
+    // each outer side, and a quarter round reaches from there to the half-way line around the edge, where
+    // the next face's own quarter round meets it; where two outer sides meet, a corner of a sphere closes
+    // it. Points on a round: its centre (ROUND inside the block) plus ROUND along normalize(n + a·u + b·v),
+    // a and b going 0 → 1 (ROUND_STEPS), so the rounds of neighbouring faces share their points exactly.
+    // The normals follow the round (the light rounds it); the shade baked into the colour follows the
+    // normal (faceShade's mix), the AO the face's corners.
+    const rounded = (G, n, pts, fuv, tile, ao, flip, edge) => {
+      const r = ROUND;
+      // the face's frame: O at (uu, vv) = (0, 0), U and V the world directions of uu and vv
+      let O, Pu, Pv;
+      for (let k = 0; k < 4; k++) {
+        if (fuv[k][0] === 0 && fuv[k][1] === 0) O = pts[k];
+        else if (fuv[k][0] === 1 && fuv[k][1] === 0) Pu = pts[k];
+        else if (fuv[k][0] === 0 && fuv[k][1] === 1) Pv = pts[k];
+      }
+      const U = [Pu[0] - O[0], Pu[1] - O[1], Pu[2] - O[2]],
+        V = [Pv[0] - O[0], Pv[1] - O[1], Pv[2] - O[2]];
+      const at = (uu, vv) => [O[0] + U[0] * uu + V[0] * vv, O[1] + U[1] * uu + V[1] * vv, O[2] + U[2] * uu + V[2] * vv];
+      // the AO at a point of the face: the corners' values, bilinear
+      const aoAt = (uu, vv) => {
+        let s = 0;
+        for (let k = 0; k < 4; k++) s += ao[k] * (fuv[k][0] ? uu : 1 - uu) * (fuv[k][1] ? vv : 1 - vv);
+        return s;
+      };
+      const base = () => G[0].length / 3;
+      const vert = (p, d, uu, vv) => {
+        G[0].push(p[0], p[1], p[2]);
+        G[1].push(d[0], d[1], d[2]);
+        G[2].push(lerp(tile[0], tile[1], uu), lerp(tile[2], tile[3], vv));
+        const c = aoAt(uu, vv) * (d[0] * d[0] * 0.8 + d[2] * d[2] * 0.9 + d[1] * d[1] * (d[1] > 0 ? 1 : 0.6));
+        G[3].push(c, c, c);
+        G[5].push(edge);
+      };
+      // a quad of four vertices just pushed (b0..b0+3), turned to face outward along d
+      const quad = (b0, d) => {
+        const p = i => [G[0][(b0 + i) * 3], G[0][(b0 + i) * 3 + 1], G[0][(b0 + i) * 3 + 2]];
+        const p0 = p(0),
+          p1 = p(1),
+          p2 = p(2),
+          e1 = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]],
+          e2 = [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]];
+        const cx = e1[1] * e2[2] - e1[2] * e2[1],
+          cy = e1[2] * e2[0] - e1[0] * e2[2],
+          cz = e1[0] * e2[1] - e1[1] * e2[0];
+        if (cx * d[0] + cy * d[1] + cz * d[2] >= 0) G[4].push(b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3);
+        else G[4].push(b0, b0 + 2, b0 + 1, b0, b0 + 3, b0 + 2);
+      };
+      const norm = v => {
+        const l = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+        return [v[0] / l, v[1] / l, v[2] / l];
+      };
+      const ou0 = edge & 1,
+        ou1 = (edge >> 1) & 1,
+        ov0 = (edge >> 2) & 1,
+        ov1 = (edge >> 3) & 1;
+      const iu0 = ou0 ? r : 0,
+        iu1 = ou1 ? 1 - r : 1,
+        iv0 = ov0 ? r : 0,
+        iv1 = ov1 ? 1 - r : 1;
+      // the flat middle, its corners in the face's own order (so its AO split stays the face's)
+      let b0 = base();
+      for (let k = 0; k < 4; k++) {
+        const uu = fuv[k][0] ? iu1 : iu0,
+          vv = fuv[k][1] ? iv1 : iv0;
+        vert(at(uu, vv), n, uu, vv);
+      }
+      if (flip) G[4].push(b0 + 1, b0 + 2, b0 + 3, b0 + 1, b0 + 3, b0);
+      else G[4].push(b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3);
+      const A3 = ROUND_STEPS;
+      // a round along one side: s = ±1 the side's direction along axis W (U or V), running along the other
+      // axis from t0 to t1
+      const strip = (alongU, s, t0, t1) => {
+        const W = alongU ? U : V;
+        for (let i = 0; i < A3.length - 1; i++) {
+          const a0 = A3[i],
+            a1 = A3[i + 1];
+          b0 = base();
+          for (const [a, t] of [
+            [a0, t0],
+            [a1, t0],
+            [a1, t1],
+            [a0, t1],
+          ]) {
+            const e = s > 0 ? 1 - r + r * a : r - r * a; // the face coordinate across the round
+            const uu = alongU ? e : t,
+              vv = alongU ? t : e;
+            const cIn = alongU ? at(s > 0 ? 1 - r : r, t) : at(t, s > 0 ? 1 - r : r);
+            const d = norm([n[0] + s * a * W[0], n[1] + s * a * W[1], n[2] + s * a * W[2]]);
+            vert([cIn[0] - n[0] * r + d[0] * r, cIn[1] - n[1] * r + d[1] * r, cIn[2] - n[2] * r + d[2] * r], d, uu, vv);
+          }
+          const dm = norm([n[0] + s * W[0], n[1] + s * W[1], n[2] + s * W[2]]);
+          quad(b0, dm);
+        }
+      };
+      if (ou0) strip(true, -1, iv0, iv1);
+      if (ou1) strip(true, 1, iv0, iv1);
+      if (ov0) strip(false, -1, iu0, iu1);
+      if (ov1) strip(false, 1, iu0, iu1);
+      // a corner of a sphere where two outer sides meet
+      const corner = (su, sv) => {
+        const cIn = at(su > 0 ? 1 - r : r, sv > 0 ? 1 - r : r);
+        for (let i = 0; i < A3.length - 1; i++)
+          for (let j = 0; j < A3.length - 1; j++) {
+            b0 = base();
+            for (const [a, c] of [
+              [A3[i], A3[j]],
+              [A3[i + 1], A3[j]],
+              [A3[i + 1], A3[j + 1]],
+              [A3[i], A3[j + 1]],
+            ]) {
+              const d = norm([
+                n[0] + su * a * U[0] + sv * c * V[0],
+                n[1] + su * a * U[1] + sv * c * V[1],
+                n[2] + su * a * U[2] + sv * c * V[2],
+              ]);
+              const uu = su > 0 ? 1 - r + r * a : r - r * a,
+                vv = sv > 0 ? 1 - r + r * c : r - r * c;
+              vert([cIn[0] - n[0] * r + d[0] * r, cIn[1] - n[1] * r + d[1] * r, cIn[2] - n[2] * r + d[2] * r], d, uu, vv);
+            }
+            quad(b0, norm([n[0] + su * U[0] + sv * V[0], n[1] + su * U[1] + sv * V[1], n[2] + su * U[2] + sv * V[2]]));
+          }
+      };
+      if (ou0 && ov0) corner(-1, -1);
+      if (ou1 && ov0) corner(1, -1);
+      if (ou1 && ov1) corner(1, 1);
+      if (ou0 && ov1) corner(-1, 1);
     };
     // an arbitrary box within a block (slab, stair, door…): faces hidden only against a solid opaque block
     const emitBox = (G, x, y, z, bb, tt, big) => {
@@ -363,7 +497,8 @@
               w = (f.a + 2) % 3,
               ao = [],
               pts = [],
-              uvs = [];
+              uvs = [],
+              fuv = [];
             for (const c of f.c) {
               const p = [nx, ny, nz],
                 du = c[u] ? 1 : -1,
@@ -391,12 +526,14 @@
                 vv = c[1];
               }
               uvs.push([lerp(u0, u1, uu), lerp(v0, v1, vv)]);
+              fuv.push([uu, vv]);
             }
             // the face's sides that are an outer edge: where the block beside it, along that side, lets the
             // face end in the open (a step, a cliff, a corner); not where the land goes on flat
+            // (exactly where the block's face on that side is drawn too: the two meet around the edge)
             const side = (dx, dy, dz) => {
               const o = get(x + dx, y + dy, z + dz);
-              return isOpaque(o) || (o === id && (b.leaf || b.glass)) ? 0 : 1; // leaves go on into leaves
+              return y + dy < 0 || isOpaque(o) || (o === id && (b.leaf || b.glass)) ? 0 : 1; // leaves go on into leaves
             };
             let edge;
             if (f.a === 1) edge = side(-1, 0, 0) | (side(1, 0, 0) << 1) | (side(0, 0, -1) << 2) | (side(0, 0, 1) << 3);
@@ -410,15 +547,27 @@
                 (f.n[2] > 0 ? side(-1, 0, 0) | (side(1, 0, 0) << 1) : side(1, 0, 0) | (side(-1, 0, 0) << 1)) |
                 (side(0, -1, 0) << 2) |
                 (side(0, 1, 0) << 3);
-            pushQ(
-              G,
-              pts,
-              f.n,
-              uvs,
-              ao.map(a => AOF[a]),
-              ao[0] + ao[2] < ao[1] + ao[3],
-              edge,
-            );
+            if (edge && G === A.op)
+              rounded(
+                G,
+                f.n,
+                pts,
+                fuv,
+                [u0, u1, v0, v1],
+                ao.map(a => AOF[a]),
+                ao[0] + ao[2] < ao[1] + ao[3],
+                edge,
+              );
+            else
+              pushQ(
+                G,
+                pts,
+                f.n,
+                uvs,
+                ao.map(a => AOF[a]),
+                ao[0] + ao[2] < ao[1] + ao[3],
+                edge,
+              );
           }
         }
     return A;

@@ -76,6 +76,9 @@ namespace EtherMines.Core
             0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0,
         };
         static readonly double[] AOF = { 0.36, 0.58, 0.8, 1 };
+        // the clay look's rounded outer edges (mesh.js ROUND, ROUND_STEPS): how far in the round starts, and the
+        // steps of each quarter round (one, its normals smooth across it)
+        const double ROUND = 0.18;
 
         static double FaceShade(int f)
         {
@@ -467,16 +470,166 @@ namespace EtherMines.Core
                     else { uu = fz > 0 ? c0 : 1 - c0; vv = c1; }
                     quv[k * 2] = u0 + (u1 - u0) * uu;
                     quv[k * 2 + 1] = v0 + (v1 - v0) * vv;
+                    fuu[k] = uu; fvv[k] = vv;
                 }
                 // the face's sides that are an outer edge (mesh.js): where the block beside it along that side lets
                 // the face end in the open; leaves go on into leaves
-                int Side(int dx, int dy, int dz) { int o = get(x + dx, y + dy, z + dz); return IsOpaque(o) || (o == id && (b.Leaf || b.Glass)) ? 0 : 1; }
+                // (exactly where the block's face on that side is drawn too: the two meet around the edge)
+                int Side(int dx, int dy, int dz) { int o = get(x + dx, y + dy, z + dz); return y + dy < 0 || IsOpaque(o) || (o == id && (b.Leaf || b.Glass)) ? 0 : 1; }
                 int edge;
                 if (fa == 1) edge = Side(-1, 0, 0) | (Side(1, 0, 0) << 1) | (Side(0, 0, -1) << 2) | (Side(0, 0, 1) << 3);
                 else if (fa == 0) edge = (fx > 0 ? Side(0, 0, 1) | (Side(0, 0, -1) << 1) : Side(0, 0, -1) | (Side(0, 0, 1) << 1)) | (Side(0, -1, 0) << 2) | (Side(0, 1, 0) << 3);
                 else edge = (fz > 0 ? Side(-1, 0, 0) | (Side(1, 0, 0) << 1) : Side(1, 0, 0) | (Side(-1, 0, 0) << 1)) | (Side(0, -1, 0) << 2) | (Side(0, 1, 0) << 3);
-                PushQ(G, fx, fy, fz, FaceShade(f), true, a0 + a2 < a1 + a3, edge);
+                if (edge != 0 && G == op) Rounded(G, fx, fy, fz, edge, u0, u1, v0, v1, a0 + a2 < a1 + a3);
+                else PushQ(G, fx, fy, fz, FaceShade(f), true, a0 + a2 < a1 + a3, edge);
             }
+        }
+
+        // ---------- a full block's face with rounded outer edges (mesh.js rounded, the same steps exactly) ----------
+        // the face shrinks by ROUND on each outer side; a quarter round reaches from there to the half-way line
+        // around the edge, where the next face's own meets it; a corner of a sphere where two outer sides meet.
+        // Points: the round's centre (ROUND inside) plus ROUND along normalize(n + a·u + b·v), a and b going
+        // 0 → 1. Normals follow the round, the baked shade follows the normal, the AO the corners.
+        // Reads the quad in qp / quv's face coordinates (fuu, fvv) and the corners' AO in qc.
+        readonly double[] fuu = new double[4], fvv = new double[4];
+        static readonly double[] A3 = { 0, 1 };
+        double rO0, rO1, rO2, rU0, rU1, rU2, rV0, rV1, rV2, rN0, rN1, rN2, rT0, rT1, rT2, rT3;
+        int rEdge;
+        Buf rG;
+        readonly double[] rp = new double[12];
+        int rk;
+
+        void At(double uu, double vv, out double px, out double py, out double pz)
+        {
+            px = rO0 + rU0 * uu + rV0 * vv; py = rO1 + rU1 * uu + rV1 * vv; pz = rO2 + rU2 * uu + rV2 * vv;
+        }
+        double AoAt(double uu, double vv)
+        {
+            double s = 0;
+            for (int k = 0; k < 4; k++) s += qc[k] * (fuu[k] != 0 ? uu : 1 - uu) * (fvv[k] != 0 ? vv : 1 - vv);
+            return s;
+        }
+        static void Norm(double x, double y, double z, out double ox, out double oy, out double oz)
+        {
+            double l = Math.Sqrt(x * x + y * y + z * z);
+            ox = x / l; oy = y / l; oz = z / l;
+        }
+        void Vert(double px, double py, double pz, double dx, double dy, double dz, double uu, double vv)
+        {
+            var G = rG;
+            G.Reserve4();
+            int v = G.nv++;
+            G.pos[v * 3] = (float)px; G.pos[v * 3 + 1] = (float)py; G.pos[v * 3 + 2] = (float)pz;
+            G.nor[v * 3] = (float)dx; G.nor[v * 3 + 1] = (float)dy; G.nor[v * 3 + 2] = (float)dz;
+            G.uv[v * 2] = (float)(rT0 + (rT1 - rT0) * uu);
+            G.uv[v * 2 + 1] = (float)(rT2 + (rT3 - rT2) * vv);
+            float c = (float)(AoAt(uu, vv) * (dx * dx * 0.8 + dz * dz * 0.9 + dy * dy * (dy > 0 ? 1 : 0.6)));
+            G.col[v * 3] = c; G.col[v * 3 + 1] = c; G.col[v * 3 + 2] = c;
+            G.edge[v] = rEdge;
+            rp[rk * 3] = px; rp[rk * 3 + 1] = py; rp[rk * 3 + 2] = pz;
+            rk++;
+        }
+        // the four vertices just made, as a quad turned to face outward along d
+        void Quad(int b0, double dx, double dy, double dz)
+        {
+            double e10 = rp[3] - rp[0], e11 = rp[4] - rp[1], e12 = rp[5] - rp[2];
+            double e20 = rp[6] - rp[0], e21 = rp[7] - rp[1], e22 = rp[8] - rp[2];
+            double cx = e11 * e22 - e12 * e21, cy = e12 * e20 - e10 * e22, cz = e10 * e21 - e11 * e20;
+            var G = rG;
+            if (G.ni + 6 > G.idx.Length) Array.Resize(ref G.idx, G.idx.Length * 2);
+            var ix = G.idx; int i = G.ni;
+            if (cx * dx + cy * dy + cz * dz >= 0) { ix[i] = b0; ix[i + 1] = b0 + 1; ix[i + 2] = b0 + 2; ix[i + 3] = b0; ix[i + 4] = b0 + 2; ix[i + 5] = b0 + 3; }
+            else { ix[i] = b0; ix[i + 1] = b0 + 2; ix[i + 2] = b0 + 1; ix[i + 3] = b0; ix[i + 4] = b0 + 3; ix[i + 5] = b0 + 2; }
+            G.ni += 6;
+        }
+
+        void Rounded(Buf G, double n0, double n1, double n2, int edge, double u0, double u1, double v0, double v1, bool flip)
+        {
+            const double r = ROUND;
+            rG = G; rEdge = edge; rN0 = n0; rN1 = n1; rN2 = n2; rT0 = u0; rT1 = u1; rT2 = v0; rT3 = v1;
+            double pu0 = 0, pu1 = 0, pu2 = 0, pv0 = 0, pv1 = 0, pv2 = 0;
+            for (int k = 0; k < 4; k++)
+            {
+                if (fuu[k] == 0 && fvv[k] == 0) { rO0 = qp[k * 3]; rO1 = qp[k * 3 + 1]; rO2 = qp[k * 3 + 2]; }
+                else if (fuu[k] == 1 && fvv[k] == 0) { pu0 = qp[k * 3]; pu1 = qp[k * 3 + 1]; pu2 = qp[k * 3 + 2]; }
+                else if (fuu[k] == 0 && fvv[k] == 1) { pv0 = qp[k * 3]; pv1 = qp[k * 3 + 1]; pv2 = qp[k * 3 + 2]; }
+            }
+            rU0 = pu0 - rO0; rU1 = pu1 - rO1; rU2 = pu2 - rO2;
+            rV0 = pv0 - rO0; rV1 = pv1 - rO1; rV2 = pv2 - rO2;
+            int ou0 = edge & 1, ou1 = (edge >> 1) & 1, ov0 = (edge >> 2) & 1, ov1 = (edge >> 3) & 1;
+            double iu0 = ou0 != 0 ? r : 0, iu1 = ou1 != 0 ? 1 - r : 1, iv0 = ov0 != 0 ? r : 0, iv1 = ov1 != 0 ? 1 - r : 1;
+            // the flat middle, its corners in the face's own order (its AO split stays the face's)
+            int b0 = G.nv;
+            rk = 0;
+            for (int k = 0; k < 4; k++)
+            {
+                double uu = fuu[k] != 0 ? iu1 : iu0, vv = fvv[k] != 0 ? iv1 : iv0;
+                At(uu, vv, out double px, out double py, out double pz);
+                Vert(px, py, pz, n0, n1, n2, uu, vv);
+            }
+            if (G.ni + 6 > G.idx.Length) Array.Resize(ref G.idx, G.idx.Length * 2);
+            {
+                var ix = G.idx; int i = G.ni;
+                if (flip) { ix[i] = b0 + 1; ix[i + 1] = b0 + 2; ix[i + 2] = b0 + 3; ix[i + 3] = b0 + 1; ix[i + 4] = b0 + 3; ix[i + 5] = b0; }
+                else { ix[i] = b0; ix[i + 1] = b0 + 1; ix[i + 2] = b0 + 2; ix[i + 3] = b0; ix[i + 4] = b0 + 2; ix[i + 5] = b0 + 3; }
+                G.ni += 6;
+            }
+            if (ou0 != 0) Strip(true, -1, iv0, iv1);
+            if (ou1 != 0) Strip(true, 1, iv0, iv1);
+            if (ov0 != 0) Strip(false, -1, iu0, iu1);
+            if (ov1 != 0) Strip(false, 1, iu0, iu1);
+            if (ou0 != 0 && ov0 != 0) Corner(-1, -1);
+            if (ou1 != 0 && ov0 != 0) Corner(1, -1);
+            if (ou1 != 0 && ov1 != 0) Corner(1, 1);
+            if (ou0 != 0 && ov1 != 0) Corner(-1, 1);
+        }
+
+        // a round along one side: s = ±1 the side's direction along W (U or V), running along the other axis from t0 to t1
+        void Strip(bool alongU, int s, double t0, double t1)
+        {
+            const double r = ROUND;
+            double w0 = alongU ? rU0 : rV0, w1 = alongU ? rU1 : rV1, w2 = alongU ? rU2 : rV2;
+            for (int i = 0; i < A3.Length - 1; i++)
+            {
+                double a0 = A3[i], a1 = A3[i + 1];
+                int b0 = rG.nv;
+                rk = 0;
+                for (int q = 0; q < 4; q++)
+                {
+                    double a = q == 0 || q == 3 ? a0 : a1, t = q < 2 ? t0 : t1;
+                    double e = s > 0 ? 1 - r + r * a : r - r * a;
+                    double uu = alongU ? e : t, vv = alongU ? t : e;
+                    double ci0, ci1, ci2;
+                    if (alongU) At(s > 0 ? 1 - r : r, t, out ci0, out ci1, out ci2);
+                    else At(t, s > 0 ? 1 - r : r, out ci0, out ci1, out ci2);
+                    Norm(rN0 + s * a * w0, rN1 + s * a * w1, rN2 + s * a * w2, out double d0, out double d1, out double d2);
+                    Vert(ci0 - rN0 * r + d0 * r, ci1 - rN1 * r + d1 * r, ci2 - rN2 * r + d2 * r, d0, d1, d2, uu, vv);
+                }
+                Norm(rN0 + s * w0, rN1 + s * w1, rN2 + s * w2, out double m0, out double m1, out double m2);
+                Quad(b0, m0, m1, m2);
+            }
+        }
+
+        // a corner of a sphere where two outer sides meet
+        void Corner(int su, int sv)
+        {
+            const double r = ROUND;
+            At(su > 0 ? 1 - r : r, sv > 0 ? 1 - r : r, out double ci0, out double ci1, out double ci2);
+            for (int i = 0; i < A3.Length - 1; i++)
+                for (int j = 0; j < A3.Length - 1; j++)
+                {
+                    int b0 = rG.nv;
+                    rk = 0;
+                    for (int q = 0; q < 4; q++)
+                    {
+                        double a = q == 0 || q == 3 ? A3[i] : A3[i + 1], c = q < 2 ? A3[j] : A3[j + 1];
+                        Norm(rN0 + su * a * rU0 + sv * c * rV0, rN1 + su * a * rU1 + sv * c * rV1, rN2 + su * a * rU2 + sv * c * rV2, out double d0, out double d1, out double d2);
+                        double uu = su > 0 ? 1 - r + r * a : r - r * a, vv = sv > 0 ? 1 - r + r * c : r - r * c;
+                        Vert(ci0 - rN0 * r + d0 * r, ci1 - rN1 * r + d1 * r, ci2 - rN2 * r + d2 * r, d0, d1, d2, uu, vv);
+                    }
+                    Norm(rN0 + su * rU0 + sv * rV0, rN1 + su * rU1 + sv * rV1, rN2 + su * rU2 + sv * rV2, out double m0, out double m1, out double m2);
+                    Quad(b0, m0, m1, m2);
+                }
         }
     }
 }

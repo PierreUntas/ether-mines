@@ -38,10 +38,8 @@ Shader "EtherMines/Block"
             o.fog = ComputeFogFactor(o.cs.z);
             return o;
         }
-        // the clay look (04-render.js opMat): the toy brick's seam where a face meets another block's face, and the
-        // land's outer edges (a step, a cliff, a corner: the mesher's edge bits, in the vertex color's alpha)
-        // rounded: near such an edge the face's shade eases toward the shade of the face around the corner
-        float FaceShade(float3 n) { return n.y > 0.5 ? 1.0 : n.y < -0.5 ? 0.6 : abs(n.x) > 0.5 ? 0.8 : 0.9; }
+        // the clay look (04-render.js opMat): the toy brick's seam, only where a face meets another block's face
+        // (the land's outer edges, the mesher's edge bits in the vertex color's alpha, are rounded by the mesher)
         half4 Albedo (float2 uv, half4 vc, float3 nWS)
         {
             half4 c = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, uv);
@@ -52,17 +50,6 @@ Shader "EtherMines/Block"
             float4 seamD = lerp(dist, float4(1, 1, 1, 1), outer);
             float ed = min(min(seamD.x, seamD.y), min(seamD.z, seamD.w));
             float bevel = lerp(0.84, 1.0, smoothstep(0.0, 0.028, ed)) * lerp(1.1, 1.0, smoothstep(0.028, 0.1, ed));
-            if (eb > 0.5)
-            {
-                float3 n = normalize(nWS);
-                float own = FaceShade(n);
-                float su = abs(n.y) > 0.5 ? 0.8 : abs(n.x) > 0.5 ? 0.9 : 0.8;
-                float4 other = float4(su, su, abs(n.y) > 0.5 ? 0.9 : 0.6, abs(n.y) > 0.5 ? 0.9 : 1.0) / own;
-                float4 w = outer * smoothstep(float4(0.34, 0.34, 0.34, 0.34), float4(0, 0, 0, 0), dist);
-                w = w * w * (3.0 - 2.0 * w);
-                float4 f = lerp(float4(1, 1, 1, 1), other * 0.92, w);
-                bevel *= f.x * f.y * f.z * f.w;
-            }
             return half4(c.rgb * vc.rgb * lerp(1.0, bevel, _Bevel), c.a);
         }
         ENDHLSL

@@ -317,20 +317,17 @@ const opMat = new THREE.MeshLambertMaterial({
   alphaTest: 0.5,
 });
 // the clay look's bevel: every block face gets a light rim and a thin dark seam, like a toy brick
-// (inside the face's own tile coordinates, so it costs nothing in geometry); and the land's outer edges
-// (a step, a cliff, a corner: the mesher's edge bits) look rounded: near such an edge each face's shade
-// eases toward the shade of the face around the corner, as light would on a rounded edge
+// (inside the face's own tile coordinates, so it costs nothing in geometry), only where it meets another
+// block's face: the land's outer edges are rounded by the mesher instead (mesh.js rounded, its edge bits)
 if (CLAY)
   opMat.onBeforeCompile = sh => {
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', 'attribute float edge;\nvarying float vEdge;\nvarying vec3 vFaceN;\n#include <common>')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvEdge = edge;\nvFaceN = normal;');
+      .replace('#include <common>', 'attribute float edge;\nvarying float vEdge;\n#include <common>')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvEdge = edge;');
     sh.fragmentShader = sh.fragmentShader
       .replace(
         '#include <common>',
         `varying float vEdge;
-        varying vec3 vFaceN;
-        float faceShade(vec3 n) { return n.y > 0.5 ? 1.0 : n.y < -0.5 ? 0.6 : abs(n.x) > 0.5 ? 0.8 : 0.9; }
         #include <common>`,
       )
       .replace(
@@ -345,17 +342,7 @@ if (CLAY)
       vec4 seamD = mix(dist, vec4(1.0), outer);
       float ed = min(min(seamD.x, seamD.y), min(seamD.z, seamD.w));
       diffuseColor.rgb *= mix(0.84, 1.0, smoothstep(0.0, 0.028, ed)) * mix(1.1, 1.0, smoothstep(0.028, 0.1, ed));
-      if (eb > 0.5) {
-        vec3 n = normalize(vFaceN);
-        float own = faceShade(n);
-        // the shade of the face around each side, then eased toward it over the last third of the face
-        float su = abs(n.y) > 0.5 ? 0.8 : abs(n.x) > 0.5 ? 0.9 : 0.8;
-        vec4 other = vec4(su, su, abs(n.y) > 0.5 ? 0.9 : 0.6, abs(n.y) > 0.5 ? 0.9 : 1.0) / own;
-        vec4 w = outer * smoothstep(vec4(0.34), vec4(0.0), dist);
-        w = w * w * (3.0 - 2.0 * w);
-        vec4 f = mix(vec4(1.0), other * 0.92, w);
-        diffuseColor.rgb *= f.x * f.y * f.z * f.w;
-      }`,
+`,
       );
   };
 const glMat = new THREE.MeshLambertMaterial({
