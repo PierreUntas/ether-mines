@@ -13,6 +13,9 @@
   const isSolid = id => !!(id && id !== 11 && B[id] && !isCross(id) && !B[id].pass);
   const isOpaque = id => id && !isTransp(id);
   const isShaped = id => !!(B[id] && B[id].shape);
+  // a full block the clay look rounds (rounded below): not glass, water, plants, shapes, nor leaves (a tree's
+  // crown keeps its blocks square, so they all still touch)
+  const rounds = id => !!(id && id !== 11 && B[id] && !isCross(id) && !B[id].shape && !B[id].glass && !B[id].leaf);
   const STAIR_HI = [
     [0, 0.5, 0, 1, 1, 0.5],
     [0, 0.5, 0, 0.5, 1, 1],
@@ -239,7 +242,7 @@
     // a and b going 0 → 1 (ROUND_STEPS), so the rounds of neighbouring faces share their points exactly.
     // The normals follow the round (the light rounds it); the shade baked into the colour follows the
     // normal (faceShade's mix), the AO the face's corners.
-    const rounded = (G, n, pts, fuv, tile, ao, flip, edge) => {
+    const rounded = (G, n, pts, fuv, tile, ao, flip, edge, needCap, cornerOpen) => {
       const r = ROUND;
       // the face's frame: O at (uu, vv) = (0, 0), U and V the world directions of uu and vv
       let O, Pu, Pv;
@@ -280,6 +283,20 @@
         if (cx * d[0] + cy * d[1] + cz * d[2] >= 0) G[4].push(b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3);
         else G[4].push(b0, b0 + 2, b0 + 1, b0, b0 + 3, b0 + 2);
       };
+      // a triangle of the three vertices just pushed, turned to face along d
+      const tri = (b0, d) => {
+        const p = i => [G[0][(b0 + i) * 3], G[0][(b0 + i) * 3 + 1], G[0][(b0 + i) * 3 + 2]];
+        const p0 = p(0),
+          p1 = p(1),
+          p2 = p(2),
+          e1 = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]],
+          e2 = [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]];
+        const cx = e1[1] * e2[2] - e1[2] * e2[1],
+          cy = e1[2] * e2[0] - e1[0] * e2[2],
+          cz = e1[0] * e2[1] - e1[1] * e2[0];
+        if (cx * d[0] + cy * d[1] + cz * d[2] >= 0) G[4].push(b0, b0 + 1, b0 + 2);
+        else G[4].push(b0, b0 + 2, b0 + 1);
+      };
       const norm = v => {
         const l = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
         return [v[0] / l, v[1] / l, v[2] / l];
@@ -302,35 +319,86 @@
       if (flip) G[4].push(b0 + 1, b0 + 2, b0 + 3, b0 + 1, b0 + 3, b0);
       else G[4].push(b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3);
       const A3 = ROUND_STEPS;
+      // a corner is rounded only if the block across it is open too; else the side faces keep their edge
+      // square there and the rounds meeting at it end on the corner's mitre (below)
+      const cOpen = (su, sv) => cornerOpen([su * U[0] + sv * V[0], su * U[1] + sv * V[1], su * U[2] + sv * V[2]]);
+      const c00 = ou0 && ov0 && cOpen(-1, -1),
+        c10 = ou1 && ov0 && cOpen(1, -1),
+        c11 = ou1 && ov1 && cOpen(1, 1),
+        c01 = ou0 && ov1 && cOpen(-1, 1);
       // a round along one side: s = ±1 the side's direction along axis W (U or V), running along the other
-      // axis from t0 to t1
-      const strip = (alongU, s, t0, t1) => {
-        const W = alongU ? U : V;
+      // axis T. Each end (k = -1 at t = 0, 1 at t = 1) is one of: the corner of a sphere (rounded: the round
+      // stops ROUND short of the end); a mitre, the rounds of two edges meeting at a square corner (the end
+      // cut on the 45° plane between them: by how far the point stands off its side W when this face's
+      // side D is outer too, by how far it stands off the face when the face around the edge goes on
+      // rounding beyond D); or the face's end, closed by a cap where the block beside doesn't round on.
+      const strip = (alongU, s, oEnd0, oEnd1, cEnd0, cEnd1) => {
+        const W = alongU ? U : V,
+          T = alongU ? V : U,
+          sW = [s * W[0], s * W[1], s * W[2]];
+        const kind = (k, oEnd, cEnd) => {
+          if (cEnd) return 0;
+          if (oEnd) return 1;
+          const D = [k * T[0], k * T[1], k * T[2]];
+          return cornerOpen(D) && cornerOpen([D[0] + sW[0], D[1] + sW[1], D[2] + sW[2]]) ? 2 : 3;
+        };
+        const k0 = kind(-1, oEnd0, cEnd0),
+          k1 = kind(1, oEnd1, cEnd1);
+        // where along T the round's point at step a ends, for an end of the given kind
+        const endT = (k, kd, d) => {
+          const m =
+            kd === 0
+              ? r
+              : kd === 1
+                ? r - r * (d[0] * sW[0] + d[1] * sW[1] + d[2] * sW[2])
+                : kd === 2
+                  ? r - r * (d[0] * n[0] + d[1] * n[1] + d[2] * n[2])
+                  : 0;
+          return k < 0 ? m : 1 - m;
+        };
+        const point = (a, t) => {
+          const cIn = alongU ? at(s > 0 ? 1 - r : r, t) : at(t, s > 0 ? 1 - r : r);
+          const d = norm([n[0] + s * a * W[0], n[1] + s * a * W[1], n[2] + s * a * W[2]]);
+          return [cIn[0] - n[0] * r + d[0] * r, cIn[1] - n[1] * r + d[1] * r, cIn[2] - n[2] * r + d[2] * r];
+        };
         for (let i = 0; i < A3.length - 1; i++) {
           const a0 = A3[i],
             a1 = A3[i + 1];
           b0 = base();
-          for (const [a, t] of [
-            [a0, t0],
-            [a1, t0],
-            [a1, t1],
-            [a0, t1],
+          for (const [a, k, kd] of [
+            [a0, -1, k0],
+            [a1, -1, k0],
+            [a1, 1, k1],
+            [a0, 1, k1],
           ]) {
-            const e = s > 0 ? 1 - r + r * a : r - r * a; // the face coordinate across the round
-            const uu = alongU ? e : t,
-              vv = alongU ? t : e;
-            const cIn = alongU ? at(s > 0 ? 1 - r : r, t) : at(t, s > 0 ? 1 - r : r);
             const d = norm([n[0] + s * a * W[0], n[1] + s * a * W[1], n[2] + s * a * W[2]]);
-            vert([cIn[0] - n[0] * r + d[0] * r, cIn[1] - n[1] * r + d[1] * r, cIn[2] - n[2] * r + d[2] * r], d, uu, vv);
+            const t = endT(k, kd, d);
+            const e = s > 0 ? 1 - r + r * a : r - r * a; // the face coordinate across the round
+            vert(point(a, t), d, alongU ? e : t, alongU ? t : e);
           }
-          const dm = norm([n[0] + s * W[0], n[1] + s * W[1], n[2] + s * W[2]]);
-          quad(b0, dm);
+          quad(b0, norm([n[0] + s * W[0], n[1] + s * W[1], n[2] + s * W[2]]));
+        }
+        // a plain end against a block that doesn't round the edge on: a cap from the sharp edge to the round
+        for (const [k, kd] of [
+          [-1, k0],
+          [1, k1],
+        ]) {
+          if (kd !== 3 || !needCap(sW, [k * T[0], k * T[1], k * T[2]])) continue;
+          const t = k < 0 ? 0 : 1,
+            dn = [-k * T[0], -k * T[1], -k * T[2]];
+          const tb = base();
+          for (const a of [0, 1, -1]) {
+            // -1: the sharp edge itself, on the face's plane
+            const e = a < 0 ? (s > 0 ? 1 : 0) : s > 0 ? 1 - r + r * a : r - r * a;
+            vert(a < 0 ? (alongU ? at(e, t) : at(t, e)) : point(a, t), dn, alongU ? e : t, alongU ? t : e);
+          }
+          tri(tb, dn);
         }
       };
-      if (ou0) strip(true, -1, iv0, iv1);
-      if (ou1) strip(true, 1, iv0, iv1);
-      if (ov0) strip(false, -1, iu0, iu1);
-      if (ov1) strip(false, 1, iu0, iu1);
+      if (ou0) strip(true, -1, ov0, ov1, c00, c01);
+      if (ou1) strip(true, 1, ov0, ov1, c10, c11);
+      if (ov0) strip(false, -1, ou0, ou1, c00, c10);
+      if (ov1) strip(false, 1, ou0, ou1, c01, c11);
       // a corner of a sphere where two outer sides meet
       const corner = (su, sv) => {
         const cIn = at(su > 0 ? 1 - r : r, sv > 0 ? 1 - r : r);
@@ -355,10 +423,10 @@
             quad(b0, norm([n[0] + su * U[0] + sv * V[0], n[1] + su * U[1] + sv * V[1], n[2] + su * U[2] + sv * V[2]]));
           }
       };
-      if (ou0 && ov0) corner(-1, -1);
-      if (ou1 && ov0) corner(1, -1);
-      if (ou1 && ov1) corner(1, 1);
-      if (ou0 && ov1) corner(-1, 1);
+      if (c00) corner(-1, -1);
+      if (c10) corner(1, -1);
+      if (c11) corner(1, 1);
+      if (c01) corner(-1, 1);
     };
     // an arbitrary box within a block (slab, stair, door…): faces hidden only against a solid opaque block
     const emitBox = (G, x, y, z, bb, tt, big) => {
@@ -531,9 +599,33 @@
             // the face's sides that are an outer edge: where the block beside it, along that side, lets the
             // face end in the open (a step, a cliff, a corner); not where the land goes on flat
             // (exactly where the block's face on that side is drawn too: the two meet around the edge)
-            const side = (dx, dy, dz) => {
-              const o = get(x + dx, y + dy, z + dz);
-              return y + dy < 0 || isOpaque(o) || (o === id && (b.leaf || b.glass)) ? 0 : 1; // leaves go on into leaves
+            // A side is outer only where the land ends in the open air (nothing there, or a plant): not against
+            // water, glass, leaves or a shaped block, whose own faces toward this block aren't drawn; and only
+            // if the block beyond it in front of the face is open too, so a block touching only along the edge
+            // (a leaf beside another diagonally) keeps it square, and the two still meet.
+            const openAt = (qx, qy, qz) => {
+              if (qy < 0) return false;
+              const o = get(qx, qy, qz);
+              return o === 0 || isCross(o);
+            };
+            const open = (dx, dy, dz) => openAt(x + dx, y + dy, z + dz);
+            const front = open(f.n[0], f.n[1], f.n[2]); // the face itself in the open (not behind glass, water, leaves)
+            const side = (dx, dy, dz) => (front && open(dx, dy, dz) && open(dx + f.n[0], dy + f.n[1], dz + f.n[2]) ? 1 : 0);
+            // where a round ends against the block beside (D), a cap closes it, unless that block rounds the
+            // same edge (W) on itself
+            const needCap = (W, D) => {
+              const bx = x + D[0],
+                by = y + D[1],
+                bz = z + D[2],
+                n = f.n;
+              if (by < 0 || openAt(bx, by, bz)) return false;
+              const bid = get(bx, by, bz);
+              const goesOn =
+                rounds(bid) &&
+                openAt(bx + n[0], by + n[1], bz + n[2]) &&
+                openAt(bx + W[0], by + W[1], bz + W[2]) &&
+                openAt(bx + W[0] + n[0], by + W[1] + n[1], bz + W[2] + n[2]);
+              return !goesOn;
             };
             let edge;
             if (f.a === 1) edge = side(-1, 0, 0) | (side(1, 0, 0) << 1) | (side(0, 0, -1) << 2) | (side(0, 0, 1) << 3);
@@ -547,7 +639,7 @@
                 (f.n[2] > 0 ? side(-1, 0, 0) | (side(1, 0, 0) << 1) : side(1, 0, 0) | (side(-1, 0, 0) << 1)) |
                 (side(0, -1, 0) << 2) |
                 (side(0, 1, 0) << 3);
-            if (edge && G === A.op)
+            if (edge && G === A.op && !b.leaf)
               rounded(
                 G,
                 f.n,
@@ -557,6 +649,8 @@
                 ao.map(a => AOF[a]),
                 ao[0] + ao[2] < ao[1] + ao[3],
                 edge,
+                needCap,
+                d => open(d[0], d[1], d[2]),
               );
             else
               pushQ(
@@ -566,7 +660,7 @@
                 uvs,
                 ao.map(a => AOF[a]),
                 ao[0] + ao[2] < ao[1] + ao[3],
-                edge,
+                0, // not rounded (leaves, glass): no edge bits, the seam all round
               );
           }
         }

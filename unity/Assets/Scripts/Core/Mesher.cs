@@ -475,13 +475,17 @@ namespace EtherMines.Core
                 // the face's sides that are an outer edge (mesh.js): where the block beside it along that side lets
                 // the face end in the open; leaves go on into leaves
                 // (exactly where the block's face on that side is drawn too: the two meet around the edge)
-                int Side(int dx, int dy, int dz) { int o = get(x + dx, y + dy, z + dz); return y + dy < 0 || IsOpaque(o) || (o == id && (b.Leaf || b.Glass)) ? 0 : 1; }
+                // only where the land ends in the open air (nothing, or a plant), and the block beyond it in front
+                // of the face is open too (mesh.js side)
+                rx = x; ry = y; rz = z; rGet = get;
+                bool front = OpenAt(x + fx, y + fy, z + fz); // the face itself in the open (not behind glass, water, leaves)
+                int Side(int dx, int dy, int dz) => front && OpenAt(x + dx, y + dy, z + dz) && OpenAt(x + dx + fx, y + dy + fy, z + dz + fz) ? 1 : 0;
                 int edge;
                 if (fa == 1) edge = Side(-1, 0, 0) | (Side(1, 0, 0) << 1) | (Side(0, 0, -1) << 2) | (Side(0, 0, 1) << 3);
                 else if (fa == 0) edge = (fx > 0 ? Side(0, 0, 1) | (Side(0, 0, -1) << 1) : Side(0, 0, -1) | (Side(0, 0, 1) << 1)) | (Side(0, -1, 0) << 2) | (Side(0, 1, 0) << 3);
                 else edge = (fz > 0 ? Side(-1, 0, 0) | (Side(1, 0, 0) << 1) : Side(1, 0, 0) | (Side(-1, 0, 0) << 1)) | (Side(0, -1, 0) << 2) | (Side(0, 1, 0) << 3);
-                if (edge != 0 && G == op) Rounded(G, fx, fy, fz, edge, u0, u1, v0, v1, a0 + a2 < a1 + a3);
-                else PushQ(G, fx, fy, fz, FaceShade(f), true, a0 + a2 < a1 + a3, edge);
+                if (edge != 0 && G == op && !b.Leaf) Rounded(G, fx, fy, fz, edge, u0, u1, v0, v1, a0 + a2 < a1 + a3);
+                else PushQ(G, fx, fy, fz, FaceShade(f), true, a0 + a2 < a1 + a3, 0); // not rounded (leaves, glass): no edge bits
             }
         }
 
@@ -493,6 +497,40 @@ namespace EtherMines.Core
         // Reads the quad in qp / quv's face coordinates (fuu, fvv) and the corners' AO in qc.
         readonly double[] fuu = new double[4], fvv = new double[4];
         static readonly double[] A3 = { 0, 1 };
+        int rx, ry, rz;
+        Func<int, int, int, int> rGet;
+        // open air for the rounds (mesh.js openAt): nothing there, or a plant
+        bool OpenAt(int qx, int qy, int qz) { if (qy < 0) return false; int o = rGet(qx, qy, qz); return o == 0 || IsCross(o); }
+        // a full block the clay look rounds (mesh.js rounds): not glass, water, plants, shapes nor leaves
+        static bool Rounds(int id)
+        {
+            if (id == 0 || id == 11 || IsCross(id)) return false;
+            var d = Rules.Block(id);
+            return d != null && d.Shape == null && !d.Glass && !d.Leaf;
+        }
+        static int I(double v) => (int)Math.Round(v);
+        // where a round ends against the block beside (D), a cap closes it, unless that block rounds the same edge (W) (mesh.js needCap)
+        bool NeedCap(int w0, int w1, int w2, int d0, int d1, int d2)
+        {
+            int bx = rx + d0, by = ry + d1, bz = rz + d2;
+            if (by < 0 || OpenAt(bx, by, bz)) return false;
+            int bid = rGet(bx, by, bz);
+            int n0 = I(rN0), n1 = I(rN1), n2 = I(rN2);
+            bool goesOn = Rounds(bid) && OpenAt(bx + n0, by + n1, bz + n2) && OpenAt(bx + w0, by + w1, bz + w2) && OpenAt(bx + w0 + n0, by + w1 + n1, bz + w2 + n2);
+            return !goesOn;
+        }
+        void Tri(int b0, double dx, double dy, double dz)
+        {
+            double e10 = rp[3] - rp[0], e11 = rp[4] - rp[1], e12 = rp[5] - rp[2];
+            double e20 = rp[6] - rp[0], e21 = rp[7] - rp[1], e22 = rp[8] - rp[2];
+            double cx = e11 * e22 - e12 * e21, cy = e12 * e20 - e10 * e22, cz = e10 * e21 - e11 * e20;
+            var G = rG;
+            if (G.ni + 3 > G.idx.Length) Array.Resize(ref G.idx, G.idx.Length * 2);
+            var ix = G.idx; int i = G.ni;
+            if (cx * dx + cy * dy + cz * dz >= 0) { ix[i] = b0; ix[i + 1] = b0 + 1; ix[i + 2] = b0 + 2; }
+            else { ix[i] = b0; ix[i + 1] = b0 + 2; ix[i + 2] = b0 + 1; }
+            G.ni += 3;
+        }
         double rO0, rO1, rO2, rU0, rU1, rU2, rV0, rV1, rV2, rN0, rN1, rN2, rT0, rT1, rT2, rT3;
         int rEdge;
         Buf rG;
@@ -574,21 +612,53 @@ namespace EtherMines.Core
                 else { ix[i] = b0; ix[i + 1] = b0 + 1; ix[i + 2] = b0 + 2; ix[i + 3] = b0; ix[i + 4] = b0 + 2; ix[i + 5] = b0 + 3; }
                 G.ni += 6;
             }
-            if (ou0 != 0) Strip(true, -1, iv0, iv1);
-            if (ou1 != 0) Strip(true, 1, iv0, iv1);
-            if (ov0 != 0) Strip(false, -1, iu0, iu1);
-            if (ov1 != 0) Strip(false, 1, iu0, iu1);
-            if (ou0 != 0 && ov0 != 0) Corner(-1, -1);
-            if (ou1 != 0 && ov0 != 0) Corner(1, -1);
-            if (ou1 != 0 && ov1 != 0) Corner(1, 1);
-            if (ou0 != 0 && ov1 != 0) Corner(-1, 1);
+            // a corner rounded only if the block across it is open too; else the two rounds run on to the end
+            bool COpen(int su, int sv) => OpenAt(rx + I(su * rU0 + sv * rV0), ry + I(su * rU1 + sv * rV1), rz + I(su * rU2 + sv * rV2));
+            bool c00 = ou0 != 0 && ov0 != 0 && COpen(-1, -1), c10 = ou1 != 0 && ov0 != 0 && COpen(1, -1),
+                 c11 = ou1 != 0 && ov1 != 0 && COpen(1, 1), c01 = ou0 != 0 && ov1 != 0 && COpen(-1, 1);
+            if (ou0 != 0) Strip(true, -1, ov0 != 0, ov1 != 0, c00, c01);
+            if (ou1 != 0) Strip(true, 1, ov0 != 0, ov1 != 0, c10, c11);
+            if (ov0 != 0) Strip(false, -1, ou0 != 0, ou1 != 0, c00, c10);
+            if (ov1 != 0) Strip(false, 1, ou0 != 0, ou1 != 0, c01, c11);
+            if (c00) Corner(-1, -1);
+            if (c10) Corner(1, -1);
+            if (c11) Corner(1, 1);
+            if (c01) Corner(-1, 1);
         }
 
-        // a round along one side: s = ±1 the side's direction along W (U or V), running along the other axis from t0 to t1
-        void Strip(bool alongU, int s, double t0, double t1)
+        // a round along one side (mesh.js strip): s = ±1 the side's direction along W (U or V), running along T;
+        // each end the corner of a sphere (0), a mitre with this face's other round (1), a mitre with the face
+        // around the edge's round (2), or the face's end, capped where the block beside doesn't round on (3)
+        double sW0, sW1, sW2, sT0, sT1, sT2;
+        int Kind(int k, bool oEnd, bool cEnd)
+        {
+            if (cEnd) return 0;
+            if (oEnd) return 1;
+            int D0 = I(k * sT0), D1 = I(k * sT1), D2 = I(k * sT2);
+            return OpenAt(rx + D0, ry + D1, rz + D2) && OpenAt(rx + D0 + I(sW0), ry + D1 + I(sW1), rz + D2 + I(sW2)) ? 2 : 3;
+        }
+        double EndT(int k, int kd, double d0, double d1, double d2)
+        {
+            const double r = ROUND;
+            double m = kd == 0 ? r : kd == 1 ? r - r * (d0 * sW0 + d1 * sW1 + d2 * sW2) : kd == 2 ? r - r * (d0 * rN0 + d1 * rN1 + d2 * rN2) : 0;
+            return k < 0 ? m : 1 - m;
+        }
+        void StripPoint(bool alongU, int s, double a, double t, double w0, double w1, double w2, out double p0, out double p1, out double p2)
+        {
+            const double r = ROUND;
+            double ci0, ci1, ci2;
+            if (alongU) At(s > 0 ? 1 - r : r, t, out ci0, out ci1, out ci2);
+            else At(t, s > 0 ? 1 - r : r, out ci0, out ci1, out ci2);
+            Norm(rN0 + s * a * w0, rN1 + s * a * w1, rN2 + s * a * w2, out double d0, out double d1, out double d2);
+            p0 = ci0 - rN0 * r + d0 * r; p1 = ci1 - rN1 * r + d1 * r; p2 = ci2 - rN2 * r + d2 * r;
+        }
+        void Strip(bool alongU, int s, bool oEnd0, bool oEnd1, bool cEnd0, bool cEnd1)
         {
             const double r = ROUND;
             double w0 = alongU ? rU0 : rV0, w1 = alongU ? rU1 : rV1, w2 = alongU ? rU2 : rV2;
+            sT0 = alongU ? rV0 : rU0; sT1 = alongU ? rV1 : rU1; sT2 = alongU ? rV2 : rU2;
+            sW0 = s * w0; sW1 = s * w1; sW2 = s * w2;
+            int k0 = Kind(-1, oEnd0, cEnd0), k1 = Kind(1, oEnd1, cEnd1);
             for (int i = 0; i < A3.Length - 1; i++)
             {
                 double a0 = A3[i], a1 = A3[i + 1];
@@ -596,17 +666,36 @@ namespace EtherMines.Core
                 rk = 0;
                 for (int q = 0; q < 4; q++)
                 {
-                    double a = q == 0 || q == 3 ? a0 : a1, t = q < 2 ? t0 : t1;
-                    double e = s > 0 ? 1 - r + r * a : r - r * a;
-                    double uu = alongU ? e : t, vv = alongU ? t : e;
-                    double ci0, ci1, ci2;
-                    if (alongU) At(s > 0 ? 1 - r : r, t, out ci0, out ci1, out ci2);
-                    else At(t, s > 0 ? 1 - r : r, out ci0, out ci1, out ci2);
+                    double a = q == 0 || q == 3 ? a0 : a1;
+                    int k = q < 2 ? -1 : 1, kd = q < 2 ? k0 : k1;
                     Norm(rN0 + s * a * w0, rN1 + s * a * w1, rN2 + s * a * w2, out double d0, out double d1, out double d2);
-                    Vert(ci0 - rN0 * r + d0 * r, ci1 - rN1 * r + d1 * r, ci2 - rN2 * r + d2 * r, d0, d1, d2, uu, vv);
+                    double t = EndT(k, kd, d0, d1, d2);
+                    double e = s > 0 ? 1 - r + r * a : r - r * a;
+                    StripPoint(alongU, s, a, t, w0, w1, w2, out double p0, out double p1, out double p2);
+                    Vert(p0, p1, p2, d0, d1, d2, alongU ? e : t, alongU ? t : e);
                 }
                 Norm(rN0 + s * w0, rN1 + s * w1, rN2 + s * w2, out double m0, out double m1, out double m2);
                 Quad(b0, m0, m1, m2);
+            }
+            // a plain end against a block that doesn't round the edge on: a cap from the sharp edge to the round
+            for (int end = 0; end < 2; end++)
+            {
+                int k = end == 0 ? -1 : 1, kd = end == 0 ? k0 : k1;
+                if (kd != 3 || !NeedCap(I(sW0), I(sW1), I(sW2), I(k * sT0), I(k * sT1), I(k * sT2))) continue;
+                double t = k < 0 ? 0 : 1;
+                double dn0 = -k * sT0, dn1 = -k * sT1, dn2 = -k * sT2;
+                int tb = rG.nv;
+                rk = 0;
+                for (int q = 0; q < 3; q++)
+                {
+                    double a = q == 0 ? 0 : q == 1 ? 1 : -1; // -1: the sharp edge itself, on the face's plane
+                    double e = a < 0 ? (s > 0 ? 1 : 0) : s > 0 ? 1 - r + r * a : r - r * a;
+                    double p0, p1, p2;
+                    if (a < 0) { if (alongU) At(e, t, out p0, out p1, out p2); else At(t, e, out p0, out p1, out p2); }
+                    else StripPoint(alongU, s, a, t, w0, w1, w2, out p0, out p1, out p2);
+                    Vert(p0, p1, p2, dn0, dn1, dn2, alongU ? e : t, alongU ? t : e);
+                }
+                Tri(tb, dn0, dn1, dn2);
             }
         }
 

@@ -98,6 +98,79 @@ test('mesh: every shaped block (plate, stairs, door, cable, lever…) meshes, po
     }
 });
 
+test('mesh: the rounded land is closed (no hole at any junction)', () => {
+  // every triangle edge's points lie on another triangle's edge or inside another triangle: a closed surface,
+  // on a lumpy land with holes, steps, overhangs, leaves and glass (water and slabs aren't closed shapes)
+  const M = globalThis.Mesh, B = globalThis.Rules.B;
+  const LEAF = +Object.keys(B).find(k => B[k] && B[k].leaf),
+    GLASS = +Object.keys(B).find(k => B[k] && B[k].glass && !B[k].shape);
+  for (let seed0 = 1; seed0 <= 2; seed0++) {
+    let seed = seed0;
+    const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const cells = new Map(),
+      K = (x, y, z) => x + ',' + y + ',' + z;
+    for (let x = -2; x < 18; x++)
+      for (let z = -2; z < 18; z++) {
+        const h = 4 + Math.floor(rnd() * 4);
+        for (let y = 0; y < h; y++) cells.set(K(x, y, z), rnd() < 0.08 ? 0 : 3);
+        if (rnd() < 0.15) cells.set(K(x, h + 1, z), 3);
+        if (rnd() < 0.1) cells.set(K(x, h, z), LEAF);
+        if (rnd() < 0.06) cells.set(K(x, h, z), GLASS);
+      }
+    const get = (x, y, z) => cells.get(K(x, y, z)) || 0;
+    const m = M.pack(M.meshChunk(0, 0, get, () => false));
+    const P = [], T = [];
+    for (const g of ['op', 'gl']) {
+      const X = m[g];
+      if (!X) continue;
+      const b = P.length / 3;
+      P.push(...X.pos);
+      for (const i of X.idx) T.push(i + b);
+    }
+    const pt = i => [P[i * 3], P[i * 3 + 1], P[i * 3 + 2]];
+    const tris = [];
+    for (let i = 0; i < T.length; i += 3) tris.push([pt(T[i]), pt(T[i + 1]), pt(T[i + 2])]);
+    // the triangles by the unit cells they touch
+    const grid = new Map();
+    tris.forEach((t, ti) => {
+      const lo = [0, 1, 2].map(k => Math.floor(Math.min(t[0][k], t[1][k], t[2][k]) - 1e-4)),
+        hi = [0, 1, 2].map(k => Math.floor(Math.max(t[0][k], t[1][k], t[2][k]) + 1e-4));
+      for (let x = lo[0]; x <= hi[0]; x++)
+        for (let y = lo[1]; y <= hi[1]; y++)
+          for (let z = lo[2]; z <= hi[2]; z++) {
+            const k = K(x, y, z);
+            if (!grid.has(k)) grid.set(k, []);
+            grid.get(k).push(ti);
+          }
+    });
+    const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
+      dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+      cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    // p on the triangle (its edges included), within 1e-4
+    const onTri = (p, [a, b, c]) => {
+      const e1 = sub(b, a), e2 = sub(c, a), q = sub(p, a), nn = cross(e1, e2), L = Math.hypot(...nn);
+      if (L < 1e-12 || Math.abs(dot(q, nn) / L) > 1e-4) return false;
+      const d00 = dot(e1, e1), d01 = dot(e1, e2), d11 = dot(e2, e2), d20 = dot(q, e1), d21 = dot(q, e2), den = d00 * d11 - d01 * d01;
+      const v = (d11 * d20 - d01 * d21) / den, w = (d00 * d21 - d01 * d20) / den, tol = 1e-4 / Math.sqrt(Math.min(d00, d11));
+      return v > -tol && w > -tol && v + w < 1 + tol;
+    };
+    let open = 0, first = null;
+    tris.forEach((t, ti) => {
+      for (let k = 0; k < 3; k++)
+        for (const f of [0.25, 0.5, 0.75]) {
+          const a = t[k], b = t[(k + 1) % 3], p = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+          if (p[0] < 0.01 || p[0] > 15.99 || p[2] < 0.01 || p[2] > 15.99 || p[1] < 0.01) continue; // the chunk's own border
+          const near = new Set();
+          for (const dx of [-1e-4, 1e-4]) for (const dy of [-1e-4, 1e-4]) for (const dz of [-1e-4, 1e-4]) for (const o of grid.get(K(Math.floor(p[0] + dx), Math.floor(p[1] + dy), Math.floor(p[2] + dz))) || []) near.add(o);
+          let ok = false;
+          for (const o of near) if (o !== ti && onTri(p, tris[o])) { ok = true; break; }
+          if (!ok && open++ === 0) first = p.map(v => v.toFixed(3));
+        }
+    });
+    assert.equal(open, 0, `seed ${seed0}: ${open} open edge points, the first at ${first}`);
+  }
+});
+
 test('rules: no number is both a block and an item', () => {
   const doubles = Object.keys(R.ITEM).filter(k => R.B[k]);
   assert.deepEqual(doubles, [], `duplicate numbers: ${doubles.join(', ')}`);
