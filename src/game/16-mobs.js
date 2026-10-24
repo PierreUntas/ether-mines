@@ -591,13 +591,124 @@ function updateHpUI() {
   const el = $('hp');
   el.hidden = false;
   // a life bar: the fill drops at once, a pale trail follows a moment later to show what the blow took
+  // the icon: an Ether crystal in the life's pink (the same facets as the game's Ether)
   if (!el.firstChild)
-    el.innerHTML = '<span class="ic">♥</span><span class="bar"><i class="lag"></i><i class="fill"></i></span><span class="n"></span>';
+    el.innerHTML =
+      '<svg viewBox="0 0 12 16"><path d="M6 0L12 8 6 11 0 8z" fill="#ff9ab8"/><path d="M6 0L12 8 6 11z" fill="#e45d8c"/>' +
+      '<path d="M6 12.2L12 9.2 6 16 0 9.2z" fill="#ffc2d4"/><path d="M6 12.2L12 9.2 6 16z" fill="#ff9ab8"/></svg>' +
+      '<span class="bar"><i class="lag"></i><i class="fill"></i></span><span class="n"></span>';
   const k = Math.max(0, Math.min(10, S.hp)) * 10 + '%';
   el.querySelector('.fill').style.width = k;
   el.querySelector('.lag').style.width = k;
-  el.querySelector('.n').textContent = Math.max(0, S.hp);
+  el.querySelector('.n').innerHTML = `<b>${Math.max(0, S.hp)}</b>/10`;
   el.classList.toggle('low', S.hp <= 3);
+}
+// ---------- the mobs' life bars ----------
+// A blow shows the mob's health over its head for a few seconds: the same bar as yours, in the mobs'
+// ember colors, the fill dropping at once and a pale trail following. Drawn on a small canvas sprite,
+// redrawn only while it changes, and taken away when it fades.
+const MOB_BAR_S = 4;
+function showMobBar(a) {
+  if (!a.g) return;
+  a.barT = MOB_BAR_S;
+  if (a.bar) return;
+  const c = document.createElement('canvas');
+  c.width = 160;
+  c.height = 58;
+  const t = new THREE.CanvasTexture(c),
+    s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
+  s.renderOrder = 11;
+  // over the head: the model's top, in its own (scaled) space
+  const box = new THREE.Box3().setFromObject(a.g),
+    k = a.g.scale.x || 1;
+  s.position.y = (box.max.y - a.g.position.y) / k + 0.35 / k;
+  s.scale.set(1.1 / k, (1.1 * 58) / 160 / k, 1);
+  a.g.add(s);
+  a.bar = { s, c, t, lag: a.hp, wait: 0, drawn: '' };
+}
+function drawMobBar(a) {
+  const B = a.bar,
+    max = MK[a.type].hp || 1,
+    k = clamp(a.hp / max, 0, 1),
+    lag = clamp(B.lag / max, 0, 1),
+    key = k.toFixed(3) + lag.toFixed(3);
+  if (key === B.drawn) return;
+  B.drawn = key;
+  const x = B.c.getContext('2d'),
+    W = B.c.width,
+    H = B.c.height,
+    r = (x0, y0, w, h, rr) => {
+      x.beginPath();
+      x.roundRect ? x.roundRect(x0, y0, w, h, rr) : x.rect(x0, y0, w, h);
+    };
+  x.clearRect(0, 0, W, H);
+  // its name, then the bar in a glass pill
+  x.font = '600 21px ' + UI_FONT;
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.lineWidth = 5;
+  x.strokeStyle = 'rgba(28,22,58,.85)';
+  x.strokeText(MK[a.type].n, W / 2, 13);
+  x.fillStyle = '#f4f1ff';
+  x.fillText(MK[a.type].n, W / 2, 13);
+  const py = 28;
+  x.fillStyle = 'rgba(28,22,58,.82)';
+  r(0, py, W, H - py, 14);
+  x.fill();
+  x.strokeStyle = 'rgba(190,178,255,.35)';
+  x.lineWidth = 2;
+  r(1, py + 1, W - 2, H - py - 2, 13);
+  x.stroke();
+  const ix = 7,
+    iy = py + 7,
+    iw = W - 14,
+    ih = H - py - 14;
+  x.fillStyle = 'rgba(10,6,30,.75)';
+  r(ix, iy, iw, ih, ih / 2);
+  x.fill();
+  if (lag > k) {
+    x.fillStyle = 'rgba(255,240,220,.7)';
+    r(ix, iy, Math.max(ih, iw * lag), ih, ih / 2);
+    x.fill();
+  }
+  if (k > 0) {
+    const g = x.createLinearGradient(0, iy, 0, iy + ih);
+    g.addColorStop(0, '#ffd27a');
+    g.addColorStop(0.5, '#ff8a5c');
+    g.addColorStop(1, '#d8486a');
+    x.fillStyle = g;
+    r(ix, iy, Math.max(ih, iw * k), ih, ih / 2);
+    x.fill();
+    x.fillStyle = 'rgba(255,255,255,.45)';
+    r(ix + 4, iy + 2, Math.max(4, iw * k - 8), 3, 1.5);
+    x.fill();
+  }
+  B.t.needsUpdate = true;
+}
+function dropMobBar(a) {
+  if (!a.bar) return;
+  a.bar.s.parent?.remove(a.bar.s);
+  a.bar.t.dispose();
+  a.bar.s.material.dispose();
+  a.bar = null;
+}
+function updateMobBars(dt) {
+  for (const list of MOBS.values())
+    for (const a of list) {
+      if (!a.bar) continue;
+      const B = a.bar;
+      a.barT -= dt;
+      if (a.barT <= 0 || a.hp <= 0 || a.dying != null) {
+        dropMobBar(a);
+        continue;
+      }
+      if (B.lag < a.hp) B.lag = a.hp;
+      else if (B.lag > a.hp) {
+        if ((B.wait += dt) > 0.35) B.lag = Math.max(a.hp, B.lag - (MK[a.type].hp || 1) * dt * 1.6);
+      } else B.wait = 0;
+      drawMobBar(a);
+      B.s.material.opacity = Math.min(1, a.barT / 0.4);
+    }
 }
 function heldDmg() {
   const id = itemId(S.bar[S.sel]);
@@ -711,6 +822,7 @@ function applyMobDamage(a, dmg, hpLeft, fromX, fromZ, paid, end) {
   if (dmg > 0) {
     Sound.hit('pierre');
     flashModel(a.g, 'hit', 0.12); // a white flash: the blow landed
+    showMobBar(a);
     const K = MK[a.type],
       dx = a.g.position.x - fromX,
       dz = a.g.position.z - fromZ,

@@ -23,7 +23,8 @@ namespace EtherMines.Game
             public Vector3 Pos, Target;  // game coordinates
             public float Yaw, TYaw, SeenAt, Walk, Ph, StunT, WindK, LungeT, DyingT = -1, FlashT, ChargeK;
             public bool Aggro, Frenzy, Wind, WasWind, Down;
-            public bool Round;               // boxes with rounded edges (the villagers, like the web's roundModel)
+            public bool Round;
+            public float BarT, BarLag = -1, BarWait; // the life bar over its head, for a few seconds after a blow               // boxes with rounded edges (the villagers, like the web's roundModel)
             public double Hp;
             public float HitAt;              // you struck it (a moment's grace before the server's word)
             public float ArenaX, ArenaZ, ArenaReach; // the twins and the Front-Runner: hurt for real only from inside
@@ -212,7 +213,7 @@ namespace EtherMines.Game
         // a blow landed on it (yours or another player's, as the server settled it)
         public void Struck(Mob a, float dmg, double hpLeft, bool dead, bool down)
         {
-            if (dmg > 0) a.FlashT = 0.12f;
+            if (dmg > 0) { a.FlashT = 0.12f; a.BarT = 4; }
             a.Hp = hpLeft;
             if (down) { a.Down = true; a.Hp = 0; }
             else if (dead || hpLeft <= 0) Die(a);
@@ -363,7 +364,7 @@ namespace EtherMines.Game
             return t0;
         }
 
-        // a health bar over the ones that took a blow, with their name
+        // a life bar over the ones that just took a blow, with their name
         void OnGUI()
         {
             Ui.Begin();
@@ -373,18 +374,26 @@ namespace EtherMines.Game
             if (barStyle == null) barStyle = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             foreach (var a in All.Values)
             {
-                if (a.DyingT >= 0 || a.Down || a.Hp >= a.Kind.Hp || a.Hp <= 0) continue;
+                // shown for a few seconds after a blow (16-mobs.js showMobBar): yours, or the server's word
+                if (Time.time - a.HitAt < 0.1f) a.BarT = 4;
+                if (Event.current.type == EventType.Repaint) a.BarT -= Time.deltaTime;
+                if (a.BarT <= 0 || a.DyingT >= 0 || a.Down || a.Hp <= 0) { a.BarLag = -1; continue; }
+                float max = (float)a.Kind.Hp, k = Mathf.Clamp01((float)a.Hp / max);
+                if (a.BarLag < 0 || a.BarLag < k) { a.BarLag = k; a.BarWait = 0; }
+                else if (a.BarLag > k && Event.current.type == EventType.Repaint)
+                {
+                    if ((a.BarWait += Time.deltaTime) > 0.35f) a.BarLag = Mathf.Max(k, a.BarLag - Time.deltaTime * 1.6f);
+                }
                 var s = cam.WorldToScreenPoint(View(a.Pos) + Vector3.up * (a.Kind.Hit[1] + 0.35f));
                 s = new Vector3(s.x / Ui.Scale, s.y / Ui.Scale, s.z);
                 if (s.z <= 0 || s.z > 40) continue;
-                float w = 70, x = s.x - w / 2, y = Ui.H - s.y;
+                float w = 84, h = 16, x = s.x - w / 2, y = Ui.H - s.y;
                 var o = GUI.color;
-                GUI.color = new Color(0.11f, 0.086f, 0.23f, 0.75f);
-                GUI.DrawTexture(new Rect(x - 1, y - 1, w + 2, 8), Texture2D.whiteTexture);
-                GUI.color = new Color(1f, 0.42f, 0.5f);
-                GUI.DrawTexture(new Rect(x, y, w * (float)(a.Hp / a.Kind.Hp), 6), Texture2D.whiteTexture);
-                GUI.color = o;
+                GUI.color = new Color(1, 1, 1, Mathf.Clamp01(a.BarT / 0.4f));
+                Ui.Round(new Rect(x, y, w, h), new Color(28 / 255f, 22 / 255f, 58 / 255f, 0.82f), 8, new Color(190 / 255f, 178 / 255f, 1, 0.35f), 1);
+                Ui.LifeBar(new Rect(x + 4, y + 4, w - 8, h - 8), k, a.BarLag, new Color(1f, 0.6f, 0.38f), new Color(0.85f, 0.28f, 0.42f), 0);
                 GUI.Label(new Rect(x - 40, y - 18, w + 80, 16), a.Kind.N, barStyle);
+                GUI.color = o;
             }
         }
     }

@@ -485,6 +485,7 @@ function frame(now) {
     lights(dt);
     updateAnimals(dt);
     updateMobs(dt);
+    updateMobBars(dt);
     updateFinale(dt);
     cineTick(dt);
     if (playing) updateCompass(dt);

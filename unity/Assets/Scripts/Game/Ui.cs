@@ -146,6 +146,46 @@ namespace EtherMines.Game
         }
 
         // the web's .chip (clay look): a rounded dark glass with a thin light edge (border: the edge's color, if other)
+        // a life bar (16-mobs.js: yours, and the mobs' over their heads): a dark inset track, a pale trail
+        // (lag) behind the fill, the fill shaded like clay (a light top line, a darker foot), and notches
+        public static void LifeBar(Rect bar, float k, float lag, Color fill, Color foot, int notches)
+        {
+            float rr = bar.height / 2;
+            Round(bar, new Color(10 / 255f, 6 / 255f, 30 / 255f, 0.65f), rr, new Color(190 / 255f, 178 / 255f, 1, 0.18f), 1);
+            if (lag > k) Round(new Rect(bar.x, bar.y, Mathf.Max(bar.height, bar.width * lag), bar.height), new Color(1, 0.95f, 0.93f, 0.6f), rr);
+            if (k > 0)
+            {
+                float w = Mathf.Max(bar.height, bar.width * k);
+                Round(new Rect(bar.x, bar.y, w, bar.height), foot, rr);
+                Round(new Rect(bar.x, bar.y, w, bar.height * 0.78f), fill, rr);
+                Round(new Rect(bar.x + 4, bar.y + 2, Mathf.Max(3, w - 8), Mathf.Max(2, bar.height * 0.22f)), new Color(1, 1, 1, 0.5f), 1.5f);
+            }
+            if (notches > 1)
+            {
+                var o = GUI.color;
+                GUI.color = new Color(28 / 255f, 22 / 255f, 58 / 255f, 0.55f);
+                for (int i = 1; i < notches; i++)
+                    GUI.DrawTexture(new Rect(bar.x + bar.width * i / notches - 0.5f, bar.y + 1, 1, bar.height - 2), Texture2D.whiteTexture);
+                GUI.color = o;
+            }
+        }
+
+        // the Ether crystal (the life's icon): two rhombi, the upper one bigger, each with a darker right half
+        public static void Crystal(Rect r, Color light, Color dark)
+        {
+            void Rhombus(Rect q, Color c)
+            {
+                var m = GUI.matrix;
+                var ctr = new Vector3(q.center.x, q.center.y, 0);
+                float side = q.width / 1.4142f;
+                GUI.matrix = m * Matrix4x4.TRS(ctr, Quaternion.identity, new Vector3(1, q.height / q.width, 1)) * Matrix4x4.TRS(Vector3.zero, Quaternion.Euler(0, 0, 45), Vector3.one) * Matrix4x4.TRS(-new Vector3(side / 2, side / 2, 0), Quaternion.identity, Vector3.one);
+                Round(new Rect(0, 0, side, side), c, 1.5f);
+                GUI.matrix = m;
+            }
+            Rhombus(new Rect(r.x, r.y, r.width, r.height * 0.68f), light);
+            Rhombus(new Rect(r.x + r.width * 0.2f, r.y + r.height * 0.6f, r.width * 0.6f, r.height * 0.4f), dark);
+        }
+
         public static void Chip(Rect r, Color? border = null) => Round(r, Glass, 14, border ?? Line, 1);
 
         public static void Fill(Rect r, Color c) { var o = GUI.color; GUI.color = c; GUI.DrawTexture(r, Texture2D.whiteTexture); GUI.color = o; }

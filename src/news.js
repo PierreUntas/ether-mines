@@ -12,6 +12,7 @@
         'Grass wraps over the rounded edges, and inside corners curve smoothly too.',
         'Players and villagers have softer, rounded shapes.',
         'Your health shows as a life bar instead of a row of hearts: a pale trail shows what a blow just took.',
+        'A creature you strike shows its own life bar over its head for a few seconds.',
       ],
     },
     {
