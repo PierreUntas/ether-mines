@@ -6,6 +6,17 @@
   root.NEWS = [
     {
       date: '2026-10-24',
+      title: 'Creatures of the land',
+      items: [
+        'The dunes, forests, plains and snowy peaks have their own creatures now.',
+        'Gas Scorpion, in the dunes at night: it stings from afar with a bolt of gas.',
+        'Phishing Spider, in the forests at night: beware its gold coin, it pounces.',
+        'Pump Slime, on the plains at night: it hops toward you.',
+        'Cold Wallet Yeti, on the snowy peaks, day and night: slow and tough, its blows throw you far.',
+      ],
+    },
+    {
+      date: '2026-10-24',
       title: 'Softer land',
       items: [
         'The edges of steps, cliffs and tree crowns look rounded, like modelling clay: the land reads as one soft mass.',

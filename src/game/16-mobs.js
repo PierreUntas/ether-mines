@@ -419,6 +419,106 @@ function buildMob(a) {
     const hd = (parts.head = pivot(g, 0, 0.84, 0.2));
     abox(hd, 0.08, 0.08, 0.04, dark, -0.14, 0.02, 0.11, true);
     abox(hd, 0.08, 0.08, 0.04, dark, 0.14, 0.02, 0.11, true);
+  } else if (a.type === 'gas_scorpion') {
+    // the dunes' Gas Scorpion: a sand-gold shell, two pincers, six legs and a tail curled over its back whose
+    // tip glows with gas — it draws back (parts.sting, animateMob) as it charges a sting it spits from afar
+    const shell = '#c08a3e',
+      dark = '#5e3c1c',
+      gas = '#9dff6a';
+    abox(g, 0.5, 0.2, 0.62, shell, 0, 0.28, 0);
+    abox(g, 0.42, 0.06, 0.5, dark, 0, 0.41, -0.02);
+    const hd = (parts.head = pivot(g, 0, 0.28, 0.34));
+    abox(hd, 0.3, 0.16, 0.16, shell, 0, 0, 0.06);
+    abox(hd, 0.05, 0.05, 0.02, gas, -0.08, 0.04, 0.15, true);
+    abox(hd, 0.05, 0.05, 0.02, gas, 0.08, 0.04, 0.15, true);
+    for (const side of [-1, 1]) {
+      const arm = pivot(g, side * 0.22, 0.28, 0.3);
+      abox(arm, 0.08, 0.08, 0.3, dark, 0, 0, 0.15);
+      abox(arm, 0.16, 0.1, 0.14, shell, side * 0.03, 0, 0.34);
+    }
+    for (const z of [0.18, 0, -0.18])
+      for (const side of [-1, 1]) {
+        const l = pivot(g, side * 0.26, 0.26, z);
+        abox(l, 0.06, 0.26, 0.06, dark, side * 0.05, -0.13, 0);
+        parts.legs.push(l);
+      }
+    const st = (parts.sting = pivot(g, 0, 0.36, -0.3));
+    abox(st, 0.14, 0.14, 0.14, shell, 0, 0.05, -0.1);
+    abox(st, 0.12, 0.14, 0.12, shell, 0, 0.2, -0.18);
+    abox(st, 0.11, 0.13, 0.11, shell, 0, 0.36, -0.16);
+    abox(st, 0.1, 0.12, 0.1, dark, 0, 0.48, -0.06);
+    abox(st, 0.08, 0.08, 0.14, gas, 0, 0.5, 0.06, true);
+  } else if (a.type === 'phish_spider') {
+    // the forests' Phishing Spider: dark and long-legged, a fake gold coin on its back for bait (a too-good
+    // airdrop), four red eyes; it lies low, then pounces (MK rush)
+    const body = '#2b2240',
+      leg = '#1a1428',
+      coin = '#ffd166',
+      eye = '#ff4d6d';
+    abox(g, 0.5, 0.36, 0.52, body, 0, 0.44, -0.2);
+    abox(g, 0.32, 0.24, 0.3, body, 0, 0.4, 0.18);
+    abox(g, 0.24, 0.05, 0.24, coin, 0, 0.64, -0.2, true);
+    abox(g, 0.1, 0.06, 0.03, leg, 0, 0.67, -0.2, true);
+    const hd = (parts.head = pivot(g, 0, 0.4, 0.34));
+    abox(hd, 0.24, 0.18, 0.12, body, 0, 0, 0.02);
+    for (const [x, y] of [
+      [-0.06, 0.04],
+      [0.06, 0.04],
+      [-0.09, -0.03],
+      [0.09, -0.03],
+    ])
+      abox(hd, 0.04, 0.04, 0.02, eye, x, y, 0.09, true);
+    for (const z of [0.24, 0.1, -0.04, -0.18])
+      for (const side of [-1, 1]) {
+        const l = pivot(g, side * 0.16, 0.42, z);
+        abox(l, 0.32, 0.05, 0.05, leg, side * 0.16, 0.05, 0);
+        abox(l, 0.05, 0.42, 0.05, leg, side * 0.32, -0.16, 0);
+        parts.legs.push(l);
+      }
+  } else if (a.type === 'pump_slime') {
+    // the plains' Pump Slime: a jelly cube with a green candle inside (the pump), it hops along (parts.hop,
+    // animateMob): squashed on the ground, stretched in the air
+    const gel = '#7cf2a8',
+      candle = '#21b85c',
+      ink = '#1c1630';
+    const hop = (parts.hop = pivot(g, 0, 0, 0));
+    abox(hop, 0.8, 0.7, 0.8, gel, 0, 0.35, 0, true, 0.55);
+    abox(hop, 0.14, 0.3, 0.14, candle, 0, 0.32, 0, true);
+    abox(hop, 0.03, 0.42, 0.03, candle, 0, 0.36, 0, true);
+    const hd = (parts.head = pivot(hop, 0, 0.45, 0.4));
+    abox(hd, 0.1, 0.12, 0.03, ink, -0.17, 0.02, 0.01);
+    abox(hd, 0.1, 0.12, 0.03, ink, 0.17, 0.02, 0.01);
+    abox(hd, 0.18, 0.04, 0.03, ink, 0, -0.12, 0.01);
+  } else if (a.type === 'yeti') {
+    // the peaks' Cold Wallet Yeti: a big white-furred brute, an ice-blue face, a vault of ice on its chest with
+    // a gold keyhole (the coins it keeps offline); slow, tough, its blows throw you far (MK kb)
+    const fur = '#eef3ff',
+      shade = '#c6d3ef',
+      face = '#7fb6ff',
+      ice = '#9fe8ff',
+      gold = '#ffd166',
+      ink = '#1c1630';
+    for (const x of [-0.24, 0.24]) {
+      const l = pivot(g, x, 0.7, 0);
+      abox(l, 0.32, 0.7, 0.36, shade, 0, -0.35, 0);
+      parts.legs.push(l);
+    }
+    abox(g, 0.9, 1.0, 0.6, fur, 0, 1.2, 0);
+    abox(g, 0.5, 0.5, 0.06, ice, 0, 1.15, 0.31, true, 0.85);
+    abox(g, 0.08, 0.14, 0.03, gold, 0, 1.15, 0.35, true);
+    const hd = (parts.head = pivot(g, 0, 1.85, 0.05));
+    abox(hd, 0.56, 0.46, 0.5, fur, 0, 0.1, 0);
+    abox(hd, 0.38, 0.26, 0.06, face, 0, 0.04, 0.26);
+    abox(hd, 0.07, 0.07, 0.03, ink, -0.09, 0.08, 0.3, true);
+    abox(hd, 0.07, 0.07, 0.03, ink, 0.09, 0.08, 0.3, true);
+    abox(hd, 0.16, 0.04, 0.03, ink, 0, -0.04, 0.3, true);
+    // the arms swing opposite their legs (the generic walk alternates them in this order)
+    for (const x of [0.6, -0.6]) {
+      const arm = pivot(g, x, 1.62, 0);
+      abox(arm, 0.3, 0.95, 0.3, fur, 0, -0.45, 0);
+      abox(arm, 0.34, 0.26, 0.34, shade, 0, -1.0, 0.02);
+      parts.legs.push(arm);
+    }
   }
   if (a.type === 'titan') g.scale.setScalar(1.7);
   else if (a.type === 'front_runner') g.scale.setScalar(1.6);
@@ -1201,7 +1301,15 @@ function lootMob(type) {
                             ? (r < 0.3 && 103) || (r < 0.55 && 104)
                             : type === 'mev_bot'
                               ? r < 0.5 && 101
-                              : false;
+                              : type === 'gas_scorpion'
+                                ? (r < 0.35 && 101) || (r < 0.5 && 103)
+                                : type === 'phish_spider'
+                                  ? r < 0.45 && 101
+                                  : type === 'pump_slime'
+                                    ? r < 0.55 && 101
+                                    : type === 'yeti'
+                                      ? (r < 0.3 && 103) || (r < 0.55 && 104)
+                                      : false;
   if (it) give(it, 1, `dropped by a ${MK[type].n.toLowerCase()}`);
 }
 // PvP: like attackMob, but the target's hp lives only in the target's own client (same as another
@@ -1478,10 +1586,22 @@ function animateMob(a, dt, moving, aggro) {
     a.parts.ring.rotation.y += dt * 2.2; // the staked cubes orbit the crystal
   else if (a.parts.rings)
     a.parts.rings.forEach((r, i2) => (r.rotation.y += dt * (1.2 + i2 * 0.7))); // the Plasma Core's cage spins
-  else p.y += Math.sin(a.walk) * 0.01; // the shadow floats, no legs
+  else if (a.parts.hop) {
+    // the slime hops: up and stretched in the air, squashed as it lands
+    const h = Math.abs(Math.sin(a.walk * 0.6)),
+      q = 1 - h;
+    a.parts.hop.position.y = h * (moving ? 0.4 : 0.08);
+    a.parts.hop.scale.set(1 + q * 0.14, 1 - q * 0.16, 1 + q * 0.14);
+  } else p.y += Math.sin(a.walk) * 0.01; // the shadow floats, no legs
   if (a.parts.drill) a.parts.drill.rotation.y += dt * (aggro ? 14 : 3); // the rig's drill never stops
   if (a.parts.crown) a.parts.crown.rotation.y += dt * (a.frenzy ? 5 : 2); // the priority-fee coins
   if (a.parts.lens) a.parts.lens.scale.setScalar(a.chargeT > 0 ? 1 + (1 - a.chargeT / MK[a.type].ranged.charge) * 1.8 : 1); // a turret's charge
+  if (a.parts.sting) {
+    // the scorpion's tail sways, and draws back as it charges a sting
+    const R = MK[a.type].ranged,
+      c = a.chargeT > 0 && R ? 1 - a.chargeT / R.charge : 0;
+    a.parts.sting.rotation.x = 0.12 + Math.sin((Date.now() / 1000) * 3 + a.ph) * 0.12 - c * 0.6;
+  }
   if (a.parts.scan) a.parts.scan.position.x = Math.sin((Date.now() / 1000) * (aggro ? 7 : 2.5) + a.ph) * 0.22; // the visor sweeps
 }
 let mobT = 0;

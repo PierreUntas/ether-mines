@@ -720,6 +720,10 @@ namespace EtherMines.Game
                 "crawler" => r < 0.3 ? 101 : r < 0.45 ? 103 : 0,
                 "golem" => r < 0.3 ? 103 : r < 0.55 ? 104 : 0,
                 "mev_bot" => r < 0.5 ? 101 : 0,
+                "gas_scorpion" => r < 0.35 ? 101 : r < 0.5 ? 103 : 0,
+                "phish_spider" => r < 0.45 ? 101 : 0,
+                "pump_slime" => r < 0.55 ? 101 : 0,
+                "yeti" => r < 0.3 ? 103 : r < 0.55 ? 104 : 0,
                 _ => 0,
             };
             if (it == 0) return new Dictionary<string, object> { ["ok"] = true, ["inv"] = inv };

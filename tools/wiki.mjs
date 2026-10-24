@@ -30,8 +30,7 @@ vm.runInContext(cut('const CHAPTERS = [', '// the epilogue') + '; this.CHAPTERS 
 const { QUESTS, CHAPTERS } = ctx;
 const QBY = Object.fromEntries(QUESTS.map(q => [q.id, q]));
 
-const esc = s =>
-  String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const nameOf = id => (B[id] && B[id].n) || (ITEM[id] && ITEM[id].n) || '#' + id;
 const fmt = n => Number(n).toLocaleString('en-US');
 
@@ -51,14 +50,15 @@ const byCat = {};
 for (const r of Object.values(RECIPES)) (byCat[r.cat] ||= []).push(r);
 const crafting = Object.entries(byCat)
   .map(
-    ([cat, rs]) => `<h3>${esc(cat)}</h3><table><tr><th>Makes</th><th>From</th><th></th></tr>${rs
-      .map(
-        r =>
-          `<tr><td><b>${esc(nameOf(r.out))}</b>${r.n > 1 ? ' ×' + r.n : ''}</td><td>${Object.entries(r.need)
-            .map(([id, n]) => `${n} ${esc(nameOf(+id))}`)
-            .join(', ')}</td><td class="muted">${esc(r.d || '')}</td></tr>`,
-      )
-      .join('')}</table>`,
+    ([cat, rs]) =>
+      `<h3>${esc(cat)}</h3><table><tr><th>Makes</th><th>From</th><th></th></tr>${rs
+        .map(
+          r =>
+            `<tr><td><b>${esc(nameOf(r.out))}</b>${r.n > 1 ? ' ×' + r.n : ''}</td><td>${Object.entries(r.need)
+              .map(([id, n]) => `${n} ${esc(nameOf(+id))}`)
+              .join(', ')}</td><td class="muted">${esc(r.d || '')}</td></tr>`,
+        )
+        .join('')}</table>`,
   )
   .join('\n');
 
@@ -99,6 +99,10 @@ const WHERE = {
   pos_twin: 'the Merge Sanctum: a boss, with its twin',
   front_runner: 'the Mempool arena: a boss for two or three players',
   mev_bot: 'the Front-Runner calls them in',
+  gas_scorpion: 'the dunes, after dark: it stings from afar',
+  phish_spider: 'the forests, after dark: it pounces',
+  pump_slime: 'the plains, after dark',
+  yeti: 'the snowy peaks, day and night: its blows throw you far',
 };
 const mobs = Object.entries(MK)
   .map(
@@ -114,7 +118,19 @@ const crafts = Object.values(ITEM)
   .join(', ');
 const cosm = Object.values(COSMETICS).filter(c => !c.retired);
 const prices = cosm.map(c => c.price).filter(p => p > 0);
-const CAT = { character: 'outfits', head: 'hats and helmets', back: 'capes, wings and packs', companion: 'companions', effect: 'trails', tool: 'tool trims', block: 'block packs', title: 'titles', combat: 'combat trophies', event: 'event trophies', validator: 'validator skins' };
+const CAT = {
+  character: 'outfits',
+  head: 'hats and helmets',
+  back: 'capes, wings and packs',
+  companion: 'companions',
+  effect: 'trails',
+  tool: 'tool trims',
+  block: 'block packs',
+  title: 'titles',
+  combat: 'combat trophies',
+  event: 'event trophies',
+  validator: 'validator skins',
+};
 const cats = {};
 for (const c of cosm) cats[c.category] = (cats[c.category] || 0) + 1;
 const cosmList = Object.entries(cats)
@@ -122,7 +138,8 @@ const cosmList = Object.entries(cats)
   .join(', ');
 
 const news = globalThis.NEWS.map(
-  n => `<div class="card"><h3>${esc(n.title)} <span class="tag">${esc(n.date)}</span></h3><ul>${n.items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`,
+  n =>
+    `<div class="card"><h3>${esc(n.title)} <span class="tag">${esc(n.date)}</span></h3><ul>${n.items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`,
 ).join('\n');
 
 const html = `<!doctype html>

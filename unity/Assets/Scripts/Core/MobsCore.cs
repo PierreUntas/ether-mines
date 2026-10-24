@@ -158,6 +158,14 @@ namespace EtherMines.Core
                     new MobRanged { Dmg = 3, Speed = 12, Charge = 0.55, Burst = 3, Gap = 0.2, Every = 3.2, Min = 7, Color = 0x7fe8ff, Size = 2.4 },
                     new MobBlink { Every = 8, Fast = 5, Min = 4 }),
                 K("mev_bot", "Sandwich Bot", 16, 2.5, 3.9, 30, 1.2, 0.8, 4, 0.8, 1.2, 0.8),
+                // the surface's own mobs, one per biome (spawnChunk): the dunes' scorpion stings from afar with gas,
+                // the forests' spider pounces, the plains' slime hops, the peaks' yeti throws you far (and stays out by day)
+                K("gas_scorpion", "Gas Scorpion", 13, 2.4, 2.9, 13, 1.2, 0.9, 3, 0.8, 0.5, 1.1, null,
+                    new MobRanged { Dmg = 1.6, Speed = 9, Charge = 0.6, Burst = 1, Every = 3, Min = 3.5, Color = 0x9dff6a, Size = 1.4 }),
+                K("phish_spider", "Phishing Spider", 12, 2.6, 2.8, 12, 1.2, 0.8, 3, 1.0, 0.5, 1.0,
+                    new MobRush { Speed = 7.5, Time = 0.5, Every = 4, Min = 3 }),
+                K("pump_slime", "Pump Slime", 14, 2.4, 2.4, 11, 1.2, 1.0, 4, 0.8, 0.75, 0.8),
+                K("yeti", "Cold Wallet Yeti", 30, 4.5, 2.0, 12, 1.6, 1.4, 7, 1.0, 2.1, 0.8),
             };
             var d = new Dictionary<string, MobKind>();
             foreach (var k in l) d[k.Type] = k;
@@ -171,7 +179,7 @@ namespace EtherMines.Core
         // daytime rest: only the validators' guards, the network attack's nodes, the towers and the bosses stay on watch by day
         public static readonly HashSet<string> DAY_WATCH = new HashSet<string>
         {
-            "guardian", "crawler", "warden", "turret", "corrupted_node", "titan", "plasma_core", "pow_twin", "pos_twin", "front_runner", "mev_bot",
+            "guardian", "crawler", "warden", "turret", "corrupted_node", "titan", "plasma_core", "pow_twin", "pos_twin", "front_runner", "mev_bot", "yeti",
         };
         // mobs the Ward Incense never fools
         public static readonly HashSet<string> WARD_IMMUNE = new HashSet<string>
@@ -488,6 +496,31 @@ namespace EtherMines.Core
                             list.Add(m);
                         }
                     }
+                }
+            }
+            // the surface's own mob, one roll per chunk, by what the ground is: a gas scorpion on the dunes' sand, a
+            // phishing spider on the forests' grass, a pump slime on the plains' grass, a cold wallet yeti on the
+            // snow of the peaks (a few more columns tried for a peak's small patch of snow, a likelier roll)
+            {
+                bool found = false;
+                int px = 0, pz = 0, py = 0, pt = 0;
+                for (int i = 0; i < 6; i++)
+                {
+                    int hx = x0 + 2 + Fl(World.Hash(cx + i * 7, cz, 321 + i * 2) * 12), hz = z0 + 2 + Fl(World.Hash(cx, cz + i * 11, 322 + i * 2) * 12);
+                    int h = World.HeightAt(hx, hz);
+                    if (h <= World.SEA + 1 || World.IslandTop(hx, hz) > 0 || MobSafe(hx, hz)) continue;
+                    var gr = GroundAt(W, hx + 0.5, hz + 0.5, h, true, 2);
+                    if (gr == null || gr.Value.Water) continue;
+                    int top = W.Get(hx, gr.Value.Y - 1, hz);
+                    if (top == 16 || i == 0) { found = true; px = hx; pz = hz; py = gr.Value.Y; pt = top; }
+                    if (top == 16) break;
+                }
+                if (found)
+                {
+                    string bi = World.Biome(px, pz);
+                    string type = pt == 16 ? "yeti" : pt == 4 && bi == "dunes" ? "gas_scorpion" : pt == 1 && bi == "forest" ? "phish_spider" : pt == 1 && bi == "plain" ? "pump_slime" : null;
+                    if (type != null && World.Hash(cx * 13 + 5, cz * 17 - 3, 320) < (type == "yeti" ? 0.7 : 0.3))
+                        list.Add(NewMob(type, k, 200, px + 0.5, py, pz + 0.5));
                 }
             }
             return list;

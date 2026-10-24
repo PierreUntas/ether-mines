@@ -313,7 +313,7 @@ namespace EtherMines.Game
             t.localRotation = Mirror(e);
         }
 
-        // animateMob: legs, wings, a tail, the rings and the drill, the crown, a turret's lens, a visor's sweep
+        // animateMob: legs, wings, a tail, the rings and the drill, the crown, a turret's lens, a visor's sweep, a slime's hop, a scorpion's sting
         void Animate(Mob a, float dt, bool moving, float now)
         {
             a.Walk += dt * (moving ? 8 : 1.5f);
@@ -325,10 +325,19 @@ namespace EtherMines.Game
             else if (a.Parts.ContainsKey("ring")) Turn(a, "ring", 1, dt * 2.2f, true);
             else if (a.Parts.ContainsKey("rings:0"))
                 for (int i = 0; a.Parts.ContainsKey("rings:" + i); i++) Turn(a, "rings:" + i, 1, dt * (1.2f + i * 0.7f), true);
+            else if (a.Parts.TryGetValue("hop", out var hop))
+            {
+                // the slime hops: up and stretched in the air, squashed as it lands
+                float h = Mathf.Abs(Mathf.Sin(a.Walk * 0.6f)), q = 1 - h;
+                hop.localPosition = new Vector3(0, h * (moving ? 0.4f : 0.08f), 0);
+                hop.localScale = new Vector3(1 + q * 0.14f, 1 - q * 0.16f, 1 + q * 0.14f);
+            }
             else a.Pos.y += Mathf.Sin(a.Walk) * 0.01f; // the shadow floats
             Turn(a, "drill", 1, dt * (a.Aggro ? 14 : 3), true);
             Turn(a, "crown", 1, dt * (a.Frenzy ? 5 : 2), true);
             if (a.Parts.TryGetValue("lens", out var lens)) lens.localScale = Vector3.one * (a.ChargeK > 0 ? 1 + a.ChargeK * 1.8f : 1);
+            // the scorpion's tail sways, and draws back as it charges a sting
+            if (a.Parts.ContainsKey("sting")) Turn(a, "sting", 0, 0.12f + Mathf.Sin(now * 3 + a.Ph) * 0.12f - a.ChargeK * 0.6f);
             if (a.Parts.TryGetValue("scan", out var scan)) { var p = scan.localPosition; p.x = Mathf.Sin(now * (a.Aggro ? 7 : 2.5f) + a.Ph) * 0.22f; scan.localPosition = p; }
         }
 

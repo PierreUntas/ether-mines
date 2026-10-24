@@ -8,7 +8,7 @@
 (function (root) {
   'use strict';
   const { CH, SY, DEEP, SPAWN, CITY, RUIN, TOWER, TOWER_LADDER, MERGE, MERGE_R, ARENA, ARENA_R, ARENA_W } = root.World,
-    { hash, ckey, cOf, onPath, ruinAt, gardenAt, towerAt, mergeAt, arenaAt, islandTop, heightAt, SEA } = root.World,
+    { hash, ckey, cOf, onPath, ruinAt, gardenAt, towerAt, mergeAt, arenaAt, islandTop, heightAt, biome, SEA } = root.World,
     clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   // the mobs that fly or swim: they don't walk on the ground, so walls don't stop them
   const FLYERS = new Set(['sky_raider', 'water_lurker', 'bat', 'pos_twin', 'plasma_core']);
@@ -126,6 +126,36 @@
     },
     // the Front-Runner's minions: quick, light, they hem you in from both sides (the sandwich)
     mev_bot: { n: 'Sandwich Bot', hp: 16, dmg: 2.5, sp: 3.9, aggro: 30, atk: 1.2, cd: 0.8, kb: 4, hit: [0.8, 1.2, 0.8] },
+    // the surface's own mobs, one per biome (spawnChunk): until them only the Night Prowler roamed the
+    // open land. The scorpion of the dunes stings from afar with a bolt of gas (the fee that stings); the
+    // phishing spider of the forests lies low, then pounces (rush); the pump slime hops over the plains; the cold
+    // wallet yeti of the snowy peaks is slow, tough, and throws you far (kb), and stays out by day too
+    gas_scorpion: {
+      n: 'Gas Scorpion',
+      hp: 13,
+      dmg: 2.4,
+      sp: 2.9,
+      aggro: 13,
+      atk: 1.2,
+      cd: 0.9,
+      kb: 3,
+      hit: [0.8, 0.5, 1.1],
+      ranged: { dmg: 1.6, speed: 9, charge: 0.6, burst: 1, every: 3, min: 3.5, color: 0x9dff6a, size: 1.4 },
+    },
+    phish_spider: {
+      n: 'Phishing Spider',
+      hp: 12,
+      dmg: 2.6,
+      sp: 2.8,
+      aggro: 12,
+      atk: 1.2,
+      cd: 0.8,
+      kb: 3,
+      hit: [1.0, 0.5, 1.0],
+      rush: { speed: 7.5, time: 0.5, every: 4, min: 3 },
+    },
+    pump_slime: { n: 'Pump Slime', hp: 14, dmg: 2.4, sp: 2.4, aggro: 11, atk: 1.2, cd: 1.0, kb: 4, hit: [0.8, 0.75, 0.8] },
+    yeti: { n: 'Cold Wallet Yeti', hp: 30, dmg: 4.5, sp: 2.0, aggro: 12, atk: 1.6, cd: 1.4, kb: 7, hit: [1.0, 2.1, 0.8] },
   };
 
   const TWIN_DOWN = 12; // s: a Merge twin struck down only sleeps this long, unless its twin falls too
@@ -148,6 +178,7 @@
     'pos_twin',
     'front_runner',
     'mev_bot',
+    'yeti',
   ]);
   // mobs the Ward Incense never fools: guardians of ruins and gardens, tower wardens and turrets, bosses,
   // the network attack's nodes
@@ -517,6 +548,42 @@
             list.push(m);
           }
         }
+      }
+    }
+    // the surface's own mob, one roll per chunk, by what the ground is: a gas scorpion on the dunes' sand, a
+    // phishing spider on the forests' grass, a pump slime on the plains' grass, a cold wallet yeti on the snow of
+    // the peaks. A peak's snow is a small patch: a few more columns are tried for it, and its roll is likelier.
+    // Not on the safe paths, the water or the islands
+    {
+      let pick = null;
+      for (let i = 0; i < 6; i++) {
+        const hx = x0 + 2 + Math.floor(hash(cx + i * 7, cz, 321 + i * 2) * 12),
+          hz = z0 + 2 + Math.floor(hash(cx, cz + i * 11, 322 + i * 2) * 12),
+          h = heightAt(hx, hz),
+          gr = h > SEA + 1 && !(islandTop(hx, hz) > 0) && !mobSafe(hx, hz) ? groundAt(W, hx + 0.5, hz + 0.5, h, true, 2) : null;
+        if (!gr || gr.water) continue;
+        const c = { hx, hz, y: gr.y, top: W.get(hx, gr.y - 1, hz) };
+        if (c.top === 16) {
+          pick = c;
+          break;
+        }
+        if (i === 0) pick = c;
+      }
+      if (pick) {
+        const bi = biome(pick.hx, pick.hz),
+          t = pick.top,
+          type =
+            t === 16
+              ? 'yeti'
+              : t === 4 && bi === 'dunes'
+                ? 'gas_scorpion'
+                : t === 1 && bi === 'forest'
+                  ? 'phish_spider'
+                  : t === 1 && bi === 'plain'
+                    ? 'pump_slime'
+                    : null;
+        if (type && hash(cx * 13 + 5, cz * 17 - 3, 320) < (type === 'yeti' ? 0.7 : 0.3))
+          list.push(mob(type, k, 200, pick.hx + 0.5, pick.y, pick.hz + 0.5, null));
       }
     }
     return list;
