@@ -48,7 +48,7 @@ select pg_temp.ok('SQL terrain decode = JS generator (' || count(*) || ' cells)'
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
 select pg_temp.ok('mine grass by hand', (act_mine('w', 20, :gy, 3, null, 20.5, :gy + 1, 6.5) ->> 'ok')::boolean);
-select pg_temp.ok('grass drops dirt', (select n from inventory where item = 2) = 1);
+select pg_temp.ok('grass drops grass, to be placed again', (select n from inventory where item = 1) = 1);
 select pg_temp.ok('granite refused by hand', act_mine('w', 20, :s1, 3, null, 20.5, :s1 + 1, 4.5) ->> 'err' = 'tool too weak');
 reset role;
 update players set pos_at = now() - interval '1 hour';
@@ -290,7 +290,7 @@ select pg_temp.ok('B can''t upgrade A''s validator', act_upgrade_validator('w', 
 -- ---------- recovering a game by code ----------
 select pg_temp.ok('unknown code refused', claim_recovery('0000-0000-0000-0000') = -1);
 select pg_temp.ok('B recovers A''s game', claim_recovery(:'code') = 1);
-select pg_temp.ok('the inventory moved over, without duplicates', (select n from inventory where item = 101) = 5 and (select count(*) from inventory where item = 2) = 1);
+select pg_temp.ok('the inventory moved over, without duplicates', (select n from inventory where item = 101) = 5 and (select count(*) from inventory where item = 1) = 1);
 select pg_temp.ok('the unique items followed', (select count(*) from uniques) = 2);
 reset role;
 select pg_temp.ok('A has nothing left', (select count(*) from inventory where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 0);

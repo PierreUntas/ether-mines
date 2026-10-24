@@ -13,6 +13,7 @@
         'Phishing Spider, in the forests at night: beware its gold coin, it pounces.',
         'Pump Slime, on the plains at night: it hops toward you.',
         'Cold Wallet Yeti, on the snowy peaks, day and night: slow and tough, its blows throw you far.',
+        'Leaves, pink leaves, palm fronds and grass blocks are picked up when you break them, to build with.',
       ],
     },
     {

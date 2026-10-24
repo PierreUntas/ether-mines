@@ -4591,13 +4591,13 @@ begin;
 delete from public.rule_blocks; delete from public.rule_place; delete from public.rule_items; delete from public.rule_recipes;
 delete from public.rule_cosmetics;
 insert into public.rule_blocks (id, name, hard, tier, drop_item, kind, solid, top) values
-(1,'Grass',0.6,0,2,'cube',true,false),
+(1,'Grass',0.6,0,1,'cube',true,false),
 (2,'Dirt',0.6,0,2,'cube',true,false),
 (3,'Granite',2,1,3,'cube',true,false),
 (4,'Sand',0.5,0,4,'cube',true,false),
 (5,'Wood',1.4,0,5,'cube',true,false),
-(6,'Leaves',0.25,0,null,'cube',true,false),
-(7,'Pink Leaves',0.25,0,null,'cube',true,false),
+(6,'Leaves',0.25,0,6,'cube',true,false),
+(7,'Pink Leaves',0.25,0,7,'cube',true,false),
 (8,'Ether Ore',2.6,1,101,'cube',true,false),
 (9,'Planks',1.1,0,9,'cube',true,false),
 (10,'Glass',0.5,0,10,'cube',true,false),
@@ -4703,7 +4703,7 @@ insert into public.rule_blocks (id, name, hard, tier, drop_item, kind, solid, to
 (122,'NOT Gate',0.8,0,120,'cube',true,false),
 (123,'NOT Gate',0.8,0,120,'cube',true,false),
 (124,'Palm Trunk',1,0,5,'cube',true,false),
-(125,'Palm Fronds',0.25,0,null,'cube',true,false),
+(125,'Palm Fronds',0.25,0,125,'cube',true,false),
 (126,'Amethyst Cluster',0.3,0,126,'cross',false,false),
 (127,'Marble Column',2.2,1,127,'cube',true,false),
 (128,'Cyan Neon',1.2,1,128,'cube',true,false),
@@ -4743,10 +4743,13 @@ insert into public.rule_blocks (id, name, hard, tier, drop_item, kind, solid, to
 (162,'Sign',0.5,0,160,'furn',true,false),
 (163,'Sign',0.5,0,160,'furn',true,false);
 insert into public.rule_place (item, block) values
+(1,1),
 (2,2),
 (3,3),
 (4,4),
 (5,5),
+(6,6),
+(7,7),
 (9,9),
 (10,10),
 (13,13),
@@ -4830,6 +4833,7 @@ insert into public.rule_place (item, block) values
 (120,121),
 (120,122),
 (120,123),
+(125,125),
 (126,126),
 (127,127),
 (128,128),

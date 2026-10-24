@@ -21,13 +21,13 @@
   ];
   // ---------- blocks and items (every item is a token) ----------
   const B = {
-    1: { n: 'Grass', t: [0, 1, 2], h: 0.6, drop: 2 },
+    1: { n: 'Grass', t: [0, 1, 2], h: 0.6 }, // picked up as grass, to be placed again (it used to drop dirt)
     2: { n: 'Dirt', t: [2, 2, 2], h: 0.6 },
     3: { n: 'Granite', t: [3, 3, 3], h: 2, stone: 1 },
     4: { n: 'Sand', t: [4, 4, 4], h: 0.5 },
     5: { n: 'Wood', t: [6, 5, 6], h: 1.4 },
-    6: { n: 'Leaves', t: [7, 7, 7], h: 0.25, leaf: 1, drop: 0 },
-    7: { n: 'Pink Leaves', t: [8, 8, 8], h: 0.25, leaf: 1, drop: 0 },
+    6: { n: 'Leaves', t: [7, 7, 7], h: 0.25, leaf: 1 }, // leaves are picked up and placed again (they used to vanish)
+    7: { n: 'Pink Leaves', t: [8, 8, 8], h: 0.25, leaf: 1 },
     8: { n: 'Ether Ore', t: [9, 9, 9], h: 2.6, stone: 1, drop: 101 },
     9: { n: 'Planks', t: [10, 10, 10], h: 1.1 },
     10: { n: 'Glass', t: [11, 11, 11], h: 0.5, glass: 1 },
@@ -344,7 +344,7 @@
 
   // v7: inspired by ethereum.org illustrations. Ids 124 and up (101-105 and 201-203 are items).
   B[124] = { n: 'Palm Trunk', t: [108, 109, 108], h: 1, drop: 5 }; // drops ordinary wood
-  B[125] = { n: 'Palm Fronds', t: [110, 110, 110], h: 0.25, leaf: 1, drop: 0 };
+  B[125] = { n: 'Palm Fronds', t: [110, 110, 110], h: 0.25, leaf: 1 };
   B[126] = { n: 'Amethyst Cluster', x: 111, h: 0.3 }; // deep caves, glowing
   B[127] = { n: 'Marble Column', t: [112, 113, 112], h: 2.2, stone: 1 };
   B[128] = { n: 'Cyan Neon', t: [114, 114, 114], h: 1.2, stone: 1 };
