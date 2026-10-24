@@ -206,8 +206,10 @@
     const arr = new Uint8Array(CH * CH * SY);
     for (let y = 0; y < SY; y++)
       for (let z = 0; z < CH; z++) for (let x = 0; x < CH; x++) arr[li(x, y, z)] = get(cx * CH + x, y, cz * CH + z);
-    const A = { op: [[], [], [], [], []], gl: [[], [], [], [], []], wa: [[], [], [], []], pl: [[], [], [], []] }; // pos,nor,uv,col,idx
-    const pushQ = (G, pts, nor, uvs, cols, flipTri) => {
+    const A = { op: [[], [], [], [], [], []], gl: [[], [], [], [], [], []], wa: [[], [], [], []], pl: [[], [], [], []] }; // pos,nor,uv,col,idx,edge
+    // edge (shaded groups): which of the face's four sides are an outer edge of the land (bits: the face's
+    // u = 0, u = 1, v = 0, v = 1 sides), for the clay look's rounded edges; 0 for anything but a full block
+    const pushQ = (G, pts, nor, uvs, cols, flipTri, edge = 0) => {
       const base = G[0].length / 3,
         sh = faceShade(nor);
       for (let k = 0; k < 4; k++) {
@@ -217,6 +219,7 @@
         if (cols) {
           const c = cols[k] * sh;
           G[3].push(c, c, c);
+          G[5].push(edge);
         }
       }
       const ix = cols ? G[4] : G[3];
@@ -389,6 +392,24 @@
               }
               uvs.push([lerp(u0, u1, uu), lerp(v0, v1, vv)]);
             }
+            // the face's sides that are an outer edge: where the block beside it, along that side, lets the
+            // face end in the open (a step, a cliff, a corner); not where the land goes on flat
+            const side = (dx, dy, dz) => {
+              const o = get(x + dx, y + dy, z + dz);
+              return isOpaque(o) || (o === id && (b.leaf || b.glass)) ? 0 : 1; // leaves go on into leaves
+            };
+            let edge;
+            if (f.a === 1) edge = side(-1, 0, 0) | (side(1, 0, 0) << 1) | (side(0, 0, -1) << 2) | (side(0, 0, 1) << 3);
+            else if (f.a === 0)
+              edge =
+                (f.n[0] > 0 ? side(0, 0, 1) | (side(0, 0, -1) << 1) : side(0, 0, -1) | (side(0, 0, 1) << 1)) |
+                (side(0, -1, 0) << 2) |
+                (side(0, 1, 0) << 3);
+            else
+              edge =
+                (f.n[2] > 0 ? side(-1, 0, 0) | (side(1, 0, 0) << 1) : side(1, 0, 0) | (side(-1, 0, 0) << 1)) |
+                (side(0, -1, 0) << 2) |
+                (side(0, 1, 0) << 3);
             pushQ(
               G,
               pts,
@@ -396,6 +417,7 @@
               uvs,
               ao.map(a => AOF[a]),
               ao[0] + ao[2] < ao[1] + ao[3],
+              edge,
             );
           }
         }
@@ -411,6 +433,7 @@
             uv: new Float32Array(G[2]),
             col: col ? new Float32Array(G[3]) : null,
             idx: new Uint32Array(col ? G[4] : G[3]),
+            edge: col ? new Float32Array(G[5]) : null,
           }
         : null;
     return { op: one(A.op, true), gl: one(A.gl, true), wa: one(A.wa, false), pl: one(A.pl, false) };
@@ -418,7 +441,7 @@
   const buffers = M =>
     Object.values(M)
       .filter(Boolean)
-      .flatMap(g => [g.pos.buffer, g.nor.buffer, g.uv.buffer, g.idx.buffer].concat(g.col ? [g.col.buffer] : []));
+      .flatMap(g => [g.pos.buffer, g.nor.buffer, g.uv.buffer, g.idx.buffer].concat(g.col ? [g.col.buffer, g.edge.buffer] : []));
   root.Mesh = {
     FACES,
     AOF,

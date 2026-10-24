@@ -3,7 +3,7 @@
 //   golden/rules-golden.json   every rules entry in a canonical form + typed fields, and the functions' outputs
 //   golden/mesh-<case>.world   the 3 x 3 chunks around the meshed one (dz -1..1, then dx -1..1; CV bytes each)
 //   golden/mesh-<case>.bin     meshChunk + pack output: per group op, gl, wa, pl, the arrays pos, nor, uv,
-//                              col (op and gl only), idx; float32 / uint32 little-endian, back to back
+//                              col (op and gl only), idx, edge (op and gl only); float32 / uint32 little-endian, back to back
 //   golden/mesh-<case>.json    cx, cz, powered rule, and each group's vertex and index counts (null: empty)
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -156,7 +156,7 @@ function runCase(name, cx, cz, chunks, pw) {
       continue;
     }
     meta.groups[g] = { nv: G.pos.length / 3, ni: G.idx.length, col: !!G.col };
-    for (const a of [G.pos, G.nor, G.uv, G.col, G.idx]) if (a) bufs.push(Buffer.from(a.buffer, a.byteOffset, a.byteLength));
+    for (const a of [G.pos, G.nor, G.uv, G.col, G.idx, G.edge]) if (a) bufs.push(Buffer.from(a.buffer, a.byteOffset, a.byteLength));
   }
   writeFileSync(new URL(`mesh-${name}.bin`, out), Buffer.concat(bufs));
   writeFileSync(new URL(`mesh-${name}.json`, out), JSON.stringify(meta));

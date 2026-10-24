@@ -326,7 +326,8 @@ namespace EtherMines.Game
             if (g.Col != null)
             {
                 var col = new Color[n];
-                for (int i = 0; i < n; i++) col[i] = new Color(g.Col[i * 3], g.Col[i * 3 + 1], g.Col[i * 3 + 2], 1);
+                // the alpha carries the face's outer-edge bits (Mesher Edge, 0..15 over 15): the clay look rounds those edges (Block.shader)
+                for (int i = 0; i < n; i++) col[i] = new Color(g.Col[i * 3], g.Col[i * 3 + 1], g.Col[i * 3 + 2], g.Edge != null ? g.Edge[i] / 15f : 0);
                 mesh.colors = col;
             }
             else

@@ -7,10 +7,11 @@ using System;
 
 namespace EtherMines.Core
 {
-    // one group of triangles (pack() in mesh.js); Col is null for water and plants
+    // one group of triangles (pack() in mesh.js); Col and Edge are null for water and plants. Edge: per
+    // vertex, which of its face's sides are an outer edge of the land (bits u = 0, u = 1, v = 0, v = 1)
     public sealed class MeshGroup
     {
-        public float[] Pos, Nor, Uv, Col;
+        public float[] Pos, Nor, Uv, Col, Edge;
         public int[] Idx;
         public int VertexCount => Pos.Length / 3;
     }
@@ -216,14 +217,14 @@ namespace EtherMines.Core
         // ---------- growable output buffers ----------
         sealed class Buf
         {
-            public float[] pos = new float[3 * 1024], nor = new float[3 * 1024], uv = new float[2 * 1024], col;
+            public float[] pos = new float[3 * 1024], nor = new float[3 * 1024], uv = new float[2 * 1024], col, edge;
             public int[] idx = new int[6 * 256];
             public int nv, ni;
             readonly bool hasCol;
             public Buf(bool hasCol)
             {
                 this.hasCol = hasCol;
-                if (hasCol) col = new float[3 * 1024];
+                if (hasCol) { col = new float[3 * 1024]; edge = new float[1024]; }
             }
             public void Clear() { nv = 0; ni = 0; }
             public void Reserve4()
@@ -234,7 +235,7 @@ namespace EtherMines.Core
                     Array.Resize(ref pos, cap);
                     Array.Resize(ref nor, cap);
                     Array.Resize(ref uv, cap / 3 * 2);
-                    if (hasCol) Array.Resize(ref col, cap);
+                    if (hasCol) { Array.Resize(ref col, cap); Array.Resize(ref edge, cap / 3); }
                 }
                 if (ni + 6 > idx.Length) Array.Resize(ref idx, idx.Length * 2);
             }
@@ -250,6 +251,8 @@ namespace EtherMines.Core
                 {
                     g.Col = new float[nv * 3];
                     Array.Copy(col, g.Col, nv * 3);
+                    g.Edge = new float[nv];
+                    Array.Copy(edge, g.Edge, nv);
                 }
                 return g;
             }
@@ -262,7 +265,7 @@ namespace EtherMines.Core
         readonly double[] qp = new double[12], quv = new double[8], qc = new double[4];
 
         // pushQ: appends a quad (qp, quv, qc) with face f's normal (or nx, ny, nz) to G
-        void PushQ(Buf G, double nx, double ny, double nz, double sh, bool cols, bool flip)
+        void PushQ(Buf G, double nx, double ny, double nz, double sh, bool cols, bool flip, int edge = 0)
         {
             G.Reserve4();
             int b = G.nv;
@@ -283,6 +286,7 @@ namespace EtherMines.Core
                     G.col[v * 3] = c;
                     G.col[v * 3 + 1] = c;
                     G.col[v * 3 + 2] = c;
+                    G.edge[v] = edge;
                 }
             }
             var ix = G.idx;
@@ -464,7 +468,14 @@ namespace EtherMines.Core
                     quv[k * 2] = u0 + (u1 - u0) * uu;
                     quv[k * 2 + 1] = v0 + (v1 - v0) * vv;
                 }
-                PushQ(G, fx, fy, fz, FaceShade(f), true, a0 + a2 < a1 + a3);
+                // the face's sides that are an outer edge (mesh.js): where the block beside it along that side lets
+                // the face end in the open; leaves go on into leaves
+                int Side(int dx, int dy, int dz) { int o = get(x + dx, y + dy, z + dz); return IsOpaque(o) || (o == id && (b.Leaf || b.Glass)) ? 0 : 1; }
+                int edge;
+                if (fa == 1) edge = Side(-1, 0, 0) | (Side(1, 0, 0) << 1) | (Side(0, 0, -1) << 2) | (Side(0, 0, 1) << 3);
+                else if (fa == 0) edge = (fx > 0 ? Side(0, 0, 1) | (Side(0, 0, -1) << 1) : Side(0, 0, -1) | (Side(0, 0, 1) << 1)) | (Side(0, -1, 0) << 2) | (Side(0, 1, 0) << 3);
+                else edge = (fz > 0 ? Side(-1, 0, 0) | (Side(1, 0, 0) << 1) : Side(1, 0, 0) | (Side(-1, 0, 0) << 1)) | (Side(0, -1, 0) << 2) | (Side(0, 1, 0) << 3);
+                PushQ(G, fx, fy, fz, FaceShade(f), true, a0 + a2 < a1 + a3, edge);
             }
         }
     }

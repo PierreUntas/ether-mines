@@ -317,16 +317,46 @@ const opMat = new THREE.MeshLambertMaterial({
   alphaTest: 0.5,
 });
 // the clay look's bevel: every block face gets a light rim and a thin dark seam, like a toy brick
-// (inside the face's own tile coordinates, so it costs nothing in geometry)
+// (inside the face's own tile coordinates, so it costs nothing in geometry); and the land's outer edges
+// (a step, a cliff, a corner: the mesher's edge bits) look rounded: near such an edge each face's shade
+// eases toward the shade of the face around the corner, as light would on a rounded edge
 if (CLAY)
   opMat.onBeforeCompile = sh => {
-    sh.fragmentShader = sh.fragmentShader.replace(
-      '#include <map_fragment>',
-      `#include <map_fragment>
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', 'attribute float edge;\nvarying float vEdge;\nvarying vec3 vFaceN;\n#include <common>')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvEdge = edge;\nvFaceN = normal;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace(
+        '#include <common>',
+        `varying float vEdge;
+        varying vec3 vFaceN;
+        float faceShade(vec3 n) { return n.y > 0.5 ? 1.0 : n.y < -0.5 ? 0.6 : abs(n.x) > 0.5 ? 0.8 : 0.9; }
+        #include <common>`,
+      )
+      .replace(
+        '#include <map_fragment>',
+        `#include <map_fragment>
       vec2 tq = fract(vUv * ${AN}.0);
-      float ed = min(min(tq.x, 1.0 - tq.x), min(tq.y, 1.0 - tq.y));
-      diffuseColor.rgb *= mix(0.84, 1.0, smoothstep(0.0, 0.028, ed)) * mix(1.1, 1.0, smoothstep(0.028, 0.1, ed));`,
-    );
+      float eb = floor(vEdge + 0.5);
+      // the face's outer sides (mesh.js edge bits: u = 0, u = 1, v = 0, v = 1)
+      vec4 outer = vec4(mod(eb, 2.0), mod(floor(eb / 2.0), 2.0), mod(floor(eb / 4.0), 2.0), mod(floor(eb / 8.0), 2.0));
+      vec4 dist = vec4(tq.x, 1.0 - tq.x, tq.y, 1.0 - tq.y);
+      // the toy brick's seam, only where the face meets another block's (an outer edge is rounded instead)
+      vec4 seamD = mix(dist, vec4(1.0), outer);
+      float ed = min(min(seamD.x, seamD.y), min(seamD.z, seamD.w));
+      diffuseColor.rgb *= mix(0.84, 1.0, smoothstep(0.0, 0.028, ed)) * mix(1.1, 1.0, smoothstep(0.028, 0.1, ed));
+      if (eb > 0.5) {
+        vec3 n = normalize(vFaceN);
+        float own = faceShade(n);
+        // the shade of the face around each side, then eased toward it over the last third of the face
+        float su = abs(n.y) > 0.5 ? 0.8 : abs(n.x) > 0.5 ? 0.9 : 0.8;
+        vec4 other = vec4(su, su, abs(n.y) > 0.5 ? 0.9 : 0.6, abs(n.y) > 0.5 ? 0.9 : 1.0) / own;
+        vec4 w = outer * smoothstep(vec4(0.34), vec4(0.0), dist);
+        w = w * w * (3.0 - 2.0 * w);
+        vec4 f = mix(vec4(1.0), other * 0.92, w);
+        diffuseColor.rgb *= f.x * f.y * f.z * f.w;
+      }`,
+      );
   };
 const glMat = new THREE.MeshLambertMaterial({
   map: atlasTex,
@@ -471,6 +501,7 @@ function applyMesh(cx, cz, M) {
     g.setAttribute('normal', new THREE.BufferAttribute(G.nor, 3));
     g.setAttribute('uv', new THREE.BufferAttribute(G.uv, 2));
     if (G.col) g.setAttribute('color', new THREE.BufferAttribute(G.col, 3));
+    if (G.edge) g.setAttribute('edge', new THREE.BufferAttribute(G.edge, 1));
     g.setIndex(new THREE.BufferAttribute(G.idx, 1));
     g.computeBoundingSphere();
     return g;
@@ -1050,6 +1081,7 @@ function blockModel(id) {
     geo.setAttribute('normal', new THREE.BufferAttribute(G.nor, 3));
     geo.setAttribute('uv', new THREE.BufferAttribute(G.uv, 2));
     if (G.col) geo.setAttribute('color', new THREE.BufferAttribute(G.col, 3));
+    if (G.edge) geo.setAttribute('edge', new THREE.BufferAttribute(G.edge, 1));
     geo.setIndex(new THREE.BufferAttribute(G.idx, 1));
     g.add(new THREE.Mesh(geo, mat));
   }

@@ -293,6 +293,7 @@ namespace EtherMines.CoreTests
                 if (col) okg &= CmpF(what + ".col", got.Col, bin, ref off, nv * 3);
                 else okg &= got.Col == null;
                 okg &= CmpI(what + ".idx", got.Idx, bin, ref off, ni);
+                if (col) okg &= CmpF(what + ".edge", got.Edge, bin, ref off, nv);
                 if (!okg) all = false;
             }
             all &= off == bin.Length;
