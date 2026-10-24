@@ -588,8 +588,16 @@ function updateHpUI() {
     $('hp').hidden = true;
     return;
   }
-  $('hp').hidden = false;
-  $('hp').innerHTML = Array.from({ length: 10 }, (_, i) => `<span class="${i < S.hp ? '' : 'empty'}">♥</span>`).join('');
+  const el = $('hp');
+  el.hidden = false;
+  // a life bar: the fill drops at once, a pale trail follows a moment later to show what the blow took
+  if (!el.firstChild)
+    el.innerHTML = '<span class="ic">♥</span><span class="bar"><i class="lag"></i><i class="fill"></i></span><span class="n"></span>';
+  const k = Math.max(0, Math.min(10, S.hp)) * 10 + '%';
+  el.querySelector('.fill').style.width = k;
+  el.querySelector('.lag').style.width = k;
+  el.querySelector('.n').textContent = Math.max(0, S.hp);
+  el.classList.toggle('low', S.hp <= 3);
 }
 function heldDmg() {
   const id = itemId(S.bar[S.sel]);

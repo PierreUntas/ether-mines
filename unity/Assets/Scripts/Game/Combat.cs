@@ -34,6 +34,7 @@ namespace EtherMines.Game
         readonly List<Bolt> bolts = new List<Bolt>();
         Mesh sphere;
         GUIStyle heart;
+        float lagK = 1, lagWait;        // the life bar's pale trail
 
         void Start()
         {
@@ -430,7 +431,7 @@ namespace EtherMines.Game
             GUI.color = o;
         }
 
-        // your hearts, over the bar; a red flash when a blow lands
+        // your life bar, over the item bar; a red flash when a blow lands
         void OnGUI()
         {
             Ui.Begin();
@@ -438,14 +439,34 @@ namespace EtherMines.Game
             DrawVignettes(Ui.W, Ui.H);
             if (!Link.HpServer) return;
             if (heart == null) heart = new GUIStyle(GUI.skin.label) { fontSize = 22, alignment = TextAnchor.MiddleCenter };
-            float W = Ui.W, H = Ui.H, s = 24, x0 = W / 2 - 5 * s, y = H - 54 - 16 - 40;
-            for (int i = 0; i < 10; i++)
+            float W = Ui.W, H = Ui.H;
+            // a life bar (16-mobs.js updateHpUI): the fill drops at once, a pale trail follows a moment later
+            float k = Mathf.Clamp01(Hp / 10f);
+            if (k >= lagK) { lagK = k; lagWait = 0.35f; }
+            else if (Event.current.type == EventType.Repaint)
             {
-                var o = GUI.color;
-                GUI.color = i < Hp ? new Color(1f, 0.36f, 0.48f) : new Color(1, 1, 1, 0.25f);
-                GUI.Label(new Rect(x0 + i * s, y, s, s), "♥", heart);
-                GUI.color = o;
+                if (lagWait > 0) lagWait -= Time.deltaTime;
+                else lagK = Mathf.Max(k, lagK - Time.deltaTime * 1.6f);
             }
+            float bw = 150, cw = bw + 70, ch = 26, cx = W / 2 - cw / 2, cy = H - 54 - 16 - 40;
+            Ui.Chip(new Rect(cx, cy, cw, ch));
+            var oc = GUI.color;
+            GUI.color = new Color(1f, 0.6f, 0.72f);
+            GUI.Label(new Rect(cx + 6, cy, 22, ch), "\u2665", new GUIStyle(heart) { fontSize = 15 });
+            GUI.color = oc;
+            var bar = new Rect(cx + 30, cy + 8, bw, 10);
+            Ui.Round(bar, new Color(10 / 255f, 6 / 255f, 30 / 255f, 0.55f), 5);
+            if (lagK > k) Ui.Round(new Rect(bar.x, bar.y, bw * lagK, bar.height), new Color(1, 1, 1, 0.55f), 5);
+            if (k > 0)
+            {
+                // low: the fill pulses
+                float pulse = Hp <= 3 ? 0.5f + 0.5f * Mathf.Sin(Time.time * 6.28f) : 0;
+                var fill = Color.Lerp(new Color(1f, 0.6f, 0.72f), new Color(1f, 0.82f, 0.88f), pulse * 0.6f);
+                Ui.Round(new Rect(bar.x, bar.y, Mathf.Max(10, bw * k), bar.height), fill, 5);
+                Ui.Round(new Rect(bar.x + 3, bar.y + 1.5f, Mathf.Max(4, bw * k - 6), 2.5f), new Color(1, 1, 1, 0.4f), 1.25f);
+            }
+            var num = new GUIStyle(heart) { fontSize = 13, alignment = TextAnchor.MiddleRight, font = Ui.SansBold };
+            GUI.Label(new Rect(bar.xMax + 4, cy, 26, ch), Hp.ToString(), num);
             // a blow met by your blade: said under the crosshair
             if (guardFlash > 0)
             {
