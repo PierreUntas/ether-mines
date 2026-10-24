@@ -607,8 +607,8 @@ function updateHpUI() {
   el.classList.toggle('low', S.hp <= 3);
 }
 // ---------- the mobs' life bars ----------
-// A blow shows the mob's health over its head for a few seconds: the same bar as yours, in the mobs'
-// ember colors, the fill dropping at once and a pale trail following. Drawn on a small canvas sprite,
+// A blow shows the mob's health over its head for a few seconds: its name and ten slanted cells like
+// yours, the lost ones going dark at once and a pale trail following. Drawn on a small canvas sprite,
 // redrawn only while it changes, and taken away when it fades.
 const MOB_BAR_S = 4;
 function showMobBar(a) {
@@ -616,8 +616,8 @@ function showMobBar(a) {
   a.barT = MOB_BAR_S;
   if (a.bar) return;
   const c = document.createElement('canvas');
-  c.width = 160;
-  c.height = 58;
+  c.width = 200;
+  c.height = 50;
   const t = new THREE.CanvasTexture(c),
     s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
   s.renderOrder = 11;
@@ -625,27 +625,25 @@ function showMobBar(a) {
   const box = new THREE.Box3().setFromObject(a.g),
     k = a.g.scale.x || 1;
   s.position.y = (box.max.y - a.g.position.y) / k + 0.35 / k;
-  s.scale.set(1.1 / k, (1.1 * 58) / 160 / k, 1);
+  s.scale.set(1.2 / k, (1.2 * 50) / 200 / k, 1);
   a.g.add(s);
   a.bar = { s, c, t, lag: a.hp, wait: 0, drawn: '' };
 }
 function drawMobBar(a) {
   const B = a.bar,
     max = MK[a.type].hp || 1,
-    k = clamp(a.hp / max, 0, 1),
-    lag = clamp(B.lag / max, 0, 1),
-    key = k.toFixed(3) + lag.toFixed(3);
+    on = Math.ceil(clamp(a.hp / max, 0, 1) * 10 - 1e-6),
+    pale = Math.ceil(clamp(B.lag / max, 0, 1) * 10 - 1e-6),
+    key = on + ',' + pale;
   if (key === B.drawn) return;
   B.drawn = key;
   const x = B.c.getContext('2d'),
     W = B.c.width,
-    H = B.c.height,
-    r = (x0, y0, w, h, rr) => {
-      x.beginPath();
-      x.roundRect ? x.roundRect(x0, y0, w, h, rr) : x.rect(x0, y0, w, h);
-    };
+    H = B.c.height;
   x.clearRect(0, 0, W, H);
-  // its name, then the bar in a glass pill
+  // its name, then ten slanted cells like yours: red with a lighter red edge for the life it has left
+  // (a tenth of its health each, a cell stays lit while any of its tenth remains), dark grey with a
+  // lighter grey edge for what it lost, pale for a moment where the last blow just struck
   x.font = '600 21px ' + UI_FONT;
   x.textAlign = 'center';
   x.textBaseline = 'middle';
@@ -654,37 +652,51 @@ function drawMobBar(a) {
   x.strokeText(MK[a.type].n, W / 2, 13);
   x.fillStyle = '#f4f1ff';
   x.fillText(MK[a.type].n, W / 2, 13);
-  const py = 28;
-  x.fillStyle = 'rgba(28,22,58,.82)';
-  r(0, py, W, H - py, 14);
-  x.fill();
-  x.strokeStyle = 'rgba(190,178,255,.35)';
-  x.lineWidth = 2;
-  r(1, py + 1, W - 2, H - py - 2, 13);
-  x.stroke();
-  const ix = 7,
-    iy = py + 7,
-    iw = W - 14,
-    ih = H - py - 14;
-  x.fillStyle = 'rgba(10,6,30,.75)';
-  r(ix, iy, iw, ih, ih / 2);
-  x.fill();
-  if (lag > k) {
-    x.fillStyle = 'rgba(255,240,220,.7)';
-    r(ix, iy, Math.max(ih, iw * lag), ih, ih / 2);
+  const cw = 26,
+    ch = 14,
+    sl = 11,
+    bd = 3,
+    step = cw - sl + 4,
+    x0 = (W - (step * 9 + cw)) / 2,
+    y0 = 32,
+    bx = (bd * Math.hypot(ch, sl)) / ch,
+    cell = (cx, cy, fill, edge) => {
+      const quad = p => {
+        x.beginPath();
+        x.moveTo(p[0], p[1]);
+        for (let i = 2; i < 8; i += 2) x.lineTo(p[i], p[i + 1]);
+        x.closePath();
+        x.fill();
+      };
+      x.fillStyle = edge;
+      quad([cx + sl, cy, cx + cw, cy, cx + cw - sl, cy + ch, cx, cy + ch]);
+      const t = cy + bd,
+        u = cy + ch - bd;
+      x.fillStyle = fill;
+      quad([
+        cx + bx + (sl * (ch - bd)) / ch,
+        t,
+        cx + cw - sl + (sl * (ch - bd)) / ch - bx,
+        t,
+        cx + cw - sl + (sl * bd) / ch - bx,
+        u,
+        cx + bx + (sl * bd) / ch,
+        u,
+      ]);
+    };
+  for (let i = 0; i < 10; i++) {
+    const cx = x0 + i * step;
+    x.fillStyle = 'rgba(10,6,30,.45)'; // a soft shadow under each cell
+    x.beginPath();
+    x.moveTo(cx + sl, y0 + 2);
+    x.lineTo(cx + cw, y0 + 2);
+    x.lineTo(cx + cw - sl, y0 + ch + 2);
+    x.lineTo(cx, y0 + ch + 2);
+    x.closePath();
     x.fill();
-  }
-  if (k > 0) {
-    const g = x.createLinearGradient(0, iy, 0, iy + ih);
-    g.addColorStop(0, '#ffd27a');
-    g.addColorStop(0.5, '#ff8a5c');
-    g.addColorStop(1, '#d8486a');
-    x.fillStyle = g;
-    r(ix, iy, Math.max(ih, iw * k), ih, ih / 2);
-    x.fill();
-    x.fillStyle = 'rgba(255,255,255,.45)';
-    r(ix + 4, iy + 2, Math.max(4, iw * k - 8), 3, 1.5);
-    x.fill();
+    if (i < on) cell(cx, y0, '#d62f44', '#ff7f8c');
+    else if (i < pale) cell(cx, y0, '#ffe3e6', '#ffffff');
+    else cell(cx, y0, '#2c2932', '#6a6672');
   }
   B.t.needsUpdate = true;
 }

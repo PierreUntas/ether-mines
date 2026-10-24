@@ -387,11 +387,24 @@ namespace EtherMines.Game
                 var s = cam.WorldToScreenPoint(View(a.Pos) + Vector3.up * (a.Kind.Hit[1] + 0.35f));
                 s = new Vector3(s.x / Ui.Scale, s.y / Ui.Scale, s.z);
                 if (s.z <= 0 || s.z > 40) continue;
-                float w = 84, h = 16, x = s.x - w / 2, y = Ui.H - s.y;
+                // its name and ten slanted cells like yours (16-mobs.js drawMobBar): red for the tenths of
+                // its health left, pale where the last blow struck, dark grey for what it lost
+                float cs = 2f / 3, cw = Ui.CellW * cs, chh = Ui.CellH * cs, step = (Ui.CellW - Ui.CellSlant + 3) * cs;
+                float w = step * 9 + cw, x = s.x - w / 2, y = Ui.H - s.y;
+                int on = Mathf.CeilToInt(k * 10 - 1e-4f), pale = Mathf.CeilToInt(a.BarLag * 10 - 1e-4f);
+                Texture2D red = Ui.Cell(new Color(0.84f, 0.18f, 0.27f), new Color(1f, 0.5f, 0.55f)),
+                    grey = Ui.Cell(new Color(0.17f, 0.16f, 0.2f), new Color(0.42f, 0.4f, 0.45f)),
+                    flash = Ui.Cell(new Color(1f, 0.89f, 0.9f), Color.white);
                 var o = GUI.color;
-                GUI.color = new Color(1, 1, 1, Mathf.Clamp01(a.BarT / 0.4f));
-                Ui.Round(new Rect(x, y, w, h), new Color(28 / 255f, 22 / 255f, 58 / 255f, 0.82f), 8, new Color(190 / 255f, 178 / 255f, 1, 0.35f), 1);
-                Ui.LifeBar(new Rect(x + 4, y + 4, w - 8, h - 8), k, a.BarLag, new Color(1f, 0.6f, 0.38f), new Color(0.85f, 0.28f, 0.42f), 0);
+                float fade = Mathf.Clamp01(a.BarT / 0.4f);
+                for (int i = 0; i < 10; i++)
+                {
+                    var r = new Rect(x + i * step, y, cw, chh);
+                    GUI.color = new Color(0.04f, 0.02f, 0.12f, 0.45f * fade);
+                    GUI.DrawTexture(new Rect(r.x, r.y + 1.5f, r.width, r.height), grey);
+                    GUI.color = new Color(1, 1, 1, fade);
+                    GUI.DrawTexture(r, i < on ? red : i < pale ? flash : grey);
+                }
                 GUI.Label(new Rect(x - 40, y - 18, w + 80, 16), a.Kind.N, barStyle);
                 GUI.color = o;
             }

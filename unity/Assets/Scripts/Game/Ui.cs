@@ -146,30 +146,6 @@ namespace EtherMines.Game
         }
 
         // the web's .chip (clay look): a rounded dark glass with a thin light edge (border: the edge's color, if other)
-        // a life bar (16-mobs.js: yours, and the mobs' over their heads): a dark inset track, a pale trail
-        // (lag) behind the fill, the fill shaded like clay (a light top line, a darker foot), and notches
-        public static void LifeBar(Rect bar, float k, float lag, Color fill, Color foot, int notches)
-        {
-            float rr = bar.height / 2;
-            Round(bar, new Color(10 / 255f, 6 / 255f, 30 / 255f, 0.65f), rr, new Color(190 / 255f, 178 / 255f, 1, 0.18f), 1);
-            if (lag > k) Round(new Rect(bar.x, bar.y, Mathf.Max(bar.height, bar.width * lag), bar.height), new Color(1, 0.95f, 0.93f, 0.6f), rr);
-            if (k > 0)
-            {
-                float w = Mathf.Max(bar.height, bar.width * k);
-                Round(new Rect(bar.x, bar.y, w, bar.height), foot, rr);
-                Round(new Rect(bar.x, bar.y, w, bar.height * 0.78f), fill, rr);
-                Round(new Rect(bar.x + 4, bar.y + 2, Mathf.Max(3, w - 8), Mathf.Max(2, bar.height * 0.22f)), new Color(1, 1, 1, 0.5f), 1.5f);
-            }
-            if (notches > 1)
-            {
-                var o = GUI.color;
-                GUI.color = new Color(28 / 255f, 22 / 255f, 58 / 255f, 0.55f);
-                for (int i = 1; i < notches; i++)
-                    GUI.DrawTexture(new Rect(bar.x + bar.width * i / notches - 0.5f, bar.y + 1, 1, bar.height - 2), Texture2D.whiteTexture);
-                GUI.color = o;
-            }
-        }
-
         // a slanted life cell (16-mobs.js, #hp i): a parallelogram leaning right, a fill and a lighter edge,
         // drawn once per colour pair into a small texture (4x the interface's pixels, antialiased)
         static readonly Dictionary<string, Texture2D> cells = new Dictionary<string, Texture2D>();
