@@ -4,6 +4,7 @@
 // CoreTests checks it against src/mesh.js. Pure C# (no UnityEngine, no LINQ). Block properties come
 // from Rules (load rules.json first). One Mesher per thread: it reuses its buffers from chunk to chunk.
 using System;
+using System.Collections.Generic;
 
 namespace EtherMines.Core
 {
@@ -484,7 +485,28 @@ namespace EtherMines.Core
                 if (fa == 1) edge = Side(-1, 0, 0) | (Side(1, 0, 0) << 1) | (Side(0, 0, -1) << 2) | (Side(0, 0, 1) << 3);
                 else if (fa == 0) edge = (fx > 0 ? Side(0, 0, 1) | (Side(0, 0, -1) << 1) : Side(0, 0, -1) | (Side(0, 0, 1) << 1)) | (Side(0, -1, 0) << 2) | (Side(0, 1, 0) << 3);
                 else edge = (fz > 0 ? Side(-1, 0, 0) | (Side(1, 0, 0) << 1) : Side(1, 0, 0) | (Side(-1, 0, 0) << 1)) | (Side(0, -1, 0) << 2) | (Side(0, 1, 0) << 3);
-                if (edge != 0 && G == op && !b.Leaf) Rounded(G, fx, fy, fz, edge, u0, u1, v0, v1, a0 + a2 < a1 + a3);
+                // the inner corners (mesh.js): both blocks beside it along a corner's sides round their edge toward
+                // the open block across the corner
+                int inner = 0;
+                if (front && G == op && !b.Leaf)
+                {
+                    int k00 = 0, k10 = 0, k01 = 0;
+                    for (int k = 0; k < 4; k++) { if (fuu[k] == 0 && fvv[k] == 0) k00 = k; if (fuu[k] == 1 && fvv[k] == 0) k10 = k; if (fuu[k] == 0 && fvv[k] == 1) k01 = k; }
+                    int U0 = I(qp[k10 * 3] - qp[k00 * 3]), U1 = I(qp[k10 * 3 + 1] - qp[k00 * 3 + 1]), U2 = I(qp[k10 * 3 + 2] - qp[k00 * 3 + 2]);
+                    int V0 = I(qp[k01 * 3] - qp[k00 * 3]), V1 = I(qp[k01 * 3 + 1] - qp[k00 * 3 + 1]), V2 = I(qp[k01 * 3 + 2] - qp[k00 * 3 + 2]);
+                    bool O(int dx, int dy, int dz) => OpenAt(x + dx, y + dy, z + dz);
+                    bool Rn(int dx, int dy, int dz) => Rounds(get(x + dx, y + dy, z + dz));
+                    int InnerAt(int su, int sv)
+                    {
+                        int a0x = su * U0, a0y = su * U1, a0z = su * U2, c0x = sv * V0, c0y = sv * V1, c0z = sv * V2;
+                        int X0 = a0x + c0x, X1 = a0y + c0y, X2 = a0z + c0z;
+                        return Rn(a0x, a0y, a0z) && Rn(c0x, c0y, c0z) && O(X0, X1, X2) && O(X0 + fx, X1 + fy, X2 + fz) && O(a0x + fx, a0y + fy, a0z + fz) && O(c0x + fx, c0y + fy, c0z + fz) ? 1 : 0;
+                    }
+                    inner = InnerAt(-1, -1) | (InnerAt(1, -1) << 1) | (InnerAt(1, 1) << 2) | (InnerAt(-1, 1) << 3);
+                }
+                rWrap = (id == 1 || id == 16) && fy == 0;
+                if (rWrap) UvRect(b.T[0], out rW0, out rW1, out rW2, out rW3);
+                if ((edge != 0 || inner != 0) && G == op && !b.Leaf) Rounded(G, fx, fy, fz, edge, u0, u1, v0, v1, a0 + a2 < a1 + a3, inner);
                 else PushQ(G, fx, fy, fz, FaceShade(f), true, a0 + a2 < a1 + a3, 0); // not rounded (leaves, glass): no edge bits
             }
         }
@@ -552,15 +574,22 @@ namespace EtherMines.Core
             double l = Math.Sqrt(x * x + y * y + z * z);
             ox = x / l; oy = y / l; oz = z / l;
         }
+        // the tile a vertex takes (the face's, or the top's grass carried over the edge: mesh.js tl, ctl)
+        double vT0, vT1, vT2, vT3;
+        bool rWrap;
+        double rW0, rW1, rW2, rW3;
+        void UseTile(bool wrap) { if (wrap) { vT0 = rW0; vT1 = rW1; vT2 = rW2; vT3 = rW3; } else { vT0 = rT0; vT1 = rT1; vT2 = rT2; vT3 = rT3; } }
+        static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
         void Vert(double px, double py, double pz, double dx, double dy, double dz, double uu, double vv)
         {
+            uu = Clamp01(uu); vv = Clamp01(vv);
             var G = rG;
             G.Reserve4();
             int v = G.nv++;
             G.pos[v * 3] = (float)px; G.pos[v * 3 + 1] = (float)py; G.pos[v * 3 + 2] = (float)pz;
             G.nor[v * 3] = (float)dx; G.nor[v * 3 + 1] = (float)dy; G.nor[v * 3 + 2] = (float)dz;
-            G.uv[v * 2] = (float)(rT0 + (rT1 - rT0) * uu);
-            G.uv[v * 2 + 1] = (float)(rT2 + (rT3 - rT2) * vv);
+            G.uv[v * 2] = (float)(vT0 + (vT1 - vT0) * uu);
+            G.uv[v * 2 + 1] = (float)(vT2 + (vT3 - vT2) * vv);
             float c = (float)(AoAt(uu, vv) * (dx * dx * 0.8 + dz * dz * 0.9 + dy * dy * (dy > 0 ? 1 : 0.6)));
             G.col[v * 3] = c; G.col[v * 3 + 1] = c; G.col[v * 3 + 2] = c;
             G.edge[v] = rEdge;
@@ -581,10 +610,11 @@ namespace EtherMines.Core
             G.ni += 6;
         }
 
-        void Rounded(Buf G, double n0, double n1, double n2, int edge, double u0, double u1, double v0, double v1, bool flip)
+        void Rounded(Buf G, double n0, double n1, double n2, int edge, double u0, double u1, double v0, double v1, bool flip, int inner)
         {
             const double r = ROUND;
             rG = G; rEdge = edge; rN0 = n0; rN1 = n1; rN2 = n2; rT0 = u0; rT1 = u1; rT2 = v0; rT3 = v1;
+            UseTile(false);
             double pu0 = 0, pu1 = 0, pu2 = 0, pv0 = 0, pv1 = 0, pv2 = 0;
             for (int k = 0; k < 4; k++)
             {
@@ -596,21 +626,26 @@ namespace EtherMines.Core
             rV0 = pv0 - rO0; rV1 = pv1 - rO1; rV2 = pv2 - rO2;
             int ou0 = edge & 1, ou1 = (edge >> 1) & 1, ov0 = (edge >> 2) & 1, ov1 = (edge >> 3) & 1;
             double iu0 = ou0 != 0 ? r : 0, iu1 = ou1 != 0 ? 1 - r : 1, iv0 = ov0 != 0 ? r : 0, iv1 = ov1 != 0 ? 1 - r : 1;
-            // the flat middle, its corners in the face's own order (its AO split stays the face's)
-            int b0 = G.nv;
-            rk = 0;
-            for (int k = 0; k < 4; k++)
+            // the flat middle, its corners in the face's own order (its AO split stays the face's); with inner corners
+            // (mesh.js), the grid of its pieces without those corners' squares
+            int n00 = inner & 1, n10 = (inner >> 1) & 1, n11 = (inner >> 2) & 1, n01 = (inner >> 3) & 1;
+            if (inner == 0) CoreQuad(iu0, iu1, iv0, iv1, flip, false);
+            else
             {
-                double uu = fuu[k] != 0 ? iu1 : iu0, vv = fvv[k] != 0 ? iv1 : iv0;
-                At(uu, vv, out double px, out double py, out double pz);
-                Vert(px, py, pz, n0, n1, n2, uu, vv);
-            }
-            if (G.ni + 6 > G.idx.Length) Array.Resize(ref G.idx, G.idx.Length * 2);
-            {
-                var ix = G.idx; int i = G.ni;
-                if (flip) { ix[i] = b0 + 1; ix[i + 1] = b0 + 2; ix[i + 2] = b0 + 3; ix[i + 3] = b0 + 1; ix[i + 4] = b0 + 3; ix[i + 5] = b0; }
-                else { ix[i] = b0; ix[i + 1] = b0 + 1; ix[i + 2] = b0 + 2; ix[i + 3] = b0; ix[i + 4] = b0 + 2; ix[i + 5] = b0 + 3; }
-                G.ni += 6;
+                var ub = new List<double> { iu0 }; var vb = new List<double> { iv0 };
+                if (n00 != 0 || n01 != 0) ub.Add(r);
+                if (n10 != 0 || n11 != 0) ub.Add(1 - r);
+                ub.Add(iu1);
+                if (n00 != 0 || n10 != 0) vb.Add(r);
+                if (n01 != 0 || n11 != 0) vb.Add(1 - r);
+                vb.Add(iv1);
+                for (int i = 0; i < ub.Count - 1; i++)
+                    for (int j = 0; j < vb.Count - 1; j++)
+                    {
+                        double cu0 = ub[i], cu1 = ub[i + 1], cv0 = vb[j], cv1 = vb[j + 1];
+                        if ((n00 != 0 && cu1 <= r && cv1 <= r) || (n10 != 0 && cu0 >= 1 - r && cv1 <= r) || (n11 != 0 && cu0 >= 1 - r && cv0 >= 1 - r) || (n01 != 0 && cu1 <= r && cv0 >= 1 - r)) continue;
+                        CoreQuad(cu0, cu1, cv0, cv1, false, true);
+                    }
             }
             // a corner rounded only if the block across it is open too; else the two rounds run on to the end
             bool COpen(int su, int sv) => OpenAt(rx + I(su * rU0 + sv * rV0), ry + I(su * rU1 + sv * rV1), rz + I(su * rU2 + sv * rV2));
@@ -626,6 +661,29 @@ namespace EtherMines.Core
             if (c01) Corner(-1, 1);
         }
 
+        // one flat piece of the face: its corners in the face's order; the AO split the face's, or its own AO's
+        void CoreQuad(double cu0, double cu1, double cv0, double cv1, bool flip, bool ownSplit)
+        {
+            var G = rG;
+            int b0 = G.nv;
+            rk = 0;
+            double q0 = 0, q1 = 0, q2 = 0, q3 = 0;
+            for (int k = 0; k < 4; k++)
+            {
+                double uu = fuu[k] != 0 ? cu1 : cu0, vv = fvv[k] != 0 ? cv1 : cv0;
+                At(uu, vv, out double px, out double py, out double pz);
+                Vert(px, py, pz, rN0, rN1, rN2, uu, vv);
+                double a = AoAt(uu, vv);
+                if (k == 0) q0 = a; else if (k == 1) q1 = a; else if (k == 2) q2 = a; else q3 = a;
+            }
+            if (ownSplit) flip = q0 + q2 < q1 + q3;
+            if (G.ni + 6 > G.idx.Length) Array.Resize(ref G.idx, G.idx.Length * 2);
+            var ix = G.idx; int i = G.ni;
+            if (flip) { ix[i] = b0 + 1; ix[i + 1] = b0 + 2; ix[i + 2] = b0 + 3; ix[i + 3] = b0 + 1; ix[i + 4] = b0 + 3; ix[i + 5] = b0; }
+            else { ix[i] = b0; ix[i + 1] = b0 + 1; ix[i + 2] = b0 + 2; ix[i + 3] = b0; ix[i + 4] = b0 + 2; ix[i + 5] = b0 + 3; }
+            G.ni += 6;
+        }
+
         // a round along one side (mesh.js strip): s = ±1 the side's direction along W (U or V), running along T;
         // each end the corner of a sphere (0), a mitre with this face's other round (1), a mitre with the face
         // around the edge's round (2), or the face's end, capped where the block beside doesn't round on (3)
@@ -635,12 +693,21 @@ namespace EtherMines.Core
             if (cEnd) return 0;
             if (oEnd) return 1;
             int D0 = I(k * sT0), D1 = I(k * sT1), D2 = I(k * sT2);
-            return OpenAt(rx + D0, ry + D1, rz + D2) && OpenAt(rx + D0 + I(sW0), ry + D1 + I(sW1), rz + D2 + I(sW2)) ? 2 : 3;
+            if (OpenAt(rx + D0, ry + D1, rz + D2)) return OpenAt(rx + D0 + I(sW0), ry + D1 + I(sW1), rz + D2 + I(sW2)) ? 2 : 3;
+            // the block beside is there: the land may turn inward, the round going on around the inner corner, on
+            // the next block over in the face's plane (4) or on the block standing in front (5)
+            int c10 = D0 + I(sW0), c11 = D1 + I(sW1), c12 = D2 + I(sW2);
+            int c20 = D0 + I(rN0), c21 = D1 + I(rN1), c22 = D2 + I(rN2);
+            if (Rounds(rGet(rx + c10, ry + c11, rz + c12)) && OpenAt(rx + c10 + I(rN0), ry + c11 + I(rN1), rz + c12 + I(rN2))) return 4;
+            if (Rounds(rGet(rx + c20, ry + c21, rz + c22)) && OpenAt(rx + c20 + I(sW0), ry + c21 + I(sW1), rz + c22 + I(sW2))) return 5;
+            return 3;
         }
         double EndT(int k, int kd, double d0, double d1, double d2)
         {
             const double r = ROUND;
-            double m = kd == 0 ? r : kd == 1 ? r - r * (d0 * sW0 + d1 * sW1 + d2 * sW2) : kd == 2 ? r - r * (d0 * rN0 + d1 * rN1 + d2 * rN2) : 0;
+            double m = kd == 0 ? r : kd == 1 ? r - r * (d0 * sW0 + d1 * sW1 + d2 * sW2)
+                : kd == 2 || kd == 5 ? r - r * (d0 * rN0 + d1 * rN1 + d2 * rN2) : kd == 4 ? r - r * (d0 * sW0 + d1 * sW1 + d2 * sW2) : 0;
+            if (kd >= 4) return k < 0 ? -m : 1 + m; // an inner corner's mitre lies beyond the face's end
             return k < 0 ? m : 1 - m;
         }
         void StripPoint(bool alongU, int s, double a, double t, double w0, double w1, double w2, out double p0, out double p1, out double p2)
@@ -659,6 +726,7 @@ namespace EtherMines.Core
             sT0 = alongU ? rV0 : rU0; sT1 = alongU ? rV1 : rU1; sT2 = alongU ? rV2 : rU2;
             sW0 = s * w0; sW1 = s * w1; sW2 = s * w2;
             int k0 = Kind(-1, oEnd0, cEnd0), k1 = Kind(1, oEnd1, cEnd1);
+            UseTile(rWrap && sW1 > 0); // the top's grass carried over the edge, on the side faces' rounds toward the sky
             for (int i = 0; i < A3.Length - 1; i++)
             {
                 double a0 = A3[i], a1 = A3[i + 1];
@@ -697,12 +765,14 @@ namespace EtherMines.Core
                 }
                 Tri(tb, dn0, dn1, dn2);
             }
+            UseTile(false);
         }
 
         // a corner of a sphere where two outer sides meet
         void Corner(int su, int sv)
         {
             const double r = ROUND;
+            UseTile(rWrap && (su * rU1 > 0 || sv * rV1 > 0));
             At(su > 0 ? 1 - r : r, sv > 0 ? 1 - r : r, out double ci0, out double ci1, out double ci2);
             for (int i = 0; i < A3.Length - 1; i++)
                 for (int j = 0; j < A3.Length - 1; j++)
@@ -719,6 +789,7 @@ namespace EtherMines.Core
                     Norm(rN0 + su * rU0 + sv * rV0, rN1 + su * rU1 + sv * rV1, rN2 + su * rU2 + sv * rV2, out double m0, out double m1, out double m2);
                     Quad(b0, m0, m1, m2);
                 }
+            UseTile(false);
         }
     }
 }

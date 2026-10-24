@@ -242,7 +242,7 @@
     // a and b going 0 → 1 (ROUND_STEPS), so the rounds of neighbouring faces share their points exactly.
     // The normals follow the round (the light rounds it); the shade baked into the colour follows the
     // normal (faceShade's mix), the AO the face's corners.
-    const rounded = (G, n, pts, fuv, tile, ao, flip, edge, needCap, cornerOpen) => {
+    const rounded = (G, n, pts, fuv, tile, ao, flip, edge, needCap, cornerOpen, roundsAt, inner, wrap) => {
       const r = ROUND;
       // the face's frame: O at (uu, vv) = (0, 0), U and V the world directions of uu and vv
       let O, Pu, Pv;
@@ -261,10 +261,15 @@
         return s;
       };
       const base = () => G[0].length / 3;
-      const vert = (p, d, uu, vv) => {
+      const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
+      // (tl: the tile, the face's own unless a round carries the top's grass over the edge; points beyond the
+      // face, on a round turning around an inner corner, take the texture and AO of its edge)
+      const vert = (p, d, uu, vv, tl = tile) => {
+        uu = clamp01(uu);
+        vv = clamp01(vv);
         G[0].push(p[0], p[1], p[2]);
         G[1].push(d[0], d[1], d[2]);
-        G[2].push(lerp(tile[0], tile[1], uu), lerp(tile[2], tile[3], vv));
+        G[2].push(lerp(tl[0], tl[1], uu), lerp(tl[2], tl[3], vv));
         const c = aoAt(uu, vv) * (d[0] * d[0] * 0.8 + d[2] * d[2] * 0.9 + d[1] * d[1] * (d[1] > 0 ? 1 : 0.6));
         G[3].push(c, c, c);
         G[5].push(edge);
@@ -309,15 +314,57 @@
         iu1 = ou1 ? 1 - r : 1,
         iv0 = ov0 ? r : 0,
         iv1 = ov1 ? 1 - r : 1;
-      // the flat middle, its corners in the face's own order (so its AO split stays the face's)
-      let b0 = base();
-      for (let k = 0; k < 4; k++) {
-        const uu = fuv[k][0] ? iu1 : iu0,
-          vv = fuv[k][1] ? iv1 : iv0;
-        vert(at(uu, vv), n, uu, vv);
+      // the flat middle, its corners in the face's own order (so its AO split stays the face's); with an inner
+      // corner (the land turning inward around this block: the rounds of the two blocks beside meet over
+      // this face's corner) it loses that corner's square, the rounds' mitre covers it
+      let b0;
+      const n00 = inner & 1,
+        n10 = (inner >> 1) & 1,
+        n11 = (inner >> 2) & 1,
+        n01 = (inner >> 3) & 1;
+      if (!inner) {
+        b0 = base();
+        for (let k = 0; k < 4; k++) {
+          const uu = fuv[k][0] ? iu1 : iu0,
+            vv = fuv[k][1] ? iv1 : iv0;
+          vert(at(uu, vv), n, uu, vv);
+        }
+        if (flip) G[4].push(b0 + 1, b0 + 2, b0 + 3, b0 + 1, b0 + 3, b0);
+        else G[4].push(b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3);
+      } else {
+        const ub = [iu0],
+          vb = [iv0];
+        if (n00 || n01) ub.push(r);
+        if (n10 || n11) ub.push(1 - r);
+        ub.push(iu1);
+        if (n00 || n10) vb.push(r);
+        if (n01 || n11) vb.push(1 - r);
+        vb.push(iv1);
+        for (let i = 0; i < ub.length - 1; i++)
+          for (let j = 0; j < vb.length - 1; j++) {
+            const u0 = ub[i],
+              u1 = ub[i + 1],
+              v0 = vb[j],
+              v1 = vb[j + 1];
+            if (
+              (n00 && u1 <= r && v1 <= r) ||
+              (n10 && u0 >= 1 - r && v1 <= r) ||
+              (n11 && u0 >= 1 - r && v0 >= 1 - r) ||
+              (n01 && u1 <= r && v0 >= 1 - r)
+            )
+              continue;
+            b0 = base();
+            const a4 = [];
+            for (let k = 0; k < 4; k++) {
+              const uu = fuv[k][0] ? u1 : u0,
+                vv = fuv[k][1] ? v1 : v0;
+              vert(at(uu, vv), n, uu, vv);
+              a4.push(aoAt(uu, vv));
+            }
+            if (a4[0] + a4[2] < a4[1] + a4[3]) G[4].push(b0 + 1, b0 + 2, b0 + 3, b0 + 1, b0 + 3, b0);
+            else G[4].push(b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3);
+          }
       }
-      if (flip) G[4].push(b0 + 1, b0 + 2, b0 + 3, b0 + 1, b0 + 3, b0);
-      else G[4].push(b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3);
       const A3 = ROUND_STEPS;
       // a corner is rounded only if the block across it is open too; else the side faces keep their edge
       // square there and the rounds meeting at it end on the corner's mitre (below)
@@ -340,7 +387,14 @@
           if (cEnd) return 0;
           if (oEnd) return 1;
           const D = [k * T[0], k * T[1], k * T[2]];
-          return cornerOpen(D) && cornerOpen([D[0] + sW[0], D[1] + sW[1], D[2] + sW[2]]) ? 2 : 3;
+          if (cornerOpen(D)) return cornerOpen([D[0] + sW[0], D[1] + sW[1], D[2] + sW[2]]) ? 2 : 3;
+          // the block beside is there: the land may turn inward, the round going on around the inner corner,
+          // on the next block over in the face's plane (4) or on the block standing in front (5)
+          const C1 = [D[0] + sW[0], D[1] + sW[1], D[2] + sW[2]],
+            C2 = [D[0] + n[0], D[1] + n[1], D[2] + n[2]];
+          if (roundsAt(C1) && cornerOpen([C1[0] + n[0], C1[1] + n[1], C1[2] + n[2]])) return 4;
+          if (roundsAt(C2) && cornerOpen([C2[0] + sW[0], C2[1] + sW[1], C2[2] + sW[2]])) return 5;
+          return 3;
         };
         const k0 = kind(-1, oEnd0, cEnd0),
           k1 = kind(1, oEnd1, cEnd1);
@@ -351,11 +405,17 @@
               ? r
               : kd === 1
                 ? r - r * (d[0] * sW[0] + d[1] * sW[1] + d[2] * sW[2])
-                : kd === 2
+                : kd === 2 || kd === 5
                   ? r - r * (d[0] * n[0] + d[1] * n[1] + d[2] * n[2])
-                  : 0;
+                  : kd === 4
+                    ? r - r * (d[0] * sW[0] + d[1] * sW[1] + d[2] * sW[2])
+                    : 0;
+          // an inner corner's mitre lies beyond the face's end
+          if (kd >= 4) return k < 0 ? -m : 1 + m;
           return k < 0 ? m : 1 - m;
         };
+        // the top's grass carried over the edge (grass, snow): the side faces' rounds toward the sky
+        const tl = wrap && sW[1] > 0 ? wrap : tile;
         const point = (a, t) => {
           const cIn = alongU ? at(s > 0 ? 1 - r : r, t) : at(t, s > 0 ? 1 - r : r);
           const d = norm([n[0] + s * a * W[0], n[1] + s * a * W[1], n[2] + s * a * W[2]]);
@@ -374,7 +434,7 @@
             const d = norm([n[0] + s * a * W[0], n[1] + s * a * W[1], n[2] + s * a * W[2]]);
             const t = endT(k, kd, d);
             const e = s > 0 ? 1 - r + r * a : r - r * a; // the face coordinate across the round
-            vert(point(a, t), d, alongU ? e : t, alongU ? t : e);
+            vert(point(a, t), d, alongU ? e : t, alongU ? t : e, tl);
           }
           quad(b0, norm([n[0] + s * W[0], n[1] + s * W[1], n[2] + s * W[2]]));
         }
@@ -390,7 +450,7 @@
           for (const a of [0, 1, -1]) {
             // -1: the sharp edge itself, on the face's plane
             const e = a < 0 ? (s > 0 ? 1 : 0) : s > 0 ? 1 - r + r * a : r - r * a;
-            vert(a < 0 ? (alongU ? at(e, t) : at(t, e)) : point(a, t), dn, alongU ? e : t, alongU ? t : e);
+            vert(a < 0 ? (alongU ? at(e, t) : at(t, e)) : point(a, t), dn, alongU ? e : t, alongU ? t : e, tl);
           }
           tri(tb, dn);
         }
@@ -401,7 +461,8 @@
       if (ov1) strip(false, 1, ou0, ou1, c01, c11);
       // a corner of a sphere where two outer sides meet
       const corner = (su, sv) => {
-        const cIn = at(su > 0 ? 1 - r : r, sv > 0 ? 1 - r : r);
+        const cIn = at(su > 0 ? 1 - r : r, sv > 0 ? 1 - r : r),
+          ctl = wrap && (su * U[1] > 0 || sv * V[1] > 0) ? wrap : tile;
         for (let i = 0; i < A3.length - 1; i++)
           for (let j = 0; j < A3.length - 1; j++) {
             b0 = base();
@@ -418,7 +479,7 @@
               ]);
               const uu = su > 0 ? 1 - r + r * a : r - r * a,
                 vv = sv > 0 ? 1 - r + r * c : r - r * c;
-              vert([cIn[0] - n[0] * r + d[0] * r, cIn[1] - n[1] * r + d[1] * r, cIn[2] - n[2] * r + d[2] * r], d, uu, vv);
+              vert([cIn[0] - n[0] * r + d[0] * r, cIn[1] - n[1] * r + d[1] * r, cIn[2] - n[2] * r + d[2] * r], d, uu, vv, ctl);
             }
             quad(b0, norm([n[0] + su * U[0] + sv * V[0], n[1] + su * U[1] + sv * V[1], n[2] + su * U[2] + sv * V[2]]));
           }
@@ -639,7 +700,34 @@
                 (f.n[2] > 0 ? side(-1, 0, 0) | (side(1, 0, 0) << 1) : side(1, 0, 0) | (side(-1, 0, 0) << 1)) |
                 (side(0, -1, 0) << 2) |
                 (side(0, 1, 0) << 3);
-            if (edge && G === A.op && !b.leaf)
+            // the inner corners (mesh.js rounded): the land turning inward around this block, both blocks
+            // beside it along the corner's sides rounding their edge toward the open block across the corner
+            let inner = 0;
+            if (front && G === A.op && !b.leaf) {
+              const k00 = fuv.findIndex(q => q[0] === 0 && q[1] === 0),
+                k10 = fuv.findIndex(q => q[0] === 1 && q[1] === 0),
+                k01 = fuv.findIndex(q => q[0] === 0 && q[1] === 1);
+              const U = [pts[k10][0] - pts[k00][0], pts[k10][1] - pts[k00][1], pts[k10][2] - pts[k00][2]],
+                V = [pts[k01][0] - pts[k00][0], pts[k01][1] - pts[k00][1], pts[k01][2] - pts[k00][2]],
+                n = f.n;
+              const at3 = (d, dx, dy, dz) => open(d[0] + dx, d[1] + dy, d[2] + dz);
+              const rnd = d => rounds(get(x + d[0], y + d[1], z + d[2]));
+              const corner = (su, sv) => {
+                const A1 = [su * U[0], su * U[1], su * U[2]],
+                  C1 = [sv * V[0], sv * V[1], sv * V[2]],
+                  X = [A1[0] + C1[0], A1[1] + C1[1], A1[2] + C1[2]];
+                return rnd(A1) &&
+                  rnd(C1) &&
+                  at3(X, 0, 0, 0) &&
+                  at3(X, n[0], n[1], n[2]) &&
+                  at3(A1, n[0], n[1], n[2]) &&
+                  at3(C1, n[0], n[1], n[2])
+                  ? 1
+                  : 0;
+              };
+              inner = corner(-1, -1) | (corner(1, -1) << 1) | (corner(1, 1) << 2) | (corner(-1, 1) << 3);
+            }
+            if ((edge || inner) && G === A.op && !b.leaf)
               rounded(
                 G,
                 f.n,
@@ -651,6 +739,9 @@
                 edge,
                 needCap,
                 d => open(d[0], d[1], d[2]),
+                d => rounds(get(x + d[0], y + d[1], z + d[2])),
+                inner,
+                (id === 1 || id === 16) && f.n[1] === 0 ? uvRect(b.t[0]) : null,
               );
             else
               pushQ(

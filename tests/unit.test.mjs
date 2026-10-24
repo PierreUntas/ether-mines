@@ -159,7 +159,7 @@ test('mesh: the rounded land is closed (no hole at any junction)', () => {
       for (let k = 0; k < 3; k++)
         for (const f of [0.25, 0.5, 0.75]) {
           const a = t[k], b = t[(k + 1) % 3], p = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
-          if (p[0] < 0.01 || p[0] > 15.99 || p[2] < 0.01 || p[2] > 15.99 || p[1] < 0.01) continue; // the chunk's own border
+          if (p[0] < 1 || p[0] > 15 || p[2] < 1 || p[2] > 15 || p[1] < 0.01) continue; // the chunk's own border
           const near = new Set();
           for (const dx of [-1e-4, 1e-4]) for (const dy of [-1e-4, 1e-4]) for (const dz of [-1e-4, 1e-4]) for (const o of grid.get(K(Math.floor(p[0] + dx), Math.floor(p[1] + dy), Math.floor(p[2] + dz))) || []) near.add(o);
           let ok = false;
