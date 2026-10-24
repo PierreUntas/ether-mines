@@ -17,6 +17,9 @@ namespace EtherMines.Game
 
         public Avatars Avatars; // the others (their crafts, their back seats); null offline
         public int Riding { get; private set; } // the craft's item id, 0 on foot
+        // which way your craft faces, its lean in a drift included: your figure (seen from outside) sits on it
+        // turned the same way, instead of turning on its own and drifting apart from it in a fast turn
+        public Quaternion CraftRotation => craft != null ? craft.transform.rotation : Quaternion.identity;
         public string Boarded { get; private set; } // in this driver's back seat (their user id), or null
         public bool Aboard => Riding != 0 || Boarded != null; // no fighting, no dodging, no hand
         float lift;

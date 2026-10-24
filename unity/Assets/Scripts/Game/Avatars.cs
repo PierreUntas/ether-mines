@@ -235,6 +235,8 @@ namespace EtherMines.Game
                     if (!me.Seen) { me.Seen = true; me.Pos = me.Target; me.Yaw = me.TYaw; }
                     Passenger(me);
                     Animate(me, dt, 1);
+                    // on your own craft: turned exactly as it is (it turns and leans on its own, Hover.Update)
+                    if (me.Ride > 0 && Hover != null && Hover.Riding == me.Ride) me.Root.transform.rotation = Hover.CraftRotation;
                     Trims(me, MyLook());
                 }
                 else me.Seen = false;

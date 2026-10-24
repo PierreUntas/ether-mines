@@ -16,6 +16,7 @@
         'Leaves, pink leaves, palm fronds and grass blocks are picked up when you break them, to build with.',
         'New blocks to lay paths (Crafting → Construction): Dirt Path, Gravel Path and Paving Stones.',
         'Critical blows: strike while coming down from a jump for 50% more damage, and any blow has a small chance to be critical.',
+        'On your hovercraft, you now turn with it: no more spinning apart from it in a fast turn.',
       ],
     },
     {

@@ -608,7 +608,8 @@ function viewFromOutside(dt) {
     mv = Math.min(1, sp / 2);
   viewPos.set(P.x, P.y, P.z);
   o.g.position.set(P.x, P.y, P.z);
-  o.g.rotation.y = yaw;
+  // on your own craft, turned exactly as it is (it eases into a turn, 20-hover.js), so you don't spin apart from it
+  o.g.rotation.y = typeof RIDE !== 'undefined' && RIDE ? RIDE.mesh.rotation.y : yaw;
   o.head.rotation.x = -pitch * 0.6;
   o.walk += Math.min(sp, 8) * dt * 1.6;
   o.ph += dt;
