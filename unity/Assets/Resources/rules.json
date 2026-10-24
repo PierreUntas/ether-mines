@@ -151,7 +151,10 @@
     "160": {"n":"Sign","t":[10,10,10],"h":0.5,"shape":"furn","faces":1,"sign":1,"o":0,"drop":160,"icon":152,"boxes":[[0.45,0,0.45,0.55,0.5,0.55],[0.04,0.46,0.44,0.96,1,0.56]]},
     "161": {"n":"Sign","t":[10,10,10],"h":0.5,"shape":"furn","faces":1,"sign":1,"o":1,"drop":160,"icon":152,"boxes":[[0.45,0,0.44999999999999996,0.55,0.5,0.55],[0.44,0.46,0.040000000000000036,0.56,1,0.96]]},
     "162": {"n":"Sign","t":[10,10,10],"h":0.5,"shape":"furn","faces":1,"sign":1,"o":2,"drop":160,"icon":152,"boxes":[[0.44999999999999996,0,0.44999999999999996,0.55,0.5,0.55],[0.040000000000000036,0.46,0.43999999999999995,0.96,1,0.56]]},
-    "163": {"n":"Sign","t":[10,10,10],"h":0.5,"shape":"furn","faces":1,"sign":1,"o":3,"drop":160,"icon":152,"boxes":[[0.44999999999999996,0,0.44999999999999996,0.55,0.5,0.55],[0.43999999999999995,0.46,0.040000000000000036,0.56,1,0.96]]}
+    "163": {"n":"Sign","t":[10,10,10],"h":0.5,"shape":"furn","faces":1,"sign":1,"o":3,"drop":160,"icon":152,"boxes":[[0.44999999999999996,0,0.44999999999999996,0.55,0.5,0.55],[0.43999999999999995,0.46,0.040000000000000036,0.56,1,0.96]]},
+    "164": {"n":"Dirt Path","t":[162,2,2],"h":0.6},
+    "165": {"n":"Gravel Path","t":[163,163,163],"h":0.7},
+    "166": {"n":"Paving Stones","t":[164,164,164],"h":1.6,"stone":1}
   },
   "ITEM": {
     "101": {"n":"Ether Crystal","icon":24},
@@ -282,7 +285,10 @@
     {"out":215,"n":1,"need":{"15":2,"104":6,"128":4},"d":"Unique hovercraft · right-click to ride: twice as fast, glides over water · a back seat for a friend","nft":1,"cat":"Travel"},
     {"out":219,"n":1,"need":{"15":2,"104":4,"128":4},"d":"Unique hovercraft · right-click to ride: twice as fast, glides over water","nft":1,"cat":"Travel"},
     {"out":216,"n":1,"need":{"15":2,"110":5,"128":4},"d":"Unique hovercraft · right-click to ride: twice as fast, glides over water · a back seat for a friend","nft":1,"cat":"Travel"},
-    {"out":220,"n":1,"need":{"15":2,"110":3,"128":4},"d":"Unique hovercraft · right-click to ride: twice as fast, glides over water","nft":1,"cat":"Travel"}
+    {"out":220,"n":1,"need":{"15":2,"110":3,"128":4},"d":"Unique hovercraft · right-click to ride: twice as fast, glides over water","nft":1,"cat":"Travel"},
+    {"out":164,"n":2,"need":{"2":2},"d":"Packed earth, for a country lane","cat":"Construction"},
+    {"out":165,"n":4,"need":{"3":1,"4":2},"d":"Crushed granite and sand, for a garden walk","cat":"Construction"},
+    {"out":166,"n":4,"need":{"3":3},"d":"Cut granite setts, for a town street","cat":"Construction"}
   ],
   "COSMETICS": {
     "1": {"n":"Ember Outfit","category":"character","price":300,"slot":"outfit","color":"#ff6b6b","pants":"#7a2f3a"},

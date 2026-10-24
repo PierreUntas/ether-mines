@@ -154,7 +154,10 @@ insert into public.rule_blocks (id, name, hard, tier, drop_item, kind, solid, to
 (160,'Sign',0.5,0,160,'furn',true,false),
 (161,'Sign',0.5,0,160,'furn',true,false),
 (162,'Sign',0.5,0,160,'furn',true,false),
-(163,'Sign',0.5,0,160,'furn',true,false);
+(163,'Sign',0.5,0,160,'furn',true,false),
+(164,'Dirt Path',0.6,0,164,'cube',true,false),
+(165,'Gravel Path',0.7,0,165,'cube',true,false),
+(166,'Paving Stones',1.6,1,166,'cube',true,false);
 insert into public.rule_place (item, block) values
 (1,1),
 (2,2),
@@ -280,7 +283,10 @@ insert into public.rule_place (item, block) values
 (160,160),
 (160,161),
 (160,162),
-(160,163);
+(160,163),
+(164,164),
+(165,165),
+(166,166);
 insert into public.rule_items (id, name, tool, tier, uniq, consumable) values
 (101,'Ether Crystal',1,0,false,false),
 (102,'Wooden Pickaxe',2.2,1,false,false),
@@ -409,7 +415,10 @@ insert into public.rule_recipes (out_item, n, need, uniq, req_unique) values
 (215,1,'{"15":2,"104":6,"128":4}'::jsonb,true,null),
 (219,1,'{"15":2,"104":4,"128":4}'::jsonb,true,null),
 (216,1,'{"15":2,"110":5,"128":4}'::jsonb,true,null),
-(220,1,'{"15":2,"110":3,"128":4}'::jsonb,true,null);
+(220,1,'{"15":2,"110":3,"128":4}'::jsonb,true,null),
+(164,2,'{"2":2}'::jsonb,false,null),
+(165,4,'{"3":1,"4":2}'::jsonb,false,null),
+(166,4,'{"3":3}'::jsonb,false,null);
 insert into public.rule_cosmetics (id, name, price, category, grant_item, grant_qty, limited) values
 (1,'Ember Outfit',300,'character',null,null,false),
 (2,'Void Outfit',300,'character',null,null,false),

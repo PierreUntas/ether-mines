@@ -195,6 +195,11 @@
       [27, 27, 27],
     ],
   };
+  // paths: blocks to lay a way through the land (recipes in Construction, below): packed earth for a country
+  // lane, gravel for a garden walk, cut granite setts for a town street
+  B[164] = { n: 'Dirt Path', t: [162, 2, 2], h: 0.6 };
+  B[165] = { n: 'Gravel Path', t: [163, 163, 163], h: 0.7 };
+  B[166] = { n: 'Paving Stones', t: [164, 164, 164], h: 1.6, stone: 1 };
   // v12: the Genesis Titan's trophy (never crafted, only minted by act_loot_mob on a guaranteed boss kill)
   ITEM[205] = { n: 'Genesis Titan Fang', icon: 131, nft: 1 };
   // v13: towers — a repeatable mid-tier boss (the Plasma Core) guards each one, dropping this on every
@@ -787,6 +792,12 @@
       limited: lim.length ? lim[week % lim.length] : null,
     };
   }
+  // the paths (B 164-166)
+  RECIPES.push(
+    { out: 164, n: 2, need: { 2: 2 }, d: 'Packed earth, for a country lane', cat: 'Construction' },
+    { out: 165, n: 4, need: { 3: 1, 4: 2 }, d: 'Crushed granite and sand, for a garden walk', cat: 'Construction' },
+    { out: 166, n: 4, need: { 3: 3 }, d: 'Cut granite setts, for a town street', cat: 'Construction' },
+  );
   // what a cosmetic costs this week (25% off when on sale; integer division, like the SQL)
   const shopPrice = (id, week = shopWeek()) => {
     const c = COSMETICS[id];

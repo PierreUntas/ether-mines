@@ -1375,6 +1375,40 @@ tile(137, (P, E) => {
     }
   });
 });
+// the paths (rules.js B 164-166): packed earth, gravel, granite setts
+tile(162, (P, E, i) => {
+  // Dirt Path: the dirt trodden flat and darker, a paler worn lane down the middle, a few pebbles
+  noise(P, i, '#ab9bd6', [
+    ['#9d8cca', 0.25],
+    ['#b8a9e0', 0.15],
+  ]);
+  for (let y = 0; y < 16; y++)
+    for (let x = 5; x <= 10; x++)
+      if (hash(x, y, 162) < (x === 5 || x === 10 ? 0.45 : 0.85)) P(x, y, hash(x, y, 163) < 0.3 ? '#c4b8ea' : '#bbaee4');
+  for (let k = 0; k < 7; k++) P(Math.floor(hash(k, 1, 164) * 16), Math.floor(hash(k, 2, 164) * 16), '#e3dcf7');
+});
+tile(163, (P, E, i) => {
+  // Gravel Path: small stones of every grey and lilac, packed close, each with a lighter top
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const r = hash(x >> 1, (y + (x >> 1)) >> 1, 165),
+        c = r < 0.3 ? '#9aa0c8' : r < 0.55 ? '#b4b8d8' : r < 0.75 ? '#c7c2e0' : r < 0.9 ? '#a59cc8' : '#8a8eb8';
+      P(x, y, (x + y) % 2 === 0 && hash(x, y, 166) < 0.35 ? '#d9dbee' : c);
+    }
+  for (let k = 0; k < 10; k++) P(Math.floor(hash(k, 3, 167) * 16), Math.floor(hash(k, 4, 167) * 16), '#7c80aa');
+});
+tile(164, P => {
+  // Paving Stones: square granite setts in offset rows, dark joints between them, a lighter top edge
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const row = y >> 2,
+        sx = (x + (row % 2) * 2) & 3,
+        sy = y & 3,
+        id = ((x + (row % 2) * 2) >> 2) * 7 + row * 13,
+        base = ['#c2c6e4', '#b6bbdc', '#cbcde8', '#adb2d6'][Math.floor(hash(id, row, 168) * 4)];
+      P(x, y, sx === 3 || sy === 3 ? '#7f84ad' : sy === 0 ? '#d8daef' : hash(x, y, 169) < 0.1 ? '#a3a8cf' : base);
+    }
+});
 tile(138, (P, E) => {
   // Flashbots Bundle: three transactions stacked and strapped together by a glowing band
   for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
