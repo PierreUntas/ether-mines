@@ -293,13 +293,13 @@ test('a blow on a mob is settled by the server: health, pace, reach, death, loot
   blow(a); // too soon
   await wait(40);
   assert.equal(a.of('mob')[1].hp, 5, 'a blow too soon takes nothing off');
-  blow(b, { item: 0, dmg: 99 }); // bare hands can't do 99
+  blow(b, { item: 0, dmg: 99 }); // bare hands can't do 99: at most a critical riposte, 2.25
   await wait(40);
-  assert.equal(b.of('mob').at(-1).hp, 3.5);
+  assert.equal(b.of('mob').at(-1).hp, 2.75);
   await wait(400);
   blow(a, { x: 40 }); // a mob 40 blocks away is out of a sword's reach
   await wait(40);
-  assert.equal(a.of('mob').at(-1).hp, 3.5);
+  assert.equal(a.of('mob').at(-1).hp, 2.75);
   await wait(400);
   blow(a);
   await wait(40);
@@ -318,14 +318,15 @@ test('the Merge twins only stay down together', async () => {
   a.send({ t: 'pos', x: 0, y: 30, z: 0 });
   await wait(30);
   const blow = (i, type) => a.send({ t: 'mob', id: `5,5|${i}|${type}`, item: 301, dmg: 999, x: 1, y: 30, z: 0 });
-  // 60 hp at 11.25 (7.5 × 1.5) a blow
+  // 60 hp at 16.88 (7.5 × 2.25, the cap) a blow
   for (let n = 0; n < 6; n++) {
     blow(160, 'pow_twin');
     await wait(400);
   }
   const down = a.of('mob').at(-1);
   assert.deepEqual([down.hp, down.down, down.dead], [0, 1, undefined], 'the first only falls dormant');
-  for (let n = 0; n < 4; n++) {
+  // 40 hp: three blows
+  for (let n = 0; n < 3; n++) {
     blow(161, 'pos_twin');
     await wait(400);
   }

@@ -1007,8 +1007,37 @@ function attackMob(a) {
   swing = Math.max(swing, 0.6);
   if (playerAtkT > 0) return false;
   playerAtkT = 0.45;
-  damageMob(a, heldDmg(), P.x, P.z);
+  // a critical blow: always when you strike coming down from a jump, otherwise one in ten (×1.5, and with a
+  // riposte on top; the game server allows up to both, server.js RIPOSTE)
+  const crit = (!P.on && P.vy < -1) || Math.random() < CRIT_CHANCE;
+  damageMob(a, heldDmg() * (crit ? CRIT : 1), P.x, P.z);
+  if (crit) critShown(a);
   return true;
+}
+const CRIT = 1.5,
+  CRIT_CHANCE = 0.1,
+  critMat = new THREE.MeshBasicMaterial({
+    color: '#ffd166',
+    transparent: true,
+    opacity: 0.95,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+let critTimer = 0;
+// a critical blow is seen and heard: gold sparks off the mob, a sharper hit, "Critical!" under the crosshair
+function critShown(a) {
+  const p = a.g.position,
+    h = MK[a.type].hit[1];
+  clayBurst(p.x - 0.5, p.y + h * 0.5 - 0.5, p.z - 0.5, critMat);
+  Sound.click();
+  if (navigator.vibrate) navigator.vibrate(25);
+  const el = $('crit');
+  el.hidden = false;
+  el.classList.remove('pop');
+  void el.offsetWidth; // restart the pop
+  el.classList.add('pop');
+  clearTimeout(critTimer);
+  critTimer = setTimeout(() => (el.hidden = true), 700);
 }
 // ---------- ranged weapons: plasma bolts (the Plasma Pistol, ITEM[206].ranged) ----------
 // A small array of live bolts, updated once a frame — the same shape already used for the falling

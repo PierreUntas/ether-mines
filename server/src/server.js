@@ -60,7 +60,7 @@ const MOB_FORGET = 300000; // a mob nobody struck for 5 minutes is forgotten (ba
 const SHARE_MS = 30000; // whoever struck it in the last 30 s gets their own loot
 const TWIN_DOWN_MS = 12000; // a Merge twin struck down only sleeps this long, unless its twin falls too
 const MOB_SLACK = 0.8; // the pace of blows on a mob, with room for the network's jitter
-const RIPOSTE = 1.5; // the most a blow can be raised (a riposte after a parry)
+const RIPOSTE = 2.25; // the most a blow can be raised: a critical blow (×1.5) on a riposte after a parry (×1.5)
 // the Merge twins come as a pair, side by side in their chunk (16-mobs.js: slots 160 and 161)
 const FX = new Set(['hurt', 'parry', 'block']); // what a position may say happened to a player
 const twinOf = (k, i, type) => (type === 'pow_twin' ? `${k}|${i + 1}|pos_twin` : type === 'pos_twin' ? `${k}|${i - 1}|pow_twin` : null);

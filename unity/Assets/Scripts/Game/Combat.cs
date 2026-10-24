@@ -98,7 +98,23 @@ namespace EtherMines.Game
             var mob = Mobs.Pick(eye, dir, reach, blockDist);
             if (mob != null)
             {
-                if (atkT <= 0) { Strike(mob, HeldDmg, Player.Body.X, Player.Body.Z, HeldWeapon); strikeBuf = 0; }
+                if (atkT <= 0)
+                {
+                    // a critical blow (attackMob): always coming down from a jump, otherwise one in ten, ×1.5
+                    bool crit = (!Player.Body.On && Player.Body.Vy < -1) || UnityEngine.Random.value < CritChance;
+                    Strike(mob, HeldDmg * (crit ? Crit : 1), Player.Body.X, Player.Body.Z, HeldWeapon);
+                    strikeBuf = 0;
+                    if (crit)
+                    {
+                        // gold sparks off the mob, a sharper hit, "Critical!" under the crosshair (critShown)
+                        float h = (float)mob.Kind.Hit[1];
+                        Effects.Burst(mob.Pos.x - 0.5f, mob.Pos.y + h * 0.5f - 0.5f, mob.Pos.z - 0.5f, Avatars.Hex("#ffd166", Color.white));
+                        Sounds.Click();
+                        Haptics.Play(Haptics.Kind.Heavy);
+                        guardWord = "Critical!";
+                        guardFlash = 0.7f;
+                    }
+                }
                 return true;
             }
             if (!Interaction.Sanctuary(Player.Body.X, Player.Body.Z))
@@ -134,6 +150,8 @@ namespace EtherMines.Game
         }
 
         // a blow on a mob (damageMob): shown here at once, settled by the server, told to everyone near
+        const double Crit = 1.5, CritChance = 0.1;
+
         void Strike(Mobs.Mob a, double dmg, double fromX, double fromZ, int item)
         {
             Sounds.Hit("stone", a.Pos);
@@ -475,11 +493,12 @@ namespace EtherMines.Game
                     if (f > 0) { GUI.color = new Color(1, 1, 1, f * 0.9f); GUI.DrawTexture(r, flash); GUI.color = oc; }
                 }
             }
-            // a blow met by your blade: said under the crosshair
+            // a blow met by your blade, or a critical blow: said under the crosshair
             if (guardFlash > 0)
             {
                 var o = GUI.color;
-                GUI.color = guardWord == "Parried!" ? new Color(0.62f, 0.89f, 1f, Mathf.Clamp01(guardFlash * 2)) : new Color(1, 1, 1, Mathf.Clamp01(guardFlash * 2));
+                float fa = Mathf.Clamp01(guardFlash * 2);
+                GUI.color = guardWord == "Parried!" ? new Color(0.62f, 0.89f, 1f, fa) : guardWord == "Critical!" ? new Color(1f, 0.82f, 0.4f, fa) : new Color(1, 1, 1, fa);
                 var st = new GUIStyle(heart) { fontSize = 20, fontStyle = FontStyle.Bold };
                 GUI.Label(new Rect(W / 2 - 100, H / 2 + 28, 200, 28), guardWord, st);
                 GUI.color = o;

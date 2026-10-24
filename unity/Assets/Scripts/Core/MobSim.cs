@@ -118,7 +118,7 @@ namespace EtherMines.Core
             SHARE_MS = 30000,    // whoever struck it in the last 30 s gets their own loot
             TWIN_DOWN_MS = 12000,
             MOB_SLACK = 0.8,
-            RIPOSTE = 1.5,       // the most a blow can be raised (a riposte after a parry)
+            RIPOSTE = 2.25,      // the most a blow can be raised: a critical blow (×1.5) on a riposte after a parry (×1.5)
             SWEEP_MS = 2000;     // the ledger is swept with the server's 2 s tick
 
         // ---------- health.js ----------
