@@ -125,9 +125,9 @@ namespace EtherMines.Game
             return new Animal { Type = type, K = k, I = i, Hx = hx, Hz = hz, R = r, Ph = ph, Seed = seed, Hp = K.Hp };
         }
 
-        void Dress(Animal a, object model)
+        void Dress(Animal a, object model, bool round = false)
         {
-            a.Rig = new Mobs.Mob();
+            a.Rig = new Mobs.Mob { Round = round };
             Mobs.BuildModel(a.Rig, (Dictionary<string, object>)model, transform);
             a.Y = (float)a.Hy;
         }
@@ -197,7 +197,7 @@ namespace EtherMines.Game
                     var a = New(type, k, i, x + 0.5, z + 0.5, Hash(x, z, 80), Hash(x, z, 81) * 60, Seed(x, z, i));
                     a.Hy = y + 1;
                     a.VillagerIx = vix;
-                    if (vix >= 0) Dress(a, villagers[vix].Model);
+                    if (vix >= 0) Dress(a, villagers[vix].Model, true);
                     else { var K = kinds[type]; Dress(a, K.Models[K.Variant[Math.Min(23, (int)Math.Floor(a.R * 24))]]); }
                     list.Add(a);
                     return;

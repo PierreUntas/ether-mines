@@ -96,18 +96,18 @@ function makeAvatar(name, color, horsScene) {
   const skin = M(0xf6d3b8),
     hair = M(dark),
     face = new THREE.MeshLambertMaterial({ map: faceTex('#' + dark.getHexString()) });
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), [hair, hair, hair, skin, hair, face]);
+  const head = new THREE.Mesh(roundBox(0.5, 0.5, 0.5), [hair, hair, hair, skin, hair, face]);
   head.position.y = 1.52;
   head.castShadow = true;
   g.add(head);
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.66, 0.28), M(col));
+  const body = new THREE.Mesh(roundBox(0.5, 0.66, 0.28), M(col));
   body.position.y = 0.94;
   body.castShadow = true;
   g.add(body);
   // armor plating: dark base + a glowing center seam, matching the item icon's look. Hidden unless worn;
   // the glow color is set by updateArmorVisual(). Faces -z, like the head's face texture. Worn for the
   // Merge Aegis; the other platings have a look of their own (ARMOR_LOOKS, below).
-  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.4, 0.32), M(0x2a1838));
+  const plate = new THREE.Mesh(roundBox(0.56, 0.4, 0.32), M(0x2a1838));
   plate.position.y = 1.08;
   const seam = new THREE.Mesh(
     new THREE.BoxGeometry(0.06, 0.34, 0.02),
@@ -142,7 +142,7 @@ function makeAvatar(name, color, horsScene) {
   const limb = (w, h, d, m, x, y) => {
     const p = new THREE.Group();
     p.position.set(x, y, 0);
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    const b = new THREE.Mesh(roundBox(w, h, d), m);
     b.position.y = -h / 2;
     b.castShadow = true;
     p.add(b);

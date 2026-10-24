@@ -7,7 +7,11 @@
     {
       date: '2026-10-24',
       title: 'Softer land',
-      items: ['The edges of steps, cliffs and tree crowns look rounded, like modelling clay: the land reads as one soft mass.'],
+      items: [
+        'The edges of steps, cliffs and tree crowns look rounded, like modelling clay: the land reads as one soft mass.',
+        'Grass wraps over the rounded edges, and inside corners curve smoothly too.',
+        'Players and villagers have softer, rounded shapes.',
+      ],
     },
     {
       date: '2026-10-23',

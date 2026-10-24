@@ -182,6 +182,58 @@ const AG = (w, h, d) => {
   const k = w + ',' + h + ',' + d;
   return aniGeo[k] || (aniGeo[k] = new THREE.BoxGeometry(w, h, d));
 };
+// a box with rounded edges and corners, for the characters (players, villagers): the same box as
+// BoxGeometry(w, h, d), its 6 material groups and its UVs (a face texture still fills its face), but
+// each edge turned into a quarter round of radius r, smooth-shaded. The grid has 2 steps around each
+// round and one across the flat middle; every point is pushed out from the inner box (shrunk by r)
+// to distance r, so the corners become eighths of a sphere. Unity builds the same shape (RoundBox.cs).
+function roundBox(w, h, d, r = Math.min(0.1, Math.min(w, h, d) * 0.3)) {
+  const M = 2,
+    seg = 2 * M + 1,
+    half = [w / 2, h / 2, d / 2],
+    g = new THREE.BoxGeometry(w, h, d, seg, seg, seg),
+    p = g.attributes.position,
+    n = g.attributes.normal,
+    uv = g.attributes.uv,
+    // grid index 0..seg along an axis → coordinate: M steps over the round, one over the flat middle
+    at = (i, k) => (i <= M ? -half[k] + (r * i) / M : half[k] - r + (r * (i - M - 1)) / M),
+    idx = (v, k) => Math.round(((v / half[k] + 1) / 2) * seg),
+    c = [0, 0, 0],
+    q = [0, 0, 0];
+  for (let i = 0; i < p.count; i++) {
+    const o = [p.getX(i), p.getY(i), p.getZ(i)],
+      k = Math.abs(n.getX(i)) > 0.5 ? 0 : Math.abs(n.getY(i)) > 0.5 ? 1 : 2,
+      ua = k === 0 ? 2 : 0,
+      va = k === 1 ? 2 : 1;
+    let len = 0;
+    for (let a = 0; a < 3; a++) {
+      q[a] = a === k ? o[a] : at(idx(o[a], a), a);
+      c[a] = Math.max(-half[a] + r, Math.min(half[a] - r, q[a]));
+      len += (q[a] - c[a]) ** 2;
+    }
+    len = Math.sqrt(len);
+    if (len > 1e-6) {
+      for (let a = 0; a < 3; a++) q[a] = c[a] + ((q[a] - c[a]) / len) * r;
+      n.setXYZ(i, (q[0] - c[0]) / r, (q[1] - c[1]) / r, (q[2] - c[2]) / r);
+    }
+    p.setXYZ(i, q[0], q[1], q[2]);
+    // the UVs follow the remapped grid (symmetric, so a face's flipped u or v maps the same way)
+    const f = (t, a) => (at(Math.round(t * seg), a) + half[a]) / (2 * half[a]);
+    uv.setXY(i, f(uv.getX(i), ua), f(uv.getY(i), va));
+  }
+  g.parameters = { width: w, height: h, depth: d };
+  return g;
+}
+const roundGeo = {};
+// the villagers' boxes rounded, once they're built (buildAnimal stays plain boxes: the Unity export reads it)
+function roundModel(o) {
+  o.traverse(m => {
+    const P = m.isMesh && m.geometry.type === 'BoxGeometry' && m.geometry.parameters;
+    if (!P || Math.min(P.width, P.height, P.depth) < 0.06) return;
+    const k = P.width + ',' + P.height + ',' + P.depth;
+    m.geometry = roundGeo[k] || (roundGeo[k] = roundBox(P.width, P.height, P.depth));
+  });
+}
 function abox(par, w, h, d, c, x, y, z, basic, op) {
   const m = new THREE.Mesh(AG(w, h, d), AM(c, basic, op));
   m.position.set(x, y, z);
@@ -509,6 +561,7 @@ function spawnChunk(cx, cz) {
         hp: AK[type].hp,
       };
       buildAnimal(a);
+      if (type === 'villager') roundModel(a.g);
       list.push(a);
       return;
     }

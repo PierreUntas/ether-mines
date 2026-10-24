@@ -83,7 +83,7 @@ namespace EtherMines.Game
             return mats[k] = m;
         }
 
-        Transform Box(Transform parent, Vector3 size, Vector3 at, Material m)
+        Transform Box(Transform parent, Vector3 size, Vector3 at, Material m, float r = -1)
         {
             if (cube == null)
             {
@@ -94,8 +94,10 @@ namespace EtherMines.Game
             var go = new GameObject("part");
             go.transform.SetParent(parent, false);
             go.transform.localPosition = at;
-            go.transform.localScale = size;
-            go.AddComponent<MeshFilter>().sharedMesh = cube;
+            // rounded like the web's (roundBox), except the thin plates of the face
+            bool round = Mathf.Min(size.x, Mathf.Min(size.y, size.z)) >= 0.06f;
+            go.transform.localScale = round ? Vector3.one : size;
+            go.AddComponent<MeshFilter>().sharedMesh = round ? RoundBox.Get(size, r) : cube;
             go.AddComponent<MeshRenderer>().sharedMaterial = m;
             return go.transform;
         }
@@ -132,8 +134,9 @@ namespace EtherMines.Game
             f.Head = new GameObject("head").transform;
             f.Head.SetParent(r, false);
             f.Head.localPosition = new Vector3(0, 1.32f, 0);
-            Box(f.Head, new Vector3(0.66f, 0.66f, 0.66f), Vector3.zero, Mat(dark));
-            Box(f.Head, new Vector3(0.56f, 0.44f, 0.02f), new Vector3(0, -0.06f, 0.33f), Mat(new Color(0.96f, 0.83f, 0.72f)));
+            // the head's rounds stay small enough for the face, a plate here (a texture on the web), to sit flat
+            Box(f.Head, new Vector3(0.66f, 0.66f, 0.66f), Vector3.zero, Mat(dark), 0.07f);
+            Box(f.Head, new Vector3(0.52f, 0.44f, 0.02f), new Vector3(0, -0.06f, 0.33f), Mat(new Color(0.96f, 0.83f, 0.72f)));
             var eye = Mat(new Color(0.16f, 0.12f, 0.3f));
             Box(f.Head, new Vector3(0.08f, 0.11f, 0.02f), new Vector3(-0.13f, -0.02f, 0.345f), eye);
             Box(f.Head, new Vector3(0.08f, 0.11f, 0.02f), new Vector3(0.13f, -0.02f, 0.345f), eye);

@@ -23,6 +23,7 @@ namespace EtherMines.Game
             public Vector3 Pos, Target;  // game coordinates
             public float Yaw, TYaw, SeenAt, Walk, Ph, StunT, WindK, LungeT, DyingT = -1, FlashT, ChargeK;
             public bool Aggro, Frenzy, Wind, WasWind, Down;
+            public bool Round;               // boxes with rounded edges (the villagers, like the web's roundModel)
             public double Hp;
             public float HitAt;              // you struck it (a moment's grace before the server's word)
             public float ArenaX, ArenaZ, ArenaReach; // the twins and the Front-Runner: hurt for real only from inside
@@ -119,8 +120,9 @@ namespace EtherMines.Game
                 float op = n.TryGetValue("o", out var o) ? (float)MiniJson.ToDouble(o, 1) : 1;
                 var mesh = new GameObject("box");
                 mesh.transform.SetParent(t, false);
-                mesh.transform.localScale = box;
-                mesh.AddComponent<MeshFilter>().sharedMesh = cube;
+                bool round = a.Round && Mathf.Min(box.x, Mathf.Min(box.y, box.z)) >= 0.06f;
+                mesh.transform.localScale = round ? Vector3.one : box;
+                mesh.AddComponent<MeshFilter>().sharedMesh = round ? RoundBox.Get(box) : cube;
                 var mr = mesh.AddComponent<MeshRenderer>();
                 mr.sharedMaterial = glow ? Glow(c, op) : Lit(c);
                 mr.shadowCastingMode = glow ? UnityEngine.Rendering.ShadowCastingMode.Off : UnityEngine.Rendering.ShadowCastingMode.On;
