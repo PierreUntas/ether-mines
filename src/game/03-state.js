@@ -25,6 +25,14 @@ const REG_DEFAULT = {
   fps: false,
   sensitivity: 1,
   autoQuality: true, // lower the graphics on its own when the game can't keep up (10-loop.js)
+  // what the screen shows (Settings → On screen, applyHud in 07-interface.js): each can be hidden
+  hudPlace: true, // your position and the compass
+  hudOnline: true, // the players online
+  hudGear: true, // your plating, boots and potions
+  hudGwei: true,
+  hudQuest: true, // the objective, top center
+  hudTarget: true, // what you aim at, under the crosshair
+  hudNames: true, // the names over the players' and villagers' heads
 };
 let REG = { ...REG_DEFAULT };
 try {

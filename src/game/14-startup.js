@@ -69,6 +69,7 @@ function nameTag(name, color, title) {
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
   s.scale.set(1.8, (0.45 * hgt) / 64, 1);
   s.renderOrder = 10;
+  s.layers.set(NAME_LAYER); // Settings → On screen can hide the names (applyHud)
   return s;
 }
 // swap an avatar's name plate when its title changes

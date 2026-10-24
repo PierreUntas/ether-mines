@@ -295,14 +295,18 @@ namespace EtherMines.Game
                 ss.normal.textColor = Sounds.On ? Ui.Paper : new Color(1, 1, 1, 0.35f);
                 if (Event.current.type == EventType.Repaint && touch) TouchPad.Reserved.Add(snd);
                 if (GUI.Button(snd, "♪", ss)) Sounds.Toggle();
-                // where you are, and the compass strip under it
-                float bw = Mathf.Max(170, Width(mono, posLine ?? "") + 20);
-                Ui.Chip(new Rect(L, T + 40, bw, 64));
-                GUI.Label(new Rect(L, T + 42, bw, 20), posLine, new GUIStyle(mono) { alignment = TextAnchor.MiddleCenter });
-                Compass(new Rect(L + (bw - 150) / 2, T + 66, 150, 18), b);
-                float y = T + 112;
+                // where you are, and the compass strip under it (each piece below can be hidden: Reg.Hud*)
+                float y = T + 40;
+                if (Reg.HudPlace)
+                {
+                    float bw = Mathf.Max(170, Width(mono, posLine ?? "") + 20);
+                    Ui.Chip(new Rect(L, T + 40, bw, 64));
+                    GUI.Label(new Rect(L, T + 42, bw, 20), posLine, new GUIStyle(mono) { alignment = TextAnchor.MiddleCenter });
+                    Compass(new Rect(L + (bw - 150) / 2, T + 66, 150, 18), b);
+                    y = T + 112;
+                }
                 // the players online (the game server's word)
-                var on = Online();
+                var on = Reg.HudOnline ? Online() : null;
                 if (!string.IsNullOrEmpty(on))
                 {
                     float ow = Mathf.Min(W * 0.4f, Width(mono, on) + 30);
@@ -313,7 +317,7 @@ namespace EtherMines.Game
                 }
                 if (World.Status != null && World.Status.StartsWith("offline")) { GUI.Label(new Rect(L, y, 400, 20), World.Status, small); y += 22; }
                 // your plating and boots
-                string armor = ArmorLine();
+                string armor = Reg.HudGear ? ArmorLine() : null;
                 if (armor != null)
                 {
                     var st = new GUIStyle(mono) { wordWrap = true };
@@ -323,7 +327,7 @@ namespace EtherMines.Game
                     GUI.Label(new Rect(L + 10, y, aw - 14, ah), armor, st);
                 }
                 // your Gwei, top right
-                if (Session != null)
+                if (Session != null && Reg.HudGwei)
                 {
                     string g = $"{Session.Gwei:0} Gwei";
                     float gw = Width(lbl, g) + 24, gx = sa.xMax - 16 - gw;
@@ -334,7 +338,7 @@ namespace EtherMines.Game
                 }
                 // the objective, top center (under the buttons on a touch screen)
                 float qy = touch ? sa.y + 56 : T;
-                if (questText != null)
+                if (questText != null && Reg.HudQuest)
                 {
                     var head = new GUIStyle(mono) { fontSize = touch ? 11 : 12 };
                     head.normal.textColor = Ui.Gold;
@@ -397,7 +401,7 @@ namespace EtherMines.Game
                 }
             }
             // what you aim at, under the crosshair
-            if (target != null && Ui.Aiming)
+            if (target != null && Ui.Aiming && Reg.HudTarget)
             {
                 float tw = Mathf.Max(Width(title, target), Width(small, targetSub ?? "")) + 22, tx = (W - tw) / 2, ty = H / 2 + 22;
                 Ui.Chip(new Rect(tx, ty, tw, targetSub != null ? 40 : 26), targetMine ? Ui.Violet : (Color?)null);

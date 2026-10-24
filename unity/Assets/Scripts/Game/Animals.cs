@@ -540,7 +540,7 @@ namespace EtherMines.Game
             foreach (var list in chunks.Values)
                 foreach (var a in list)
                 {
-                    if (a.VillagerIx < 0) continue;
+                    if (a.VillagerIx < 0 || !Reg.HudNames) continue;
                     var s = cam.WorldToScreenPoint(new Vector3(a.Pos.x, a.Pos.y + 2.15f, -a.Pos.z));
                     s = new Vector3(s.x / Ui.Scale, s.y / Ui.Scale, s.z);
                     if (s.z <= 0 || s.z > 40) continue;

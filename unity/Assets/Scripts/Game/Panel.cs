@@ -234,6 +234,28 @@ namespace EtherMines.Game
                     GUI.enabled = true;
                     ly += 38;
                 }
+                // On screen: each piece of the screen can be hidden (07-interface.js renderHudSettings)
+                GUI.Label(new Rect(r.x + 12, ly, r.width - 24, 20), "On screen", Ui.Label);
+                ly += 20;
+                GUI.Label(new Rect(r.x + 12, ly, r.width - 24, 18), "Tap a piece to hide or show it.", Ui.Small);
+                ly += 22;
+                {
+                    float hx = r.x + 12;
+                    bool all = true;
+                    foreach (var (k, t) in Reg.HudParts)
+                    {
+                        all &= Reg.Hud(k);
+                        float tw = Ui.Button.CalcSize(new GUIContent(t)).x + 20;
+                        if (hx + tw > r.xMax - 12) { hx = r.x + 12; ly += 34; }
+                        if (GUI.Button(new Rect(hx, ly, tw, 28), t, Reg.Hud(k) ? Ui.Primary : Ui.Button)) { Reg.SetHud(k, !Reg.Hud(k)); Reg.Save(); }
+                        hx += tw + 6;
+                    }
+                    string at = all ? "Hide them all" : "Show them all";
+                    float aw = Ui.Button.CalcSize(new GUIContent(at)).x + 20;
+                    if (hx + aw > r.xMax - 12) { hx = r.x + 12; ly += 34; }
+                    if (GUI.Button(new Rect(hx, ly, aw, 28), at, Ui.Button)) { foreach (var (k, _) in Reg.HudParts) Reg.SetHud(k, !all); Reg.Save(); }
+                    ly += 42;
+                }
                 Row("Sound (M)", Sounds.On, Sounds.Toggle);
                 Row("Vibrations", Haptics.On, Haptics.Toggle);
                 Row("Glow", PostGlow.On, PostGlow.Toggle);

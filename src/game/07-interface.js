@@ -2449,10 +2449,59 @@ const SETTINGS_CHOICES = [
     ],
   },
 ];
+// what the screen shows: each piece can be hidden (Settings → On screen). The panels hide through a class
+// on <body> (style.css, .hud-no-*), the names over heads through their own layer of the camera (nameTag)
+const HUD_PARTS = [
+  ['hudPlace', 'Position & compass', ['border']],
+  ['hudOnline', 'Players online', ['online']],
+  ['hudGear', 'Plating, boots & potions', ['armor', 'buffs']],
+  ['hudGwei', 'Gwei', ['gwei']],
+  ['hudQuest', 'Objective', ['quest']],
+  ['hudTarget', 'Block you aim at', ['target']],
+  ['hudNames', 'Names over heads', []],
+];
+const NAME_LAYER = 1;
+function applyHud() {
+  for (const [k] of HUD_PARTS) document.body.classList.toggle('hud-no-' + k.slice(3).toLowerCase(), !REG[k]);
+  if (REG.hudNames) camera.layers.enable(NAME_LAYER);
+  else camera.layers.disable(NAME_LAYER);
+}
+applyHud();
+function renderHudSettings(body) {
+  const row = document.createElement('div');
+  row.className = 'setting hudset';
+  row.innerHTML = '<div><strong>On screen</strong><span>Tap a piece to hide or show it.</span></div><div class="opts"></div>';
+  const opts = row.querySelector('.opts');
+  for (const [k, label] of HUD_PARTS) {
+    const b = document.createElement('button');
+    b.className = 'b' + (REG[k] ? ' primary' : '');
+    b.textContent = label;
+    b.onclick = () => {
+      REG[k] = !REG[k];
+      saveSettings();
+      applyHud();
+      renderPanel();
+    };
+    opts.appendChild(b);
+  }
+  const all = HUD_PARTS.every(([k]) => REG[k]),
+    t = document.createElement('button');
+  t.className = 'b';
+  t.textContent = all ? 'Hide them all' : 'Show them all';
+  t.onclick = () => {
+    for (const [k] of HUD_PARTS) REG[k] = !all;
+    saveSettings();
+    applyHud();
+    renderPanel();
+  };
+  opts.appendChild(t);
+  body.appendChild(row);
+}
 function renderSettings(body) {
   body.insertAdjacentHTML('beforeend', '<p class="qintro">Settings specific to this device. They apply right away.</p>');
   const box = document.createElement('div');
   box.className = 'settings';
+  renderHudSettings(box);
   for (const c of SETTINGS_CHOICES) {
     if (c.clay && !CLAY) continue;
     const row = document.createElement('div');
@@ -2482,6 +2531,7 @@ function renderSettings(body) {
     REG = { ...REG_DEFAULT };
     saveSettings();
     for (const c of SETTINGS_CHOICES) applySetting(c.k);
+    applyHud();
     renderPanel();
   };
   body.appendChild(raz);

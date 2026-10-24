@@ -275,6 +275,8 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .setting{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--line);border-radius:10px}
 .setting strong{display:block;font-size:15px}.setting span{display:block;font-size:12px;color:var(--muted)}
 .setting .opts{display:flex;gap:6px;flex-wrap:wrap}
+.hudset .opts .b{font-size:13px}
+body.hud-no-place #border,body.hud-no-online #online,body.hud-no-gear #armor,body.hud-no-gear #buffs,body.hud-no-gwei #gwei,body.hud-no-quest #quest,body.hud-no-target #target{display:none!important}
 .hint{font-size:13px;color:var(--gold,#ffd95e);margin:6px 0}
 /* open chest */
 .qty{display:flex;gap:6px;align-items:center;margin:0 0 10px}
