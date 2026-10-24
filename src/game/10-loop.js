@@ -17,6 +17,8 @@ let fpsN = 0,
 // about 12 while nothing moves under your eyes (title screen, pause, the chest or shop open), with the
 // world still running at its own pace. Keeps laptops cool and batteries alive.
 let lastDraw = 0;
+// walking backwards goes at this share of the forward speed (PlayerController.cs, BackSpeed)
+const BACK_SPEED = 0.6;
 const idleNow = () => !CINE.on && (!playing || !$('panel').hidden);
 // automatic quality: under 40 frames a second for 5 s of play, one step down (sharpness, then shadows,
 // then view distance), saved, and said once; never during the browser tests (headless, slow by nature)
@@ -86,6 +88,7 @@ function frame(now) {
       fx /= l;
       fz /= l;
     }
+    if (fz < 0) fz *= BACK_SPEED; // stepping back is slower than going forward
     const inW = get(Math.floor(P.x), Math.floor(P.y + 0.5), Math.floor(P.z)) === 11;
     P.inWater = inW;
     P.dryT = inW ? 0 : (P.dryT ?? 9) + dt; // how long since you were swimming

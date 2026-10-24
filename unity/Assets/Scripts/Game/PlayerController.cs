@@ -74,6 +74,10 @@ namespace EtherMines.Game
             if (Body == null) return;
             float dt = Mathf.Min(Time.deltaTime, 0.05f);
             ReadInput(out float fx, out float fz, out float lookX, out float lookY, out bool jump, out bool run, out bool sneak, out bool toggleView, out bool toggleFly, out bool unlock);
+            // walking backwards is slower than forwards (10-loop.js BACK_SPEED): the stick's tilt capped at 1 first
+            float fl = Mathf.Sqrt(fx * fx + fz * fz);
+            if (fl > 1) { fx /= fl; fz /= fl; }
+            if (fz < 0) fz *= BackSpeed;
             Body.AutoJump = TouchPad.Active; // no jump key under the thumb: walking into a step hops it (10-loop.js)
             Sneaking = sneak;
             Moving = fx != 0 || fz != 0;
@@ -196,6 +200,8 @@ namespace EtherMines.Game
             return Input.GetMouseButtonDown(0);
 #endif
         }
+
+        const float BackSpeed = 0.6f;
 
         static void ReadInput(out float fx, out float fz, out float lookX, out float lookY, out bool jump, out bool run, out bool sneak, out bool toggleView, out bool toggleFly, out bool unlock)
         {
