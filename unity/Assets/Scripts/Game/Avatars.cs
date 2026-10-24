@@ -34,7 +34,7 @@ namespace EtherMines.Game
             public double Yaw, TYaw, Pitch;
             public bool Mining, Seen, Guard;
             // the poses' own state (movePose, poseArms): vertical speed, how far into the air, the water, a ladder
-            public float Vy, LastY = float.NaN, AirK, SwimK, ClimbK, Land, FallV, Stroke, Climb, GuardK;
+            public float Vy, LastY = float.NaN, AirK, SwimK, ClimbK, Land, FallV, Stroke, Climb, GuardK, GlideT, GlideK, GlidePh;
             public bool WasAir;
             public int Held, ShownHeld = -1; // the tool or weapon in their right hand (`h`), and the one drawn
             public GameObject HeldObj;
@@ -584,16 +584,27 @@ namespace EtherMines.Game
             f.Land = Mathf.Max(0, f.Land - dt * 5);
             float dip = 0.13f * Mathf.Sin(f.Land * Mathf.PI);
             f.AirK += ((air ? 1 : 0) - f.AirK) * Mathf.Min(1, dt * 10);
+            // gliding (the Titan's cape): a slow, steady descent near 3 blocks a second, held a moment (movePose)
+            f.GlideT = air && f.Vy < -2.2f && f.Vy > -3.6f ? f.GlideT + dt : 0;
+            f.GlideK += ((f.GlideT > 0.25f ? 1 : 0) - f.GlideK) * Mathf.Min(1, dt * 6);
             f.ClimbK += ((ladder ? 1 : 0) - f.ClimbK) * Mathf.Min(1, dt * 10);
             f.SwimK += ((water ? 1 : 0) - f.SwimK) * Mathf.Min(1, dt * 6);
             float run = Mathf.Clamp01((sp - 4.2f) / 2) * (1 - f.SwimK) * (1 - f.ClimbK);
-            float lean = -0.14f * run - 0.55f * f.SwimK * Mathf.Min(1, sp / 1.5f);
+            float lean = -0.14f * run - 0.55f * f.SwimK * Mathf.Min(1, sp / 1.5f) - 0.45f * f.GlideK;
             bool busy = f.Mining || f.Guard;
             if (!riding)
             {
                 float ak = f.AirK;
                 legL = legL * (1 - ak) - 0.45f * ak; legR = legR * (1 - ak) + 0.25f * ak;
                 if (!busy) { rz = rz * (1 - ak) - 0.5f * ak; lz = lz * (1 - ak) + 0.5f * ak; rx = rx * (1 - ak) + 0.35f * ak; lx = lx * (1 - ak) + 0.35f * ak; }
+                if (f.GlideK > 0.01f)
+                {
+                    // arms spread like wings (Unity's z mirrored: the right arm out is -z), legs trailing
+                    f.GlidePh += dt;
+                    float gk = f.GlideK, fl = Mathf.Sin(f.GlidePh * 3) * 0.08f;
+                    legL = legL * (1 - gk) - (0.25f + fl * 0.5f) * gk; legR = legR * (1 - gk) - (0.25f - fl * 0.5f) * gk;
+                    if (!busy) { rx = rx * (1 - gk) + 0.2f * gk; lx = lx * (1 - gk) + 0.2f * gk; rz = rz * (1 - gk) - (1.35f + fl) * gk; lz = lz * (1 - gk) + (1.35f + fl) * gk; }
+                }
                 if (f.SwimK > 0.01f)
                 {
                     f.Stroke += dt * (2.2f + Mathf.Min(sp, 4) * 0.8f);

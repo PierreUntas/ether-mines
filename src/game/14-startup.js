@@ -529,10 +529,14 @@ function movePose(o, dt, sp, busy, riding) {
   o.air = air;
   o.land = Math.max(0, (o.land || 0) - dt * 5);
   o.airK = ease(o.airK || 0, air ? 1 : 0, 10);
+  // gliding (the Titan's cape, 10-loop.js): a slow, steady descent near 3 blocks a second, held a moment
+  // (a plain fall only passes through that speed): arms spread like wings, legs trailing, leaning in
+  o.glideT = air && o.vy < -2.2 && o.vy > -3.6 ? (o.glideT || 0) + dt : 0;
+  o.glideK = ease(o.glideK || 0, o.glideT > 0.25 ? 1 : 0, 6);
   o.swimK = ease(o.swimK || 0, water ? 1 : 0, 6);
   o.climbK = ease(o.climbK || 0, ladder ? 1 : 0, 10);
   const run = Math.max(0, Math.min(1, (sp - 4.2) / 2)) * (1 - o.swimK) * (1 - o.climbK);
-  o.g.rotation.x = -0.14 * run - 0.55 * o.swimK * Math.min(1, sp / 1.5);
+  o.g.rotation.x = -0.14 * run - 0.55 * o.swimK * Math.min(1, sp / 1.5) - 0.45 * o.glideK;
   if (riding) return;
   // landing: the knees give, the body dips
   const dip = 0.13 * Math.sin(o.land * Math.PI);
@@ -548,6 +552,19 @@ function movePose(o, dt, sp, busy, riding) {
       o.arms[0].rotation.z -= 0.5 * k;
       o.arms[1].rotation.x += 0.35 * k;
       o.arms[0].rotation.x += 0.35 * k;
+    }
+  }
+  if (o.glideK > 0.01) {
+    o.ph2 = (o.ph2 || 0) + dt;
+    const k = o.glideK,
+      fl = Math.sin(o.ph2 * 3) * 0.08; // the arms ride the air a little
+    o.legs[0].rotation.x = o.legs[0].rotation.x * (1 - k) - (0.25 + fl * 0.5) * k;
+    o.legs[1].rotation.x = o.legs[1].rotation.x * (1 - k) - (0.25 - fl * 0.5) * k;
+    if (!busy) {
+      o.arms[1].rotation.x = o.arms[1].rotation.x * (1 - k) + 0.2 * k;
+      o.arms[0].rotation.x = o.arms[0].rotation.x * (1 - k) + 0.2 * k;
+      o.arms[1].rotation.z = o.arms[1].rotation.z * (1 - k) + (1.35 + fl) * k;
+      o.arms[0].rotation.z = o.arms[0].rotation.z * (1 - k) - (1.35 + fl) * k;
     }
   }
   if (o.swimK > 0.01) {

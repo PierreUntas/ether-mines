@@ -14,6 +14,7 @@
         'Your health shows as a life bar instead of a row of hearts: a pale trail shows what a blow just took.',
         'A creature you strike shows its own life bar over its head for a few seconds.',
         'Walking backwards is slower than walking forwards.',
+        'Gliding with the Titan’s cape: arms spread like wings, no more running in the air.',
         'Settings → On screen: hide what you don’t need (position, players online, gear, Gwei, objective, aimed block, names over heads).',
       ],
     },
