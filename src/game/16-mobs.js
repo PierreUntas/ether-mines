@@ -1016,13 +1016,7 @@ function attackMob(a) {
 }
 const CRIT = 1.5,
   CRIT_CHANCE = 0.1,
-  critMat = new THREE.MeshBasicMaterial({
-    color: '#ffd166',
-    transparent: true,
-    opacity: 0.95,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  });
+  critMat = new THREE.MeshBasicMaterial({ color: '#ffc23d', transparent: true, opacity: 0.95, depthWrite: false }); // not additive: gold stays gold against a bright sky
 let critTimer = 0;
 // a critical blow is seen and heard: gold sparks off the mob, a sharper hit, "Critical!" under the crosshair
 function critShown(a) {
