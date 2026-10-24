@@ -36,6 +36,7 @@ namespace EtherMines.Game
             // the poses' own state (movePose, poseArms): vertical speed, how far into the air, the water, a ladder
             public float Vy, LastY = float.NaN, AirK, SwimK, ClimbK, Land, FallV, Stroke, Climb, GuardK, GlideT, GlideK, GlidePh;
             public bool WasAir;
+            public bool HeldRanged;   // a gun in hand: the arm held out to aim
             public int Held, ShownHeld = -1; // the tool or weapon in their right hand (`h`), and the one drawn
             public GameObject HeldObj;
             public float HeardAt, Walk, Phase;
@@ -473,8 +474,20 @@ namespace EtherMines.Game
             var t = f.HeldObj.transform;
             t.SetParent(f.ArmR, false);
             t.localScale = Vector3.one * 0.72f;
-            t.localPosition = new Vector3(0.1f, -0.3f, 0.22f);
-            t.localRotation = HeldModels.Mirror(0, -0.3f, 0.3f);
+            var it = EtherMines.Core.Rules.Item(f.Held);
+            f.HeldRanged = it != null && it.Ranged;
+            if (f.HeldRanged)
+            {
+                // a gun held out to aim (Animate raises the arm): the barrel (+x) down the arm, the grip in the fist
+                // (updateAvatarHand's basis, z mirrored: x to -y, y to +z, z to -x)
+                t.localRotation = Quaternion.LookRotation(new Vector3(-1, 0, 0), new Vector3(0, 0, 1));
+                t.localPosition = new Vector3(0, -0.59f, 0.1f);
+            }
+            else
+            {
+                t.localPosition = new Vector3(0.1f, -0.3f, 0.22f);
+                t.localRotation = HeldModels.Mirror(0, -0.3f, 0.3f);
+            }
         }
 
         // on board: the craft under them (another player's; yours is Hover's), seated higher, knees and hands forward
@@ -573,7 +586,8 @@ namespace EtherMines.Game
             rx = (1.25f + up * 0.5f) * g + rx * (1 - g); rz = -0.45f * g + rz * (1 - g); lx *= 1 - g; lz = lz * (1 - g) - 0.04f * g; tw = 0.12f * g;
             float sw = f.Mining ? Mathf.Max(0, 0.6f - (Time.time / 0.45f % 1) * 1.35f) : 0;
             float s = sw > 0 ? Mathf.Min(1, Mathf.Sin((1 - sw) * Mathf.PI) * sw / 0.57f) : 0;
-            rx += (1.55f + up - rx) * s; rz += (-0.28f - rz) * s; tw += (-0.3f - tw) * s;
+            if (f.HeldRanged && g <= 0.02f) { rx = 1.5f + up; rz = -0.04f; tw = -0.15f; } // a gun: the arm out toward where they look (poseArms)
+            else { rx += (1.55f + up - rx) * s; rz += (-0.28f - rz) * s; tw += (-0.3f - tw) * s; }
             float legL = a, legR = -a;
             // how they move (movePose): in the air, landing, swimming, on a ladder, leaning into a run
             if (dt > 0 && !float.IsNaN(f.LastY)) f.Vy += ((f.Pos.y - f.LastY) / dt - f.Vy) * Mathf.Min(1, dt * 12);

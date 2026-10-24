@@ -75,7 +75,7 @@ namespace UnityEngine
     {
         public Quaternion(float x, float y, float z, float w) { } public static Quaternion identity => default;
         public static Quaternion Euler(float x, float y, float z) => default; public static Quaternion AngleAxis(float a, Vector3 axis) => default;
-        public static Quaternion LookRotation(Vector3 f) => default;
+        public static Quaternion LookRotation(Vector3 f) => default; public static Quaternion LookRotation(Vector3 f, Vector3 up) => default;
         public static Quaternion FromToRotation(Vector3 a, Vector3 b) => default;
         public static Quaternion operator *(Quaternion a, Quaternion b) => a;
         public static Vector3 operator *(Quaternion a, Vector3 b) => b;

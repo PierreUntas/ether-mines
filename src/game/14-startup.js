@@ -237,11 +237,22 @@ function updateAvatarHand(av, it = heldNow()) {
   if (ti == null) return;
   const m = (!B[it] && clayModel(it)) || new THREE.Mesh(heldVoxelGeo(ti), heldVoxelMat);
   m.scale.setScalar(0.72);
-  m.position.set(0.1, -0.3, -0.22); // -z is the front, matching the head's face texture
-  m.rotation.set(0, -0.3, 0.3);
+  av.heldRanged = !!ITEM[it]?.ranged;
+  if (av.heldRanged) {
+    // a gun held out to aim (poseArms raises the arm toward where they look): its barrel (+x) down the arm,
+    // so along the arm's length, its grip (-y) in the fist and the gun on top of it
+    m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(AIM_X, AIM_Y, AIM_Z));
+    m.position.set(0, -0.59, -0.1);
+  } else {
+    m.position.set(0.1, -0.3, -0.22); // -z is the front, matching the head's face texture
+    m.rotation.set(0, -0.3, 0.3);
+  }
   hand.add(m);
   av.held = m;
 }
+const AIM_X = new THREE.Vector3(0, -1, 0),
+  AIM_Y = new THREE.Vector3(0, 0, -1),
+  AIM_Z = new THREE.Vector3(1, 0, 0);
 // ---------- the platings on a character ----------
 // Each plating has its own look, built from boxes on the avatar's body and shoulders (front is -z):
 // the Genesis Plating, basalt and ember, a gorget, stepped shoulders with a spike and a burning core; the
@@ -428,7 +439,13 @@ function poseArms(o, g, s, a, idle, pitch) {
     lz = lz * (1 - g) - 0.04 * g;
     tw = 0.12 * g;
   }
-  if (s > 0) {
+  if (o.heldRanged && g <= 0.02) {
+    // a gun: the arm held out straight toward where the character looks, the barrel along it
+    rx = 1.5 + up;
+    rz = 0.04;
+    tw = -0.15;
+  }
+  if (s > 0 && !o.heldRanged) {
     // the thrust, on top of the walk or the guard: the arm reaches out level with the eyes
     rx += (1.55 + up - rx) * s;
     rz += (-0.28 - rz) * s;
@@ -439,7 +456,7 @@ function poseArms(o, g, s, a, idle, pitch) {
   o.arms[0].rotation.x = lx;
   o.arms[0].rotation.z = lz;
   o.body.rotation.y = tw;
-  if (o.held) {
+  if (o.held && !o.heldRanged) {
     const h = o.guardHeld || GUARD_HELD;
     // a thrust turns the blade along the arm, its tip out ahead and a little up
     const k = s * (1 - g);
