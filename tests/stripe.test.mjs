@@ -36,3 +36,15 @@ test("Stripe only sends the player back to the game's own sites", () => {
   assert.equal(Kit.safeReturn('javascript:alert(1)'), null);
   assert.equal(Kit.safeReturn('nonsense'), null);
 });
+
+test('a premium set: its price, and the share left when some pieces are owned (same as 051_premium_sets.sql)', () => {
+  new Function(readFileSync(new URL('../supabase/functions/_shared/rules.js', import.meta.url), 'utf8'))();
+  const { setPrice, setPieces, SET_EUR, COSMETICS } = globalThis.Rules;
+  for (const set of Object.keys(SET_EUR)) {
+    const full = setPieces(set).reduce((t, id) => t + COSMETICS[id].eur, 0);
+    assert.ok(SET_EUR[set] < full, `${set}: the set costs less than its pieces`);
+    assert.equal(setPrice(set), SET_EUR[set]);
+    assert.equal(setPrice(set, () => true), 0);
+  }
+  assert.equal(setPrice('pow', id => id === 108), Math.round((1299 * (1795 - 299)) / 1795));
+});

@@ -38,6 +38,9 @@ Deno.serve(async (req) => {
           live: !!o.livemode,
           p_user: o.metadata?.user || null,
           cid: Number.isInteger(cid) ? cid : null,
+          // a whole set (051_premium_sets.sql): its pieces, as listed when the session was opened
+          set_: o.metadata?.set || null,
+          pieces_: o.metadata?.pieces ? String(o.metadata.pieces).split(',').map(Number) : null,
         }),
       );
     }

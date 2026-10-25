@@ -573,9 +573,10 @@ window.Net = (() => {
   const loadPremium = () => rpc('act_premium_owned', { w: world });
   // opens Stripe's payment page for one premium piece (the "checkout" Edge Function); the piece is only
   // granted once Stripe's signed webhook says it's paid, so the game asks loadPremium again on the way back
-  async function buyPremium(cosmetic) {
+  // what: { cosmetic } for one piece, { set } for a whole set (051_premium_sets.sql)
+  async function buyPremium(what) {
     const back = location.origin + location.pathname;
-    const { data, error } = await client().functions.invoke('checkout', { body: { cosmetic, world, back } });
+    const { data, error } = await client().functions.invoke('checkout', { body: { ...what, world, back } });
     if (data && data.url) return data.url;
     let msg = data && data.error;
     if (!msg && error && error.context && error.context.json) msg = (await error.context.json().catch(() => null))?.error;

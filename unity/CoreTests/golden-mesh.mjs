@@ -111,6 +111,11 @@ const rg = {
   }),
   prices,
   forSale: map(R.COSMETICS, c => R.forSale(c)),
+  // setPrice: every premium set, owning each subset of its pieces (bit k of the mask: the k-th piece owned)
+  setPrices: Object.keys(R.SET_EUR).flatMap(set => {
+    const all = R.setPieces(set);
+    return Array.from({ length: 1 << all.length }, (_, m) => [set, m, R.setPrice(set, id => (m >> all.indexOf(id)) & 1)]);
+  }),
 };
 writeFileSync(new URL('rules-golden.json', out), JSON.stringify(rg));
 

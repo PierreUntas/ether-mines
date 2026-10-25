@@ -810,6 +810,22 @@
     pow: ['Proof-of-Work', "The miners' forge: iron, embers and fire. Premium"],
     pos: ['Proof-of-Stake', "The validators' crystal: white, violet and light. Premium"],
   };
+  // the premium collections sold whole, for less than their pieces (euro cents). Owning some pieces already,
+  // you pay the same share of the set's price as the share of the pieces you're missing (setPrice);
+  // 051_premium_sets.sql computes exactly the same: change both together.
+  const SET_EUR = { pow: 1299, pos: 1299 };
+  const setPieces = set =>
+    Object.keys(COSMETICS)
+      .map(Number)
+      .filter(id => COSMETICS[id].set === set && COSMETICS[id].category === 'premium')
+      .sort((a, b) => a - b);
+  function setPrice(set, owns = () => false) {
+    const all = setPieces(set),
+      missing = all.filter(id => !owns(id));
+    if (!SET_EUR[set] || !missing.length) return 0;
+    const sum = ids => ids.reduce((t, id) => t + COSMETICS[id].eur, 0);
+    return Math.round((SET_EUR[set] * sum(missing)) / sum(all));
+  }
   // The shop's week: Monday 00:00 UTC to the next. Each week, 3 regular wearables are 25% off and one
   // limited piece is for sale. 032_shop.sql computes exactly the same picks: change both together.
   const SHOP_EPOCH = 345600; // 1970-01-05, a Monday
@@ -851,5 +867,22 @@
     if (b.shape === 'bed0f') return [137, 138, 139, 140]; // only the foot is directly placeable; the head follows server-side
     return [it];
   }
-  root.Rules = { PASTELS, STAINED, B, ITEM, RECIPES, reqTier, placeIds, COSMETICS, SETS, shopWeek, shopFeatured, shopPrice, forSale };
+  root.Rules = {
+    PASTELS,
+    STAINED,
+    B,
+    ITEM,
+    RECIPES,
+    reqTier,
+    placeIds,
+    COSMETICS,
+    SETS,
+    SET_EUR,
+    setPieces,
+    setPrice,
+    shopWeek,
+    shopFeatured,
+    shopPrice,
+    forSale,
+  };
 })(globalThis);

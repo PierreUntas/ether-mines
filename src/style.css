@@ -281,6 +281,22 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .hudset .opts .b{font-size:13px}
 body.hud-no-place #border,body.hud-no-online #online,body.hud-no-gear #armor,body.hud-no-gear #buffs,body.hud-no-gwei #gwei,body.hud-no-quest #quest,body.hud-no-target #target{display:none!important}
 .shop .eur{color:var(--gold)}
+.shoptabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.setcard{display:flex;flex-direction:column;gap:6px;padding:12px;margin:6px 0 8px;border:1px solid rgba(255,209,102,.4);border-radius:14px;background:rgba(255,209,102,.06)}
+.setcard strong{font-size:1.05em}
+.setcard .line{opacity:.8;font-size:.92em}
+.setcard .price s,.outfit s{opacity:.6}
+.setcard .sw,.outfit .sw{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.setcard .sw .swatch,.outfit .sw .swatch{width:30px;height:30px;border-radius:8px}
+.setcard .btns{display:flex;gap:6px;flex-wrap:wrap}
+.setcard.hero{padding:16px;border-color:rgba(255,209,102,.7);background:linear-gradient(135deg,rgba(255,209,102,.16),rgba(180,140,255,.16));box-shadow:0 6px 24px rgba(255,209,102,.12)}
+.setcard.hero strong{font-size:1.35em;color:var(--gold)}
+.setcard.hero .sw .swatch{width:42px;height:42px;border-radius:10px}
+.setcard .tag{align-self:flex-start;font-size:.75em;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:99px;background:rgba(255,209,102,.25);color:var(--gold)}
+.outfits{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-bottom:6px}
+.outfit{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid rgba(127,232,255,.35);border-radius:12px;background:rgba(127,232,255,.05)}
+.outfit.empty{border-style:dashed;opacity:.85}
+.outfit .btns{display:flex;gap:6px;flex-wrap:wrap}
 .weekly.premium{border-color:rgba(255,209,102,.45);background:linear-gradient(160deg,rgba(255,209,102,.08),rgba(180,140,255,.08))}
 .hint{font-size:13px;color:var(--gold,#ffd95e);margin:6px 0}
 /* open chest */

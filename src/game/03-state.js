@@ -77,6 +77,7 @@ const S0 = () => ({
   gwei: 0, // the game's own fictional currency, server-authoritative (see 019_gwei_currency.sql)
   cosmetics: [], // owned cosmetic ids (022_cosmetics.sql), server-authoritative
   look: {}, // the cosmetic worn in each slot (17-looks.js), checked against cosmetics when drawn
+  outfits: [], // the Wardrobe's saved outfits: { look, color } or null, per slot (07-interface.js)
 });
 let S = S0(),
   ME = { id: 'me', name: 'me', color: '#8a7bef' };

@@ -91,6 +91,7 @@ namespace EtherMines.Core
         public static readonly Dictionary<int, Cosmetic> Cosmetics = new Dictionary<int, Cosmetic>();
         public static int[] CosmeticIds = new int[0]; // ascending
         public static readonly List<string[]> Sets = new List<string[]>(); // [key, name, line], shop order
+        public static readonly Dictionary<string, int> SetEur = new Dictionary<string, int>(); // a whole premium set, euro cents (SET_EUR)
         public static readonly List<string[]> Pastels = new List<string[]>(), Stained = new List<string[]>();
         public static int BlockCount { get; private set; }
         public static bool Loaded { get; private set; }
@@ -106,6 +107,23 @@ namespace EtherMines.Core
         public static BlockDef Block(int id) => (uint)id < 256u ? Blocks[id] : null;
         public static ItemDef Item(int id) => Items.TryGetValue(id, out var it) ? it : null;
 
+        // rules.js setPieces / setPrice: a premium set's pieces, and what the missing ones cost bought together
+        // (the set's price times their share of the pieces' euros, rounded half up; 0 once complete)
+        public static List<int> SetPieces(string set)
+        {
+            var l = new List<int>();
+            foreach (var id in CosmeticIds) if (Cosmetics[id].Set == set && Cosmetics[id].Premium) l.Add(id);
+            return l;
+        }
+        public static int SetPrice(string set, Func<int, bool> owns)
+        {
+            if (!SetEur.TryGetValue(set, out var eur)) return 0;
+            int all = 0, missing = 0;
+            foreach (var id in SetPieces(set)) { all += Cosmetics[id].Eur; if (owns == null || !owns(id)) missing += Cosmetics[id].Eur; }
+            if (missing == 0 || all == 0) return 0;
+            return (int)Math.Floor((double)eur * missing / all + 0.5);
+        }
+
         public static void Load(string json)
         {
             var root = MiniJson.Parse(json) as Dictionary<string, object>;
@@ -115,6 +133,7 @@ namespace EtherMines.Core
             Recipes.Clear();
             Cosmetics.Clear();
             Sets.Clear();
+            SetEur.Clear();
             Pastels.Clear();
             Stained.Clear();
             BlockCount = 0;
@@ -147,6 +166,8 @@ namespace EtherMines.Core
                 var a = (List<object>)kv.Value;
                 Sets.Add(new[] { kv.Key, (string)a[0], (string)a[1] });
             }
+            if (root.TryGetValue("SET_EUR", out var se) && se is Dictionary<string, object> sed)
+                foreach (var kv in sed) SetEur[kv.Key] = MiniJson.ToInt(kv.Value);
             ReadPairs(root, "PASTELS", Pastels);
             ReadPairs(root, "STAINED", Stained);
             if (root.TryGetValue("shop", out var so) && so is Dictionary<string, object> shop)

@@ -117,6 +117,13 @@ namespace EtherMines.Game
                 var rows = await Session.Net.Select($"cosmetics_owned?select=cosmetic_id&world=eq.{Supabase.Q(Session.World)}&user_id=eq.{Session.Net.UserId}");
                 Cosmetics.Clear();
                 foreach (Dictionary<string, object> r in rows) Cosmetics.Add(MiniJson.ToInt(r["cosmetic_id"]));
+                // the premium pieces bought with euros (050_purchases.sql): the account's, in every world
+                try
+                {
+                    if (await Session.Net.Rpc("act_premium_owned", MiniJson.Write(new Dictionary<string, object> { ["w"] = Session.World })) is List<object> prem)
+                        foreach (var p in prem) { int id = MiniJson.ToInt(p); if (!Cosmetics.Contains(id)) Cosmetics.Add(id); }
+                }
+                catch (Exception e) { Debug.LogWarning(e); }
                 cosmeticsLoaded = true;
             }
             catch (Exception e) { Debug.LogWarning(e); }

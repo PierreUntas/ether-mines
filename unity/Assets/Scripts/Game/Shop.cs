@@ -1,8 +1,10 @@
-// Ether Mines · the shop (07-interface.js renderShop, shopRow): cosmetics bought with Gwei, purely
-// decorative, and the Premium pieces sold for euros (tried on now, sold with the payments). This week's three pieces 25% off and its limited piece, the collections, everything else by
-// slot, the block packs, then the trophies and titles nobody can buy. What you own you can wear (an
-// outfit also sets your color); you see it on your figure (V) and the others see it on theirs.
-// Bought through act_buy_cosmetic: the server checks your Gwei and the week's prices.
+// Ether Mines · the shop (07-interface.js renderShop), in three aisles like the web: the Store (the premium
+// pieces and sets, for euros, with this week's showcase set), the Workshop (everything bought with Gwei: this
+// week's three pieces 25% off and its limited piece, the collections, everything else by slot, the block
+// packs) and the Wardrobe (your saved outfits, what you own, the trophies and titles nobody can buy). What
+// you own you can wear (an outfit also sets your color); you see it on your figure (V) and the others on theirs.
+// Bought through act_buy_cosmetic: the server checks your Gwei and the week's prices. The euro purchases go
+// through the web's Stripe page for now (the in-app purchases come next).
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -60,50 +62,143 @@ namespace EtherMines.Game
             finally { busy = false; }
         }
 
+        string tab = "store";
+        static readonly string[][] Tabs = { new[] { "store", "Store · €" }, new[] { "workshop", "Workshop · Gwei" }, new[] { "wardrobe", "Wardrobe" } };
+        const int OutfitSlots = 4; // saved outfits, in your save (State["outfits"], as on the web)
+
+        static string Eur(int cents) => "€" + (cents / 100.0).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+        static IEnumerable<string> PremiumSets() => Rules.Sets.Select(s => s[0]).Where(k => Rules.SetPieces(k).Count > 0);
+        static string ShowcaseSet(double week)
+        {
+            var l = PremiumSets().ToList();
+            return l.Count == 0 ? null : l[(int)(((long)week % l.Count + l.Count) % l.Count)];
+        }
+        static string SetName(string set) => Rules.Sets.FirstOrDefault(s => s[0] == set)?[1] ?? set;
+        static string SetLine(string set) => (Rules.Sets.FirstOrDefault(s => s[0] == set)?[2] ?? "").Replace(". Premium", "");
+
+        // "Try the set": every piece on your character, the outfit in its own color
+        void TryOnSet(string set)
+        {
+            if (Avatars == null) return;
+            Avatars.TryLook = new Dictionary<string, int>(Looks.Mine(Session, Progress.Cosmetics));
+            Avatars.TryColor = null;
+            foreach (var id in Rules.SetPieces(set))
+            {
+                var c = Rules.Cosmetics[id];
+                Avatars.TryLook[c.Slot] = id;
+                if (c.Slot == "outfit") Avatars.TryColor = c.Color;
+            }
+        }
+
+        List<object> Outfits()
+        {
+            if (!Session.State.TryGetValue("outfits", out var o) || !(o is List<object> l)) Session.State["outfits"] = l = new List<object>();
+            while (l.Count < OutfitSlots) l.Add(null);
+            return l;
+        }
+        void SaveOutfit(int i)
+        {
+            var look = new Dictionary<string, object>();
+            foreach (var kv in Looks.Mine(Session, Progress.Cosmetics)) look[kv.Key] = (double)kv.Value;
+            Outfits()[i] = new Dictionary<string, object> { ["look"] = look, ["color"] = Session.Color };
+            Session.Dirty = true;
+            Hud.Feed("nft", $"Outfit {i + 1}", "saved");
+        }
+        void WearOutfit(int i)
+        {
+            if (!(Outfits()[i] is Dictionary<string, object> o)) return;
+            var want = o.TryGetValue("look", out var lk) && lk is Dictionary<string, object> ld ? ld : new Dictionary<string, object>();
+            var d = LookObj();
+            int missing = 0;
+            foreach (var slot in Looks.Slots)
+            {
+                int id = want.TryGetValue(slot, out var v) ? MiniJson.ToInt(v) : 0;
+                if (id != 0 && !Owns(id)) missing++;
+                if (id != 0 && Owns(id)) d[slot] = (double)id; else d.Remove(slot);
+            }
+            if (d.TryGetValue("outfit", out var oid) && Rules.Cosmetics.TryGetValue(MiniJson.ToInt(oid), out var oc) && !string.IsNullOrEmpty(oc.Color)) Session.Color = oc.Color;
+            else if (o.TryGetValue("color", out var col) && col is string cs) Session.Color = cs;
+            if (Avatars != null) { Avatars.TryLook = null; Avatars.TryColor = null; }
+            Session.Dirty = true;
+            Hud.Feed("nft", $"Outfit {i + 1}", missing > 0 ? $"on, without {missing} piece{(missing > 1 ? "s" : "")} you no longer own" : "on");
+        }
+
+        // one thing in the list: a heading, a note, a piece, a set card, the outfits
+        struct Item { public float H; public Action<Rect> Draw; }
+
         public void Draw(Rect body)
         {
             double week = Rules.ShopWeek();
             var f = Rules.ShopFeatured(week);
             var ids = Rules.CosmeticIds;
-            // the rows, by section
-            var rows = new List<(string head, string note, int id)>();
-            var weekly = f.Sale.Where(i => i >= 0).ToList();
-            if (f.Limited >= 0) weekly.Add(f.Limited);
-            var wait = TimeSpan.FromSeconds((week + 1) * Rules.ShopWeekSeconds + Rules.ShopEpoch - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-            string Head(string h) => h;
-            bool firstW = true;
-            // Premium: the pieces sold for euros (never for Gwei), by collection; tried on now, sold with the payments
-            bool firstP = true;
-            foreach (var set in Rules.Sets)
+            var items = new List<Item>();
+            void Head(string h) => items.Add(new Item { H = 34, Draw = r => GUI.Label(new Rect(r.x, r.y + 6, r.width, 26), h, Ui.Title) });
+            void Note(string n) => items.Add(new Item { H = 24, Draw = r => GUI.Label(r, n, Ui.Small) });
+            void Piece(int id) => items.Add(new Item { H = 58, Draw = r => Row(new Rect(r.x, r.y, r.width, 52), Rules.Cosmetics[id], f, week) });
+
+            if (tab == "store")
             {
-                var mine = ids.Where(i => Rules.Cosmetics[i].Set == set[0] && Rules.Cosmetics[i].Premium).ToList();
-                bool first = true;
-                foreach (var i in mine)
+                Note("The most striking pieces, sold for euros: light, embers and moving parts. Cosmetics only, never an advantage. Try them on now; they go on sale soon.");
+                var hero = ShowcaseSet(week);
+                if (hero != null) items.Add(new Item { H = 150, Draw = r => SetCard(r, hero, true) });
+                foreach (var set in PremiumSets())
                 {
-                    rows.Add((first ? (firstP ? "Premium · " : "") + set[1] : null, first ? (firstP ? "The most striking pieces, sold for euros: light, embers and moving parts. Try them on now; they go on sale soon." : set[2].Replace(". Premium", "")) : null, i));
-                    first = false; firstP = false;
+                    Head(SetName(set));
+                    if (set != hero) items.Add(new Item { H = 128, Draw = r => SetCard(r, set, false) });
+                    foreach (var id in Rules.SetPieces(set)) Piece(id);
                 }
             }
-            foreach (var i in weekly) { rows.Add((firstW ? "This week" : null, firstW ? $"New offers in {(int)wait.TotalDays} d {wait.Hours} h: three pieces 25% off, and one limited piece you can only buy this week." : null, i)); firstW = false; }
-            foreach (var set in Rules.Sets)
+            else if (tab == "workshop")
             {
-                var mine = ids.Where(i => Rules.Cosmetics[i].Set == set[0] && !Rules.Cosmetics[i].Premium && (!Rules.Cosmetics[i].Retired || Owns(i))).ToList();
-                bool first = true;
-                foreach (var i in mine) { rows.Add((first ? $"{set[1]} collection · {mine.Count(Owns)}/{mine.Count}" : null, first ? set[2] : null, i)); first = false; }
+                Note($"Bought with Gwei, earned by your validators, mobs and chapters. You have <b>{Session.Gwei:0} Gwei</b>.");
+                var weekly = f.Sale.Where(i => i >= 0).ToList();
+                if (f.Limited >= 0) weekly.Add(f.Limited);
+                var wait = TimeSpan.FromSeconds((week + 1) * Rules.ShopWeekSeconds + Rules.ShopEpoch - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                Head("This week");
+                Note($"New offers in {(int)wait.TotalDays} d {wait.Hours} h: three pieces 25% off, and one limited piece you can only buy this week.");
+                foreach (var i in weekly) Piece(i);
+                foreach (var set in Rules.Sets)
+                {
+                    var mine = ids.Where(i => Rules.Cosmetics[i].Set == set[0] && !Rules.Cosmetics[i].Premium && (!Rules.Cosmetics[i].Retired || Owns(i))).ToList();
+                    if (mine.Count == 0) continue;
+                    Head($"{set[1]} collection · {mine.Count(Owns)}/{mine.Count}");
+                    Note(set[2]);
+                    foreach (var i in mine) Piece(i);
+                }
+                var loose = ids.Where(i => Rules.Cosmetics[i].Set == null && Rules.ForSale(Rules.Cosmetics[i])).ToList();
+                foreach (var slot in Looks.Slots.Concat(new string[] { null }))
+                {
+                    var mine = loose.Where(i => Rules.Cosmetics[i].Slot == slot && !Rules.Cosmetics[i].HasGrant).ToList();
+                    if (mine.Count == 0) continue;
+                    Head(slot != null ? Looks.SlotLabel[slot] : "Other");
+                    foreach (var i in mine) Piece(i);
+                }
+                var packs = loose.Where(i => Rules.Cosmetics[i].HasGrant).ToList();
+                if (packs.Count > 0) { Head("Block packs"); Note("Decorative blocks straight into your bag. Buy them as often as you like."); foreach (var i in packs) Piece(i); }
             }
-            var loose = ids.Where(i => Rules.Cosmetics[i].Set == null && Rules.ForSale(Rules.Cosmetics[i])).ToList();
-            foreach (var slot in Looks.Slots.Concat(new string[] { null }))
+            else
             {
-                var mine = loose.Where(i => Rules.Cosmetics[i].Slot == slot && !Rules.Cosmetics[i].HasGrant).ToList();
-                bool first = true;
-                foreach (var i in mine) { rows.Add((first ? (slot != null ? Looks.SlotLabel[slot] : "Other") : null, null, i)); first = false; }
+                Head("My outfits");
+                Note("Save what you wear now in a slot, and put it all back on in one tap.");
+                items.Add(new Item { H = 2 * 96 + 8, Draw = OutfitGrid });
+                var owned = ids.Where(i => Owns(i) && Rules.Cosmetics[i].Slot != null && !Rules.Cosmetics[i].HasGrant).ToList();
+                if (owned.Count == 0) { Head("My pieces"); Note("Nothing yet: try pieces on in the Store or the Workshop."); }
+                foreach (var slot in Looks.Slots)
+                {
+                    var mine = owned.Where(i => Rules.Cosmetics[i].Slot == slot).ToList();
+                    if (mine.Count == 0) continue;
+                    Head(Looks.SlotLabel[slot]);
+                    foreach (var i in mine) Piece(i);
+                }
+                var trophies = ids.Where(i => !Rules.ForSale(Rules.Cosmetics[i]) && !Rules.Cosmetics[i].Retired && Rules.Cosmetics[i].Category != "title" && !Rules.Cosmetics[i].Premium).ToList();
+                Head($"Trophies · {trophies.Count(Owns)}/{trophies.Count}");
+                Note("Never sold: dropped by tough mobs, rarely, or earned by fighting off the network attack.");
+                foreach (var i in trophies.Where(i => !Owns(i))) Piece(i);
+                var titles = ids.Where(i => Rules.Cosmetics[i].Category == "title").ToList();
+                Head($"Titles · {titles.Count(Owns)}/{titles.Count}");
+                Note("Never sold: each one is earned by finishing a story chapter; the furthest shows under your name.");
+                foreach (var i in titles) Piece(i);
             }
-            var packs = loose.Where(i => Rules.Cosmetics[i].HasGrant).ToList();
-            for (int k = 0; k < packs.Count; k++) rows.Add((k == 0 ? "Block packs" : null, k == 0 ? "Decorative blocks straight into your bag. Buy them as often as you like." : null, packs[k]));
-            var trophies = ids.Where(i => !Rules.ForSale(Rules.Cosmetics[i]) && !Rules.Cosmetics[i].Retired && Rules.Cosmetics[i].Category != "title" && !Rules.Cosmetics[i].Premium).ToList();
-            for (int k = 0; k < trophies.Count; k++) rows.Add((k == 0 ? $"Trophies · {trophies.Count(Owns)}/{trophies.Count}" : null, k == 0 ? "Never sold: dropped by tough mobs, rarely, or earned by fighting off the network attack." : null, trophies[k]));
-            var titles = ids.Where(i => Rules.Cosmetics[i].Category == "title").ToList();
-            for (int k = 0; k < titles.Count; k++) rows.Add((k == 0 ? $"Titles · {titles.Count(Owns)}/{titles.Count}" : null, k == 0 ? "Never sold: each one is earned by finishing a story chapter; the furthest shows under your name." : null, titles[k]));
 
             // your character beside the list, with what you try on
             float side = Avatars != null ? 290 : 0;
@@ -115,25 +210,82 @@ namespace EtherMines.Game
                 float ty = pr.y + Mathf.Min(360, pr.height - 90) + 12;
                 if (Avatars.TryLook != null && Avatars.TryLook.Count > 0)
                 {
-                    GUI.Label(new Rect(pr.x + 12, ty, pr.width - 24, 40), "Trying on: " + string.Join(", ", Avatars.TryLook.Values.Select(i => Rules.Cosmetics[i].N)), Ui.Small);
+                    var mine = Looks.Mine(Session, Progress.Cosmetics);
+                    var tried = Avatars.TryLook.Where(kv => !mine.TryGetValue(kv.Key, out var m) || m != kv.Value).Select(kv => Rules.Cosmetics[kv.Value].N).ToList();
+                    GUI.Label(new Rect(pr.x + 12, ty, pr.width - 24, 40), "Trying on: " + (tried.Count > 0 ? string.Join(", ", tried) : "nothing new"), Ui.Small);
                     if (GUI.Button(new Rect(pr.x + 12, ty + 40, pr.width - 24, 30), "Back to my look", Ui.Button)) { Avatars.TryLook = null; Avatars.TryColor = null; }
                 }
                 else GUI.Label(new Rect(pr.x + 12, ty, pr.width - 24, 40), "Press Try on any piece to see it on your character first.", Ui.Small);
             }
             var lb = new Rect(body.x, body.y, body.width - side - (side > 0 ? 12 : 0), body.height);
-            GUI.Label(new Rect(lb.x, lb.y, lb.width, 36), $"Cosmetics only: no combat, speed, harvesting or access advantage. You have <b>{Session.Gwei:0} Gwei</b>, earned by your validators, mobs and chapters.", Ui.Small);
-            float h = rows.Sum(r => 58 + (r.head != null ? 34 : 0) + (r.note != null ? 22 : 0));
-            var view = new Rect(0, 0, lb.width - 20, h);
-            scroll = Ui.Scroll(new Rect(lb.x, lb.y + 40, lb.width, lb.height - 40), scroll, view);
-            float y = 0;
-            foreach (var (head, note, id) in rows)
+            // the three aisles
+            float tx = lb.x;
+            foreach (var t in Tabs)
             {
-                if (head != null) { GUI.Label(new Rect(0, y + 6, view.width, 26), head, Ui.Title); y += 34; }
-                if (note != null) { GUI.Label(new Rect(0, y, view.width, 22), note, Ui.Small); y += 22; }
-                Row(new Rect(0, y, view.width, 52), Rules.Cosmetics[id], f, week);
-                y += 58;
+                float w = Ui.Pill(tab == t[0]).CalcSize(new GUIContent(t[1])).x + 28;
+                if (GUI.Button(new Rect(tx, lb.y, w, 32), t[1], tab == t[0] ? Ui.Primary : Ui.Button)) { tab = t[0]; scroll = Vector2.zero; }
+                tx += w + 8;
             }
+            float h = items.Sum(it => it.H);
+            var view = new Rect(0, 0, lb.width - 20, h);
+            scroll = Ui.Scroll(new Rect(lb.x, lb.y + 42, lb.width, lb.height - 42), scroll, view);
+            float y = 0;
+            foreach (var it in items) { it.Draw(new Rect(0, y, view.width, it.H)); y += it.H; }
             GUI.EndScrollView();
+        }
+
+        // a premium set: its pieces, its price against theirs, try it, buy it (or what's left of it)
+        void SetCard(Rect r, string set, bool hero)
+        {
+            var pieces = Rules.SetPieces(set);
+            int have = pieces.Count(Owns), price = Rules.SetPrice(set, Owns), full = pieces.Sum(i => Rules.Cosmetics[i].Eur);
+            int rest = pieces.Where(i => !Owns(i)).Sum(i => Rules.Cosmetics[i].Eur);
+            var box = new Rect(r.x, r.y + 4, r.width, r.height - 10);
+            Ui.Fill(box, hero ? new Color(1f, 0.85f, 0.37f, 0.16f) : new Color(1f, 0.85f, 0.37f, 0.07f));
+            float y = box.y + 8;
+            if (hero) { GUI.Label(new Rect(box.x + 12, y, box.width - 24, 18), "<color=#ffd95e>THIS WEEK'S SHOWCASE</color>", Ui.Small); y += 20; }
+            GUI.Label(new Rect(box.x + 12, y, box.width - 24, 26), hero ? $"<color=#ffd95e>{SetName(set)} set</color>" : $"<b>{SetName(set)} set</b>", hero ? Ui.Title : Ui.Label);
+            y += 26;
+            GUI.Label(new Rect(box.x + 12, y, box.width - 24, 20), SetLine(set), Ui.Small);
+            y += 24;
+            float sx = box.x + 12, sz = hero ? 34 : 28;
+            foreach (var id in pieces) { Ui.Fill(new Rect(sx, y, sz, sz), Avatars.Hex(set == "pow" ? "#ff8a3d" : "#b48cff", Ui.Violet)); if (Owns(id)) Ui.Fill(new Rect(sx, y + sz - 4, sz, 4), Ui.Cyan); sx += sz + 6; }
+            int save = full > 0 && Rules.SetEur.TryGetValue(set, out var se) ? (int)Math.Round((1 - (double)se / full) * 100) : 0;
+            string txt = price == 0 ? "Complete: every piece is yours"
+                : have > 0 ? $"{have}/{pieces.Count} owned · the rest for <b><color=#ffd95e>{Eur(price)}</color></b> <color=#9a92c8>{Eur(rest)}</color>"
+                : $"All {pieces.Count} pieces for <b><color=#ffd95e>{Eur(price)}</color></b> <color=#9a92c8>{Eur(full)}</color> · save {save}%";
+            GUI.Label(new Rect(sx + 10, y + (sz - 22) / 2, box.xMax - sx - 400, 22), txt, Ui.Small);
+            var b = new Rect(box.xMax - 200, y, 190, 32);
+            if (GUI.Button(new Rect(b.x - 130, b.y, 120, 32), "Try the set", Ui.Button)) TryOnSet(set);
+            if (price > 0) { GUI.enabled = false; GUI.Button(b, Eur(price) + " · soon", Ui.Button); GUI.enabled = true; }
+        }
+
+        void OutfitGrid(Rect r)
+        {
+            var list = Outfits();
+            float w = (r.width - 8) / 2;
+            for (int i = 0; i < OutfitSlots; i++)
+            {
+                var c = new Rect(r.x + (i % 2) * (w + 8), r.y + (i / 2) * 96, w, 88);
+                var o = list[i] as Dictionary<string, object>;
+                Ui.Fill(c, new Color(0.5f, 0.91f, 1f, o != null ? 0.08f : 0.03f));
+                GUI.Label(new Rect(c.x + 10, c.y + 6, c.width - 20, 22), $"<b>Outfit {i + 1}</b>", Ui.Label);
+                if (o != null)
+                {
+                    float sx = c.x + 10;
+                    if (o.TryGetValue("color", out var col) && col is string cs) { Ui.Fill(new Rect(sx, c.y + 30, 18, 18), Avatars.Hex(cs, Ui.Violet)); sx += 24; }
+                    if (o.TryGetValue("look", out var lk) && lk is Dictionary<string, object> ld)
+                        foreach (var slot in Looks.Slots)
+                            if (ld.TryGetValue(slot, out var v) && Rules.Cosmetics.TryGetValue(MiniJson.ToInt(v), out var pc))
+                            { Ui.Fill(new Rect(sx, c.y + 30, 18, 18), Avatars.Hex(!string.IsNullOrEmpty(pc.Color) ? pc.Color : SlotTint.TryGetValue(slot, out var t) ? t : "#ffd95e", Ui.Violet)); sx += 24; }
+                }
+                else GUI.Label(new Rect(c.x + 10, c.y + 30, c.width - 20, 20), "Empty", Ui.Small);
+                float bx = c.x + 10, by = c.y + 54;
+                if (o != null) { if (GUI.Button(new Rect(bx, by, 70, 28), "Wear", Ui.Primary)) WearOutfit(i); bx += 78; }
+                if (GUI.Button(new Rect(bx, by, o != null ? 84 : 130, 28), o != null ? "Replace" : "Save my look", o != null ? Ui.Button : Ui.Primary)) SaveOutfit(i);
+                bx += (o != null ? 84 : 130) + 8;
+                if (o != null && GUI.Button(new Rect(bx, by, 66, 28), "Clear", Ui.Button)) { list[i] = null; Session.Dirty = true; }
+            }
         }
 
         void Row(Rect r, Cosmetic c, ShopPicks f, double week)

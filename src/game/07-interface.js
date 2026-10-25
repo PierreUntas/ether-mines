@@ -1870,11 +1870,12 @@ const PAY_ERRS = {
   'too many actions': 'wait a moment and try again',
   'payments are not open yet': 'payments are not open yet',
 };
+// c: one piece ({ id, n, ... }) or a whole set ({ bundle, n })
 async function buyPremium(c, btn) {
   if (btn) freezeBtn(btn, 'Opening payment…');
   try {
     // Stripe's own page takes the payment, then sends you back here (?shop=paid, see premiumReturn)
-    location.href = await Net.buyPremium(+c.id);
+    location.href = await Net.buyPremium(c.bundle ? { set: c.bundle } : { cosmetic: +c.id });
   } catch (e) {
     logEv('burn', c.n, PAY_ERRS[e.message] || e.message);
     Sound.hit('stone');
@@ -1892,8 +1893,8 @@ async function premiumReturn(state) {
     const fresh = got.filter(id => !before.has(id));
     if (fresh.length) {
       for (const id of fresh) S.cosmetics.push(id);
-      const c = COSMETICS[fresh[0]];
-      if (c.slot) setLookSlot(c.slot, fresh[0]);
+      // what you bought goes on (a whole set: every piece)
+      for (const id of fresh) if (COSMETICS[id].slot) setLookSlot(COSMETICS[id].slot, id);
       toastInfo(`Thank you! ${fresh.map(id => COSMETICS[id].n).join(', ')}: yours, in every world.`);
       Sound.chime();
       return ui();
@@ -2038,13 +2039,252 @@ function shopRow(id, ctx) {
   d.appendChild(btns);
   return d;
 }
+// The shop, in three aisles: the Store (premium pieces and sets, for euros, with this week's showcase), the
+// Workshop (everything bought with Gwei) and the Wardrobe (what you own, and your saved outfits)
+let SHOP_TAB = 'store';
+const SHOP_TABS = [
+  ['store', 'Store · €'],
+  ['workshop', 'Workshop · Gwei'],
+  ['wardrobe', 'Wardrobe'],
+];
+const OUTFIT_SLOTS = 4; // saved outfits, kept in your save (S.outfits)
+const premiumSets = () => Object.keys(SETS).filter(premiumSet);
+// the week's showcase: one premium set, in turn
+const showcaseSet = () => {
+  const l = premiumSets();
+  return l.length ? l[shopWeek() % l.length] : null;
+};
+const fullSetEur = set => setPieces(set).reduce((t, id) => t + COSMETICS[id].eur, 0);
+// "Try the set": every piece on the character in the shop, the outfit in its own color
+function tryOnSet(set) {
+  const p = PREVIEW;
+  if (!p) return;
+  const look = { ...myLook() };
+  let color = null;
+  for (const id of setPieces(set)) {
+    const c = COSMETICS[id];
+    look[c.slot] = id;
+    if (c.slot === 'outfit') color = c.color;
+  }
+  p.tryLook = look;
+  p.tryColor = color;
+  renderPanel();
+}
+// a premium set, as a card: its pieces, its price against theirs, try it, buy it (or what's left of it)
+function setCard(set, hero) {
+  const [name, line] = SETS[set],
+    pieces = setPieces(set),
+    have = pieces.filter(ownsCosmetic).length,
+    price = setPrice(set, ownsCosmetic),
+    full = fullSetEur(set),
+    rest = pieces.filter(id => !ownsCosmetic(id)).reduce((t, id) => t + COSMETICS[id].eur, 0);
+  const d = document.createElement('div');
+  d.className = 'setcard' + (hero ? ' hero' : '');
+  const sw = pieces
+    .map(
+      id =>
+        `<span class="swatch" title="${COSMETICS[id].n}" style="background:${swatchOf(COSMETICS[id]) || SLOT_TINT[COSMETICS[id].slot] || 'var(--gold)'}"></span>`,
+    )
+    .join('');
+  const save = Math.round((1 - SET_EUR[set] / full) * 100);
+  const priceTxt = !price
+    ? 'Complete: every piece is yours'
+    : have
+      ? `${have}/${pieces.length} owned · the rest for <b class="eur">${eurText(price)}</b> <s>${eurText(rest)}</s>`
+      : `All ${pieces.length} pieces for <b class="eur">${eurText(price)}</b> <s>${eurText(full)}</s> · save ${save}%`;
+  d.innerHTML = `${hero ? '<span class="tag">This week’s showcase</span>' : ''}<strong>${name} set</strong><span class="line">${line.replace(/\. Premium$/, '')}</span><div class="sw">${sw}</div><span class="price">${priceTxt}</span>`;
+  const btns = document.createElement('div');
+  btns.className = 'btns';
+  const add = (txt, cls, fn, disabled) => {
+    const b = document.createElement('button');
+    b.className = 'b' + (cls ? ' ' + cls : '');
+    b.textContent = txt;
+    b.disabled = !!disabled;
+    if (fn) b.onclick = () => fn(b);
+    btns.appendChild(b);
+    return b;
+  };
+  add('Try the set', '', () => tryOnSet(set));
+  if (price) {
+    if (paymentsOpen())
+      add(`${have ? 'Complete the set' : 'Buy the set'} · ${eurText(price)}`, 'primary', b =>
+        buyPremium({ bundle: set, n: `${name} set` }, b),
+      );
+    else add(`${eurText(price)} · soon`, '', null, true).title = 'Premium pieces will be sold for euros soon';
+  }
+  d.appendChild(btns);
+  return d;
+}
+function shopStore(list, ctx) {
+  list.insertAdjacentHTML(
+    'beforeend',
+    `<p class="qintro">The most striking pieces, sold for euros: light, embers and moving parts. Cosmetics only, never an advantage. ${
+      paymentsOpen()
+        ? 'Try them on first; once bought, a piece is yours in every world.' +
+          (CONFIG.PAYMENTS === 'test' ? " <b>Test mode: use Stripe's test card 4242 4242 4242 4242, nothing is charged.</b>" : '')
+        : 'Try them on now; they go on sale soon.'
+    }</p>`,
+  );
+  const hero = showcaseSet();
+  if (hero) list.appendChild(setCard(hero, true));
+  for (const set of premiumSets()) {
+    const [name] = SETS[set];
+    const box = document.createElement('div');
+    box.className = 'weekly premium';
+    box.insertAdjacentHTML('beforeend', `<h3 class="cat">${name}</h3>`);
+    if (set !== hero) box.appendChild(setCard(set, false));
+    for (const id of setPieces(set)) box.appendChild(shopRow(id, ctx));
+    list.appendChild(box);
+  }
+}
+function shopWorkshop(list, ctx) {
+  const featured = ctx.featured;
+  list.insertAdjacentHTML(
+    'beforeend',
+    `<p class="qintro">Bought with Gwei, earned by your validators, mobs and chapters. You have <b>${S.gwei || 0} Gwei</b>.</p>`,
+  );
+  const section = (title, note) => {
+    list.insertAdjacentHTML('beforeend', `<h3 class="cat">${title}</h3>`);
+    if (note) list.insertAdjacentHTML('beforeend', `<p class="note">${note}</p>`);
+  };
+  // this week: three pieces 25% off and one limited piece, until Monday
+  const box = document.createElement('div');
+  box.className = 'weekly';
+  box.insertAdjacentHTML(
+    'beforeend',
+    `<h3 class="cat">This week</h3><p class="note">New offers in ${shopCountdown()}: three pieces 25% off, and one limited piece you can only buy this week.</p>`,
+  );
+  for (const id of featured.limited ? [...featured.sale, featured.limited] : featured.sale) box.appendChild(shopRow(id, ctx));
+  list.appendChild(box);
+  const ids = Object.keys(COSMETICS)
+    .map(Number)
+    .sort((a, b) => a - b);
+  for (const [set, [name, line]] of Object.entries(SETS)) {
+    if (premiumSet(set)) continue; // in the Store
+    const mine = ids.filter(id => COSMETICS[id].set === set && (!COSMETICS[id].retired || ownsCosmetic(id))),
+      have = mine.filter(id => ownsCosmetic(id)).length;
+    section(`${name} collection · ${have}/${mine.length}`, line);
+    for (const id of mine) list.appendChild(shopRow(id, ctx));
+  }
+  const loose = ids.filter(id => !COSMETICS[id].set && forSale(COSMETICS[id]));
+  for (const slot of [...LOOK_SLOTS, null]) {
+    const mine = loose.filter(id => (COSMETICS[id].slot || null) === slot && !COSMETICS[id].grantItem);
+    if (!mine.length) continue;
+    section(SLOT_LABEL[slot] || 'Other');
+    for (const id of mine) list.appendChild(shopRow(id, ctx));
+  }
+  const packs = loose.filter(id => COSMETICS[id].grantItem);
+  if (packs.length) {
+    section('Block packs', 'Decorative blocks straight into your chest. Buy them as often as you like.');
+    for (const id of packs) list.appendChild(shopRow(id, ctx));
+  }
+}
+// ---------- the Wardrobe: what you own, and outfits saved to put back on in one tap ----------
+function saveOutfit(i) {
+  const o = (S.outfits = [...(S.outfits || [])]);
+  o[i] = { look: myLook(), color: ME.color };
+  dirty = cloudDirty = true;
+  toastInfo(`Outfit ${i + 1} saved.`);
+  renderPanel();
+}
+function wearOutfit(i) {
+  const o = S.outfits && S.outfits[i];
+  if (!o) return;
+  if (PREVIEW) PREVIEW.tryLook = PREVIEW.tryColor = null;
+  let missing = 0;
+  for (const s of LOOK_SLOTS) {
+    const id = o.look && o.look[s];
+    if (id && !ownsCosmetic(id)) missing++;
+    setLookSlot(s, id && ownsCosmetic(id) ? id : null);
+  }
+  if (o.color && !(o.look && o.look.outfit)) {
+    profile.color = ME.color = o.color;
+    try {
+      localStorage.setItem(PKEY, JSON.stringify(profile));
+    } catch (e) {}
+    lookChanged();
+  }
+  toastInfo(missing ? `Outfit ${i + 1} on, without ${missing} piece${missing > 1 ? 's' : ''} you no longer own.` : `Outfit ${i + 1} on.`);
+  ui();
+}
+function clearOutfit(i) {
+  const o = (S.outfits = [...(S.outfits || [])]);
+  o[i] = null;
+  dirty = cloudDirty = true;
+  renderPanel();
+}
+function shopWardrobe(list, ctx) {
+  const section = (title, note) => {
+    list.insertAdjacentHTML('beforeend', `<h3 class="cat">${title}</h3>`);
+    if (note) list.insertAdjacentHTML('beforeend', `<p class="note">${note}</p>`);
+  };
+  section('My outfits', 'Save what you wear now in a slot, and put it all back on in one tap.');
+  const grid = document.createElement('div');
+  grid.className = 'outfits';
+  for (let i = 0; i < OUTFIT_SLOTS; i++) {
+    const o = S.outfits && S.outfits[i];
+    const d = document.createElement('div');
+    d.className = 'outfit' + (o ? '' : ' empty');
+    const pieces = o ? LOOK_SLOTS.map(s => o.look && o.look[s]).filter(id => id && COSMETICS[id]) : [];
+    d.innerHTML = `<strong>Outfit ${i + 1}</strong><div class="sw">${
+      o
+        ? `<span class="swatch" title="color" style="background:${o.color}"></span>` +
+          pieces
+            .map(
+              id =>
+                `<span class="swatch" title="${COSMETICS[id].n}" style="background:${swatchOf(COSMETICS[id]) || SLOT_TINT[COSMETICS[id].slot] || 'var(--gold)'}"></span>`,
+            )
+            .join('')
+        : '<span class="note">Empty</span>'
+    }</div>`;
+    const btns = document.createElement('div');
+    btns.className = 'btns';
+    const add = (txt, cls, fn) => {
+      const b = document.createElement('button');
+      b.className = 'b' + (cls ? ' ' + cls : '');
+      b.textContent = txt;
+      b.onclick = fn;
+      btns.appendChild(b);
+    };
+    if (o) add('Wear', 'primary', () => wearOutfit(i));
+    add(o ? 'Replace' : 'Save my look', o ? '' : 'primary', () => saveOutfit(i));
+    if (o) add('Clear', '', () => clearOutfit(i));
+    d.appendChild(btns);
+    grid.appendChild(d);
+  }
+  list.appendChild(grid);
+  const ids = Object.keys(COSMETICS)
+    .map(Number)
+    .sort((a, b) => a - b);
+  const owned = ids.filter(id => ownsCosmetic(id) && COSMETICS[id].slot && !COSMETICS[id].grantItem);
+  if (!owned.length) section('My pieces', 'Nothing yet: try pieces on in the Store or the Workshop.');
+  for (const slot of LOOK_SLOTS) {
+    const mine = owned.filter(id => COSMETICS[id].slot === slot);
+    if (!mine.length) continue;
+    section(SLOT_LABEL[slot]);
+    for (const id of mine) list.appendChild(shopRow(id, ctx));
+  }
+  const trophies = ids.filter(
+    id => !forSale(COSMETICS[id]) && !COSMETICS[id].retired && COSMETICS[id].category !== 'title' && COSMETICS[id].category !== 'premium',
+  );
+  section(
+    `Trophies · ${trophies.filter(id => S.cosmetics.includes(id)).length}/${trophies.length}`,
+    'Never sold: dropped by tough mobs, rarely, or earned by fighting off the network attack. Worn like the rest once you have them.',
+  );
+  for (const id of trophies.filter(id => !ownsCosmetic(id))) list.appendChild(shopRow(id, ctx));
+  const titles = ids.filter(id => COSMETICS[id].category === 'title');
+  section(
+    `Titles · ${titles.filter(id => S.cosmetics.includes(id)).length}/${titles.length}`,
+    'Never sold: each one is earned by finishing a story chapter (Objectives tab), and the furthest shows under your name.',
+  );
+  for (const id of titles) list.appendChild(shopRow(id, ctx));
+}
 function renderShop(body) {
   if (!SERVER()) {
     body.innerHTML = '<p class="qintro">The shop needs an online game: cosmetics are bought with your server-side Gwei balance.</p>';
     return;
   }
-  const featured = shopFeatured(),
-    ctx = { featured },
+  const ctx = { featured: shopFeatured() },
     wrap = document.createElement('div'),
     list = document.createElement('div'),
     side = document.createElement('div');
@@ -2066,81 +2306,23 @@ function renderShop(body) {
     };
     side.appendChild(stop);
   } else side.insertAdjacentHTML('beforeend', '<p class="note">Press Try on any piece to see it on your character first.</p>');
-  list.insertAdjacentHTML(
-    'beforeend',
-    `<p class="qintro">Cosmetics only: no combat, speed, harvesting or access advantage. You have <b>${S.gwei || 0} Gwei</b>, earned by your validators, mobs and chapters.</p>`,
-  );
-  const section = (title, note) => {
-    list.insertAdjacentHTML('beforeend', `<h3 class="cat">${title}</h3>`);
-    if (note) list.insertAdjacentHTML('beforeend', `<p class="note">${note}</p>`);
-  };
-  // Premium: the pieces sold for euros (never for Gwei), by collection, with their animations and light
-  const prem = document.createElement('div');
-  prem.className = 'weekly premium';
-  prem.insertAdjacentHTML(
-    'beforeend',
-    `<h3 class="cat">Premium</h3><p class="note">The most striking pieces, sold for euros: light, embers and moving parts. ${
-      paymentsOpen()
-        ? 'Try them on first; once bought, a piece is yours in every world.' +
-          (CONFIG.PAYMENTS === 'test' ? " <b>Test mode: use Stripe's test card 4242 4242 4242 4242, nothing is charged.</b>" : '')
-        : 'Try them on now; they go on sale soon.'
-    }</p>`,
-  );
-  for (const [set, [name, line]] of Object.entries(SETS)) {
-    if (!premiumSet(set)) continue;
-    prem.insertAdjacentHTML('beforeend', `<h3 class="cat">${name}</h3><p class="note">${line.replace(/\. Premium$/, '')}</p>`);
-    for (const id of Object.keys(COSMETICS)
-      .map(Number)
-      .filter(k => COSMETICS[k].set === set))
-      prem.appendChild(shopRow(id, ctx));
+  // the three aisles
+  const tabs = document.createElement('div');
+  tabs.className = 'shoptabs';
+  for (const [k, label] of SHOP_TABS) {
+    const b = document.createElement('button');
+    b.className = 'b' + (SHOP_TAB === k ? ' primary' : '');
+    b.textContent = label;
+    b.onclick = () => {
+      SHOP_TAB = k;
+      renderPanel();
+    };
+    tabs.appendChild(b);
   }
-  list.appendChild(prem);
-  // this week: three pieces 25% off and one limited piece, until Monday
-  const box = document.createElement('div');
-  box.className = 'weekly';
-  box.insertAdjacentHTML(
-    'beforeend',
-    `<h3 class="cat">This week</h3><p class="note">New offers in ${shopCountdown()}: three pieces 25% off, and one limited piece you can only buy this week.</p>`,
-  );
-  for (const id of featured.limited ? [...featured.sale, featured.limited] : featured.sale) box.appendChild(shopRow(id, ctx));
-  list.appendChild(box);
-  // the collections, then everything else by slot, then the trophies nobody can buy
-  const ids = Object.keys(COSMETICS)
-    .map(Number)
-    .sort((a, b) => a - b);
-  for (const [set, [name, line]] of Object.entries(SETS)) {
-    if (premiumSet(set)) continue; // shown in the Premium section, at the top
-    const mine = ids.filter(id => COSMETICS[id].set === set && (!COSMETICS[id].retired || ownsCosmetic(id))),
-      have = mine.filter(id => ownsCosmetic(id)).length;
-    section(`${name} collection · ${have}/${mine.length}`, line);
-    for (const id of mine) list.appendChild(shopRow(id, ctx));
-  }
-  const loose = ids.filter(id => !COSMETICS[id].set && forSale(COSMETICS[id]));
-  for (const slot of [...LOOK_SLOTS, null]) {
-    const mine = loose.filter(id => (COSMETICS[id].slot || null) === slot && !COSMETICS[id].grantItem);
-    if (!mine.length) continue;
-    section(SLOT_LABEL[slot] || 'Other');
-    for (const id of mine) list.appendChild(shopRow(id, ctx));
-  }
-  const packs = loose.filter(id => COSMETICS[id].grantItem);
-  if (packs.length) {
-    section('Block packs', 'Decorative blocks straight into your chest. Buy them as often as you like.');
-    for (const id of packs) list.appendChild(shopRow(id, ctx));
-  }
-  const trophies = ids.filter(
-    id => !forSale(COSMETICS[id]) && !COSMETICS[id].retired && COSMETICS[id].category !== 'title' && COSMETICS[id].category !== 'premium',
-  );
-  section(
-    `Trophies · ${trophies.filter(id => S.cosmetics.includes(id)).length}/${trophies.length}`,
-    'Never sold: dropped by tough mobs, rarely, or earned by fighting off the network attack. Worn like the rest once you have them.',
-  );
-  for (const id of trophies) list.appendChild(shopRow(id, ctx));
-  const titles = ids.filter(id => COSMETICS[id].category === 'title');
-  section(
-    `Titles · ${titles.filter(id => S.cosmetics.includes(id)).length}/${titles.length}`,
-    'Never sold: each one is earned by finishing a story chapter (Objectives tab), and the furthest shows under your name.',
-  );
-  for (const id of titles) list.appendChild(shopRow(id, ctx));
+  list.appendChild(tabs);
+  if (SHOP_TAB === 'workshop') shopWorkshop(list, ctx);
+  else if (SHOP_TAB === 'wardrobe') shopWardrobe(list, ctx);
+  else shopStore(list, ctx);
   wrap.appendChild(list);
   wrap.appendChild(side);
   body.appendChild(wrap);

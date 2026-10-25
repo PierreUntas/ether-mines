@@ -79,7 +79,7 @@ namespace EtherMines.CoreTests
             Program.Check(Canon(root["STAINED"]) == (string)g["STAINED"] && Rules.Stained.Count == 4, "rules: STAINED");
             var sb = new StringBuilder();
             foreach (var s in Rules.Sets) sb.Append(s[0]).Append(',');
-            Program.Check(sb.ToString() == "frontier,homestead,staker,merge,dencun,ether,", "rules: set order");
+            Program.Check(sb.ToString() == "frontier,homestead,staker,merge,dencun,ether,pow,pos,", "rules: set order");
             Program.Check(double.IsPositiveInfinity(Rules.Blocks[12].H), "rules: bedrock is unbreakable (h = Infinity)");
 
             // functions
@@ -129,6 +129,17 @@ namespace EtherMines.CoreTests
             foreach (var kv in fs)
                 if (Rules.ForSale(Rules.Cosmetics[int.Parse(kv.Key)]) != (bool)kv.Value) bad++;
             Program.Check(bad == 0, "rules: forSale on " + fs.Count + " cosmetics");
+            bad = 0;
+            var sp = (List<object>)g["setPrices"];
+            foreach (List<object> e in sp)
+            {
+                string set = (string)e[0];
+                int mask = MiniJson.ToInt(e[1]);
+                var all = Rules.SetPieces(set);
+                int got = Rules.SetPrice(set, id => ((mask >> all.IndexOf(id)) & 1) == 1);
+                if (got != MiniJson.ToInt(e[2]) && bad++ < 5) Console.WriteLine("  setPrice(" + set + ", " + mask + ") " + got + " vs " + e[2]);
+            }
+            Program.Check(bad == 0 && sp.Count > 0, "rules: setPrice on " + sp.Count + " (set, owned pieces) cases");
         }
 
         static int Entry(string what, List<object> want, string canon, string typed)

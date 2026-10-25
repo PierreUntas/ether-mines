@@ -5,6 +5,16 @@
 (function (root) {
   root.NEWS = [
     {
+      date: '2026-10-25',
+      title: 'A new shop',
+      items: [
+        'The shop now has three aisles: the Store (premium pieces and sets), the Workshop (everything bought with Gwei) and the Wardrobe.',
+        'Each week the Store shows one premium set, with a button to try the whole set on at once.',
+        'Premium sets can be bought whole for less than their pieces; already own some? You only pay for the share you are missing.',
+        'The Wardrobe keeps up to four outfits: save what you wear, and put it all back on in one tap.',
+      ],
+    },
+    {
       date: '2026-10-24',
       title: 'Creatures of the land',
       items: [

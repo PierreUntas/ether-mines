@@ -3,7 +3,7 @@
 // Run after any change to rules.js:  node unity/tools/export-rules.mjs
 //
 // Format notes (also written into the file as "_format"):
-// - Same shapes as rules.js: B, ITEM, COSMETICS, SETS are objects keyed by id (string keys, ascending),
+// - Same shapes as rules.js: B, ITEM, COSMETICS, SETS, SET_EUR are objects keyed by id (string keys, ascending),
 //   RECIPES an array in rules.js order, PASTELS / STAINED arrays of [name, color].
 // - Keys inside an entry keep rules.js's order. One entry per line.
 // - Non-finite numbers (Bedrock's h: Infinity) are written as the strings "Infinity", "-Infinity", "NaN".
@@ -39,6 +39,16 @@ for (const [id, c] of Object.entries(R.COSMETICS)) {
   }
 }
 for (const w of [0, 5, 99]) if (R.shopFeatured(w).sale.length !== shop.saleCount) fail('shopFeatured sale count');
+// setPrice: the set's price times the share (in euros) of the pieces still missing, rounded half up
+for (const set of Object.keys(R.SET_EUR)) {
+  const all = R.setPieces(set),
+    sum = l => l.reduce((t, id) => t + R.COSMETICS[id].eur, 0);
+  for (let k = 0; k <= all.length; k++) {
+    const own = id => all.indexOf(id) < k;
+    const want = k === all.length ? 0 : Math.floor((R.SET_EUR[set] * sum(all.slice(k))) / sum(all) + 0.5);
+    if (R.setPrice(set, own) !== want) fail('setPrice mismatch on ' + set);
+  }
+}
 
 // ---------- writing ----------
 const val = v => JSON.stringify(v, (k, x) => (typeof x === 'number' && !Number.isFinite(x) ? String(x) : x));
@@ -60,6 +70,7 @@ const parts = [
   ['RECIPES', arr(R.RECIPES)],
   ['COSMETICS', obj(R.COSMETICS)],
   ['SETS', obj(R.SETS)],
+  ['SET_EUR', val(R.SET_EUR)],
   ['PASTELS', val(R.PASTELS)],
   ['STAINED', val(R.STAINED)],
   ['shop', val(shop)],

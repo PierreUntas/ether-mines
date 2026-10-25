@@ -1178,4 +1178,30 @@ reset role;
 select _move_account('a4000000-0000-0000-0000-000000000001', 'a4000000-0000-0000-0000-000000000002') \g /dev/null
 select pg_temp.ok('premium: the purchases follow the account to another device',
   (select count(*) from billing.purchases where user_id = 'a4000000-0000-0000-0000-000000000002') = 2);
+-- 051: a whole set, for less; the share you're missing when you own some pieces already
+reset role;
+delete from rate_limits;
+set role service_role;
+select srv_premium_quote_set('a4000000-0000-0000-0000-000000000002', 'pow', true, 'w') as q \gset
+select pg_temp.ok('premium set: the whole set for its price', (:'q'::jsonb ->> 'eur')::int = 1299 and jsonb_array_length(:'q'::jsonb -> 'pieces') = 5);
+select pg_temp.ok('premium set: a test piece owned counts for a test purchase: 4 pieces to go, at their share',
+  (srv_premium_quote_set('a4000000-0000-0000-0000-000000000002', 'pow', false, 'w') ->> 'eur')::int = round(1299 * (1795 - 299) / 1795.0)::int);
+select pg_temp.ok('premium set: an unknown set is not for sale', srv_premium_quote_set('a4000000-0000-0000-0000-000000000002', 'nope', true, 'w') ->> 'err' = 'not for sale');
+select srv_premium_pending_set('a4000000-0000-0000-0000-000000000002', 'pow', '{107,108,109,110,111}', 1299, true, 'cs_set') \g /dev/null
+select pg_temp.ok('premium set: paid', (srv_premium_paid('cs_set', 'pi_set', null, 1299, true, null, null) ->> 'ok')::boolean);
+select pg_temp.ok('premium set: nothing left to buy', srv_premium_quote_set('a4000000-0000-0000-0000-000000000002', 'pow', true, 'w') ->> 'err' = 'already owned'
+  and srv_premium_quote('a4000000-0000-0000-0000-000000000002', 110, true, 'w') ->> 'err' = 'already owned');
+select pg_temp.ok('premium set: rebuilt from its metadata when unknown',
+  (srv_premium_paid('cs_set2', 'pi_set2', null, 1299, true, 'a4000000-0000-0000-0000-000000000001', null, 'pos', '{112,113,114,115,116}') ->> 'ok')::boolean);
+reset role;
+select set_config('request.jwt.claim.sub', 'a4000000-0000-0000-0000-000000000002', false) \g /dev/null
+set role authenticated;
+select pg_temp.ok('premium set: its five pieces owned, in the players'' world too', act_premium_owned('principal') = '{107,108,109,110,111}'::smallint[]);
+reset role;
+set role service_role;
+select pg_temp.ok('premium set: refunded whole', (srv_premium_refunded('pi_set') ->> 'refunded')::int = 1);
+reset role;
+set role authenticated;
+select pg_temp.ok('premium set: all five gone', act_premium_owned('principal') = '{}'::smallint[]);
+reset role;
 \echo Premium purchase scenarios pass.
