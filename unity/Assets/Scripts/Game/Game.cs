@@ -360,6 +360,7 @@ namespace EtherMines.Game
         // your game goes back to the server now and then while you walk (cloudSave), and when you leave
         void Update()
         {
+            if (player.Body == null) TitleView(); // the title screen: the world behind it (GameTitle.cs)
             if (!started || session == null || player.Body == null) return;
             session.Net.Local?.Tick(Time.deltaTime);
             saveT += Time.deltaTime;

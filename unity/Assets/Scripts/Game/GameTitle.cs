@@ -31,6 +31,23 @@ namespace EtherMines.Game
         bool wasBlocking;
         GUIStyle sTitle, sText, sSmall, sHead, sLink, sFold, sButton, sField;
 
+        // before you enter: the world behind the title seen from above the Atrium, turning slowly around it
+        // (without it the camera stays at the scene's origin, inside the rock at 0, 0, 0, and the streaming
+        // loads the caves around it)
+        float titleA = 0.6f;
+        void TitleView()
+        {
+            var cam = player.Cam;
+            if (cam == null || Ui.Cine) return;
+            titleA += Time.deltaTime * 0.035f;
+            var c = new Vector3(World.SPAWN.X + 0.5f, World.SPAWN.Y + 7, World.SPAWN.Z + 0.5f); // game coordinates
+            world.PlayerPos = () => c;
+            var eye = c + new Vector3(Mathf.Sin(titleA) * 30, 12, Mathf.Cos(titleA) * 30);
+            Vector3 U(Vector3 g) => new Vector3(g.x, g.y, -g.z);
+            cam.transform.SetPositionAndRotation(U(eye), Quaternion.LookRotation(U(c) - U(eye)));
+            Sky.Underwater = false;
+        }
+
         List<News> LoadNews()
         {
             var l = new List<News>();
