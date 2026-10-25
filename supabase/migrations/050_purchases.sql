@@ -29,6 +29,8 @@ create table if not exists billing.purchases (
   paid_at        timestamptz,
   refunded_at    timestamptz
 );
+-- a second lock on top of the schema's: no policy, so only the functions below (run as the owner) see it
+alter table billing.purchases enable row level security;
 create index if not exists purchases_user on billing.purchases (user_id);
 create index if not exists purchases_payment on billing.purchases (stripe_payment);
 
