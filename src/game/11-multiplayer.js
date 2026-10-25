@@ -97,7 +97,15 @@ function applyBlock(b) {
       })
       .catch(e => console.error(e));
   }
+  const before = get(b.x, b.y, b.z);
   setW(b.x, b.y, b.z, b.id);
+  // what someone else did moves here too (22-gestures.js): a door swings, a lever flips, a block grows in
+  if (before !== b.id) {
+    const pw = POWERED.has(key);
+    doorChanged(b.x, b.y, b.z, before, b.id, pw, pw);
+    if (B[before]?.shape === 'lever' && B[b.id]?.shape === 'lever' && near(b.x, b.z)) flipLever(b.x, b.y, b.z, !!B[b.id].on);
+    if ((!before || before === 11 || isCross(before)) && b.id && near(b.x, b.z, 24)) growBlock(b.x, b.y, b.z, b.id);
+  }
   if (b.id === 13 || b.id === 74) addVal(b.x, b.y, b.z);
   else delVal(key);
   rebuildAt(b.x, b.z);

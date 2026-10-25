@@ -20,6 +20,7 @@ const MAT_OF = id =>
 const nameOf = id => (B[id] ? B[id].n : ITEM[id] ? ITEM[id].n : 'Unknown item');
 const { isCross, isTransp, isSolid, isOpaque, isShaped, STAIR_HI, DOORB } = Mesh; // src/mesh.js
 const POWERED = new Set(); // powered blocks (computed, never saved)
+const HIDE = new Set(); // blocks meshed as air while an animation stands in for them (22-gestures.js)
 const shapeBoxes = (id, key) => Mesh.shapeBoxes(id, key, k => POWERED.has(k), get);
 function collBoxes(id, key) {
   if (!isSolid(id)) return [];

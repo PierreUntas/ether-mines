@@ -135,7 +135,11 @@ namespace EtherMines.Game
                 if (!nodes.TryGetValue(k, out var id)) continue;
                 Circuits.D(k, out var x, out var y, out var z);
                 var at = new Vector3(x + 0.5f, y + 0.5f, z + 0.5f);
-                if (id >= 48 && id <= 63 && !Rules.Block(id).Top) Sounds.Door(at);
+                if (id >= 48 && id <= 63 && !Rules.Block(id).Top)
+                {
+                    Sounds.Door(at);
+                    Gestures.I?.DoorChanged(x, y, z, id, id, World.Powered.Contains(k), cir.Powered.Contains(k)); // it swings
+                }
                 else if (id == 66) Sounds.Plate(at);
             }
             World.Powered = new HashSet<long>(cir.Powered);

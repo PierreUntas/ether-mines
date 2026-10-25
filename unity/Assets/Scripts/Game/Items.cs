@@ -49,7 +49,7 @@ namespace EtherMines.Game
         {
             var tb = t != null ? Rules.Block(t.Id) : null;
             string sh = tb?.Shape ?? "";
-            bool reacts = t != null && (Reacting.Contains(t.Id) || sh == "door" || sh == "lever" || sh == "table" || sh.StartsWith("bed", StringComparison.Ordinal) || (tb != null && tb.Sign));
+            bool reacts = t != null && (Reacting.Contains(t.Id) || sh == "door" || sh == "lever" || sh == "table" || sh.StartsWith("bed", StringComparison.Ordinal) || (tb != null && tb.Sign) || Gestures.SeatHeight(t.Id) > 0);
             int potion = HeldConsumable();
             if (potion > 0 && !reacts) { Consume(potion); return true; }
             if (t == null) return false;
@@ -57,6 +57,7 @@ namespace EtherMines.Game
             if (t.Id == 73) { Relight(t); return true; }
             if (t.Id == 98 && !sneak) { Panel.OpenChest(t.X, t.Y, t.Z); return true; }
             if (t.Id == 135 && !sneak) { Eat(); return true; }
+            if (Gestures.SeatHeight(t.Id) > 0 && !sneak) { Gestures.I?.SitDown(t); return true; } // a chair, a sofa
             if (sh.StartsWith("bed", StringComparison.Ordinal) && !sneak) { Sleep(t); return true; }
             if (tb != null && tb.Sign && !sneak && Signs != null) { Signs.Use(t); return true; }
             return false;
@@ -90,6 +91,7 @@ namespace EtherMines.Game
             if (Session.State.TryGetValue("repas", out var r) && r != null && (r is double d ? ((int)d).ToString() : r.ToString()) == day) { Hud.Feed("burn", "Not hungry yet", "one meal a day is enough"); return; }
             Session.State["repas"] = (double)Sky.DayN;
             Session.Dirty = true;
+            Emotes.I?.Play("eat");
             Buff = 90;
             Act.Swing = 0.6f;
             Hud.Feed("mint", "A good meal", "you move faster for 90 seconds");
@@ -109,6 +111,7 @@ namespace EtherMines.Game
                 }
             }
             if (!Night) { Hud.Feed("burn", "Too bright to sleep", "wait for nightfall"); return; }
+            Gestures.I?.LieDown(t); // the others see you in it
             if (Link != null && Link.HpServer) Link.Send(new Dictionary<string, object> { ["t"] = "heal", ["kind"] = "bed" });
             if (Session != null && !(Session.State.TryGetValue("slept", out var sl) && MiniJson.Truthy(sl))) { Session.State["slept"] = 1.0; Session.Dirty = true; }
             Act.Swing = 0.6f;

@@ -457,3 +457,7 @@ html.clay .slot{border-radius:50%;border:none;background:rgba(255,255,255,.12);t
 html.clay .slot.sel{transform:translateY(-5px) scale(1.12);background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.5),rgba(127,232,255,.2));box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 18px rgba(127,232,255,.85)}
 html.clay .slot b{right:-3px;bottom:-3px;font-size:11px;font-weight:600;padding:0 5px;border-radius:999px;background:rgba(40,30,90,.88);text-shadow:none}
 html.clay .slot i{display:none}
+/* a bed: the screen goes dark a moment while you lie down (22-gestures.js blinkDark) */
+#sleepFade{position:fixed;inset:0;background:#0b0820;opacity:0;pointer-events:none;z-index:40}
+#sleepFade.on{animation:sleepFade 2.6s ease-in-out}
+@keyframes sleepFade{0%{opacity:.85}12%{opacity:1}55%{opacity:1}100%{opacity:0}}

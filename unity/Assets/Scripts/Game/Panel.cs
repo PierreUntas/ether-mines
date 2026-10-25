@@ -102,6 +102,7 @@ namespace EtherMines.Game
                 if (r == null || r.ContainsKey("refused")) return;
                 Open = new Chest { X = x, Y = y, Z = z, Items = Counts(r) };
                 Show("chest");
+                Gestures.I?.OpenChestLid(x, y, z); // its lid lifts while it's open
             }
             finally { busy = false; }
         }

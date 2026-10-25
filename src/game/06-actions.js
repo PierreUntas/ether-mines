@@ -478,6 +478,7 @@ function breakBlock(t) {
         commit(coordKey(t.x, t.y + 1, t.z), 0, null);
     });
     burst(t.x, t.y, t.z, id);
+    pickupFly(t.x, t.y, t.z, id);
     Sound.brk(MAT_OF(id));
     if (id === 13) delVal(k);
     rebuildAt(t.x, t.z);
@@ -511,6 +512,7 @@ function breakBlock(t) {
   const owned = OWN.get(k)?.serial;
   commit(k, 0, null);
   burst(t.x, t.y, t.z, id);
+  pickupFly(t.x, t.y, t.z, id);
   Sound.brk(MAT_OF(id));
   if (B[id].shape === 'door') {
     const oy = B[id].top ? t.y - 1 : t.y + 1;
@@ -574,7 +576,11 @@ function place() {
   const tsh = target && B[target.id]?.shape,
     reacts =
       target &&
-      ([73, 98, 135].includes(target.id) || ['door', 'lever', 'table'].includes(tsh) || (tsh || '').startsWith('bed') || isSign(target.id));
+      ([73, 98, 135].includes(target.id) ||
+        ['door', 'lever', 'table'].includes(tsh) ||
+        (tsh || '').startsWith('bed') ||
+        isSign(target.id) ||
+        SEAT(target.id));
   if (potion && !reacts) return useConsumable(potion);
   if (!target) return;
   const tb = B[target.id],
@@ -601,6 +607,11 @@ function place() {
     else sleep(target);
     return;
   }
+  // a chair or a sofa: sit on it (crouch to place against it instead)
+  if (SEAT(target.id) && !accroupi && inWorld(target.x, target.z)) {
+    sitDown(target);
+    return;
+  }
   // crouching: place against a door or lever instead of activating it
   if (tb && tb.shape === 'door' && !accroupi && inWorld(target.x, target.z)) {
     const t = target,
@@ -611,6 +622,7 @@ function place() {
   if (tb && tb.shape === 'lever' && !accroupi && inWorld(target.x, target.z)) {
     const t = target,
       rec = record(() => commit(tk, tb.on ? 64 : 65, OWN.get(tk) || null));
+    flipLever(t.x, t.y, t.z, !tb.on);
     Sound.click();
     swing = 0.6;
     rebuildAt(t.x, t.z);
@@ -678,6 +690,7 @@ function place() {
   swing = 1;
   Sound.place(MAT_OF(id));
   popAt(x, y, z, sh === 'door' || (sh && sh.startsWith('bed')) ? 2 : 1);
+  growBlock(x, y, z, id);
   if (SERVER()) {
     const name = B[id].n;
     serverAct('place', { px: x, py: y, pz: z, it: +it, bid: id }, rec).then(r => {
@@ -774,6 +787,7 @@ function eat() {
     return;
   }
   S.repas = S.dayN;
+  playEmote('eat');
   buffT = 90;
   dirty = true;
   swing = 0.6;
@@ -792,6 +806,7 @@ function sleep(bed) {
     logEv('burn', 'Too bright to sleep', 'wait for nightfall');
     return;
   }
+  lieDown(bed); // the others see you in it (22-gestures.js)
   // online the night is everyone's (tickClock, 08-sky.js): a bed rests you, it doesn't skip it
   if (sharedClock()) {
     S.slept = 1;
@@ -825,6 +840,7 @@ function toggleDoor(t) {
     nid = 48 + nb.f * 4 + open * 2;
   const kb = coordKey(t.x, by, t.z),
     kt = coordKey(t.x, by + 1, t.z);
+  doorChanged(t.x, by, t.z, bot, nid, POWERED.has(kb), POWERED.has(kb)); // it swings (22-gestures.js)
   commit(kb, nid, OWN.get(kb) || null);
   if (B[get(t.x, by + 1, t.z)]?.shape === 'door') commit(kt, nid + 1, OWN.get(kt) || null);
   Sound.door();
@@ -842,6 +858,7 @@ async function openChest(t) {
     if (!r) return;
     CHEST = { x: t.x, y: t.y, z: t.z, items: r.items || {} };
   } else CHEST = { x: t.x, y: t.y, z: t.z, items: { ...(S.chests?.[k] || {}) } };
+  if (CHEST) openChestLid(t.x, t.y, t.z); // its lid lifts (22-gestures.js)
   Sound.door();
   openTab('chest');
 }

@@ -386,7 +386,11 @@ function computePower(dt) {
     plate = false;
   for (const k of changed) {
     const id = nodes.get(k);
-    if (id >= 48 && id <= 63) door = true;
+    if (id >= 48 && id <= 63) {
+      door = true;
+      const [x, y, z] = k.split(',').map(Number);
+      doorChanged(x, y, z, id, id, POWERED.has(k), pw.has(k)); // it swings (22-gestures.js)
+    }
     if (id === 66) plate = true;
     if (pw.has(k)) POWERED.add(k);
     else POWERED.delete(k);

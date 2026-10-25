@@ -238,6 +238,7 @@ function frame(now) {
     // aim direction instead, whatever's in its path, not gated by the short melee pick range
     const heldRanged = ITEM[itemId(S.bar[S.sel])]?.ranged;
     tickWeapons(dt);
+    tickGestures(dt);
     if (!mining) pvpStruck = false; // the button was released: the next click can strike a player again
     // a click kept for a moment (queueStrike) counts as holding the button, for fighting only
     const fight = mining || STRIKE.buf > 0,

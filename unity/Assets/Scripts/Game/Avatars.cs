@@ -684,11 +684,11 @@ namespace EtherMines.Game
                 }
             }
             // a gesture (emotePose): over the walk and the guard, it takes the arms, legs and lean it needs
-            float headZ = 0, edy = 0, erx = 0, erz = 0;
-            if (!riding && f.Emote != null && !EmotePose(f, ref rx, ref rz, ref lx, ref lz, ref legL, ref legR, ref tw, ref headZ, ref edy, ref erx, ref erz)) f.Emote = null;
+            float headZ = 0, headX = 0, pk = 1, edy = 0, edx = 0, edz = 0, erx = 0, erz = 0;
+            if (!riding && f.Emote != null && !EmotePose(f, ref rx, ref rz, ref lx, ref lz, ref legL, ref legR, ref tw, ref headZ, ref headX, ref pk, ref edx, ref edy, ref edz, ref erx, ref erz)) f.Emote = null;
             f.Root.transform.rotation = Quaternion.Euler(0, (float)(-f.Yaw * Mathf.Rad2Deg), 0) * Quaternion.Euler(riding ? 0 : -R(lean), 0, 0);
             if (erx != 0 || erz != 0) f.Root.transform.rotation *= Quaternion.Euler(-R(erx), 0, R(erz));
-            if (edy != 0) f.Root.transform.position += Vector3.up * edy;
+            if (edy != 0 || edx != 0 || edz != 0) f.Root.transform.position += new Vector3(edx, edy, -edz); // (game x, y, z: z mirrored)
             // the parry's step aside: the legs wide, the body leaning into it (web z turns, mirrored like the arms')
             if (p > 0 && !riding) f.Root.transform.rotation *= Quaternion.Euler(0, 0, R(-0.16f * p));
             f.LegL.localRotation = Quaternion.Euler(-R(legL), 0, R(-0.42f * p));
@@ -712,7 +712,7 @@ namespace EtherMines.Game
             f.Body.localScale = new Vector3(1 + br * 0.02f, 1 + br * 0.012f, 1 + br * 0.035f);
             f.Body.localRotation = Quaternion.Euler(0, -R(tw), 0);
             f.Head.localPosition = new Vector3(0, 1.32f + hop + br * 0.012f - dip, 0);
-            f.Head.localRotation = Quaternion.Euler((float)(-f.Pitch * 0.6 * Mathf.Rad2Deg), 0, (Mathf.Sin(f.Walk) * 0.06f * mv + headZ) * Mathf.Rad2Deg);
+            f.Head.localRotation = Quaternion.Euler((float)(-f.Pitch * 0.6 * pk + headX) * Mathf.Rad2Deg, 0, (Mathf.Sin(f.Walk) * 0.06f * mv + headZ) * Mathf.Rad2Deg);
             if (riding)
             {
                 // seated (sitAvatar): knees forward, both hands forward on the controls, still
@@ -725,7 +725,7 @@ namespace EtherMines.Game
 
         // the gestures (21-emotes.js emotePose), in the web's radians: eased in over 0.18 s and out over the last
         // 0.25 s; false once it's over. erx/erz turn the whole figure from the feet, edy lifts it.
-        static bool EmotePose(Fig f, ref float rx, ref float rz, ref float lx, ref float lz, ref float legL, ref float legR, ref float tw, ref float headZ, ref float edy, ref float erx, ref float erz)
+        static bool EmotePose(Fig f, ref float rx, ref float rz, ref float lx, ref float lz, ref float legL, ref float legR, ref float tw, ref float headZ, ref float headX, ref float pk, ref float edx, ref float edy, ref float edz, ref float erx, ref float erz)
         {
             var e = EtherMines.Core.Rules.Emote(f.Emote);
             if (e == null) return false;
@@ -756,6 +756,23 @@ namespace EtherMines.Game
                     legL = To(legL, 1.45f); legR = To(legR, 1.45f);
                     rx = To(rx, 0.75f); lx = To(lx, 0.75f); rz = To(rz, 0.05f); lz = To(lz, -0.05f);
                     edy -= 0.4f * k;
+                    break;
+                case "seat": // on a chair or a sofa (Gestures put you on its seat): the same, on the seat
+                    legL = To(legL, 1.45f); legR = To(legR, 1.45f);
+                    rx = To(rx, 0.55f); lx = To(lx, 0.55f);
+                    edy -= 0.4f * k;
+                    break;
+                case "lie": // on the back along the bed (you stand where its halves meet, looking at your feet)
+                {
+                    // turned back from the feet, slid toward them so the body lies centered, arms along it
+                    erx += Mathf.PI / 2 * k;
+                    edx -= Mathf.Sin((float)f.Yaw) * 0.95f * k; edz -= Mathf.Cos((float)f.Yaw) * 0.95f * k; edy += 0.16f * k;
+                    rx = To(rx, 0.05f); lx = To(lx, 0.05f); rz = To(rz, 0.08f); lz = To(lz, -0.08f);
+                    legL = To(legL, 0); legR = To(legR, 0); pk = To(pk, 0);
+                    break;
+                }
+                case "eat": // the right hand to the mouth, a few bites
+                    rx = To(rx, 2.1f + Mathf.Max(0, Mathf.Sin(t * 9)) * 0.35f); rz = To(rz, -0.55f); headX = To(headX, 0.12f);
                     break;
                 case "dance": // arms up in turn, hips swaying, little steps, a hop on the beat
                 {

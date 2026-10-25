@@ -6,6 +6,15 @@
   root.NEWS = [
     {
       date: '2026-10-25',
+      title: 'A world that moves',
+      items: [
+        'Doors swing open on their hinges, levers tip over, and a chest lifts its lid while you look inside.',
+        'A block you place grows into place; a block you mine flies to you.',
+        'Lie down in a bed, sit on a chair or a sofa, eat at a table: the players around you see it.',
+      ],
+    },
+    {
+      date: '2026-10-25',
       title: 'Emotes',
       items: [
         'Press G (or the smiley button) for a row of gestures everyone around you sees: Wave, Point, Cheer, Clap and Sit.',

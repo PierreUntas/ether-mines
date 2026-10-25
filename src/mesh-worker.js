@@ -2,10 +2,12 @@
 importScripts('../supabase/functions/_shared/world.js', '../supabase/functions/_shared/rules.js', 'mesh.js');
 const { SY, CH, li } = World;
 onmessage = e => {
-  const { id, cx, cz, chunks, powered } = e.data,
-    pw = new Set(powered);
+  const { id, cx, cz, chunks, powered, hidden } = e.data,
+    pw = new Set(powered),
+    hide = new Set(hidden || []); // blocks being animated (22-gestures.js): meshed as air meanwhile
   const get = (x, y, z) => {
     if (y < 0 || y >= SY) return 0;
+    if (hide.size && hide.has(x + ',' + y + ',' + z)) return 0;
     const kx = Math.floor(x / CH),
       kz = Math.floor(z / CH),
       c = chunks[kx + ',' + kz];

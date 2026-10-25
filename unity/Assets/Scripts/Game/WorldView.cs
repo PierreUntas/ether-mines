@@ -39,6 +39,10 @@ namespace EtherMines.Game
         public event Action<int, int> Changed; // a block changed in this chunk (the circuits index it again)
         // the powered blocks (CircuitsView): replaced, never changed in place, so a mesh being built keeps its copy
         public HashSet<long> Powered = new HashSet<long>(); // a sign's text, read with its area (Signs.cs)
+        // the blocks meshed as air while an animation stands in for them (Gestures: a door swinging, a lid
+        // lifting); replaced, never changed in place, like Powered
+        public HashSet<long> Hidden = new HashSet<long>();
+        public event Action<long> Meshed; // a chunk's new mesh shows (its ChunkStore key)
 
         void Awake()
         {
@@ -262,6 +266,7 @@ namespace EtherMines.Game
                     snap[(dz + 1) * 3 + dx + 1] = c == null ? null : (byte[])c.Clone();
                 }
             var pw = Powered;
+            var hid = Hidden;
             ThreadPool.QueueUserWorkItem(_ =>
             {
                 MeshOut m = null;
@@ -271,6 +276,7 @@ namespace EtherMines.Game
                     Func<int, int, int, int> get = (x, y, z) =>
                     {
                         if (y < 0 || y >= World.SY) return 0;
+                        if (hid.Count > 0 && hid.Contains(Circuits.K(x, y, z))) return 0;
                         int ccx = x >> 4, ccz = z >> 4, ix = ccx - cx + 1, iz = ccz - cz + 1;
                         if (ix < 0 || ix > 2 || iz < 0 || iz > 2) return 0;
                         var a = snap[iz * 3 + ix];
@@ -296,6 +302,36 @@ namespace EtherMines.Game
             Part(go, m.Wa, waMat, false);
             Part(go, m.Pl, plMat, false);
             views[key] = go;
+            Meshed?.Invoke(key);
+        }
+
+        // a few blocks as the world draws them (22-gestures.js miniModel), for an animation to stand in for
+        // them: cells (dx, dy, dz, id) in block coordinates; made: a piece of furniture made up for it (its
+        // boxes and tiles), drawn in place of every cell. The model's origin is the cell (0, 0, 0)'s corner
+        // (game x, y, z: Unity x, y, -z)
+        static Mesher miniMesher;
+        public GameObject MiniModel(IList<int[]> cells, BlockDef made = null)
+        {
+            const int Fake = 255;
+            var at = new Dictionary<long, int>();
+            foreach (var c in cells) at[Circuits.K(c[0] + 1, c[1] + 8, c[2] + 1)] = made != null ? Fake : c[3];
+            var keep = Rules.Blocks[Fake];
+            MeshOut m;
+            try
+            {
+                if (made != null) { made.Id = Fake; Rules.Blocks[Fake] = made; }
+                miniMesher ??= new Mesher();
+                m = miniMesher.MeshChunk(0, 0, (x, y, z) => at.TryGetValue(Circuits.K(x, y, z), out var id) ? id : 0, (Func<int, int, int, bool>)((x, y, z) => false));
+            }
+            finally { Rules.Blocks[Fake] = keep; }
+            var root = new GameObject("stand-in");
+            var inner = new GameObject("model");
+            inner.transform.SetParent(root.transform, false);
+            inner.transform.localPosition = new Vector3(-1, -8, 1);
+            Part(inner, m.Op, opMat, true);
+            Part(inner, m.Gl, glMat, false);
+            Part(inner, m.Pl, plMat, false);
+            return root;
         }
 
         // a mesher group as a Unity mesh under parent (z mirrored, triangles turned around); null when empty

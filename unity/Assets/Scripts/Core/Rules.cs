@@ -94,9 +94,10 @@ namespace EtherMines.Core
         public static readonly List<string[]> Sets = new List<string[]>(); // [key, name, line], shop order
         // the gestures (EMOTES), in the order of the row: key, name, how long (0: until you move), the cosmetic
         // that unlocks it (0: free)
-        public sealed class EmoteDef { public string K, N; public float Sec; public int Cosmetic; }
+        public sealed class EmoteDef { public string K, N; public float Sec; public int Cosmetic; public bool Hidden; } // hidden: made by using the world, not in the row
         public static readonly List<EmoteDef> Emotes = new List<EmoteDef>();
         public static EmoteDef Emote(string k) { foreach (var e in Emotes) if (e.K == k) return e; return null; }
+        public static List<EmoteDef> RowEmotes() => Emotes.FindAll(e => !e.Hidden); // the ones you pick
         public static readonly Dictionary<string, int> SetEur = new Dictionary<string, int>(); // a whole premium set, euro cents (SET_EUR)
         public static string StorePrefix = "org.ethermines.game."; // the App Store / Google Play product ids (STORE_PREFIX)
         public static readonly List<string[]> Pastels = new List<string[]>(), Stained = new List<string[]>();
@@ -178,7 +179,7 @@ namespace EtherMines.Core
                 foreach (var kv in emd)
                 {
                     var d = (Dictionary<string, object>)kv.Value;
-                    Emotes.Add(new EmoteDef { K = kv.Key, N = Str(d, "n"), Sec = (float)MiniJson.ToDouble(Get(d, "sec"), 0), Cosmetic = MiniJson.ToInt(Get(d, "cosmetic")) });
+                    Emotes.Add(new EmoteDef { K = kv.Key, N = Str(d, "n"), Sec = (float)MiniJson.ToDouble(Get(d, "sec"), 0), Cosmetic = MiniJson.ToInt(Get(d, "cosmetic")), Hidden = MiniJson.Truthy(Get(d, "hidden")) });
                 }
             if (root.TryGetValue("STORE_PREFIX", out var sp) && sp is string sps) StorePrefix = sps;
             if (root.TryGetValue("SET_EUR", out var se) && se is Dictionary<string, object> sed)

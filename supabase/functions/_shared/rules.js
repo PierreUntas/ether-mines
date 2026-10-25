@@ -804,7 +804,8 @@
   };
   // emotes: gestures a character makes for everyone around to see (21-emotes.js draws them, the game
   // server relays them with your position). Free ones for everyone; the others with their cosmetic (COSMETICS
-  // 117, 118, in the Workshop). sec: how long it lasts (0: until you move)
+  // 117, 118, in the Workshop). sec: how long it lasts (0: until you move). hidden: not in the row, made by
+  // using the world (22-gestures.js: lying in a bed, sitting on a chair, eating at a table)
   const EMOTES = {
     wave: { n: 'Wave', sec: 2.2 },
     point: { n: 'Point', sec: 1.8 },
@@ -813,6 +814,9 @@
     sit: { n: 'Sit', sec: 0 },
     dance: { n: 'Dance', sec: 4.8, cosmetic: 117 },
     bow: { n: 'Bow', sec: 1.8, cosmetic: 118 },
+    lie: { n: 'Lie down', sec: 3.4, hidden: 1 },
+    seat: { n: 'Sit down', sec: 0, hidden: 1 },
+    eat: { n: 'Eat', sec: 1.8, hidden: 1 },
   };
   // the collections, in shop order: name and a line of history
   const SETS = {

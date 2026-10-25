@@ -24,6 +24,7 @@ namespace EtherMines.Game
         public readonly Inventory LocalInv = new Inventory(); // offline: what you carry, this time only
         public Hit Target;
         public float MineProgress; // 0..1, for the HUD
+        public bool Mining;        // the mining button held this frame (a gesture ends: Emotes)
         public float Swing;        // the hand's swing (0..1), for the view
         const double Reach = 5.2;
 
@@ -66,6 +67,7 @@ namespace EtherMines.Game
             if (Player == null || Player.Body == null) return;
             TouchPad.Poll();
             ReadButtons(out bool mining, out bool use, out bool useHeld, out int slot, out float wheel);
+            Mining = mining;
             var inv = Inv;
             if (slot >= 0) inv.Sel = slot;
             if (wheel != 0) inv.Sel = ((inv.Sel + (wheel > 0 ? -1 : 1)) % 9 + 9) % 9;
@@ -237,6 +239,7 @@ namespace EtherMines.Game
             Sounds.Brk(Sounds.MatOf(id));
             Haptics.Play(Haptics.Kind.Light);
             Effects.Break(t.X, t.Y, t.Z, id);
+            Gestures.I?.PickupFly(t.X, t.Y, t.Z, id); // and flies to you
             if (Session == null)
             {
                 int drop = bd.HasDrop ? bd.Drop : id;
@@ -267,6 +270,14 @@ namespace EtherMines.Game
                 var cells = bd.Shape == "door" ? Placement.ToggleDoor(t.X, t.Y, t.Z, t.Id, World.Get) : new List<int[]> { new[] { t.X, t.Y, t.Z, bd.On ? 64 : 65 } };
                 if (cells.Count == 0) return;
                 var rec = Record(cells);
+                // the door swings, the lever flips (Gestures), before the chunk shows the new state
+                foreach (var c in cells)
+                {
+                    int was = World.Get(c[0], c[1], c[2]);
+                    bool pw = World.Powered.Contains(Circuits.K(c[0], c[1], c[2]));
+                    if (bd.Shape == "door") Gestures.I?.DoorChanged(c[0], c[1], c[2], was, c[3], pw, pw);
+                    else Gestures.I?.FlipLever(c[0], c[1], c[2], Rules.Block(c[3])?.On ?? false);
+                }
                 foreach (var c in cells) Write(c[0], c[1], c[2], c[3], World.Store.OwnerOf(c[0], c[1], c[2]));
                 Swing = 0.6f;
                 if (bd.Shape == "door") Sounds.Door(); else Sounds.Click();
@@ -290,6 +301,7 @@ namespace EtherMines.Game
             Sounds.Place(Sounds.MatOf(it));
             Haptics.Play(Haptics.Kind.Light);
             Effects.PopAt(t.PX, t.PY, t.PZ, plan.Cells.Count > 1 ? 2 : 1);
+            Gestures.I?.Grow(t.PX, t.PY, t.PZ, plan.Id); // it grows into place
             if (Session == null) { if (inv.Counts[it] <= 0) inv.SetCounts(new Dictionary<string, object> { [it.ToString()] = 0.0 }); return; }
             var r2 = await Session.Act("place", new Dictionary<string, object> { ["px"] = t.PX, ["py"] = t.PY, ["pz"] = t.PZ, ["it"] = it, ["bid"] = plan.Id }, b.X, b.Y, b.Z);
             if (r2 == null || r2.ContainsKey("refused")) { Revert(rec2); await Session.LoadInventory(); return; }

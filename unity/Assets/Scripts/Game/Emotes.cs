@@ -50,7 +50,7 @@ namespace EtherMines.Game
             myK = k; myAt = Time.time; mx = b.X; mz = b.Z;
             Out = new Told { K = k, Q = (Out.Q + 1) & 0xffff };
             // through your own eyes you don't see yourself: say it once, the others do
-            if (Player.View == 0 && !told)
+            if (Player.View == 0 && !told && !e.Hidden)
             {
                 told = true;
                 Hud.Feed("nft", e.N, "everyone around sees it · " + (TouchPad.Active ? "the view button" : "V") + " to see yourself");
@@ -65,7 +65,7 @@ namespace EtherMines.Game
             {
                 var e = Rules.Emote(myK);
                 bool moved = b == null || Math.Sqrt((b.X - mx) * (b.X - mx) + (b.Z - mz) * (b.Z - mz)) > 0.2;
-                if (e == null || (e.Sec > 0 && Time.time - myAt > e.Sec) || moved || (Act != null && Act.Swing > 0.05f) ||
+                if (e == null || (e.Sec > 0 && Time.time - myAt > e.Sec) || moved || (Act != null && Act.Mining) ||
                     (Combat != null && Combat.Guarding) || (Hover != null && (Hover.Riding > 0 || Hover.Boarded != null)))
                     myK = null;
             }
@@ -78,8 +78,9 @@ namespace EtherMines.Game
             if (k.gKey.wasPressedThisFrame) RowOpen = !RowOpen;
             if (!RowOpen) return;
             var digits = new[] { k.digit1Key, k.digit2Key, k.digit3Key, k.digit4Key, k.digit5Key, k.digit6Key, k.digit7Key, k.digit8Key, k.digit9Key };
-            for (int i = 0; i < 9 && i < Rules.Emotes.Count; i++)
-                if (digits[i].wasPressedThisFrame) { DigitFrame = Time.frameCount; Play(Rules.Emotes[i].K); break; }
+            var row = Rules.RowEmotes();
+            for (int i = 0; i < 9 && i < row.Count; i++)
+                if (digits[i].wasPressedThisFrame) { DigitFrame = Time.frameCount; Play(row[i].K); break; }
 #endif
         }
 
@@ -89,7 +90,8 @@ namespace EtherMines.Game
             Ui.Begin();
             if (!RowOpen || Ui.Cine || Ui.PanelOpen) return;
             bool touch = TouchPad.Active;
-            int n = Rules.Emotes.Count;
+            var row = Rules.RowEmotes();
+            int n = row.Count;
             float cw = touch ? 74 : 82, ch = touch ? 64 : 58, gap = 6, w = n * cw + (n - 1) * gap + 16;
             if (w > Ui.W - 24) { cw = (Ui.W - 24 - 16 - (n - 1) * gap) / n; w = Ui.W - 24; }
             float x = (Ui.W - w) / 2, y = Ui.H - Ui.Safe.y - (touch ? 210 : 158) - ch;
@@ -99,7 +101,7 @@ namespace EtherMines.Game
             var name = new GUIStyle(Ui.Label) { alignment = TextAnchor.MiddleCenter, fontSize = 14, fontStyle = FontStyle.Bold };
             for (int i = 0; i < n; i++)
             {
-                var e = Rules.Emotes[i];
+                var e = row[i];
                 bool own = Owned(e);
                 var r = new Rect(x + 8 + i * (cw + gap), y + 8, cw, ch);
                 Ui.Round(r, own ? Ui.Glass2 : new Color(1, 1, 1, 0.04f), 12, own ? new Color(1, 1, 1, 0.12f) : new Color(1, 1, 1, 0.06f), 1);

@@ -447,9 +447,11 @@ function meshInPlace(cx, cz, pw) {
     pw = [];
     for (const key of POWERED) pw.push(key);
   }
-  const ps = new Set(pw);
+  const ps = new Set(pw),
+    // a block being animated (22-gestures.js: a door swinging, a lid lifting) is meshed as air meanwhile
+    at = HIDE.size ? (x, y, z) => (HIDE.has(coordKey(x, y, z)) ? 0 : get(x, y, z)) : get;
   try {
-    applyMesh(cx, cz, Mesh.pack(Mesh.meshChunk(cx, cz, get, key => ps.has(key))));
+    applyMesh(cx, cz, Mesh.pack(Mesh.meshChunk(cx, cz, at, key => ps.has(key))));
   } catch (e) {
     console.error(e);
     if (window.logError) logError('in-place mesh ' + ckey(cx, cz) + ': ' + e.message, e.stack);
@@ -475,9 +477,14 @@ function buildChunk(cx, cz) {
         a = CHK.get(n);
       if (a) chunks[n] = a;
     }
+  const hidden = [];
+  for (const key of HIDE) {
+    const [x, , z] = key.split(',').map(Number);
+    if (Math.abs(cOf(x) - cx) <= 1 && Math.abs(cOf(z) - cz) <= 1) hidden.push(key);
+  }
   lastMeshId.set(k, id);
   inFlight++;
-  meshWorker.postMessage({ id, cx, cz, chunks, powered: pw });
+  meshWorker.postMessage({ id, cx, cz, chunks, powered: pw, hidden });
   return new Promise(res => pendingMesh.set(id, res));
 }
 function applyMesh(cx, cz, M) {

@@ -103,6 +103,9 @@ namespace EtherMines.Game
             emotes.Player = Player; emotes.Act = Act; emotes.Combat = combat; emotes.Hover = hover; emotes.Chat = chat;
             emotes.Owns = id => progress != null && progress.Cosmetics.Contains(id);
             emotes.Panel = GetComponent<Panel>();
+            // the everyday gestures (22-gestures.js): doors, levers, lids, blocks, beds, chairs
+            var gest = gameObject.AddComponent<Gestures>();
+            gest.World = World; gest.Player = Player; gest.Panel = GetComponent<Panel>(); gest.Emotes = emotes;
             avatars.MyEmote = () => emotes.Mine;
             var hand = GetComponent<Hand>();
             if (hand != null) hand.Combat = combat;
@@ -174,7 +177,7 @@ namespace EtherMines.Game
         {
             var parts = line.Substring(1).Split(new[] { ' ' }, 2);
             string c = parts[0].ToLowerInvariant(), rest = parts.Length > 1 ? parts[1].Trim() : "", arg = rest.ToLowerInvariant();
-            if (Rules.Emote(c) != null) { emotes.Play(c); return; } // /wave, /dance...
+            if (Rules.Emote(c) != null && !Rules.Emote(c).Hidden) { emotes.Play(c); return; } // /wave, /dance...
             void Say(string t) => chat.Add("World", "#7fe8ff", t);
             var b = Player.Body;
             switch (c)
@@ -247,6 +250,15 @@ namespace EtherMines.Game
                 var at = new Vector3(e.X + 0.5f, e.Y + 0.5f, e.Z + 0.5f);
                 if (e.Id == 0) { Sounds.Brk(Sounds.MatOf(before), at); Effects.Break(e.X, e.Y, e.Z, before); }
                 else Sounds.Place(Sounds.MatOf(e.Id), at);
+            }
+            // what someone else did moves here too (Gestures): a door swings, a lever flips, a block grows in
+            var gs = Gestures.I;
+            if (gs != null && before != e.Id && me != null && new Vector2((float)(e.X - me.X), (float)(e.Z - me.Z)).magnitude < 40)
+            {
+                bool pw = World.Powered.Contains(Circuits.K(e.X, e.Y, e.Z));
+                gs.DoorChanged(e.X, e.Y, e.Z, before, e.Id, pw, pw);
+                if (Rules.Block(before)?.Shape == "lever" && Rules.Block(e.Id)?.Shape == "lever") gs.FlipLever(e.X, e.Y, e.Z, Rules.Block(e.Id).On);
+                if ((before == 0 || before == 11 || Mesher.IsCross(before)) && e.Id != 0 && new Vector2((float)(e.X - me.X), (float)(e.Z - me.Z)).magnitude < 24) gs.Grow(e.X, e.Y, e.Z, e.Id);
             }
             World.Store.Edit(e);
             World.Rebuild(e.X, e.Z);

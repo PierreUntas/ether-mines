@@ -420,7 +420,7 @@
     "pow": ["Proof-of-Work","The miners' forge: iron, embers and fire. Premium"],
     "pos": ["Proof-of-Stake","The validators' crystal: white, violet and light. Premium"]
   },
-  "EMOTES": {"wave":{"n":"Wave","sec":2.2},"point":{"n":"Point","sec":1.8},"cheer":{"n":"Cheer","sec":2.2},"clap":{"n":"Clap","sec":2},"sit":{"n":"Sit","sec":0},"dance":{"n":"Dance","sec":4.8,"cosmetic":117},"bow":{"n":"Bow","sec":1.8,"cosmetic":118}},
+  "EMOTES": {"wave":{"n":"Wave","sec":2.2},"point":{"n":"Point","sec":1.8},"cheer":{"n":"Cheer","sec":2.2},"clap":{"n":"Clap","sec":2},"sit":{"n":"Sit","sec":0},"dance":{"n":"Dance","sec":4.8,"cosmetic":117},"bow":{"n":"Bow","sec":1.8,"cosmetic":118},"lie":{"n":"Lie down","sec":3.4,"hidden":1},"seat":{"n":"Sit down","sec":0,"hidden":1},"eat":{"n":"Eat","sec":1.8,"hidden":1}},
   "SET_EUR": {"pow":1299,"pos":1299},
   "STORE_PREFIX": "org.ethermines.game.",
   "PASTELS": [["pink","#ffb8d9"],["lavender","#c9b8ff"],["mint","#aeeccb"],["sky","#b3dcff"],["peach","#ffcfae"],["lemon","#fff0a0"],["coral","#ff9f9a"],["white","#f4f2fa"]],
