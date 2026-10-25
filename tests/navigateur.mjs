@@ -163,7 +163,9 @@ const doorway = await page.evaluate(async () => {
   mines.yaw = 0; mines.pitch = 0; mines.playing = true;
   mines.keys.add('KeyW');
   const S = mines.S, game = () => (S.dayN + S.day) * 480, g0 = game(), t0 = performance.now();
-  while (game() - g0 < 3 && performance.now() - t0 < 120000 && P.z > 17) await new Promise(r => setTimeout(r, 100));
+  // 3 s of game time, however long the machine takes to play them (late in the suite, with a lot of land
+  // loaded, a slow machine draws a frame every couple of seconds), within 5 real minutes
+  while (game() - g0 < 3 && performance.now() - t0 < 300000 && P.z > 17) await new Promise(r => setTimeout(r, 100));
   mines.keys.clear();
   return { through: P.z < 17.5, jumped: P.y > Y + 1.3, x: +P.x.toFixed(2), z: +P.z.toFixed(2) };
 });
@@ -927,22 +929,39 @@ const looks = await page.evaluate(() => {
   Object.defineProperty(Net, 'userId', { get: () => 'test', configurable: true });
   S.gwei = 5000;
   tab = 'shop';
-  renderPanelBody();
-  const rows = document.querySelectorAll('#pbody .shoprow').length,
-    weekly = document.querySelectorAll('#pbody .weekly .shoprow').length,
-    sale = document.querySelectorAll('#pbody .weekly b.sale').length,
-    // what you wear, in the catalog (one of them may also be among the week's picks, depending on the week)
-    worn = document.querySelectorAll('#pbody .shoprow.worn').length - document.querySelectorAll('#pbody .weekly .shoprow.worn').length;
+  // the three aisles: the Store (premium, its sets), the Workshop (this week's offer), the Wardrobe (what you wear)
+  const aisle = k => {
+    SHOP_TAB = k;
+    renderPanelBody();
+    return document.getElementById('pbody');
+  };
+  const names = new Set(),
+    seen = b => b.querySelectorAll('.shoprow strong').forEach(e => names.add(e.textContent));
+  let b = aisle('store');
+  seen(b);
+  const sets = b.querySelectorAll('.setcard').length;
+  b = aisle('workshop');
+  seen(b);
+  const weekly = b.querySelectorAll('.weekly .shoprow').length,
+    sale = b.querySelectorAll('.weekly b.sale').length;
+  b = aisle('wardrobe');
+  seen(b);
+  const worn = b.querySelectorAll('.shoprow.worn').length,
+    outfits = b.querySelectorAll('.outfit').length,
+    // every piece still sold or earned shows in one aisle or another
+    missing = Object.values(COSMETICS).filter(c => !c.retired && !names.has(c.n)).map(c => c.n),
+    rows = names.size;
+  SHOP_TAB = 'store';
   Object.defineProperty(Net, 'online', on);
   Object.defineProperty(Net, 'userId', uid);
   tab = 'inv';
   document.getElementById('pbody').innerHTML = '';
   Object.assign(S, { cosmetics: keep.c, look: keep.l, gwei: keep.g });
-  return { trailDropped: !mine.trail, code, parts, after, rows, weekly, sale, worn, total: Object.keys(COSMETICS).length };
+  return { trailDropped: !mine.trail, code, parts, after, rows, weekly, sale, worn, sets, outfits, missing };
 });
 if (!looks.trailDropped || looks.code !== '0.22.29.34.0' || looks.parts !== 3 || looks.after !== 0)
   await fail('wearables: ' + JSON.stringify(looks));
-if (looks.weekly !== 4 || looks.sale < 1 || looks.worn !== 3 || looks.rows < looks.total) await fail('shop: ' + JSON.stringify(looks));
+if (looks.weekly !== 4 || looks.sale < 1 || looks.worn !== 3 || looks.sets < 2 || looks.outfits !== 4 || looks.missing.length) await fail('shop: ' + JSON.stringify(looks));
 // consumables (18-potions.js), in solo: each is spent once and does its thing; the ward fools an ordinary
 // mob but not a guardian, and not a mob you've struck; the beacon needs a bed you slept in
 const potions = await page.evaluate(async () => {

@@ -7,6 +7,24 @@
 #   FLY_API_TOKEN:         deploy token for the game server (fly tokens create deploy -a ethermines-game)
 stages: [test, deploy]
 
+# Saving compute minutes (the free plan's ran out in October 2026): a newer push cancels the pipeline it
+# replaces, the tests only run when something they check changed (not for docs or Unity scenes alone), npm's
+# downloads are cached, and the slow browser test only runs when started by hand (or in a merge request).
+default:
+  interruptible: true
+
+.code-changed: &code-changed
+  changes:
+    - src/**/*
+    - supabase/**/*
+    - server/**/*
+    - tests/**/*
+    - tools/**/*
+    - "*.html"
+    - unity/Assets/Resources/**/*
+    - unity/tools/**/*
+    - .gitlab-ci.yml
+
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -17,6 +35,17 @@ workflow:
 js:
   stage: test
   image: node:22
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_COMMIT_BRANCH
+      <<: *code-changed
+  cache:
+    key:
+      files: [server/package-lock.json]
+    paths: [server/node_modules/, .npm/]
+  variables:
+    npm_config_cache: "$CI_PROJECT_DIR/.npm"
   script:
     - for f in src/*.js src/game/*.js supabase/functions/_shared/*.js tools/*.mjs tests/*.mjs server/src/*.js; do node --check "$f"; done
     - npm ci --prefix server
@@ -26,6 +55,17 @@ js:
 sql:
   stage: test
   image: node:22
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - supabase/**/*
+        - tests/sql/**/*
+        - tests/fixtures.mjs
+        - tools/rules.mjs
+        - tools/installation.mjs
+        - .gitlab-ci.yml
   services:
     - name: postgres:16
       alias: postgres
@@ -47,6 +87,10 @@ browser:
   # GitLab's small shared machines render WebGL very slowly: a failure here shows in orange without
   # blocking the pipeline (the same test runs before every delivery on a faster machine)
   allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      <<: *code-changed
+    - when: manual
   script:
     - npm i --no-save playwright@1.56.0 three@0.128.0
     - node tests/navigateur.mjs
@@ -65,6 +109,8 @@ freeze:
     # the premium payments (050_purchases.sql); the webhook checks Stripe's signature, not a player token
     - npx --yes supabase@2 functions deploy checkout --project-ref "$SUPABASE_PROJECT_REF" --use-api
     - npx --yes supabase@2 functions deploy stripe-webhook --no-verify-jwt --project-ref "$SUPABASE_PROJECT_REF" --use-api
+    - npx --yes supabase@2 functions deploy iap-verify --project-ref "$SUPABASE_PROJECT_REF" --use-api
+    - npx --yes supabase@2 functions deploy iap-notify --no-verify-jwt --project-ref "$SUPABASE_PROJECT_REF" --use-api
 
 # the game server (server/), on Fly.io: deployed from main when it changes, once the tests have passed
 game-server:

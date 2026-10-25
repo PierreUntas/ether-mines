@@ -419,6 +419,7 @@
     "pos": ["Proof-of-Stake","The validators' crystal: white, violet and light. Premium"]
   },
   "SET_EUR": {"pow":1299,"pos":1299},
+  "STORE_PREFIX": "org.ethermines.game.",
   "PASTELS": [["pink","#ffb8d9"],["lavender","#c9b8ff"],["mint","#aeeccb"],["sky","#b3dcff"],["peach","#ffcfae"],["lemon","#fff0a0"],["coral","#ff9f9a"],["white","#f4f2fa"]],
   "STAINED": [["pink","#ffb8d9"],["sky","#b3dcff"],["mint","#aeeccb"],["lavender","#c9b8ff"]],
   "shop": {"epoch":345600,"week":604800,"notForSale":["combat","event","title"],"saleCount":3,"saleNum":3,"saleDen":4}

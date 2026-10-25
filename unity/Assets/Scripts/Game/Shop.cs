@@ -3,8 +3,8 @@
 // week's three pieces 25% off and its limited piece, the collections, everything else by slot, the block
 // packs) and the Wardrobe (your saved outfits, what you own, the trophies and titles nobody can buy). What
 // you own you can wear (an outfit also sets your color); you see it on your figure (V) and the others on theirs.
-// Bought through act_buy_cosmetic: the server checks your Gwei and the week's prices. The euro purchases go
-// through the web's Stripe page for now (the in-app purchases come next).
+// Bought through act_buy_cosmetic: the server checks your Gwei and the week's prices. The premium pieces are
+// bought with the App Store or Google Play (Iap.cs), checked by the server before they're yours.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -138,7 +138,16 @@ namespace EtherMines.Game
 
             if (tab == "store")
             {
-                Note("The most striking pieces, sold for euros: light, embers and moving parts. Cosmetics only, never an advantage. Try them on now; they go on sale soon.");
+                var iap = Iap.Supported ? Iap.Start(Session, Progress) : null;
+                Note(iap != null && iap.Ready
+                    ? "The most striking pieces: light, embers and moving parts. Cosmetics only, never an advantage. Try them on first; once bought, a piece is yours in every world, on the web too."
+                    : "The most striking pieces, sold for euros: light, embers and moving parts. Cosmetics only, never an advantage. " + (iap != null && iap.Status != "" ? iap.Status + "." : "Try them on now; they go on sale soon."));
+                // Apple asks for a way to get past purchases back, and the terms of sale are a tap away
+                if (iap != null && iap.Ready) items.Add(new Item { H = 40, Draw = r =>
+                {
+                    if (GUI.Button(new Rect(r.x, r.y + 2, 190, 30), "Restore purchases", Ui.Button)) iap.Restore();
+                    if (GUI.Button(new Rect(r.x + 200, r.y + 2, 150, 30), "Terms of sale", Ui.Button)) Application.OpenURL("https://ethermines.org/legal.html#vente");
+                } });
                 var hero = ShowcaseSet(week);
                 if (hero != null) items.Add(new Item { H = 150, Draw = r => SetCard(r, hero, true) });
                 foreach (var set in PremiumSets())
@@ -257,7 +266,16 @@ namespace EtherMines.Game
             GUI.Label(new Rect(sx + 10, y + (sz - 22) / 2, box.xMax - sx - 400, 22), txt, Ui.Small);
             var b = new Rect(box.xMax - 200, y, 190, 32);
             if (GUI.Button(new Rect(b.x - 130, b.y, 120, 32), "Try the set", Ui.Button)) TryOnSet(set);
-            if (price > 0) { GUI.enabled = false; GUI.Button(b, Eur(price) + " · soon", Ui.Button); GUI.enabled = true; }
+            if (price > 0)
+            {
+                // in the apps a set is sold whole (a store product has one price): owning some of it, buy the rest piece by piece
+                var iap = Iap.Instance;
+                string pid = Iap.SetId(set), sp = iap != null && iap.Ready && have == 0 ? iap.Price(pid) : null;
+                if (iap != null && iap.Ready && have > 0) GUI.Label(new Rect(b.x - 130, b.y + 36, 320, 20), "Buy the missing pieces one by one, below", Ui.Small);
+                else if (sp == null) { GUI.enabled = false; GUI.Button(b, Eur(price) + " · soon", Ui.Button); GUI.enabled = true; }
+                else if (iap.Busy == pid) { GUI.enabled = false; GUI.Button(b, "Buying…", Ui.Button); GUI.enabled = true; }
+                else if (GUI.Button(b, "Buy the set · " + sp, Ui.Primary)) iap.Buy(pid);
+            }
         }
 
         void OutfitGrid(Rect r)
@@ -324,7 +342,15 @@ namespace EtherMines.Game
             }
             GUI.enabled = !busy;
             if (c.Slot != null && owned) { if (GUI.Button(b, worn ? "Remove" : "Wear", worn ? Ui.Button : Ui.Primary)) Wear(c, !worn); }
-            else if (c.Premium) { GUI.enabled = false; GUI.Button(b, eur + " · soon", Ui.Button); }
+            else if (c.Premium)
+            {
+                // the store's own price, in the player's currency; until the store answers, the euro price, "soon"
+                var iap = Iap.Instance;
+                string pid = Iap.PieceId(c.Id), sp = iap != null && iap.Ready ? iap.Price(pid) : null;
+                if (sp == null) { GUI.enabled = false; GUI.Button(b, eur + " · soon", Ui.Button); }
+                else if (iap.Busy == pid) { GUI.enabled = false; GUI.Button(b, "Buying…", Ui.Button); }
+                else if (GUI.Button(b, "Buy · " + sp, Ui.Primary)) iap.Buy(pid);
+            }
             else if (!sellable) { GUI.enabled = false; GUI.Button(b, "Not for sale", Ui.Button); }
             else if (limitedAway) { GUI.enabled = false; GUI.Button(b, "Not this week", Ui.Button); }
             else if (Session.Gwei < price) { GUI.enabled = false; GUI.Button(b, price + " Gwei", Ui.Button); }

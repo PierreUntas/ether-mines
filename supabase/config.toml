@@ -1,4 +1,4 @@
-# Minimal config for the Supabase CLI (deploying the Edge Functions: freeze, checkout, stripe-webhook).
+# Minimal config for the Supabase CLI (deploying the Edge Functions: freeze, checkout, stripe-webhook, iap-verify).
 project_id = "ether-mines"
 
 [functions.freeze]
@@ -10,4 +10,12 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.stripe-webhook]
+verify_jwt = false
+
+# the in-app purchases (052_store_purchases.sql): the app sends its purchase, signed in as the player
+[functions.iap-verify]
+verify_jwt = true
+
+# refunds from the App Store and Google Play: the stores call it, and the function confirms with them
+[functions.iap-notify]
 verify_jwt = false

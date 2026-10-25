@@ -92,6 +92,7 @@ namespace EtherMines.Core
         public static int[] CosmeticIds = new int[0]; // ascending
         public static readonly List<string[]> Sets = new List<string[]>(); // [key, name, line], shop order
         public static readonly Dictionary<string, int> SetEur = new Dictionary<string, int>(); // a whole premium set, euro cents (SET_EUR)
+        public static string StorePrefix = "org.ethermines.game."; // the App Store / Google Play product ids (STORE_PREFIX)
         public static readonly List<string[]> Pastels = new List<string[]>(), Stained = new List<string[]>();
         public static int BlockCount { get; private set; }
         public static bool Loaded { get; private set; }
@@ -166,6 +167,7 @@ namespace EtherMines.Core
                 var a = (List<object>)kv.Value;
                 Sets.Add(new[] { kv.Key, (string)a[0], (string)a[1] });
             }
+            if (root.TryGetValue("STORE_PREFIX", out var sp) && sp is string sps) StorePrefix = sps;
             if (root.TryGetValue("SET_EUR", out var se) && se is Dictionary<string, object> sed)
                 foreach (var kv in sed) SetEur[kv.Key] = MiniJson.ToInt(kv.Value);
             ReadPairs(root, "PASTELS", Pastels);

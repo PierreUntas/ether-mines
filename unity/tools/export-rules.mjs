@@ -71,6 +71,7 @@ const parts = [
   ['COSMETICS', obj(R.COSMETICS)],
   ['SETS', obj(R.SETS)],
   ['SET_EUR', val(R.SET_EUR)],
+  ['STORE_PREFIX', val(R.STORE_PREFIX)],
   ['PASTELS', val(R.PASTELS)],
   ['STAINED', val(R.STAINED)],
   ['shop', val(shop)],

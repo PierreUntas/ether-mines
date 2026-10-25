@@ -814,6 +814,10 @@
   // you pay the same share of the set's price as the share of the pieces you're missing (setPrice);
   // 051_premium_sets.sql computes exactly the same: change both together.
   const SET_EUR = { pow: 1299, pos: 1299 };
+  // the same pieces and sets as products of the App Store and Google Play (052_store_purchases.sql,
+  // the "iap-verify" function, Unity's Iap.cs): STORE_PREFIX + 'piece.107', STORE_PREFIX + 'set.pow'.
+  // In the apps a set is sold whole only (a store product has one price), to whoever owns none of it yet.
+  const STORE_PREFIX = 'org.ethermines.game.';
   const setPieces = set =>
     Object.keys(COSMETICS)
       .map(Number)
@@ -878,6 +882,7 @@
     COSMETICS,
     SETS,
     SET_EUR,
+    STORE_PREFIX,
     setPieces,
     setPrice,
     shopWeek,

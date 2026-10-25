@@ -1204,4 +1204,34 @@ reset role;
 set role authenticated;
 select pg_temp.ok('premium set: all five gone', act_premium_owned('principal') = '{}'::smallint[]);
 reset role;
+-- 052: bought in the apps, checked with Apple or Google by iap-verify first; counted like Stripe's
+reset role;
+delete from rate_limits;
+insert into auth.users values ('a5000000-0000-0000-0000-000000000001'), ('a5000000-0000-0000-0000-000000000002');
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'a5000000-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('store: an account with a password', (act_enter('AppBuyer', 'app1234') ->> 'ok')::boolean);
+select set_config('request.jwt.claim.sub', 'a5000000-0000-0000-0000-000000000002', false) \g /dev/null
+select pg_temp.ok('store: a second account', (act_enter('AppTwo', 'app1234') ->> 'ok')::boolean);
+select pg_temp.refused('store: a player can''t record an app purchase', $q$select srv_store_paid(auth.uid(), 'apple', '1', 107, null, true, 'w')$q$);
+reset role;
+set role service_role;
+select pg_temp.ok('store: an App Store piece', srv_store_paid('a5000000-0000-0000-0000-000000000001', 'apple', '1000', 108, null, true, 'w') -> 'pieces' = '[108]'::jsonb);
+select pg_temp.ok('store: the same purchase again (a restore): nothing new', (srv_store_paid('a5000000-0000-0000-0000-000000000001', 'apple', '1000', 108, null, true, 'w') ->> 'already')::boolean);
+select pg_temp.ok('store: restored on another game account: it stays its buyer''s',
+  srv_store_paid('a5000000-0000-0000-0000-000000000002', 'apple', '1000', 108, null, true, 'w') ->> 'err' = 'bought by another account');
+select pg_temp.ok('store: a Google Play set, whole', jsonb_array_length(srv_store_paid('a5000000-0000-0000-0000-000000000001', 'google', 'GPA.1', null, 'pos', true, 'w') -> 'pieces') = 5);
+select pg_temp.ok('store: a Gwei piece is not sold in the apps', srv_store_paid('a5000000-0000-0000-0000-000000000001', 'google', 'GPA.2', 1, null, true, 'w') ->> 'err' = 'not for sale');
+select pg_temp.ok('store: a tester''s purchase never counts in the players'' world', srv_store_paid('a5000000-0000-0000-0000-000000000001', 'google', 'GPA.3', 110, null, false, 'principal') ->> 'err' = 'test payments only in test worlds');
+reset role;
+select set_config('request.jwt.claim.sub', 'a5000000-0000-0000-0000-000000000001', false) \g /dev/null
+set role authenticated;
+select pg_temp.ok('store: worn everywhere, like a Stripe purchase', act_premium_owned('principal') = '{108,112,113,114,115,116}'::smallint[]);
+reset role;
+set role service_role;
+select pg_temp.ok('store: Apple''s refund takes it back', (srv_store_refunded('apple', '1000') ->> 'refunded')::int = 1);
+reset role;
+set role authenticated;
+select pg_temp.ok('store: gone once refunded', act_premium_owned('principal') = '{112,113,114,115,116}'::smallint[]);
+reset role;
 \echo Premium purchase scenarios pass.

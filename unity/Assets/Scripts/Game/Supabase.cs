@@ -179,6 +179,22 @@ namespace EtherMines.Game
             }
         }
 
+        // an Edge Function of ours (iap-verify...), signed in as the player: its JSON answer, refusals included
+        // (a 4xx answer's {"error": ...} is returned, not thrown, so the caller can say why)
+        public async Task<Dictionary<string, object>> Function(string name, Dictionary<string, object> body)
+        {
+            if (Local != null) return new Dictionary<string, object> { ["error"] = "offline" };
+            await Fresh();
+            using (var r = Json("POST", Config.SupabaseUrl + "/functions/v1/" + name, MiniJson.Write(body)))
+            {
+                r.SetRequestHeader("Authorization", "Bearer " + AccessToken);
+                await Send(r);
+                var d = MiniJson.Parse(r.downloadHandler.text ?? "") as Dictionary<string, object>;
+                if (d == null) throw new Exception(name + ": " + r.responseCode + " " + r.downloadHandler.text);
+                return d;
+            }
+        }
+
         // insert or update a row (supabase-js upsert): players, keyed by (user_id, world)
         public async Task Upsert(string table, string onConflict, Dictionary<string, object> row)
         {

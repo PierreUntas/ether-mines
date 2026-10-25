@@ -2120,7 +2120,7 @@ function shopStore(list, ctx) {
     'beforeend',
     `<p class="qintro">The most striking pieces, sold for euros: light, embers and moving parts. Cosmetics only, never an advantage. ${
       paymentsOpen()
-        ? 'Try them on first; once bought, a piece is yours in every world.' +
+        ? 'Try them on first; once bought, a piece is yours in every world. Buying means accepting the <a href="legal.html#vente" target="_blank" rel="noopener">terms of sale</a>.' +
           (CONFIG.PAYMENTS === 'test' ? " <b>Test mode: use Stripe's test card 4242 4242 4242 4242, nothing is charged.</b>" : '')
         : 'Try them on now; they go on sale soon.'
     }</p>`,
