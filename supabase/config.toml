@@ -1,5 +1,13 @@
-# Minimal config for the Supabase CLI (deploying the "freeze" function).
+# Minimal config for the Supabase CLI (deploying the Edge Functions: freeze, checkout, stripe-webhook).
 project_id = "ether-mines"
 
 [functions.freeze]
 verify_jwt = true
+
+# the premium pieces' payments (050_purchases.sql): Stripe calls the webhook without a player's token,
+# and the function checks Stripe's signature itself
+[functions.checkout]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false

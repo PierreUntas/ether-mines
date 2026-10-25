@@ -1859,6 +1859,49 @@ async function buyCosmetic(c, btn) {
   // re-render even on refusal (e.g. not enough Gwei): otherwise the button stays frozen on "Buying…"
   ui();
 }
+// ---------- premium pieces, bought with euros (050_purchases.sql, the "checkout" Edge Function) ----------
+// Open everywhere once Stripe is live; while it's in test mode, only in test worlds (never 'principal').
+const paymentsOpen = () =>
+  !!SERVER() && (CONFIG.PAYMENTS === 'live' || (CONFIG.PAYMENTS === 'test' && (Net.world || 'principal') !== 'principal'));
+const PAY_ERRS = {
+  'set a password first': 'enter with your nickname and a password first, so the piece follows you to any device',
+  'already owned': 'you already own it',
+  'not for sale': 'not for sale',
+  'too many actions': 'wait a moment and try again',
+  'payments are not open yet': 'payments are not open yet',
+};
+async function buyPremium(c, btn) {
+  if (btn) freezeBtn(btn, 'Opening payment…');
+  try {
+    // Stripe's own page takes the payment, then sends you back here (?shop=paid, see premiumReturn)
+    location.href = await Net.buyPremium(+c.id);
+  } catch (e) {
+    logEv('burn', c.n, PAY_ERRS[e.message] || e.message);
+    Sound.hit('stone');
+    ui();
+  }
+}
+// back from Stripe: the webhook may land a few seconds after you, so ask a few times
+async function premiumReturn(state) {
+  history.replaceState(null, '', location.pathname + '?monde=' + encodeURIComponent(Net.world || 'principal'));
+  if (state === 'cancel') return toastInfo('Payment cancelled: nothing was charged.');
+  if (state !== 'paid') return;
+  const before = new Set(S.cosmetics);
+  for (let i = 0; i < 10; i++) {
+    const got = await Net.loadPremium().catch(() => []);
+    const fresh = got.filter(id => !before.has(id));
+    if (fresh.length) {
+      for (const id of fresh) S.cosmetics.push(id);
+      const c = COSMETICS[fresh[0]];
+      if (c.slot) setLookSlot(c.slot, fresh[0]);
+      toastInfo(`Thank you! ${fresh.map(id => COSMETICS[id].n).join(', ')}: yours, in every world.`);
+      Sound.chime();
+      return ui();
+    }
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  toastInfo("Payment received: your piece will appear in the shop in a moment (reload if it doesn't).");
+}
 // what a shop row shows when there's no item icon: the piece's own color, or one per slot
 const SLOT_TINT = { head: '#ffd166', back: '#7fe8ff', companion: '#ff9ab8', trail: '#b6a4ff', tool: '#c9a6ff', plating: '#b48cff' };
 // a small painted hint of each piece, by its style (17-looks.js draws the real thing)
@@ -1981,9 +2024,10 @@ function shopRow(id, ctx) {
       ui();
     });
   } else if (premium) {
-    // sold for euros: try it on now; the purchase comes with the payments
+    // sold for euros, through Stripe's payment page (050_purchases.sql)
     add(trying ? 'Stop trying' : 'Try', '', () => tryOn(id));
-    add(`${eurText(c.eur)} · soon`, '', null, true).title = 'Premium pieces will be sold for euros soon';
+    if (paymentsOpen()) add(`Buy · ${eurText(c.eur)}`, 'primary', b => buyPremium({ id, ...c }, b));
+    else add(`${eurText(c.eur)} · soon`, '', null, true).title = 'Premium pieces will be sold for euros soon';
   } else if (!sellable) add('Not for sale', '', null, true);
   else {
     if (c.slot && !c.grantItem) add(trying ? 'Stop trying' : 'Try', '', () => tryOn(id));
@@ -2035,7 +2079,12 @@ function renderShop(body) {
   prem.className = 'weekly premium';
   prem.insertAdjacentHTML(
     'beforeend',
-    '<h3 class="cat">Premium</h3><p class="note">The most striking pieces, sold for euros: light, embers and moving parts. Try them on now; they go on sale soon.</p>',
+    `<h3 class="cat">Premium</h3><p class="note">The most striking pieces, sold for euros: light, embers and moving parts. ${
+      paymentsOpen()
+        ? 'Try them on first; once bought, a piece is yours in every world.' +
+          (CONFIG.PAYMENTS === 'test' ? " <b>Test mode: use Stripe's test card 4242 4242 4242 4242, nothing is charged.</b>" : '')
+        : 'Try them on now; they go on sale soon.'
+    }</p>`,
   );
   for (const [set, [name, line]] of Object.entries(SETS)) {
     if (!premiumSet(set)) continue;

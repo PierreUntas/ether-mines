@@ -569,6 +569,18 @@ window.Net = (() => {
     if (error) throw error;
     return data.map(r => r.cosmetic_id);
   }
+  // the premium pieces this account bought with euros (050_purchases.sql): theirs in every world
+  const loadPremium = () => rpc('act_premium_owned', { w: world });
+  // opens Stripe's payment page for one premium piece (the "checkout" Edge Function); the piece is only
+  // granted once Stripe's signed webhook says it's paid, so the game asks loadPremium again on the way back
+  async function buyPremium(cosmetic) {
+    const back = location.origin + location.pathname;
+    const { data, error } = await client().functions.invoke('checkout', { body: { cosmetic, world, back } });
+    if (data && data.url) return data.url;
+    let msg = data && data.error;
+    if (!msg && error && error.context && error.context.json) msg = (await error.context.json().catch(() => null))?.error;
+    throw new Error(msg || (error && error.message) || 'payment unavailable');
+  }
   // A player's owned validators, with their current state — fetched on demand (the Validators tab),
   // not streamed in real time like blocks/claims.
   // the AND/OR/NOT gates placed by you that still stand: the Circuits chapter's proof (029_chapters.sql)
@@ -656,6 +668,8 @@ window.Net = (() => {
     freeze,
     loadInventory,
     loadCosmetics,
+    loadPremium,
+    buyPremium,
     loadValidators,
     loadMyGates,
     setTitle,

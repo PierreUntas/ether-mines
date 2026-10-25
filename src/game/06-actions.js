@@ -144,12 +144,13 @@ let syncing = null,
 function syncInventory() {
   if (!SERVER()) return Promise.resolve();
   if (syncing) return syncing;
-  syncing = Promise.all([Net.loadInventory(), Net.loadCosmetics().catch(() => null)])
-    .then(([{ inv, uniques }, cosmetics]) => {
+  syncing = Promise.all([Net.loadInventory(), Net.loadCosmetics().catch(() => null), Net.loadPremium().catch(() => [])])
+    .then(([{ inv, uniques }, cosmetics, premium]) => {
       S.inv = {};
       for (const r of inv) if (r.n > 0) S.inv[r.item] = r.n;
       if (cosmetics) {
-        S.cosmetics = cosmetics;
+        // the world's own pieces, plus the premium ones the account bought (every world)
+        S.cosmetics = [...new Set([...cosmetics, ...(premium || [])])];
         COSMETICS_LOADED = true;
         lookChanged(); // what you wear, now that it's known what you own (17-looks.js)
       }

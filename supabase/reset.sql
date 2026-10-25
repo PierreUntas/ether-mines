@@ -1,5 +1,6 @@
 -- FULL RESET: deletes every world, every block, every game, and every guest account.
--- Also covers tables from older versions. Next: run installation.sql (all migrations and rules in one file).
+-- Also covers tables from older versions. The purchases paid with real money (billing.purchases,
+-- 050_purchases.sql) are kept on purpose: each row keeps its nickname and email, to be handed back by hand. Next: run installation.sql (all migrations and rules in one file).
 
 drop table if exists public.players, public.inventory, public.uniques, public.claims, public.recovery,
   public.legacy_claims, public.blocks, public.chunks, public.worlds,

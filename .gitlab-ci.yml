@@ -62,6 +62,9 @@ freeze:
     - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "web"
   script:
     - npx --yes supabase@2 functions deploy freeze --project-ref "$SUPABASE_PROJECT_REF" --use-api
+    # the premium payments (050_purchases.sql); the webhook checks Stripe's signature, not a player token
+    - npx --yes supabase@2 functions deploy checkout --project-ref "$SUPABASE_PROJECT_REF" --use-api
+    - npx --yes supabase@2 functions deploy stripe-webhook --no-verify-jwt --project-ref "$SUPABASE_PROJECT_REF" --use-api
 
 # the game server (server/), on Fly.io: deployed from main when it changes, once the tests have passed
 game-server:

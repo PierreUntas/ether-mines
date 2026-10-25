@@ -18,6 +18,7 @@ psql -v ON_ERROR_STOP=1 -d $DB -f tests/sql/scenarios.sql 2>&1 | sed -e 's/^psql
 psql -q -d $DB -c "drop table fixtures, samples, shop_weeks"
 run supabase/reset.sql
 test "$(psql -Atq -d $DB -c "select count(*) from pg_tables where schemaname = 'public'")" = "0" || { echo "FAILED: reset.sql leaves tables behind"; exit 1; }
+test "$(psql -Atq -d $DB -c "select count(*) from billing.purchases")" -gt 0 || { echo "FAILED: reset.sql must keep the purchases (real money)"; exit 1; }
 run supabase/installation.sql   # the single file must be enough after a reset
 run supabase/installation.sql   # ... and replay without error
 test "$(psql -Atq -d $DB -c "select count(*) from rule_blocks")" -gt 100 || { echo "FAILED: rules missing after installation.sql"; exit 1; }

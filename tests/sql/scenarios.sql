@@ -1135,3 +1135,47 @@ select pg_temp.ok('the 9th plot, for 128 000 gwei', (:'ninth'::jsonb ->> 'ok')::
 update players set gwei = 999999 where user_id = 'a3000000-0000-0000-0000-000000000001';
 select pg_temp.ok('no 10th plot', _core_claim('w', 401, 400) ->> 'err' = '9 plots at most');
 \echo Plot price scenarios pass.
+
+-- ---------- premium pieces bought with euros (050): Stripe's webhook through the srv_ functions ----------
+reset role;
+delete from rate_limits;
+insert into auth.users values ('a4000000-0000-0000-0000-000000000001'), ('a4000000-0000-0000-0000-000000000002');
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'a4000000-0000-0000-0000-000000000001', false) \g /dev/null
+select pg_temp.ok('premium: an account with a password', (act_enter('Buyer', 'buy1234') ->> 'ok')::boolean);
+select pg_temp.refused('premium: a player can''t mark a purchase paid', $q$select srv_premium_paid('cs_x', 'pi_x', null, 499, true, auth.uid(), 107)$q$);
+select pg_temp.refused('premium: ... nor open one', $q$select srv_premium_quote(auth.uid(), 107, true, 'w')$q$);
+select pg_temp.refused('premium: ... nor read the purchases', $q$select * from billing.purchases$q$);
+reset role;
+set role service_role;
+select pg_temp.ok('premium: the quote is the piece''s euro price', (srv_premium_quote('a4000000-0000-0000-0000-000000000001', 107, true, 'w') ->> 'eur')::int = 499);
+select pg_temp.ok('premium: a Gwei piece is not sold for euros', srv_premium_quote('a4000000-0000-0000-0000-000000000001', 1, true, 'w') ->> 'err' = 'not for sale');
+select pg_temp.ok('premium: no purchase without a password', srv_premium_quote('a4000000-0000-0000-0000-000000000002', 107, true, 'w') ->> 'err' = 'set a password first');
+select pg_temp.ok('premium: test payments never in the players'' world', srv_premium_quote('a4000000-0000-0000-0000-000000000001', 107, false, 'principal') ->> 'err' = 'test payments only in test worlds');
+select srv_premium_pending('a4000000-0000-0000-0000-000000000001', 107, 499, true, 'cs_1') \g /dev/null
+select pg_temp.ok('premium: a wrong amount is refused', srv_premium_paid('cs_1', 'pi_1', 'b@x.org', 1, true, null, null) ->> 'err' = 'wrong amount');
+select pg_temp.ok('premium: paid', (srv_premium_paid('cs_1', 'pi_1', 'b@x.org', 499, true, null, null) ->> 'ok')::boolean);
+select pg_temp.ok('premium: the same event twice changes nothing', (srv_premium_paid('cs_1', 'pi_1', 'b@x.org', 499, true, null, null) ->> 'already')::boolean);
+reset role;
+select pg_temp.ok('premium: ... one paid row', (select count(*) from billing.purchases where status = 'paid') = 1);
+set role service_role;
+select pg_temp.refused('premium: even the service key only goes through the functions', $q$select * from billing.purchases$q$);
+select pg_temp.ok('premium: not twice the same piece', srv_premium_quote('a4000000-0000-0000-0000-000000000001', 107, true, 'w') ->> 'err' = 'already owned');
+select pg_temp.ok('premium: an unknown session paid, rebuilt from its metadata',
+  (srv_premium_paid('cs_2', 'pi_2', null, 299, false, 'a4000000-0000-0000-0000-000000000001', 108) ->> 'ok')::boolean);
+reset role;
+set role authenticated;
+select pg_temp.ok('premium: owned in every world, the test purchase outside principal only',
+  act_premium_owned('w') = '{107,108}'::smallint[] and act_premium_owned('other') = '{107,108}'::smallint[] and act_premium_owned('principal') = '{107}'::smallint[]);
+reset role;
+set role service_role;
+select pg_temp.ok('premium: a refund takes the piece back', (srv_premium_refunded('pi_1') ->> 'refunded')::int = 1);
+select pg_temp.ok('premium: a refunded session can''t be paid again', srv_premium_paid('cs_1', 'pi_1', null, 499, true, null, null) ->> 'err' = 'refunded');
+reset role;
+set role authenticated;
+select pg_temp.ok('premium: gone once refunded', act_premium_owned('principal') = '{}'::smallint[]);
+reset role;
+select _move_account('a4000000-0000-0000-0000-000000000001', 'a4000000-0000-0000-0000-000000000002') \g /dev/null
+select pg_temp.ok('premium: the purchases follow the account to another device',
+  (select count(*) from billing.purchases where user_id = 'a4000000-0000-0000-0000-000000000002') = 2);
+\echo Premium purchase scenarios pass.

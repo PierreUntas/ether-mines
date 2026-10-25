@@ -1660,7 +1660,9 @@ async function boot(world) {
     if (Net.userId) {
       // your chest and the claimed plots come in while the land loads
       sideLoads.push(
-        syncInventory().catch(e => console.warn(e)),
+        syncInventory()
+          .then(() => qs.get('shop') && premiumReturn(qs.get('shop'))) // back from Stripe's payment page
+          .catch(e => console.warn(e)),
         Net.loadClaims()
           .then(l => l.forEach(c => CLAIMS.set(ckey(c.cx, c.cz), c)))
           .catch(e => console.warn(e)),

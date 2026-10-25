@@ -8,4 +8,8 @@ window.CONFIG = {
   // the game server (server/): real time through it once it's deployed, e.g. 'wss://ethermines-game.fly.dev'.
   // Empty: real time through Supabase's channels, as before.
   GAME_SERVER: 'wss://ethermines-game.fly.dev',
+  // buying the premium pieces with euros (Stripe, 050_purchases.sql): 'test' opens it in test worlds only
+  // (Stripe's test mode, fake cards), 'live' everywhere, '' nowhere. Stripe's secret keys never go here:
+  // they're Supabase secrets (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET).
+  PAYMENTS: 'test',
 };
