@@ -461,3 +461,29 @@ html.clay .slot i{display:none}
 #sleepFade{position:fixed;inset:0;background:#0b0820;opacity:0;pointer-events:none;z-index:40}
 #sleepFade.on{animation:sleepFade 2.6s ease-in-out}
 @keyframes sleepFade{0%{opacity:.85}12%{opacity:1}55%{opacity:1}100%{opacity:0}}
+/* the Character tab (24-gear.js): the character among its slots, the choices for one, what it adds up to */
+.charwin{display:grid;grid-template-columns:minmax(0,1fr) minmax(200px,280px) minmax(0,1fr);gap:12px;align-items:center}
+.charcol{display:grid;gap:8px}
+.charslot{display:flex;align-items:center;gap:10px;text-align:left;padding:8px 10px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:inherit;font:inherit;cursor:pointer;min-height:62px}
+.charslot:hover,.charslot.open{background:rgba(255,255,255,.1);border-color:rgba(190,178,255,.6)}
+.charslot canvas{width:40px;height:40px;flex:none;image-rendering:pixelated}
+.charslot i{width:40px;height:40px;flex:none;border-radius:9px;border:1px dashed var(--line)}
+.charslot span{display:grid;min-width:0}
+.charslot small{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.charslot b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.charslot em{font-style:normal;font-size:12px;color:var(--muted)}
+.charslot.t1{box-shadow:inset 3px 0 0 #00eaff}.charslot.t2{box-shadow:inset 3px 0 0 #c9a6ff}.charslot.t3{box-shadow:inset 3px 0 0 #ffb347}
+.charmid .avatar{padding:6px}
+.charpick{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.04)}
+.charpick h4{width:100%;margin:0 0 2px;font-size:14px}
+.charitem{aspect-ratio:auto;display:flex;gap:8px;padding:6px 10px 6px 6px;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.charitem canvas{width:34px;height:34px}
+.charitem span{display:grid}.charitem em{font-style:normal;font-size:12px;color:var(--muted)}
+.charitem.sel{border-color:var(--gold);background:rgba(255,217,94,.1)}
+.charstats{margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.charstats>div{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.charstats i{font-style:normal;font-size:20px;width:26px;text-align:center}
+.charstats span{display:grid}.charstats small{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.charstats b{font-size:17px}.charstats em{font-style:normal;font-size:12px;color:var(--muted)}
+@media (max-width:640px){.charwin{grid-template-columns:1fr 1fr}.charmid{grid-column:1/-1;grid-row:1}.charslot{min-height:54px;padding:6px 8px}.charslot canvas,.charslot i{width:32px;height:32px}}
+.charitem b{position:static;font-size:14px;font-weight:600;background:none;padding:0;color:inherit;text-shadow:none}

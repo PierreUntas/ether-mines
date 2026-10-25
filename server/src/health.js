@@ -21,6 +21,18 @@ export const ARMOR = Object.fromEntries(
     .filter(([, it]) => it.armor)
     .map(([id, it]) => [+id, it.armor]),
 );
+// the helmet, the gauntlets and the amulet (rules.js ITEM 308-316): what each does, by item id
+const statOf = k =>
+  Object.fromEntries(
+    Object.entries(Rules.ITEM)
+      .filter(([, it]) => it[k])
+      .map(([id, it]) => [+id, it[k]]),
+  );
+export const HELM = statOf('helm'),
+  POWER = statOf('power'),
+  REGEN = statOf('regen');
+// what a player wears and owns in a slot: its stat, or 0
+export const worn = (p, item, stats, owns) => (item && stats[item] && owns(p, item) ? stats[item] : 0);
 
 // owns(p, item): does this player really have it (the server's own look at their inventory)
 export function createHealth({ send, owns }) {
@@ -63,8 +75,10 @@ export function createHealth({ send, owns }) {
         dmg *= 0.25;
         blocked = true;
       }
-      const armor = p.armor && owns(p, p.armor) ? ARMOR[p.armor] || 0 : 0;
-      dmg = Math.max(blocked ? 0 : 1, Math.round(dmg * (1 - armor)));
+      // the plating takes its share, then the helmet takes its share of what's left (24-gear.js armorLeft)
+      const armor = p.armor && owns(p, p.armor) ? ARMOR[p.armor] || 0 : 0,
+        helm = worn(p, p.helm, HELM, owns);
+      dmg = Math.max(blocked ? 0 : 1, Math.round(dmg * (1 - armor) * (1 - helm)));
       if (!dmg) {
         p.invulnUntil = now + 350;
         send(p, { t: 'hurt', dmg: 0, hp: p.hp, x: mx, z: mz, kind, res: 'block', from });
@@ -88,7 +102,7 @@ export function createHealth({ send, owns }) {
     regen(p, now = Date.now()) {
       if (p.hp === undefined || p.hp >= MAX_HP || now < p.regenAt) return;
       p.hp++;
-      p.regenAt = now + REGEN_MS;
+      p.regenAt = now + REGEN_MS * (1 - worn(p, p.amulet, REGEN, owns)); // an amulet: sooner
       tell(p, now);
     },
     // healing the browser asks for: a bed at night (full), a hunted animal (+1), a tonic the server took (+5)

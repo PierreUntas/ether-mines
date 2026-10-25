@@ -23,7 +23,7 @@ import { WebSocketServer } from 'ws';
 import { MobsCore, Rules } from './shared.js';
 import { createTerrain, supabaseArea } from './terrain.js';
 import { createMobSim, TICK_MS } from './mobs.js';
-import { createHealth, BLADES, ARMOR } from './health.js';
+import { createHealth, BLADES, ARMOR, HELM, POWER, REGEN, worn } from './health.js';
 
 // 2: the players' hearts live here (health.js): a browser that doesn't know it is turned away
 export const PROTOCOL = 2;
@@ -37,14 +37,16 @@ const WORLD_RE = /^[a-z0-9-]{1,32}$/;
 // PvP, settled here (step 2): the weapons' damage (ITEM[id].dmg in supabase/functions/_shared/rules.js; a
 // test checks they match), 40% of it between players and at least one heart, like the game always did
 export const WEAPONS = { 106: 2.5, 107: 5, 301: 7.5, 206: 4 };
-export const pvpDamage = item => Math.max(1, Math.round((WEAPONS[item] || 1) * 0.4));
+// power: the gauntlets the striker wears (a blade only)
+export const pvpDamage = (item, power = 0) => Math.max(1, Math.round((WEAPONS[item] || 1) * 0.4 * (1 + (BLADES.has(item) ? power : 0))));
 const PISTOL = 206;
 const COOLDOWN = { melee: 450, ranged: 300 }; // ms between two blows (the game's own: 0.45 s, 0.35 s)
 const OWNED_EVERY = 60000; // ms between two looks at a player's weapons
 const OWNED_RETRY = 10000; // ...or sooner when they use one we didn't know about (just crafted)
-// what the server looks for in a player's inventory: the blades and the platings, and among their
+// what the server looks for in a player's inventory: the blades, the platings, the helmets, gauntlets and
+// amulets, and among their
 // uniques, the Plasma Pistol, the Merge Aegis and the Front-Runner Boots
-const OWNED_INV = [...BLADES, ...Object.keys(ARMOR).map(Number)].filter(i => i !== 209),
+const OWNED_INV = [...BLADES, ...[ARMOR, HELM, POWER, REGEN].flatMap(s => Object.keys(s).map(Number))].filter(i => i !== 209),
   OWNED_UNIQ = [206, 209, 211];
 const PVP_FLOOR_MS = 700; // between two blows of the same player on the same target, whatever the weapon
 // Mobs (step 3): their health lives here. Each screen still moves its own copy of a mob, but a blow is
@@ -220,8 +222,10 @@ export function createGameServer(opts = {}) {
       return send(me, msg);
     }
     me.lastMobHit = now;
+    // gauntlets you own raise a blade's blows (24-gear.js heldDmg): the cap rises with them
     const base = WEAPONS[item] || 1,
-      dmg = Math.max(0, Math.min(num(m.dmg, 1e4) ?? base, base * RIPOSTE));
+      power = BLADES.has(item) ? worn(me, me.gloves, POWER, owns) : 0,
+      dmg = Math.max(0, Math.min(num(m.dmg, 1e4) ?? base, base * RIPOSTE * (1 + power)));
     s.hp = Math.max(0, +(s.hp - dmg).toFixed(2));
     s.at = now;
     s.by.set(me.id, now);
@@ -539,6 +543,9 @@ export function createGameServer(opts = {}) {
           lastHitOn: new Map(),
           armor: Number.isInteger(m.ar) ? m.ar : 0,
           boots: m.bt ? 211 : 0,
+          helm: Number.isInteger(m.hm) ? m.hm : 0, // the helmet, gauntlets and amulet worn (24-gear.js)
+          gloves: Number.isInteger(m.gl) ? m.gl : 0,
+          amulet: Number.isInteger(m.am) ? m.am : 0,
           noMobs: !!m.nm, // hostile mobs turned off on their screen: the mobs here leave them be
           held: 0,
           yaw: 0,
@@ -575,6 +582,9 @@ export function createGameServer(opts = {}) {
         me.held = Number.isInteger(m.h) ? m.h : 0;
         if (Number.isInteger(m.ar) || m.ar === null) me.armor = m.ar || 0;
         me.boots = m.bt ? 211 : 0;
+        me.helm = Number.isInteger(m.hm) ? m.hm : 0;
+        me.gloves = Number.isInteger(m.gl) ? m.gl : 0;
+        me.amulet = Number.isInteger(m.am) ? m.am : 0;
         me.noMobs = !!m.nm;
         health.guard(me, !!m.gd);
         me.ladder = !!m.ld; // on a ladder: tower mobs hold their blows
@@ -596,6 +606,9 @@ export function createGameServer(opts = {}) {
           on: typeof m.on === 'string' ? m.on.slice(0, 64) : 0,
           bt: m.bt ? 1 : 0, // the Front-Runner Boots on their feet
           ar: Number.isInteger(m.ar) ? m.ar : 0, // the plating they wear (only drawn: its protection is settled here)
+          hm: Number.isInteger(m.hm) ? m.hm : 0, // their helmet, gauntlets and amulet (drawn; settled here too)
+          gl: Number.isInteger(m.gl) ? m.gl : 0,
+          am: Number.isInteger(m.am) ? m.am : 0,
           fx: FX.has(m.fx) ? m.fx : 0, // the last blow they took or parried, drawn on their avatar
           fq: Number.isInteger(m.fq) ? m.fq & 0xffff : 0, // ...and its number: each is drawn once
           em: EMOTE.has(m.em) ? m.em : 0, // the last gesture they made (21-emotes.js), and its number
@@ -615,13 +628,22 @@ export function createGameServer(opts = {}) {
         me.lastHit = now;
         if (!sims.has(me.world)) {
           // the hearts live on the screens (the server doesn't run this world's mobs): theirs settles it
-          send(tgt, { t: 'hit', from: me.id, to: tgt.id, x: me.pos.x, y: me.pos.y, z: me.pos.z, item, dmg: pvpDamage(item) });
+          send(tgt, {
+            t: 'hit',
+            from: me.id,
+            to: tgt.id,
+            x: me.pos.x,
+            y: me.pos.y,
+            z: me.pos.z,
+            item,
+            dmg: pvpDamage(item, worn(me, me.gloves, POWER, owns)),
+          });
           return;
         }
         // no fighting in the sanctuary, and not twice in a row on the same player, whatever the weapon
         if (MobsCore.sanctuary(tgt.pos.x, tgt.pos.z) || now - (me.lastHitOn.get(tgt.id) || 0) < PVP_FLOOR_MS) return;
         me.lastHitOn.set(tgt.id, now);
-        health.hurt(tgt, pvpDamage(item), me.pos.x, me.pos.z, ranged ? 'bolt' : 'pvp', now, me.id);
+        health.hurt(tgt, pvpDamage(item, worn(me, me.gloves, POWER, owns)), me.pos.x, me.pos.z, ranged ? 'bolt' : 'pvp', now, me.id);
       } else if (m.t === 'mob') {
         if ('item' in m) return mobBlow(me, m);
         // an older page (before step 3): its blow is only passed on, as before

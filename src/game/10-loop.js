@@ -294,7 +294,7 @@ function frame(now) {
         mineKey = k;
         mineT = 0;
       }
-      mineT += dt * heldTool() * (B[target.id].stone ? 1 : 1);
+      mineT += dt * heldTool() * (typeof gearPower === 'function' ? 1 + gearPower() : 1); // gauntlets: faster (24-gear.js)
       hitT -= dt;
       if (hitT <= 0) {
         hitT = 0.25;

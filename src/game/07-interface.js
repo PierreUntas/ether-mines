@@ -198,14 +198,18 @@ function ui() {
     }
   });
   setHand();
-  const armorEl = $('armor');
-  armorEl.hidden = !S.armor || !ITEM[S.armor];
-  if (!armorEl.hidden) armorEl.textContent = `🛡 ${ITEM[S.armor].n} · -${Math.round(ITEM[S.armor].armor * 100)}% dmg`;
+  const armorEl = $('armor'),
+    helm = typeof gearOf === 'function' ? gearOf('helm') : 0; // a helmet adds its share (24-gear.js)
+  armorEl.hidden = !(S.armor && ITEM[S.armor]) && !helm;
+  if (!armorEl.hidden) {
+    const off = Math.round((helm ? 1 - armorLeft() : ITEM[S.armor].armor) * 100);
+    armorEl.textContent = `🛡 ${S.armor && ITEM[S.armor] ? ITEM[S.armor].n + (helm ? ' + helm' : '') : ITEM[helm].n} · -${off}% dmg`;
+  }
   if (bootsOn()) {
     // the boots on a line of their own on a touch screen (the chip stays narrow), dodge by the button there
     armorEl.hidden = false;
     armorEl.textContent =
-      (armorEl.textContent && S.armor ? armorEl.textContent + (touch ? '\n' : '  ·  ') : '') +
+      (armorEl.textContent && (S.armor || helm) ? armorEl.textContent + (touch ? '\n' : '  ·  ') : '') +
       `👢 +${Math.round(ITEM[211].boots * 100)}% speed` +
       (touch ? '' : ' · Q: dodge');
   }
@@ -216,6 +220,7 @@ function ui() {
   applyLook(SELF, myLook());
   updateArmorVisual(SELF);
   updateBootsVisual(SELF, bootsOn());
+  if (typeof updateMyGear === 'function') updateMyGear(SELF); // the helmet, gauntlets and amulet (24-gear.js)
   updateCapeVisual(SELF);
   updateAvatarHand(SELF);
   if (!$('panel').hidden) renderPanel();
@@ -2490,6 +2495,15 @@ function renderPanelBody() {
         };
         br.appendChild(eq);
       }
+      const gs = typeof GEAR !== 'undefined' && GEAR.find(g => ITEM[id]?.[g.stat]);
+      if (gs) {
+        // a helmet, gauntlets, an amulet: their own slots (24-gear.js), worn from here or the Character tab
+        const eq = document.createElement('button');
+        eq.className = 'b';
+        eq.textContent = gearOf(gs.k) === id ? 'Take off' : 'Wear';
+        eq.onclick = () => wearGear(gs.k, gearOf(gs.k) === id ? 0 : id);
+        br.appendChild(eq);
+      }
       if (ITEM[id]?.boots) {
         // the boots: their own slot, beside the plating
         const key = String(id),
@@ -2519,7 +2533,8 @@ function renderPanelBody() {
       'beforeend',
       '<p class="note">Everything here is kept on the game’s own server — Ethereum’s vocabulary, not Ethereum itself. No wallet, no real chain.</p>',
     );
-  } else if (tab === 'chest') renderChest(body);
+  } else if (tab === 'char') renderCharacter(body);
+  else if (tab === 'chest') renderChest(body);
   else if (tab === 'quest') renderQuests(body);
   else if (tab === 'validators') renderValidators(body);
   else if (tab === 'shop') renderShop(body);

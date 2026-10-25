@@ -56,6 +56,7 @@ namespace EtherMines.Core
         public double X, Y, Z, Yaw;
         public bool Ward, Ladder, NoMobs, Guard;
         public int Held, Armor, Boots;
+        public int Helm, Gloves, Amulet; // a helmet, gauntlets, an amulet worn (24-gear.js), as their screen says
         public readonly HashSet<int> Owned = new HashSet<int>();
         public object Tag; // the caller's own
         // health.js
@@ -107,7 +108,8 @@ namespace EtherMines.Core
         const double RANGE_MOB = 64, RANGE_HIT_MELEE = 8, RANGE_HIT_RANGED = 40;
         // PvP and mob blows: the weapons' damage (WEAPONS in server.js, ITEM[id].dmg in rules.js)
         public static readonly Dictionary<int, double> WEAPONS = new Dictionary<int, double> { [106] = 2.5, [107] = 5, [301] = 7.5, [206] = 4 };
-        public static double PvpDamage(int item) => Math.Max(1, World.JsRound((WEAPONS.TryGetValue(item, out var w) ? w : 1) * 0.4));
+        // power: the gauntlets the striker wears (a blade only: server.js pvpDamage)
+        public static double PvpDamage(int item, double power = 0) => Math.Max(1, World.JsRound((WEAPONS.TryGetValue(item, out var w) ? w : 1) * 0.4 * (1 + (BLADES.Contains(item) ? power : 0))));
         const int PISTOL = 206;
         const double COOLDOWN_MELEE = 450, COOLDOWN_RANGED = 300; // ms between two blows
         const double PVP_FLOOR_MS = 700;
@@ -156,6 +158,9 @@ namespace EtherMines.Core
         public event Action<Mob> Stepped;
         public Action<string> Log = _ => { };
         static readonly Dictionary<int, double> ARMOR = new Dictionary<int, double>();
+        static readonly Dictionary<int, double> HELM = new Dictionary<int, double>(), POWER = new Dictionary<int, double>(), REGEN = new Dictionary<int, double>();
+        // what a player wears and owns in a slot: its stat, or 0 (health.js worn)
+        static double Worn(MobPlayer p, int item, Dictionary<int, double> stats) => item != 0 && stats.TryGetValue(item, out var v) && Owns(p, item) ? v : 0;
 
         // now: the time the server started (ms): its ledger sweep beats from it
         public MobSim(IMobTerrain terrain, double now)
@@ -163,7 +168,13 @@ namespace EtherMines.Core
             W = terrain;
             nextSweep = now + SWEEP_MS;
             if (ARMOR.Count == 0 && Rules.Loaded)
-                foreach (var it in Rules.Items.Values) if (it.HasArmor && it.Armor != 0) ARMOR[it.Id] = it.Armor;
+                foreach (var it in Rules.Items.Values)
+                {
+                    if (it.HasArmor && it.Armor != 0) ARMOR[it.Id] = it.Armor;
+                    if (it.Helm != 0) HELM[it.Id] = it.Helm;
+                    if (it.Power != 0) POWER[it.Id] = it.Power;
+                    if (it.Regen != 0) REGEN[it.Id] = it.Regen;
+                }
         }
 
         public IReadOnlyList<MobPlayer> Players => players;
@@ -189,6 +200,9 @@ namespace EtherMines.Core
                 Name = name ?? id,
                 Armor = IsInt(Get(hello, "ar"), out var ar) ? ar : 0,
                 Boots = Truthy(Get(hello, "bt")) ? 211 : 0,
+                Helm = IsInt(Get(hello, "hm"), out var hm) ? hm : 0,
+                Gloves = IsInt(Get(hello, "gl"), out var gl) ? gl : 0,
+                Amulet = IsInt(Get(hello, "am"), out var am) ? am : 0,
                 NoMobs = Truthy(Get(hello, "nm")),
             };
             HealthJoin(p, Get(hello, "hp"), now);
@@ -516,6 +530,9 @@ namespace EtherMines.Core
                         me.Held = IsInt(Get(m, "h"), out var h) ? h : 0;
                         if (m.TryGetValue("ar", out var arv) && (arv == null || IsInt(arv, out _))) me.Armor = IsInt(arv, out var ar) ? ar : 0;
                         me.Boots = Truthy(Get(m, "bt")) ? 211 : 0;
+                        me.Helm = IsInt(Get(m, "hm"), out var hm) ? hm : 0;
+                        me.Gloves = IsInt(Get(m, "gl"), out var gl) ? gl : 0;
+                        me.Amulet = IsInt(Get(m, "am"), out var am) ? am : 0;
                         me.NoMobs = Truthy(Get(m, "nm"));
                         GuardOn(me, Truthy(Get(m, "gd")), now);
                         me.Ladder = Truthy(Get(m, "ld")); // on a ladder: tower mobs hold their blows
@@ -585,7 +602,7 @@ namespace EtherMines.Core
             me.LastHit = now;
             if (MobsCore.Sanctuary(tgt.X, tgt.Z) || now - (me.LastHitOn.TryGetValue(tgt.Id, out var lh) ? lh : 0) < PVP_FLOOR_MS) return;
             me.LastHitOn[tgt.Id] = now;
-            Hurt(tgt, PvpDamage(item), me.X, me.Z, ranged ? "bolt" : "pvp", now, me.Id);
+            Hurt(tgt, PvpDamage(item, Worn(me, me.Gloves, POWER)), me.X, me.Z, ranged ? "bolt" : "pvp", now, me.Id);
         }
 
         static string TwinOf(string k, int i, string type) =>
@@ -638,7 +655,9 @@ namespace EtherMines.Core
             }
             me.LastMobHit = now;
             double bs = WEAPONS.TryGetValue(item, out var w) ? w : 1,
-                dmg = Math.Max(0, Math.Min(Num(Get(m, "dmg"), 1e4) ?? bs, bs * RIPOSTE));
+                // gauntlets you own raise a blade's blows: the cap rises with them
+                power = BLADES.Contains(item) ? Worn(me, me.Gloves, POWER) : 0,
+                dmg = Math.Max(0, Math.Min(Num(Get(m, "dmg"), 1e4) ?? bs, bs * RIPOSTE * (1 + power)));
             s.Hp = Math.Max(0, ToFixed2(s.Hp - dmg));
             s.At = now;
             s.Struck(me.Id, now);
@@ -760,8 +779,9 @@ namespace EtherMines.Core
                 dmg *= 0.25;
                 blocked = true;
             }
-            double armor = p.Armor != 0 && Owns(p, p.Armor) && ARMOR.TryGetValue(p.Armor, out var av) ? av : 0;
-            dmg = Math.Max(blocked ? 0 : 1, World.JsRound(dmg * (1 - armor)));
+            // the plating takes its share, then the helmet its share of what's left
+            double armor = p.Armor != 0 && Owns(p, p.Armor) && ARMOR.TryGetValue(p.Armor, out var av) ? av : 0, helm = Worn(p, p.Helm, HELM);
+            dmg = Math.Max(blocked ? 0 : 1, World.JsRound(dmg * (1 - armor) * (1 - helm)));
             if (dmg == 0)
             {
                 p.InvulnUntil = now + 350;
@@ -788,7 +808,7 @@ namespace EtherMines.Core
         {
             if (p.Hp >= MAX_HP || now < p.RegenAt) return;
             p.Hp++;
-            p.RegenAt = now + REGEN_MS;
+            p.RegenAt = now + REGEN_MS * (1 - Worn(p, p.Amulet, REGEN)); // an amulet: sooner
             Tell(p, new Dictionary<string, object> { ["t"] = "hp", ["hp"] = p.Hp });
         }
         // heal: a bed at night (full), a hunted animal (+1), a tonic taken (+5)

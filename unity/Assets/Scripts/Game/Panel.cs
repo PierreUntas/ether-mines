@@ -22,6 +22,7 @@ namespace EtherMines.Game
         public Trade Trade;       // null offline
         public Avatars Avatars;   // your character, shown in the bag and the shop (null offline)
         Shop shop;
+        Character character; // the Character tab (24-gear.js)
         public string Tab = "bag";
         Vector2 scroll;
         string selKey, craftCat = "";
@@ -180,7 +181,7 @@ namespace EtherMines.Game
             var closeR = new Rect(x + W - 14 - closeW, y + 12, closeW, 32);
             if (GUI.Button(closeR, close, cs)) { Hide(); return; }
             float tx = x + 14, ty = y + 12, right = closeR.x - 8;
-            foreach (var (k, t) in new[] { ("bag", "Chest"), ("craft", "Crafting"), ("quest", "Objectives"), ("validators", "Validators"), ("shop", "Shop"), ("trade", Trade != null && Trade.Received > 0 ? $"Trade ({Trade.Received})" : "Trade"), ("chest", "This chest"), ("settings", "Settings") })
+            foreach (var (k, t) in new[] { ("bag", "Chest"), ("char", "Character"), ("craft", "Crafting"), ("quest", "Objectives"), ("validators", "Validators"), ("shop", "Shop"), ("trade", Trade != null && Trade.Received > 0 ? $"Trade ({Trade.Received})" : "Trade"), ("chest", "This chest"), ("settings", "Settings") })
             {
                 if (k == "chest" && Open == null) continue;
                 if ((k == "quest" || k == "validators" || k == "shop") && Progress == null) continue;
@@ -200,6 +201,7 @@ namespace EtherMines.Game
             var body = new Rect(x + 14, y + headH + 14, W - 28, H - headH - 14 - 26);
             if (Tab == "settings") { settingsRect = body; Settings(); }
             else if (Tab == "bag") Bag(body);
+            else if (Tab == "char") (character ??= new Character { Session = Session, Act = Act, Avatars = Avatars, Title = () => Progress != null ? Looks.BestTitle(Progress.Cosmetics) : "" }).Draw(body);
             else if (Tab == "craft") CraftTab(body);
             else if (Tab == "chest" && Open != null) ChestTab(body);
             else if (Tab == "quest" && Progress != null) Progress.DrawObjectives(body);
@@ -399,6 +401,14 @@ namespace EtherMines.Game
             {
                 bool on = State("armor") == e.Id.ToString();
                 if (GUI.Button(new Rect(c.x + 14, ly, cw, 32), on ? "Unequip" : "Equip", Ui.Button)) { Session.State["armor"] = on ? null : e.Id.ToString(); Session.Dirty = true; }
+                ly += 38;
+            }
+            // a helmet, gauntlets, an amulet: their own slots (24-gear.js), worn from here or the Character tab
+            string gk = def == null ? null : def.Helm > 0 ? "helm" : def.Power > 0 ? "gloves" : def.Regen > 0 ? "amulet" : null;
+            if (Session != null && gk != null)
+            {
+                bool on = State(gk) == e.Id.ToString();
+                if (GUI.Button(new Rect(c.x + 14, ly, cw, 32), on ? "Take off" : "Wear", Ui.Button)) { Session.State[gk] = on ? null : e.Id.ToString(); Session.Dirty = true; }
                 ly += 38;
             }
             if (Session != null && def != null && def.HasBoots)

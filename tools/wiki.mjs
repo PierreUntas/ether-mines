@@ -64,7 +64,7 @@ const crafting = Object.entries(byCat)
 
 // ---------- tools, weapons, platings ----------
 const gear = Object.entries(ITEM)
-  .filter(([, it]) => it.tool || it.dmg || it.armor || it.boots)
+  .filter(([, it]) => it.tool || it.dmg || it.armor || it.boots || it.helm || it.power || it.regen)
   .map(([id, it]) => {
     const what = it.tool
       ? `Pickaxe · mines ×${it.tool}`
@@ -72,7 +72,13 @@ const gear = Object.entries(ITEM)
         ? `${it.ranged ? 'Ranged weapon' : 'Blade'} · ${it.dmg} damage`
         : it.armor
           ? `Plating · −${Math.round(it.armor * 100)}% damage taken`
-          : `Boots · +${Math.round(it.boots * 100)}% speed, a dodge`;
+          : it.helm
+            ? `Helm · −${Math.round(it.helm * 100)}% of what the plating lets through`
+            : it.power
+              ? `Gauntlets · +${Math.round(it.power * 100)}% blade damage and mining speed`
+              : it.regen
+                ? `Amulet · hearts come back ${Math.round(it.regen * 100)}% faster`
+                : `Boots · +${Math.round(it.boots * 100)}% speed, a dodge`;
     return `<tr><td><b>${esc(it.n)}</b></td><td>${what}</td><td class="muted">${it.nft ? 'unique' : ''}</td></tr>`;
   })
   .join('');
@@ -232,8 +238,9 @@ ${chapters}
 <p>Open your chest (<kbd>E</kbd>), then the Crafting tab.</p>
 ${crafting}
 
-<h2 id="gear">Tools, weapons and platings</h2>
+<h2 id="gear">Tools, weapons and gear</h2>
 <p>A better pickaxe mines faster and opens harder rock: the crystal pickaxe opens the geodes below layer ${DEEP}, the pure ether pickaxe breaks the genesis rock at the bottom of the world. Unique items are numbered: each one is a single token with its own serial.</p>
+<p>What you wear goes in the <b>Character</b> tab (<kbd>E</kbd>): a plating, a helm, gauntlets, an amulet and boots, each in its own slot, with what they add up to. A helm takes its share of what the plating lets through: Genesis Plating and a Genesis Helm together take off 62% of a blow. Everyone sees what you wear.</p>
 <div class="wrap"><table><tr><th>Item</th><th>What it does</th><th></th></tr>${gear}</table></div>
 
 <h2 id="mobs">Mobs</h2>

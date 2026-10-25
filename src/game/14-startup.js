@@ -773,6 +773,7 @@ function previewBox() {
   // the shop's "Try" puts a piece on this character without buying it (PREVIEW.tryLook)
   applyLook(p.av, p.tryLook || myLook(), true);
   updateArmorVisual(p.av, S.armor, platingTrimColor());
+  if (typeof updateMyGear === 'function') updateMyGear(p.av);
   updateCapeVisual(p.av);
   updateAvatarHand(p.av);
   p.box.querySelector('.pname').textContent = ME.name;
@@ -945,6 +946,10 @@ Net.on('pos', p => {
   o.tAt = performance.now();
   updateBootsVisual(o, !!p.bt); // the boots they wear
   if ((p.ar || 0) !== (o.ar || 0)) updateArmorVisual(o, (o.ar = Number.isInteger(p.ar) && ITEM[p.ar]?.armor ? p.ar : 0)); // their plating
+  // their helmet, gauntlets and amulet (24-gear.js)
+  if (typeof GEAR !== 'undefined')
+    for (const g of GEAR)
+      if ((p[g.net] || 0) !== (o[g.net] || 0)) updateGearVisual(o, g.k, (o[g.net] = Number.isInteger(p[g.net]) ? p[g.net] : 0));
   // what they hold: a tool or weapon id (older clients send nothing), anything unknown shows an empty hand
   const h = Number.isInteger(p.h) && ITEM[p.h] && !B[p.h] ? p.h : 0;
   if (o.heldId !== h) {
@@ -1108,6 +1113,9 @@ setInterval(() => {
       ld: playerOnLadder() ? 1 : 0, // on a ladder: the game server's tower mobs hold their blows
       ar: S.armor ? +S.armor : 0, // the plating you wear (the game server checks you own it)
       bt: bootsOn() ? 1 : 0, // the Front-Runner Boots on your feet: the others see them
+      hm: typeof gearOf === 'function' ? gearOf('helm') : 0, // the helmet, gauntlets and amulet you wear (24-gear.js)
+      gl: typeof gearOf === 'function' ? gearOf('gloves') : 0,
+      am: typeof gearOf === 'function' ? gearOf('amulet') : 0,
       nm: mobsHere() ? 0 : 1, // hostile mobs turned off in this world: the game server's mobs leave you be
       fx: FX_OUT.k, // the last blow you took or parried (avatarFx), and its number
       fq: FX_OUT.q,
@@ -1129,6 +1137,9 @@ setInterval(() => {
       p.ld !== L.ld ||
       p.ar !== L.ar ||
       p.bt !== L.bt ||
+      p.hm !== L.hm ||
+      p.gl !== L.gl ||
+      p.am !== L.am ||
       p.nm !== L.nm ||
       p.fq !== L.fq ||
       p.eq !== L.eq;
@@ -1730,7 +1741,15 @@ async function boot(world) {
       }
     } else setTimeout(() => logEv('burn', 'Account unavailable', 'progress kept in this browser'), 1500);
     // your hearts and plating, for the game server (it keeps the hearts from then on)
-    Net.setHello(() => ({ hp: S.hp, ar: S.armor ? +S.armor : 0, bt: bootsOn() ? 1 : 0, nm: mobsHere() ? 0 : 1 }));
+    Net.setHello(() => ({
+      hp: S.hp,
+      ar: S.armor ? +S.armor : 0,
+      bt: bootsOn() ? 1 : 0,
+      hm: typeof gearOf === 'function' ? gearOf('helm') : 0, // 24-gear.js
+      gl: typeof gearOf === 'function' ? gearOf('gloves') : 0,
+      am: typeof gearOf === 'function' ? gearOf('amulet') : 0,
+      nm: mobsHere() ? 0 : 1,
+    }));
     bootSay('Joining the world and the other players…', 14);
     await Net.join(world, ME);
     if (Net.userId) {

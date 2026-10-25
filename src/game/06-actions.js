@@ -174,6 +174,7 @@ function syncInventory() {
       }
       // a plating you no longer own (traded away, given to a chest): off your back
       if (S.armor && !(+S.armor >= 200 ? S.nfts.some(n => n.id === +S.armor) : S.inv[S.armor] > 0)) S.armor = null;
+      if (typeof dropGearNotOwned === 'function') dropGearNotOwned(); // the helmet, gauntlets and amulet too (24-gear.js)
       for (let i = 0; i < 9; i++) {
         const b = S.bar[i];
         if (b && (String(b).startsWith('nft') ? !nftOf(b) : !(S.inv[b] > 0))) S.bar[i] = null;

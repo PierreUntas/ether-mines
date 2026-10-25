@@ -49,7 +49,21 @@ namespace EtherMines.Game
         int Held => Act.Inv.HeldId;
         public static bool IsBlade(int id) { var it = Rules.Item(id); return Rules.Block(id) == null && it != null && it.HasDmg && !it.Ranged; }
         public static bool IsRanged(int id) { var it = Rules.Item(id); return Rules.Block(id) == null && it != null && it.Ranged; }
-        double HeldDmg { get { var it = Rules.Item(Held); return Rules.Block(Held) == null && it != null && it.HasDmg ? it.Dmg : 1; } }
+        // gauntlets hit harder with a blade (24-gear.js heldDmg; the server allows for them)
+        double HeldDmg { get { var it = Rules.Item(Held); double d = Rules.Block(Held) == null && it != null && it.HasDmg ? it.Dmg : 1; return IsBlade(Held) ? d * (1 + GearStat("gloves")) : d; } }
+
+        // the helmet, the gauntlets and the amulet you wear (your save: S.helm, S.gloves, S.amulet), if you
+        // still own them (24-gear.js gearOf); their stat (helm, power, regen), 0 without one
+        public int Gear(string k)
+        {
+            if (Session == null || !Session.State.TryGetValue(k, out var v) || v == null) return 0;
+            int id = v is string s ? (int.TryParse(s, out var i) ? i : 0) : MiniJson.ToInt(v);
+            return StatOf(k, Rules.Item(id)) > 0 && Act.Inv.Count(id) > 0 ? id : 0;
+        }
+        public static double StatOf(string k, ItemDef it) => it == null ? 0 : k == "helm" ? it.Helm : k == "gloves" ? it.Power : k == "amulet" ? it.Regen : 0;
+        public double GearStat(string k) => StatOf(k, Rules.Item(Gear(k)));
+        // what the plating and the helmet let through of a blow (armorLeft)
+        public double ArmorLeft { get { var p = Rules.Item(Armor); return (1 - (p != null && p.HasArmor ? p.Armor : 0)) * (1 - GearStat("helm")); } }
         int HeldWeapon => Rules.Block(Held) == null && Rules.Item(Held) != null ? Held : 0;
 
         // the plating you wear and the boots on your feet (your save: S.armor, S.boots), told to the server

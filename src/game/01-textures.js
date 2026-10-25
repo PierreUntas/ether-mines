@@ -1409,6 +1409,79 @@ tile(164, P => {
       P(x, y, sx === 3 || sy === 3 ? '#62668f' : sy === 0 ? '#d8daef' : hash(x, y, 169) < 0.1 ? '#a3a8cf' : base);
     }
 });
+// the helmets, gauntlets and amulets (ITEM 308-316), in the platings' colors: Volt, Pure Ether, Genesis
+const GEAR_GLOW = ['#00eaff', '#c9a6ff', '#ffb347'];
+function helmIcon(P, E, glow) {
+  // a rounded helmet seen from the front: a dome, cheek guards, a glowing visor band and a crest
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
+  const dark = '#1c1029',
+    mid = '#2a1838',
+    lit = '#3d2a55';
+  for (let y = 3; y <= 12; y++)
+    for (let x = 2; x <= 13; x++) {
+      const dx = x - 7.5,
+        dome = y < 7 ? dx * dx + (y - 7) * (y - 7) * 2.2 <= 36 : true,
+        open = y >= 8 && x >= 5 && x <= 10; // the face
+      if (!dome || open) continue;
+      const edgePx = Math.abs(dx) > 5 || y === 3 || (y === 12 && (x < 5 || x > 10));
+      P(x, y, edgePx ? dark : y < 6 && x < 8 ? lit : mid);
+    }
+  for (let x = 3; x <= 12; x++) {
+    P(x, 7, glow);
+    E(x, 7, glow);
+  }
+  for (let y = 1; y <= 3; y++) {
+    P(7, y, glow);
+    P(8, y, glow);
+    E(7, y, glow);
+    E(8, y, glow);
+  }
+}
+function glovesIcon(P, E, glow) {
+  // a gauntlet, fingers up: a plated back, four fingers, the thumb out to the side and a glowing cuff
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
+  const dark = '#1c1029',
+    mid = '#2a1838',
+    lit = '#3d2a55';
+  for (let f = 0; f < 4; f++)
+    for (let y = 2 + (f === 0 || f === 3 ? 1 : 0); y <= 7; y++) {
+      P(5 + f * 2, y, y === 2 || (y === 3 && (f === 0 || f === 3)) ? dark : lit);
+      P(6 + f * 2, y, mid);
+    }
+  for (let y = 7; y <= 11; y++) for (let x = 4; x <= 12; x++) P(x, y, x === 4 || x === 12 ? dark : mid);
+  for (let y = 7; y <= 9; y++) for (let x = 1; x <= 3; x++) P(x, y, y === 7 ? dark : lit); // the thumb
+  for (let x = 4; x <= 12; x++)
+    for (let y = 12; y <= 13; y++) {
+      P(x, y, glow);
+      E(x, y, glow);
+    }
+  P(8, 9, glow);
+  E(8, 9, glow);
+  for (let x = 5; x <= 11; x++) P(x, 14, dark);
+}
+function amuletIcon(P, E, glow) {
+  // a chain hanging in a V, and the Ethereum diamond for a pendant, glowing
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
+  const chain = '#c9b8ff',
+    dark = '#1c1029';
+  for (let k = 0; k <= 6; k++) {
+    P(2 + k, 1 + k, k % 2 ? dark : chain);
+    P(13 - k, 1 + k, k % 2 ? dark : chain);
+  }
+  for (let y = 7; y <= 15; y++) {
+    const w = y <= 11 ? y - 7 : 15 - y;
+    for (let x = 8 - w - 1; x <= 7 + w + 1; x++) {
+      const edgePx = x === 8 - w - 1 || x === 7 + w + 1;
+      P(x, y, edgePx ? dark : x < 8 ? glow : '#ffffff');
+      if (!edgePx) E(x, y, glow);
+    }
+  }
+}
+GEAR_GLOW.forEach((g, k) => {
+  tile(165 + k, (P, E) => helmIcon(P, E, g));
+  tile(168 + k, (P, E) => glovesIcon(P, E, g));
+  tile(171 + k, (P, E) => amuletIcon(P, E, g));
+});
 tile(138, (P, E) => {
   // Flashbots Bundle: three transactions stacked and strapped together by a glowing band
   for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
