@@ -258,6 +258,9 @@ namespace EtherMines.Game
         public static GUIStyle Count => Make(ref count, 13, FontStyle.Bold, Paper, false, TextAnchor.LowerRight);
         // the web's small monospaced notes (var(--mono), muted)
         public static GUIStyle MonoSmall { get { if (mono == null) { Make(ref mono, 11, FontStyle.Normal, Lavender, true); mono.font = Mono; } return mono; } }
+        // the same, centered in its box: a number in a ring, a state in a pill
+        static GUIStyle monoC;
+        public static GUIStyle MonoCenter { get { if (monoC == null) { monoC = new GUIStyle(MonoSmall) { alignment = TextAnchor.MiddleCenter, wordWrap = false }; } return monoC; } }
         static GUIStyle Make(ref GUIStyle s, int size, FontStyle f, Color c, bool wrap, TextAnchor a = TextAnchor.UpperLeft)
         {
             if (s == null)

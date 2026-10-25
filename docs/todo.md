@@ -14,7 +14,7 @@ plan, with a calendar, lives outside the repo.)
 - [ ] Premium skins redrawn from Pierre's sketches (the 10 Proof-of-Work / Proof-of-Stake pieces are placeholders): at least two full sets for launch
 - [ ] The pistol redesigned (proposals A, B, C, or a sketch)
 - [ ] Other designs from sketches (mobs, items, buildings)
-- [ ] Unity: the Objectives, Validators and Trade tabs and the chat laid out as the web's
+- [x] Unity: the Objectives, Validators and Trade tabs and the chat laid out as the web's (rounded cards, quest rings, chat bubbles); to check on a device
 - [x] `tests/navigateur.mjs`: the "doorway off axis" walk failed on slow machines (more real time)
 - [ ] Rebuild and check on iPhone and Android: guard, parry, shop, life bar
 - [ ] Play test with real players (web, TestFlight): do they come back the next day, the next week? Fix what they hit
@@ -48,8 +48,8 @@ plan, with a calendar, lives outside the repo.)
 
 ## 3. Getting the word out
 - [ ] A 30–60 s trailer (mining, the City, a boss, a parry, the shop)
-- [ ] A press kit: logo, screenshots, a one-page presentation, contact
-- [ ] The site's home: a clear Play button, store links, the trailer
+- [x] A press kit: logo, screenshots, a one-page presentation, contact (`presskit.html`, `press/`)
+- [x] The site's home: store links, trailer and Discord shown once their addresses are in `src/config.js`, press kit link
 - [ ] The game's accounts: X, Farcaster, Discord
 - [ ] Launch posts: r/ethereum, r/indiegaming, Farcaster, X, Product Hunt, itch.io
 - [ ] The Ethereum ecosystem: Ethereum Foundation (ESP, the educational side), ETHGlobal, crypto media, Minecraft and crypto creators

@@ -12,4 +12,9 @@ window.CONFIG = {
   // (Stripe's test mode, fake cards), 'live' everywhere, '' nowhere. Stripe's secret keys never go here:
   // they're Supabase secrets (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET).
   PAYMENTS: 'test',
+  // the title screen's links (empty: not shown): the apps once they're in the stores, the trailer, the Discord
+  APP_STORE_URL: '',
+  PLAY_STORE_URL: '',
+  TRAILER_URL: '',
+  DISCORD_URL: '',
 };

@@ -163,7 +163,7 @@ namespace EtherMines.Game
                 {
                     bool mine = Mine(o);
                     var card = new Rect(0, y, w, 108);
-                    Ui.Fill(card, new Color(1, 1, 1, 0.06f));
+                    Ui.Round(card, new Color(1, 1, 1, 0.03f), 12, Ui.Line, 1); // the web's .offer
                     GUI.Label(new Rect(12, y + 6, w - 24, 22), mine ? "To " + S(o, "to") : S(o, "from") + " offers you", Ui.Label);
                     GUI.Label(new Rect(12, y + 28, w - 24, 20), (mine ? "You give: " : "You receive: ") + SideText(o.TryGetValue("give", out var g) ? g as Dictionary<string, object> : null, false, o), Ui.Small);
                     GUI.Label(new Rect(12, y + 48, w - 24, 20), (mine ? "You receive: " : "You give: ") + SideText(o.TryGetValue("want", out var q) ? q as Dictionary<string, object> : null, true, o), Ui.Small);
@@ -292,7 +292,7 @@ namespace EtherMines.Game
                 {
                     var r = new Rect((i % cols) * (s + gap), y + (i / cols) * (s + gap), s, s);
                     bool inIt = side.Items.ContainsKey(id);
-                    Ui.Fill(r, inIt ? new Color(1, 1, 1, 0.28f) : new Color(1, 1, 1, 0.07f));
+                    Ui.Round(r, inIt ? new Color(1, 1, 1, 0.22f) : new Color(1, 1, 1, 0.07f), 10, inIt ? Ui.Cyan : Ui.Line, 1);
                     Ui.Icon(new Rect(r.x + 5, r.y + 5, s - 10, s - 10), id);
                     if (giving) GUI.Label(new Rect(r.x, r.y, s - 3, s - 2), inv.Count(id).ToString(), Ui.Count);
                     if (GUI.Button(r, new GUIContent("", Ui.NameOf(id)), GUIStyle.none))

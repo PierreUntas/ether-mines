@@ -1331,6 +1331,19 @@ if (!profile || !profile.id)
     color: COLORS[Math.floor(Math.random() * COLORS.length)],
   };
 const qs = new URLSearchParams(location.search);
+// the title screen's links, each shown once its address is set (src/config.js): the apps in the stores,
+// the trailer, the Discord.
+for (const [id, url] of [
+  ['appStore', CONFIG.APP_STORE_URL],
+  ['playStore', CONFIG.PLAY_STORE_URL],
+  ['trailerLink', CONFIG.TRAILER_URL],
+  ['discordLink', CONFIG.DISCORD_URL],
+])
+  if (url && $(id)) {
+    $(id).href = url;
+    $(id).hidden = false;
+  }
+$('getApp').hidden = !(CONFIG.APP_STORE_URL || CONFIG.PLAY_STORE_URL);
 $('pseudo').value = profile.name || '';
 $('monde').value = qs.get('monde') || 'principal';
 let acctErr = '';

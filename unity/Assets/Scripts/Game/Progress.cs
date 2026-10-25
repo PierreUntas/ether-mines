@@ -282,16 +282,21 @@ namespace EtherMines.Game
 
         // ---------- the Objectives tab ----------
         Vector2 scroll;
+        // the web's .chapter and .quests (style.css): a rounded card per chapter (violet when it's the current one,
+        // faded while locked), its name and its count in gold, the reward line, and its objectives as rounded rows,
+        // each with its number in a ring (a mint ✓ once done, gold for the one to do now)
+        const float QRow = 50, QGap = 6;
+        float ChapterH(Chapter c) => 70 + (Open(c) && !Done(c) ? c.Q.Length * (QRow + QGap) + 4 : 0);
         public void DrawObjectives(Rect body)
         {
             float h = 0;
-            foreach (var c in Chapters) h += 90 + (Open(c) && !Done(c) ? c.Q.Length * 44 : 0);
+            foreach (var c in Chapters) h += ChapterH(c) + 12;
             var view = new Rect(0, 0, body.width - 20, h + 60 + topH);
             scroll = Ui.Scroll(body, scroll, view);
             float y = 0;
             // the epilogue, kept at the top once the story is done; then the network, the shared goal
             if (Seen("epilogue")) y = Story.DrawEpilogue(this, view.width, y) + 12;
-            y = DrawNetwork(view.width, y) + 10;
+            y = DrawNetwork(view.width, y) + 14;
             GUI.Label(new Rect(0, y, view.width, 26), "Your journey", Ui.Title);
             y += 30;
             GUI.Label(new Rect(0, y, view.width, 40), "The old validators of this world have gone dark. Grow strong enough to reach the genesis rock, forge a validator heart, and relight them, one by one.", Ui.Small);
@@ -307,30 +312,43 @@ namespace EtherMines.Game
                     : claimed ? $"Complete · title “{TitleName(c.Title)}” earned"
                     : done == c.Q.Length ? "Complete · claiming the reward…"
                     : $"Reward: {c.Gwei} Gwei and the title “{TitleName(c.Title)}”";
-                Ui.Fill(new Rect(0, y, view.width, 80), new Color(1, 1, 1, c == cur ? 0.1f : 0.05f));
-                if (c == cur) Ui.Fill(new Rect(0, y, 4, 80), Ui.Gold);
+                float ch = ChapterH(c);
+                var card = new Rect(0, y, view.width, ch);
+                var oc = GUI.color;
+                if (!open) GUI.color = new Color(1, 1, 1, 0.55f);
+                if (c == cur) Ui.Round(card, new Color(Ui.Violet.r, Ui.Violet.g, Ui.Violet.b, 0.07f), 14, Ui.Violet, 1);
+                else Ui.Round(card, new Color(0, 0, 0, 0), 14, Ui.Line, 1);
                 string head = (c.Side != null ? "Side chapter" : "Chapter " + (Array.IndexOf(Mains, c) + 1)) + " · " + c.N;
-                GUI.Label(new Rect(12, y + 6, view.width - 100, 26), open ? head : "<color=#9a92c8>" + head + "</color>", Ui.Title);
-                GUI.Label(new Rect(view.width - 70, y + 8, 60, 24), $"{done}/{c.Q.Length}", Ui.Label);
-                Ui.Fill(new Rect(12, y + 38, view.width - 24, 8), new Color(1, 1, 1, 0.1f));
-                Ui.Fill(new Rect(12, y + 38, (view.width - 24) * done / c.Q.Length, 8), Ui.Mint);
-                GUI.Label(new Rect(12, y + 52, view.width - 24, 22), status, Ui.Small);
-                y += 88;
+                GUI.Label(new Rect(14, y + 10, view.width - 100, 26), head, Ui.Title);
+                GUI.Label(new Rect(view.width - 80, y + 14, 66, 20), $"<color=#ffd95e>{done}/{c.Q.Length}</color>", Ui.MonoSmall);
+                GUI.Label(new Rect(14, y + 40, view.width - 28, 22), status, Ui.Small);
+                float qy = y + 70;
                 if (open && done < c.Q.Length)
                 {
                     bool first = true;
+                    int n = 0;
                     foreach (var id in c.Q)
                     {
                         var q = QBy[id];
                         bool ok = q.Ok(this), now = !ok && first;
                         if (now) first = false;
-                        string mark = ok ? "<color=#9fe3c4>✓</color>" : now ? "<color=#ffd95e>▸</color>" : "·";
-                        GUI.Label(new Rect(24, y, view.width - 40, 22), $"{mark} <b>{(ok ? "<color=#9fe3c4>" + q.T + "</color>" : q.T)}</b>", Ui.Label);
-                        GUI.Label(new Rect(44, y + 20, view.width - 60, 22), q.H, Ui.Small);
-                        y += 44;
+                        n++;
+                        var row = new Rect(14, qy, view.width - 28, QRow);
+                        GUI.color = new Color(1, 1, 1, now ? 1 : ok ? 0.75f : 0.8f);
+                        if (now) Ui.Round(row, new Color(Ui.Gold.r, Ui.Gold.g, Ui.Gold.b, 0.07f), 10, Ui.Gold, 1);
+                        else Ui.Round(row, new Color(0, 0, 0, 0), 10, Ui.Line, 1);
+                        // the number in its ring, or a mint ✓
+                        var ring = new Rect(row.x + 10, row.y + (QRow - 24) / 2, 24, 24);
+                        if (ok) Ui.Round(ring, Ui.Mint, 12);
+                        else Ui.Round(ring, new Color(0, 0, 0, 0), 12, now ? Ui.Gold : Ui.Line, 1);
+                        GUI.Label(ring, ok ? "<color=#1c163a><b>✓</b></color>" : now ? $"<color=#ffd95e>{n}</color>" : n.ToString(), Ui.MonoCenter);
+                        GUI.Label(new Rect(row.x + 44, row.y + 5, row.width - 54, 22), $"<b>{q.T}</b>", Ui.Label);
+                        GUI.Label(new Rect(row.x + 44, row.y + 26, row.width - 54, 22), q.H, Ui.Small);
+                        qy += QRow + QGap;
                     }
                 }
-                y += 6;
+                GUI.color = oc;
+                y += ch + 12;
             }
             GUI.EndScrollView();
         }
@@ -352,8 +370,7 @@ namespace EtherMines.Game
             float iw = w - 24;
             float h1 = Ui.Small.CalcHeight(new GUIContent(intro), iw), h2 = Ui.Small.CalcHeight(new GUIContent(attack), iw);
             hh = 34 + h1 + 8 + 10 + 8 + 22 + 8 + 24 + h2 + (Animals.NetworkTop.Count > 0 ? 26 + Animals.NetworkTop.Count * 20 : 0) + 10;
-            Ui.Fill(new Rect(0, y, w, hh), new Color(0.5f, 0.91f, 1f, 0.07f));
-            Ui.Fill(new Rect(0, y, 4, hh), Ui.Cyan);
+            Ui.Round(new Rect(0, y, w, hh), new Color(Ui.Gold.r, Ui.Gold.g, Ui.Gold.b, 0.06f), 14, Ui.Gold, 1); // the web's .networkBox
             y += 6;
             GUI.Label(new Rect(12, y, iw, 26), "The network · shared goal", Ui.Title);
             y += 28;
@@ -398,11 +415,19 @@ namespace EtherMines.Game
                 string state = v.TryGetValue("state", out var st) ? st as string : "active";
                 double prod = MiniJson.ToDouble(v.TryGetValue("gwei_per_cycle", out var gp) ? gp : null), cost = MiniJson.ToDouble(v.TryGetValue("maintenance_cost", out var mc) ? mc : null);
                 int missed = MiniJson.ToInt(v.TryGetValue("missed_cycles", out var mi) ? mi : null);
-                Ui.Fill(new Rect(0, y, view.width, 96), new Color(1, 1, 1, 0.06f));
-                GUI.Label(new Rect(12, y + 6, view.width - 24, 26), $"{rarity} validator · level {level}", Ui.Title);
-                GUI.Label(new Rect(12, y + 34, view.width - 24, 22), $"{MiniJson.ToInt(v["x"])}, {MiniJson.ToInt(v["y"])}, {MiniJson.ToInt(v["z"])} · <b>{state}</b> · {Math.Max(prod - cost, 0)} Gwei net per cycle ({prod} produced − {cost} upkeep){(missed > 0 ? $" · {missed} cycle{(missed > 1 ? "s" : "")} missed" : "")}", Ui.Small);
+                // the web's .networkBox.validatorCard: a gold-edged card, the state in a pill
+                Ui.Round(new Rect(0, y, view.width, 96), new Color(Ui.Gold.r, Ui.Gold.g, Ui.Gold.b, 0.06f), 14, Ui.Gold, 1);
+                GUI.Label(new Rect(14, y + 6, view.width - 28, 26), $"{rarity} validator · level {level}", Ui.Title);
+                string where = $"{MiniJson.ToInt(v["x"])}, {MiniJson.ToInt(v["y"])}, {MiniJson.ToInt(v["z"])}";
+                float ww = Ui.Small.CalcSize(new GUIContent(where)).x;
+                GUI.Label(new Rect(14, y + 34, ww + 4, 22), where, Ui.Small);
+                string label = state; // VALIDATOR_STATE_LABEL: dormant, active, damaged, corrupted
+                float pw = Ui.MonoSmall.CalcSize(new GUIContent(label)).x + 16;
+                Ui.Round(new Rect(14 + ww + 10, y + 35, pw, 20), new Color(1, 1, 1, 0.08f), 10, state == "corrupted" ? Ui.Burn : Ui.Line, 1);
+                GUI.Label(new Rect(14 + ww + 10, y + 35, pw, 20), label, Ui.MonoCenter);
+                GUI.Label(new Rect(14 + ww + pw + 20, y + 34, view.width - ww - pw - 40, 22), $"{Math.Max(prod - cost, 0)} Gwei net per cycle ({prod} produced − {cost} upkeep){(missed > 0 ? $" · {missed} cycle{(missed > 1 ? "s" : "")} missed" : "")}", Ui.Small);
                 GUI.enabled = !busy;
-                if (GUI.Button(new Rect(12, y + 58, 260, 30), state == "corrupted" ? "Repair and attest (1 validator heart)" : "Attest", Ui.Primary)) Validator(v, "maintain_validator");
+                if (GUI.Button(new Rect(14, y + 58, 260, 30), state == "corrupted" ? "Repair and attest (1 validator heart)" : "Attest", Ui.Primary)) Validator(v, "maintain_validator");
                 if (state != "corrupted" && level < 10 && GUI.Button(new Rect(282, y + 58, 200, 30), $"Upgrade ({50 * level} Gwei)", Ui.Button)) Validator(v, "upgrade_validator");
                 GUI.enabled = true;
                 y += 104;

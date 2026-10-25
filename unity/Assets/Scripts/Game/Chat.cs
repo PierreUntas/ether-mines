@@ -107,9 +107,17 @@ namespace EtherMines.Game
             if (style == null || input == null)
             {
                 style = new GUIStyle(GUI.skin.label) { fontSize = 15, richText = true, wordWrap = true };
-                input = new GUIStyle(GUI.skin.textField) { fontSize = 16, padding = new RectOffset(8, 8, 6, 6) };
+                // drawn over the rounded field (OnGUI): no box of its own
+                input = new GUIStyle(GUI.skin.textField) { fontSize = 16, padding = new RectOffset(12, 12, 9, 9) };
+                input.normal.background = input.focused.background = input.hover.background = input.active.background = null;
+                input.normal.textColor = input.focused.textColor = Ui.Text;
             }
-            float W = 520, x = 16, y = Ui.H * 0.62f;
+            // the web's #chat (style.css): bottom left, 420 wide (300 on a touch screen, higher up, clear of the
+            // stick), each message a rounded bubble as wide as its text, the line to type in a cyan-edged glass field
+            bool touch = TouchPad.Active;
+            float W = touch ? 300 : 420, x = 16, fieldH = 38;
+            float bottom = Ui.H - (touch ? 240 : 84), fieldY = bottom - fieldH;
+            float y = Typing ? fieldY - 6 : bottom;
             // the last messages, newest at the bottom; they fade after a while unless the line is open
             int shown = 0;
             for (int i = lines.Count - 1; i >= 0 && shown < 8; i--)
@@ -118,14 +126,14 @@ namespace EtherMines.Game
                 float age = Time.time - l.At;
                 if (!Typing && age > 15) break;
                 var text = $"<b><color={(l.Color != null && l.Color.StartsWith("#") ? l.Color : "#c9c2f2")}>{Esc(l.Name)}</color></b>  {Esc(l.Text)}";
-                float h = style.CalcHeight(new GUIContent(text), W - 16);
-                y -= h + 6;
+                var gc = new GUIContent(text);
+                float tw = Mathf.Min(W - 18, style.CalcSize(gc).x), h = style.CalcHeight(gc, tw);
+                y -= h + 6 + 3;
                 var o = GUI.color;
-                GUI.color = new Color(1, 1, 1, Typing ? 1 : Mathf.Clamp01(15 - age));
-                var bg = GUI.color; GUI.color = new Color(0.11f, 0.086f, 0.23f, 0.55f * bg.a);
-                GUI.DrawTexture(new Rect(x, y, W, h + 4), Texture2D.whiteTexture);
-                GUI.color = bg;
-                GUI.Label(new Rect(x + 8, y + 2, W - 16, h), text, style);
+                float a = Typing ? 1 : Mathf.Clamp01((15 - age) / 0.8f);
+                Ui.Round(new Rect(x, y, tw + 18, h + 6), new Color(28 / 255f, 22 / 255f, 58 / 255f, 0.55f * a), 8);
+                GUI.color = new Color(1, 1, 1, a);
+                GUI.Label(new Rect(x + 9, y + 3, tw, h), text, style);
                 GUI.color = o;
                 shown++;
             }
@@ -136,9 +144,11 @@ namespace EtherMines.Game
                 if (ev.keyCode == KeyCode.Return || ev.keyCode == KeyCode.KeypadEnter) { Send(draft); Typing = false; ev.Use(); return; }
                 if (ev.keyCode == KeyCode.Escape) { Typing = false; ev.Use(); return; }
             }
-            if (kb != null) { GUI.Box(new Rect(x, Ui.H * 0.62f + 8, W, 32), draft, input); return; } // the system keyboard writes it
+            var field = new Rect(x, fieldY, W, fieldH);
+            Ui.Round(field, Ui.Glass2, 10, Ui.Cyan, 1);
+            if (kb != null) { GUI.Box(field, draft, input); return; } // the system keyboard writes it
             GUI.SetNextControlName("chat");
-            draft = GUI.TextField(new Rect(x, Ui.H * 0.62f + 8, W, 32), draft, 200, input);
+            draft = GUI.TextField(field, draft, 200, input);
             GUI.FocusControl("chat");
         }
     }
