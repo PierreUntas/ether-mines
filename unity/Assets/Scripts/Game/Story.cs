@@ -434,9 +434,12 @@ namespace EtherMines.Game
                 return go.transform;
             }
             // tinted glass in a cyan frame on a cyan post, the HUD's own panel look (the game's +z faces Unity's -z)
-            Quad("frame", W + 0.3f, H + 0.3f, 0.15f, Effects.Mat(Texture2D.whiteTexture, new Color(0.23f, 0.18f, 0.43f, 0.5f), false));
-            Quad("edge", W + 0.06f, H + 0.06f, 0.02f, Effects.Mat(Texture2D.whiteTexture, Ui.Cyan, false));
-            Quad("glass", W, H, 0, Effects.Mat(Texture2D.whiteTexture, new Color(0.2f, 0.15f, 0.4f, 0.92f), false));
+            // drawn back to front in a fixed order (frame, edge, glass, then the text): see-through, they would
+            // otherwise be sorted by their centers, and from one side of the sign the glass would cover half the text
+            Material Layer(Material m, int q) { m.renderQueue = q; return m; }
+            Quad("frame", W + 0.3f, H + 0.3f, 0.15f, Layer(Effects.Mat(Texture2D.whiteTexture, new Color(0.23f, 0.18f, 0.43f, 0.5f), false), 3000));
+            Quad("edge", W + 0.06f, H + 0.06f, 0.02f, Layer(Effects.Mat(Texture2D.whiteTexture, Ui.Cyan, false), 3001));
+            Quad("glass", W, H, 0, Layer(Effects.Mat(Texture2D.whiteTexture, new Color(0.2f, 0.15f, 0.4f, 0.92f), false), 3002));
             var post = new GameObject("post");
             post.AddComponent<MeshFilter>().sharedMesh = Decor.Box(1);
             post.AddComponent<MeshRenderer>();
@@ -449,6 +452,7 @@ namespace EtherMines.Game
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             lbMat = new Material(Shader.Find("EtherMines/Text"));
             lbMat.mainTexture = font.material.mainTexture;
+            lbMat.renderQueue = 3003; // over the glass, whatever the side you look from
             Font.textureRebuilt += f => { if (f == font && lbMat != null) lbMat.mainTexture = f.material.mainTexture; };
             TextMesh Text(string name, float x, float y, TextAnchor anchor, float size)
             {
