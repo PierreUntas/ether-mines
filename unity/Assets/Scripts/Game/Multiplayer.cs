@@ -94,6 +94,7 @@ namespace EtherMines.Game
             avatars.MyArmor = () => combat.Armor;
             avatars.MyBoots = () => combat.Boots;
             avatars.MyGuard = () => combat.Guarding;
+            avatars.MyParryAt = () => combat.ParryAt;
             avatars.World = World;
             avatars.MyCape = () => Session.Inv.Uniques.Exists(u => u.Id == 205);
             var hand = GetComponent<Hand>();
@@ -121,8 +122,8 @@ namespace EtherMines.Game
                 names.Clear();
                 foreach (var p in list) if (p.Id != net.UserId) names.Add(p.Name);
             };
-            presence.Pos += m => { if (!link.Ready && m.Id != net.UserId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride, m.On, m.Guard); };
-            link.Pos += m => { if (m.Id != link.SelfId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride, m.On, m.Guard); };
+            presence.Pos += m => { if (!link.Ready && m.Id != net.UserId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride, m.On, m.Guard, m.Fx, m.Fq); };
+            link.Pos += m => { if (m.Id != link.SelfId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride, m.On, m.Guard, m.Fx, m.Fq); };
 
             signs = gameObject.AddComponent<Signs>();
             signs.Session = Session;

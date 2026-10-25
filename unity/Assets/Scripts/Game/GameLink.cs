@@ -15,7 +15,7 @@ namespace EtherMines.Game
         const string Origin = "https://ethermines.org";
 
         public sealed class Peer { public string Id, Name, Color, Title, Look; public double X, Y, Z; public bool HasPos; }
-        public sealed class Move { public string Id, Name, Color; public double X, Y, Z, Yaw, Pitch; public bool Mining, Guard, Boots; public int Held, Armor, Ride; public string On; }
+        public sealed class Move { public string Id, Name, Color; public double X, Y, Z, Yaw, Pitch; public bool Mining, Guard, Boots; public int Held, Armor, Ride, Fq; public string On, Fx; }
 
         public event Action<List<Peer>> Peers;
         public event Action<Move> Pos;
@@ -191,6 +191,7 @@ namespace EtherMines.Game
             Ride = MiniJson.ToInt(m.TryGetValue("rd", out var rdv) ? rdv : null),
             On = m.TryGetValue("on", out var onv) ? onv as string : null, // in that driver's back seat
             Armor = MiniJson.ToInt(m.TryGetValue("ar", out var ar) ? ar : null), Boots = MiniJson.Truthy(m.TryGetValue("bt", out var bt) ? bt : null),
+            Fx = m.TryGetValue("fx", out var fxv) ? fxv as string : null, Fq = MiniJson.ToInt(m.TryGetValue("fq", out var fqv) ? fqv : null), // the last blow they took or parried
         };
 
         // your position (14-startup.js): only when you moved, at most 5 times a second, a sign of life every 4 s

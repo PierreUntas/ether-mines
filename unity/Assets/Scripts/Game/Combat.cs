@@ -65,6 +65,7 @@ namespace EtherMines.Game
         }
         public bool Boots => Session != null && Session.State.TryGetValue("boots", out var b) && b != null && (b is string s ? s == "211" : MiniJson.ToInt(b) == 211);
         public string Fx => fx;
+        public float ParryAt = -99; // when your last parry landed (Time.time): the parry's pose (Avatars, Hand)
         public int Fq => fq;
 
         static Vector3 V(Vector3 g) => new Vector3(g.x, g.y, -g.z);
@@ -340,6 +341,7 @@ namespace EtherMines.Game
                 fx = res; fq = (fq + 1) & 0xffff;
                 if (res == "parry")
                 {
+                    ParryAt = Time.time;
                     // the mob that struck reels (the server stunned it): the closest to where the blow came from
                     Mobs.Mob best = null;
                     float bd = 4;

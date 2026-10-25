@@ -18,6 +18,7 @@ namespace EtherMines.Game
         public Func<string> MyTitle = () => "";
         public Func<int> MyArmor = () => 0;      // the plating you wear
         public Func<bool> MyGuard = () => false;
+        public Func<float> MyParryAt = () => -99; // your last parry (Combat.ParryAt): the step aside, seen from outside
         public WorldView World; // the blocks around a figure (in water, on a ladder)
         public Func<bool> MyBoots = () => false, MyCape = () => false; // the Front-Runner Boots on, the Titan's cape owned
         public Func<int> MyRide = () => 0;       // the craft you ride (Hover draws it)
@@ -35,6 +36,7 @@ namespace EtherMines.Game
             public bool Mining, Seen, Guard;
             // the poses' own state (movePose, poseArms): vertical speed, how far into the air, the water, a ladder
             public float Vy, LastY = float.NaN, AirK, SwimK, ClimbK, Land, FallV, Stroke, Climb, GuardK, GlideT, GlideK, GlidePh;
+            public float ParryAt = -99; public int Fq = -1; // their last parry (Time.time), from the `fx`/`fq` their moves carry
             public bool WasAir;
             public bool HeldRanged;   // a gun in hand: the arm held out to aim
             public int Held, ShownHeld = -1; // the tool or weapon in their right hand (`h`), and the one drawn
@@ -162,7 +164,7 @@ namespace EtherMines.Game
             foreach (var k in gone) { Drop(figs[k]); figs.Remove(k); }
         }
 
-        public void Heard(string id, string name, string color, double x, double y, double z, double yaw, double pitch, bool mining, bool live = true, int held = 0, int armor = 0, bool boots = false, int ride = 0, string on = null, bool guard = false)
+        public void Heard(string id, string name, string color, double x, double y, double z, double yaw, double pitch, bool mining, bool live = true, int held = 0, int armor = 0, bool boots = false, int ride = 0, string on = null, bool guard = false, string fx = null, int fq = 0)
         {
             if (!figs.TryGetValue(id, out var f) || f.Color != color || f.Name != name)
             {
@@ -173,6 +175,14 @@ namespace EtherMines.Game
             }
             f.Target = new Vector3((float)x, (float)y, (float)z);
             if (live) { f.TYaw = yaw; f.Pitch = pitch; f.Mining = mining; f.Guard = guard; f.HeardAt = Time.time; f.Held = held; f.Armor = armor; f.Boots = boots; f.Ride = ride; f.On = on; }
+            // a parry they just made (avatarFx): the step aside, and the sparks off their blade
+            if (live && f.Fq >= 0 && fq != f.Fq && fx == "parry")
+            {
+                f.ParryAt = Time.time;
+                float sx = (float)(x - Math.Sin(yaw) * 0.7), sz = (float)(z - Math.Cos(yaw) * 0.7);
+                Effects.Burst(sx - 0.5f, (float)y + 0.75f, sz - 0.5f, Hex("#bdf6ff", Color.white));
+            }
+            if (live) f.Fq = fq;
             if (!f.Seen) { f.Seen = true; f.Pos = f.Target; f.Yaw = f.TYaw; f.HeardAt = Time.time; }
         }
 
@@ -231,6 +241,7 @@ namespace EtherMines.Game
                     me.TYaw = Player.Yaw; me.Pitch = Player.Pitch;
                     me.Mining = Act != null && Act.Swing > 0;
                     me.Guard = MyGuard();
+                    me.ParryAt = MyParryAt();
                     int h = Act != null && Act.Inv.Held != null ? Act.Inv.HeldId : 0;
                     me.Held = h > 0 && EtherMines.Core.Rules.Block(h) == null ? h : 0;
                     if (!me.Seen) { me.Seen = true; me.Pos = me.Target; me.Yaw = me.TYaw; }
@@ -490,6 +501,27 @@ namespace EtherMines.Game
             }
         }
 
+        // the guard and parry poses (14-startup.js GUARD_LOW / GUARD_HIGH): a blade's turn in the web's space
+        // (its length along (1, 1, 0) in its model, pointing along dir, its edge turned by roll), mirrored to Unity's
+        // (z flipped: a quaternion's x and y change sign)
+        public static Quaternion BladeTurn(Vector3 dir, float roll)
+        {
+            var ax = new Vector3(1, 1, 0).normalized;
+            var q = Quaternion.FromToRotation(ax, dir.normalized) * Quaternion.AngleAxis(roll * Mathf.Rad2Deg, ax);
+            return new Quaternion(-q.x, -q.y, q.z, q.w);
+        }
+        static readonly Quaternion GuardLowQ = BladeTurn(new Vector3(0, -1, -0.12f), 0), GuardHighQ = BladeTurn(new Vector3(-1, 0.03f, -0.05f), Mathf.PI / 2);
+        static Quaternion HeldRest => HeldModels.Mirror(0, -0.3f, 0.3f);
+        public const float ParrySeconds = 0.6f; // how long the parry's step aside lasts (PARRY_POSE_MS)
+        // the parry's step aside, 0..1: quick to come, slower to go (parryK)
+        public static float ParryK(float at)
+        {
+            float t = (Time.time - at) / ParrySeconds;
+            if (t < 0 || t >= 1) return 0;
+            float k = t < 0.18f ? t / 0.18f : 1 - (t - 0.18f) / 0.82f;
+            return k * k * (3 - 2 * k);
+        }
+
         // on board: the craft under them (another player's; yours is Hover's), seated higher, knees and hands forward
         static void Seat(Fig f)
         {
@@ -578,12 +610,15 @@ namespace EtherMines.Game
             float mv = Mathf.Min(1, sp / 2), a = mv * Mathf.Sin(f.Walk) * 0.7f;
             f.Phase += dt;
             float br = Mathf.Sin(f.Phase * 2.2f), hop = Mathf.Abs(Mathf.Sin(f.Walk)) * 0.07f * mv, idle = br * 0.03f * (1 - mv);
-            // the arms (poseArms), in the web's radians: the guard raises the blade across, a blow thrusts it forward
+            // the arms (poseArms), in the web's radians. On guard (Pierre's second sketch): both hands on the grip at
+            // the chest, the blade upright, tip down; a parry, for a moment (his first): a step aside, the legs
+            // wide, the body leaning, the blade raised level above the head. A blow thrusts it forward.
             float up = Mathf.Clamp((float)f.Pitch, -0.6f, 0.8f);
             float rx = a, rz = 0.06f + idle, lx = -a, lz = -0.06f - idle, tw = 0;
             f.GuardK += ((f.Guard ? 1 : 0) - f.GuardK) * Mathf.Min(1, dt * 14);
-            float g = f.GuardK;
-            rx = (1.25f + up * 0.5f) * g + rx * (1 - g); rz = -0.45f * g + rz * (1 - g); lx *= 1 - g; lz = lz * (1 - g) - 0.04f * g; tw = 0.12f * g;
+            float g = f.GuardK > 0.02f ? f.GuardK : 0, p = f.HeldObj != null && !f.HeldRanged ? ParryK(f.ParryAt) : 0;
+            rx = Mathf.Lerp(rx, 0.95f + up * 0.3f, g); rz = Mathf.Lerp(rz, -0.6f, g); lx = Mathf.Lerp(lx, 0.95f + up * 0.3f, g); lz = Mathf.Lerp(lz, 0.6f, g);
+            rx = Mathf.Lerp(rx, 2.8f, p); rz = Mathf.Lerp(rz, -0.32f, p); lx = Mathf.Lerp(lx, 2.8f, p); lz = Mathf.Lerp(lz, 0.32f, p);
             float sw = f.Mining ? Mathf.Max(0, 0.6f - (Time.time / 0.45f % 1) * 1.35f) : 0;
             float s = sw > 0 ? Mathf.Min(1, Mathf.Sin((1 - sw) * Mathf.PI) * sw / 0.57f) : 0;
             if (f.HeldRanged && g <= 0.02f) { rx = 1.5f + up; rz = -0.04f; tw = -0.15f; } // a gun: the arm out toward where they look (poseArms)
@@ -637,10 +672,24 @@ namespace EtherMines.Game
                 }
             }
             f.Root.transform.rotation = Quaternion.Euler(0, (float)(-f.Yaw * Mathf.Rad2Deg), 0) * Quaternion.Euler(riding ? 0 : -R(lean), 0, 0);
-            f.LegL.localRotation = Quaternion.Euler(-R(legL), 0, 0);
-            f.LegR.localRotation = Quaternion.Euler(-R(legR), 0, 0);
+            // the parry's step aside: the legs wide, the body leaning into it (web z turns, mirrored like the arms')
+            if (p > 0 && !riding) f.Root.transform.rotation *= Quaternion.Euler(0, 0, R(-0.16f * p));
+            f.LegL.localRotation = Quaternion.Euler(-R(legL), 0, R(-0.42f * p));
+            f.LegR.localRotation = Quaternion.Euler(-R(legR), 0, R(0.3f * p));
             f.ArmR.localRotation = Quaternion.Euler(-R(rx), 0, R(rz));
             f.ArmL.localRotation = Quaternion.Euler(-R(lx), 0, R(lz));
+            // the blade: in the hand at rest; on guard and in a parry, held the way the pose wants it in the
+            // character's space, whatever the arm does (poseArms)
+            if (f.HeldObj != null && !f.HeldRanged)
+            {
+                var t = f.HeldObj.transform;
+                var inv = Quaternion.Inverse(f.ArmR.localRotation);
+                var q = HeldRest;
+                if (g > 0) q = Quaternion.Slerp(q, inv * GuardLowQ, g * (1 - s));
+                if (p > 0) q = Quaternion.Slerp(q, inv * GuardHighQ, p);
+                t.localRotation = q;
+                t.localPosition = Vector3.Lerp(Vector3.Lerp(new Vector3(0.1f, -0.3f, 0.22f), new Vector3(-0.04f, -0.5f, 0.04f), g), new Vector3(0, -0.74f, -0.04f), p);
+            }
             // breathing: the body swells a little, the head and arms ride on it; a landing dips them
             f.Body.localPosition = new Vector3(0, 0.74f + hop - dip, 0);
             f.Body.localScale = new Vector3(1 + br * 0.02f, 1 + br * 0.012f, 1 + br * 0.035f);

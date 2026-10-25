@@ -97,6 +97,9 @@ namespace EtherMines.Game
             return skin;
         }
 
+        // the guard and the parry through your eyes (10-loop.js FP_GUARD_LOW / FP_GUARD_HIGH, in the hand's view)
+        static readonly Quaternion FpLowQ = Avatars.BladeTurn(new Vector3(0, -1, -0.25f), Mathf.PI / 2), FpHighQ = Avatars.BladeTurn(new Vector3(-1, 0.06f, -0.12f), 0);
+
         void Rest(float x, float y, float z, float rx, float ry, float rz)
         {
             restP = new Vector3(x, y, z);
@@ -128,9 +131,19 @@ namespace EtherMines.Game
             }
             else
             {
-                pivot.localRotation = Quaternion.identity;
-                pivot.localPosition = new Vector3(bx - s * 0.17f - g * 0.1f, by + s * 0.13f + g * 0.16f, -(-s * 0.3f - g * 0.04f));
-                model.transform.localRotation = HeldModels.Mirror(restR.x - s * 0.75f - g * 0.2f, restR.y + s * 0.25f + g * 0.3f, restR.z + s * 0.35f + g * 1.9f);
+                // on guard (Pierre's sketches, as 10-loop.js draws them): the blade upright, tip down, in front of you;
+                // a parry, for a moment: the blade raised level across the top of the screen, the view stepping aside
+                bool blade = Act != null && Combat.IsBlade(Act.Inv.HeldId);
+                float p = blade && Combat != null ? Avatars.ParryK(Combat.ParryAt) : 0;
+                if (!blade) g = 0;
+                pivot.localRotation = HeldModels.Mirror(0, 0, -0.08f * p);
+                pivot.localPosition = new Vector3(bx - s * 0.17f + p * 0.05f, by + s * 0.13f, -(-s * 0.3f));
+                var q = HeldModels.Mirror(restR.x - s * 0.75f, restR.y + s * 0.25f, restR.z + s * 0.35f);
+                var at = new Vector3(restP.x, restP.y, -restP.z);
+                if (g > 0) { q = Quaternion.Slerp(q, FpLowQ, g * (1 - s)); at = Vector3.Lerp(at, new Vector3(0.1f, -0.06f, 0.56f), g * (1 - s)); }
+                if (p > 0) { q = Quaternion.Slerp(q, FpHighQ, p); at = Vector3.Lerp(at, new Vector3(0.3f, 0.2f, 0.62f), p); }
+                model.transform.localRotation = q;
+                model.transform.localPosition = at;
             }
         }
     }

@@ -55,6 +55,18 @@ function autoQuality(dt) {
   applySetting(what[0]);
   logEv('burn', `Lower ${what[1]}, to keep the game smooth`, 'chest → Settings to change it back');
 }
+// the first-person guard and parry (Pierre's sketches, as poseArms draws them from outside): where the
+// blade sits in the hand's view and which way it points (BLADE_AXIS, 14-startup.js), and the parry's moment
+let parryFpAt = 0; // when your last parry landed (selfFx)
+const FP_GUARD_LOW = { at: new THREE.Vector3(0.1, -0.06, -0.56), q: null },
+  FP_GUARD_HIGH = { at: new THREE.Vector3(0.3, 0.2, -0.62), q: null };
+function parryFp() {
+  if (!parryFpAt) return 0;
+  const t = (performance.now() - parryFpAt) / 600;
+  if (t >= 1) return (parryFpAt = 0);
+  const k = t < 0.18 ? t / 0.18 : 1 - (t - 0.18) / 0.82;
+  return k * k * (3 - 2 * k);
+}
 function frame(now) {
   const gap = idleNow() ? 1000 / 12 : 1000 / 60;
   if (now - lastDraw < gap - 4) {
@@ -475,11 +487,23 @@ function frame(now) {
       hand.position.set(bx, by + s * 0.015, s * 0.04);
       if (rest) handMesh.rotation.copy(rest.r);
     } else {
-      // on guard (16-mobs.js): the blade comes up, flat across the middle of the screen
-      const g = typeof guardAmt === 'number' ? guardAmt : 0;
-      hand.rotation.set(0, 0, 0);
-      hand.position.set(bx - s * 0.17 - g * 0.1, by + s * 0.13 + g * 0.16, -s * 0.3 - g * 0.04);
-      if (rest) handMesh.rotation.set(rest.r.x - s * 0.75 - g * 0.2, rest.r.y + s * 0.25 + g * 0.3, rest.r.z + s * 0.35 + g * 1.9);
+      // on guard (16-mobs.js), as Pierre sketched it: the blade upright, tip down, in front of you; a parry,
+      // for a moment: the blade raised level across the top of the screen, the view stepping aside with it
+      const g = typeof guardAmt === 'number' ? guardAmt : 0,
+        blade = g > 0.001 || parryFpAt ? heldBlade() : false,
+        p = blade ? parryFp() : 0;
+      hand.rotation.set(0, 0, -0.08 * p);
+      hand.position.set(bx - s * 0.17 + p * 0.05, by + s * 0.13, -s * 0.3);
+      if (rest) {
+        handMesh.rotation.set(rest.r.x - s * 0.75, rest.r.y + s * 0.25, rest.r.z + s * 0.35);
+        handMesh.position.copy(rest.p);
+        if (blade) {
+          handMesh.quaternion.slerp(FP_GUARD_LOW.q, g * (1 - s));
+          if (p) handMesh.quaternion.slerp(FP_GUARD_HIGH.q, p);
+          handMesh.position.lerp(FP_GUARD_LOW.at, g * (1 - s));
+          if (p) handMesh.position.lerp(FP_GUARD_HIGH.at, p);
+        }
+      }
     }
   }
   if (booted) {

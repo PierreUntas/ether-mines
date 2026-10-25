@@ -6,6 +6,14 @@
   root.NEWS = [
     {
       date: '2026-10-25',
+      title: 'A new guard',
+      items: [
+        'On guard, you now hold your blade upright, tip down, in front of you, both hands on the grip.',
+        'A parry shows: for a moment you step aside, the blade raised level above your head. The others see it too.',
+      ],
+    },
+    {
+      date: '2026-10-25',
       title: 'A new shop',
       items: [
         'The shop now has three aisles: the Store (premium pieces and sets), the Workshop (everything bought with Gwei) and the Wardrobe.',

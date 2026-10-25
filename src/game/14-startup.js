@@ -419,26 +419,62 @@ function changeView(quiet) {
   if (!quiet) logEv('nft', ['Through your eyes', 'View from behind', 'View from the front'][VIEW], touch ? '' : 'press V to change');
 }
 // the arms of a character (yours seen from outside, another player's), drawing the same gestures as the
-// first-person hand (10-loop.js): on guard, the sword arm comes up in front of the chest, the blade across
-// the body, its tip to the left, ahead and a little up; a blow, a quick thrust toward where the character looks, the blade's tip leaning
-// in, the shoulders turning into it; otherwise the arms swing with the walk. g: the guard, 0..1; s: how far
-// out the thrust is, 0..1; a: the walk's swing; idle: the breathing; pitch: where the character looks
-const GUARD_HELD = [0, 0.1, 2.74]; // the blade's turn in the hand, on guard (x, y, z)
+// first-person hand (10-loop.js). On guard (Pierre's second sketch): standing square, both hands on the
+// grip at the chest, the blade upright, tip down, in front of the body. A parry (his first sketch, for a
+// moment, parryK): a step aside, the legs wide and the body leaning into it, the blade raised level above
+// the head. A blow: a quick thrust toward where the character looks, the blade's tip leaning in, the
+// shoulders turning into it; otherwise the arms swing with the walk. g: the guard, 0..1; s: how far out the
+// thrust is, 0..1; a: the walk's swing; idle: the breathing; pitch: where the character looks
+const PARRY_POSE_MS = 600; // how long the parry's step aside lasts
+const BLADE_AXIS = new THREE.Vector3(1, 1, 0).normalize(); // a blade's length in its model: diagonal, like its icon
+// a blade (BLADE_AXIS) pointing along dir, its edge turned by roll, in the character's own space
+const bladeTurn = (dir, roll) =>
+  new THREE.Quaternion()
+    .setFromUnitVectors(BLADE_AXIS, dir.clone().normalize())
+    .multiply(new THREE.Quaternion().setFromAxisAngle(BLADE_AXIS, roll));
+const GUARD_LOW = { r: [0.95, -0.6], l: [0.95, 0.6], at: [-0.04, -0.5, -0.04], q: bladeTurn(new THREE.Vector3(0, -1, -0.12), 0) },
+  GUARD_HIGH = { r: [2.8, -0.32], l: [2.8, 0.32], at: [0, -0.74, 0.04], q: bladeTurn(new THREE.Vector3(-1, 0.03, -0.05), Math.PI / 2) },
+  HELD_REST = { at: [0.1, -0.3, -0.22], q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -0.3, 0.3)) };
+// through your eyes (10-loop.js): the same two poses, in the hand's view (-z ahead, +x to the right)
+FP_GUARD_LOW.q = bladeTurn(new THREE.Vector3(0, -1, -0.25), Math.PI / 2);
+FP_GUARD_HIGH.q = bladeTurn(new THREE.Vector3(-1, 0.06, -0.12), 0);
+// the parry's step aside, 0..1: quick to come, slower to go (avatarFx starts it)
+function parryK(o) {
+  if (!o.parryAt) return 0;
+  const t = (performance.now() - o.parryAt) / PARRY_POSE_MS;
+  if (t >= 1) return (o.parryAt = 0);
+  const k = t < 0.18 ? t / 0.18 : 1 - (t - 0.18) / 0.82;
+  return k * k * (3 - 2 * k);
+}
+const _qa = new THREE.Quaternion(),
+  _qb = new THREE.Quaternion();
 function poseArms(o, g, s, a, idle, pitch) {
-  const up = Math.max(-0.6, Math.min(0.8, pitch || 0));
+  const up = Math.max(-0.6, Math.min(0.8, pitch || 0)),
+    p = o.held && !o.heldRanged ? parryK(o) : 0,
+    mix = (x, y, k) => x + (y - x) * k;
   let rx = a,
     rz = 0.06 + idle,
     lx = -a,
     lz = -0.06 - idle,
     tw = 0;
   // (an arm's +x turn brings it forward: the body faces -z; a -z turn brings the right arm inward)
-  if (g > 0.02) {
-    rx = (1.25 + up * 0.5) * g + a * (1 - g);
-    rz = -0.45 * g + rz * (1 - g);
-    lx = lx * (1 - g);
-    lz = lz * (1 - g) - 0.04 * g;
-    tw = 0.12 * g;
+  const G = g > 0.02 ? g : 0;
+  if (G) {
+    rx = mix(rx, GUARD_LOW.r[0] + up * 0.3, G);
+    rz = mix(rz, GUARD_LOW.r[1], G);
+    lx = mix(lx, GUARD_LOW.l[0] + up * 0.3, G);
+    lz = mix(lz, GUARD_LOW.l[1], G);
   }
+  if (p) {
+    rx = mix(rx, GUARD_HIGH.r[0], p);
+    rz = mix(rz, GUARD_HIGH.r[1], p);
+    lx = mix(lx, GUARD_HIGH.l[0], p);
+    lz = mix(lz, GUARD_HIGH.l[1], p);
+  }
+  // the step aside: the legs wide, the body leaning into it (both set every frame: 0 the rest of the time)
+  o.legs[0].rotation.z = -0.42 * p;
+  o.legs[1].rotation.z = 0.3 * p;
+  o.g.rotation.z = -0.16 * p;
   if (o.heldRanged && g <= 0.02) {
     // a gun: the arm held out straight toward where the character looks, the barrel along it
     rx = 1.5 + up;
@@ -457,10 +493,15 @@ function poseArms(o, g, s, a, idle, pitch) {
   o.arms[0].rotation.z = lz;
   o.body.rotation.y = tw;
   if (o.held && !o.heldRanged) {
-    const h = o.guardHeld || GUARD_HELD;
-    // a thrust turns the blade along the arm, its tip out ahead and a little up
-    const k = s * (1 - g);
-    o.held.rotation.set(h[0] * g - 2.64 * k, -0.3 + h[1] * g, 0.3 + h[2] * g + 0.48 * k);
+    // the blade: in the hand at rest (a thrust turns it along the arm, its tip out ahead and a little up);
+    // on guard and in a parry, held the way the pose wants it in the character's space, whatever the arm does
+    const k = s * (1 - G),
+      armInv = _qa.copy(o.arms[1].quaternion).invert();
+    o.held.quaternion.copy(HELD_REST.q).multiply(_qb.setFromEuler(new THREE.Euler(-2.64 * k, 0, 0.48 * k)));
+    if (G) o.held.quaternion.slerp(_qb.copy(armInv).multiply(GUARD_LOW.q), G * (1 - s));
+    if (p) o.held.quaternion.slerp(_qb.copy(armInv).multiply(GUARD_HIGH.q), p);
+    const at = [0, 1, 2].map(i => mix(mix(HELD_REST.at[i], GUARD_LOW.at[i], G), GUARD_HIGH.at[i], p));
+    o.held.position.set(at[0], at[1], at[2]);
   }
 }
 // a blow's thrust, as the first-person hand draws it (10-loop.js): out at once, then back, from `swing`
@@ -509,6 +550,7 @@ function avatarFx(o, kind) {
     flashModel(o.g, 'hurt');
     o.jolt = 1;
   } else if (kind === 'parry' || kind === 'block') {
+    if (kind === 'parry') o.parryAt = performance.now(); // the step aside (poseArms)
     const p = o.g.position,
       r = o.g.rotation.y;
     clayBurst(p.x - Math.sin(r) * 0.7 - 0.5, p.y + 0.75, p.z - Math.cos(r) * 0.7 - 0.5, etherMats[kind === 'parry' ? 0 : 1]);
@@ -614,6 +656,8 @@ function movePose(o, dt, sp, busy, riding) {
 let FX_OUT = { k: 0, q: 0 };
 function selfFx(kind) {
   if (kind === 'hurt' && SELF) avatarFx(SELF, kind); // your sparks are already drawn (guardSpark)
+  if (kind === 'parry' && SELF) SELF.parryAt = performance.now(); // seen from outside: the step aside
+  if (kind === 'parry') parryFpAt = performance.now(); // through your eyes: the blade up (10-loop.js)
   FX_OUT = { k: kind, q: (FX_OUT.q + 1) & 0xffff };
   lastPos = null; // sent at once
 }

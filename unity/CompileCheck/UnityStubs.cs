@@ -73,7 +73,9 @@ namespace UnityEngine
     public struct Vector4 { public static Vector4 zero; public float x, y, z, w; public Vector4(float x, float y, float z, float w) { this.x = x; this.y = y; this.z = z; this.w = w; } }
     public struct Quaternion
     {
-        public Quaternion(float x, float y, float z, float w) { } public static Quaternion identity => default;
+        public float x, y, z, w;
+        public Quaternion(float x, float y, float z, float w) { this.x = x; this.y = y; this.z = z; this.w = w; } public static Quaternion identity => default;
+        public static Quaternion Inverse(Quaternion q) => q; public static Quaternion Slerp(Quaternion a, Quaternion b, float t) => a;
         public static Quaternion Euler(float x, float y, float z) => default; public static Quaternion AngleAxis(float a, Vector3 axis) => default;
         public static Quaternion LookRotation(Vector3 f) => default; public static Quaternion LookRotation(Vector3 f, Vector3 up) => default;
         public static Quaternion FromToRotation(Vector3 a, Vector3 b) => default;
