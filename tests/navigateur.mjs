@@ -15,7 +15,7 @@ const types = { '.html': 'text/html', '.js': 'application/javascript', '.css': '
 const server = createServer(async (req, res) => {
   try {
     const p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-    const body = await readFile(join(root, p === '/' ? 'index.html' : p));
+    const body = await readFile(join(root, p === '/' ? 'play.html' : p));
     res.writeHead(200, { 'Content-Type': types[extname(p)] || 'application/octet-stream' });
     res.end(body);
   } catch {
@@ -42,7 +42,7 @@ await page.route('**/src/config.js', (r) => r.fulfill({ body: 'window.CONFIG={}'
 await page.route(/^https:\/\/fonts\./, (r) => r.abort());
 const fail = async (msg) => { console.error('FAILED:', msg, errors); await browser.close(); server.close(); process.exit(1); };
 
-await page.goto(base + 'index.html#debug');
+await page.goto(base + 'play.html#debug');
 await page.waitForTimeout(800);
 if (errors.length) await fail('error while loading the page');
 await page.evaluate(() => document.getElementById('play').click());
@@ -1445,7 +1445,7 @@ const panels = await page.evaluate(() => {
 });
 if (!/online game/.test(panels.validators)) await fail('Validators tab did not render: ' + panels.validators);
 if (!/online game/.test(panels.shop)) await fail('Shop tab did not render: ' + panels.shop);
-if (!panels.gweiChipExists) await fail('Gwei HUD chip missing from index.html');
+if (!panels.gweiChipExists) await fail('Gwei HUD chip missing from play.html');
 if (errors.length) await fail('errors opening the Validators/Shop tabs');
 console.log(`Browser: loaded, entered the world, mined and crafted with no error; ${m.n} chunks meshed in the background.`);
 await browser.close();

@@ -27,7 +27,7 @@ const types = { '.html': 'text/html', '.js': 'application/javascript', '.css': '
 const server = createServer(async (req, res) => {
   try {
     const p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-    const body = await readFile(join(root, p === '/' ? 'index.html' : p));
+    const body = await readFile(join(root, p === '/' ? 'play.html' : p));
     res.writeHead(200, { 'Content-Type': types[extname(p)] || 'application/octet-stream' });
     res.end(body);
   } catch {
@@ -48,7 +48,7 @@ await page.route('**/three.min.js', r => r.fulfill({ path: three, contentType: '
 await page.route('**/supabase.js', r => r.fulfill({ body: '', contentType: 'application/javascript' }));
 await page.route('**/src/config.js', r => r.fulfill({ body: 'window.CONFIG={}', contentType: 'application/javascript' }));
 await page.route(/^https:\/\/fonts\./, r => r.abort());
-await page.goto(base + 'index.html');
+await page.goto(base + 'play.html');
 await page.waitForFunction(() => typeof clayModel === 'function' && typeof ITEM === 'object', null, { timeout: 60000 });
 const { out: items, hovers } = await page.evaluate(() => {
   const r4 = v => Math.round(v * 1e3) / 1e3;

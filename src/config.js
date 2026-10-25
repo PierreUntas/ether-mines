@@ -12,9 +12,11 @@ window.CONFIG = {
   // (Stripe's test mode, fake cards), 'live' everywhere, '' nowhere. Stripe's secret keys never go here:
   // they're Supabase secrets (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET).
   PAYMENTS: 'test',
-  // the title screen's links (empty: not shown): the apps once they're in the stores, the trailer, the Discord
+  // the home page's and the title screen's links (empty: "coming soon" on the home page, not shown in the
+  // game): the apps once they're in the stores, the trailer, the Discord, Steam
   APP_STORE_URL: '',
   PLAY_STORE_URL: '',
   TRAILER_URL: '',
   DISCORD_URL: '',
+  STEAM_URL: '', // the Mac and PC version, later
 };

@@ -182,7 +182,7 @@ const html = `<!doctype html>
 </head>
 <body>
 <main>
-<a class="back" href="./">← Back to the game</a>
+<a class="back" href="play.html">← Back to the game</a>
 <h1>Ether Mines · Wiki</h1>
 <p class="muted">A block world in Ethereum's colors, built with friends. Everything you need to know, in one page.</p>
 <nav>
@@ -279,7 +279,7 @@ ${crafting}
 <h2 id="news">What's new</h2>
 ${news}
 
-<p class="muted" style="margin-top:48px"><a href="legal.html">Terms, legal notice &amp; privacy</a> · <a href="./">Back to the game</a></p>
+<p class="muted" style="margin-top:48px"><a href="legal.html">Terms, legal notice &amp; privacy</a> · <a href="play.html">Back to the game</a></p>
 </main>
 </body>
 </html>

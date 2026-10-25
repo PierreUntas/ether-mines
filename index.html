@@ -3,198 +3,236 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Ether Mines</title>
-<meta name="description" content="A block world in Ethereum's colors, built with friends in the browser.">
+<title>Ether Mines · Build together, play anywhere</title>
+<!-- The site's home. The game itself is play.html: links that carry a world or a payment's return
+     (?monde=…, ?shop=…, #debug) and the app installed on a home screen go straight to it. -->
+<script>
+  (function () {
+    var standalone = window.matchMedia && (matchMedia('(display-mode: fullscreen)').matches || matchMedia('(display-mode: standalone)').matches);
+    if (location.search || location.hash || standalone || navigator.standalone) location.replace('play.html' + location.search + location.hash);
+  })();
+</script>
+<meta name="description" content="Ether Mines is a free multiplayer block-building game in Ethereum's colors. Build one shared world with your friends, on the web, iPhone, Android, Mac and PC, with the same account everywhere.">
 <link rel="canonical" href="https://www.ethermines.org/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Ether Mines">
-<meta property="og:title" content="Ether Mines">
-<meta property="og:description" content="A block world in Ethereum's colors, built with friends in the browser. Free, no download.">
+<meta property="og:title" content="Ether Mines · Build together, play anywhere">
+<meta property="og:description" content="A free multiplayer block game in Ethereum's colors. One world, your friends, every screen.">
 <meta property="og:url" content="https://www.ethermines.org/">
 <meta property="og:image" content="https://www.ethermines.org/icons/og-clay.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Ether Mines">
-<meta name="twitter:description" content="A block world in Ethereum's colors, built with friends in the browser. Free, no download.">
+<meta name="twitter:title" content="Ether Mines · Build together, play anywhere">
+<meta name="twitter:description" content="A free multiplayer block game in Ethereum's colors. One world, your friends, every screen.">
 <meta name="twitter:image" content="https://www.ethermines.org/icons/og-clay.jpg">
 <meta name="theme-color" content="#1c163a">
-<link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Ether Mines">
 <link rel="stylesheet" href="fonts/fonts.css">
-<link rel="stylesheet" href="src/style.css">
+<style>
+  :root{--bg:#1c163a;--bg2:#241d4c;--card:rgba(46,38,92,.62);--line:rgba(190,178,255,.28);--text:#f4f1ff;--muted:#c9c2f2;--violet:#8a7bef;--lav:#a99cff;--mint:#9fe3c4;--gold:#ffd95e;--cyan:#7fe8ff;--pink:#ff9ab8}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);font:17px/1.55 Fredoka,system-ui,sans-serif;overflow-x:hidden}
+  a{color:var(--mint)}
+  img{max-width:100%;display:block}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+
+  /* ---------- hero ---------- */
+  .hero{position:relative;min-height:min(92vh,820px);display:flex;align-items:flex-end;padding:88px 0 56px;isolation:isolate}
+  .hero::before{content:"";position:absolute;inset:0;z-index:-2;background:url(press/characters.jpg) center 35%/cover no-repeat}
+  .hero::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(28,22,58,.35) 0%,rgba(28,22,58,.55) 45%,var(--bg) 96%)}
+  .top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:16px;gap:12px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:20px;color:var(--text);text-decoration:none}
+  .brand img{width:36px;height:36px;border-radius:9px}
+  .top nav{display:flex;gap:16px;font-size:15px}
+  .top nav a{color:var(--text);text-decoration:none;opacity:.9}
+  .top nav a:hover{opacity:1;text-decoration:underline}
+  @media (max-width:560px){.top nav .opt{display:none}}
+  .kicker{display:inline-block;margin:0 0 14px;padding:4px 12px;border-radius:99px;font-family:"IBM Plex Mono",monospace;font-size:13px;letter-spacing:.04em;color:var(--gold);background:rgba(28,22,58,.6);border:1px solid rgba(255,217,94,.45)}
+  h1{margin:0;font-size:clamp(44px,8.5vw,92px);line-height:.98;font-weight:600;letter-spacing:.005em;text-shadow:0 5px 0 #4f40bf,0 0 40px rgba(127,232,255,.35)}
+  h1 .a{color:var(--text)}
+  h1 .b{color:var(--cyan)}
+  .lede{max-width:640px;margin:18px 0 0;font-size:clamp(17px,2.2vw,21px);color:var(--muted)}
+  .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px;align-items:center}
+  .btn{display:inline-flex;align-items:center;gap:10px;padding:14px 22px;border-radius:14px;background:var(--violet);color:#fff;text-decoration:none;font-weight:600;font-size:19px;box-shadow:0 5px 0 #4f40bf;transition:transform .12s,filter .12s}
+  .btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .btn:active{transform:translateY(3px);box-shadow:0 2px 0 #4f40bf}
+  .btn svg{width:20px;height:20px}
+  .ghost{color:var(--text);text-decoration:none;font-size:16px;padding:10px 4px;border-bottom:1px dashed var(--line)}
+  .free{font-size:14px;color:var(--muted);margin-top:10px}
+
+  /* ---------- platforms ---------- */
+  .plats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:30px;max-width:880px}
+  @media (max-width:760px){.plats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .plat{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:rgba(28,22,58,.72);border:1px solid var(--line);color:var(--text);text-decoration:none;min-width:0}
+  a.plat:hover{border-color:var(--cyan)}
+  .plat svg{flex:0 0 28px;width:28px;height:28px;color:var(--cyan)}
+  .plat b{display:block;font-weight:600;font-size:16px;line-height:1.2}
+  .plat small{display:block;font-size:13px;color:var(--muted)}
+  .plat.soon{opacity:.72}
+  .plat.soon small{color:var(--gold)}
+
+  /* ---------- sections ---------- */
+  section{padding:64px 0}
+  h2{margin:0 0 10px;font-size:clamp(30px,4.6vw,46px);line-height:1.05;font-weight:600}
+  h2 em{font-style:normal;color:var(--cyan)}
+  .sub{margin:0 0 28px;color:var(--muted);max-width:640px;font-size:18px}
+  .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  @media (max-width:880px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:560px){.cards{grid-template-columns:1fr}}
+  .card{padding:18px;border-radius:16px;background:var(--card);border:1px solid var(--line)}
+  .card .ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;margin-bottom:12px;font-size:22px;background:rgba(127,232,255,.12);border:1px solid rgba(127,232,255,.35)}
+  .card h3{margin:0 0 6px;font-size:20px;font-weight:600}
+  .card p{margin:0;color:var(--muted);font-size:16px}
+
+  /* the cross-play picture: every screen around one world */
+  .cross{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:28px;align-items:center}
+  @media (max-width:880px){.cross{grid-template-columns:1fr}}
+  .orbit{position:relative;aspect-ratio:1/1;max-width:420px;width:100%;margin:0 auto}
+  .orbit .world{position:absolute;inset:26%;border-radius:50%;background:url(press/city.jpg) center/cover;border:3px solid var(--cyan);box-shadow:0 0 60px rgba(127,232,255,.35)}
+  .orbit .ring{position:absolute;inset:8%;border-radius:50%;border:2px dashed var(--line)}
+  .orbit .dev{position:absolute;width:24%;aspect-ratio:1/1;border-radius:18px;display:grid;place-items:center;align-content:center;gap:2px;background:var(--bg2);border:1px solid var(--line);font-size:13px;color:var(--muted);text-align:center}
+  .orbit .dev svg{width:44%;height:auto;color:var(--text)}
+  .orbit .d1{left:38%;top:0}.orbit .d2{right:0;top:38%}.orbit .d3{left:38%;bottom:0}.orbit .d4{left:0;top:38%}
+  .points{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+  .points li{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start}
+  .points .n{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--bg);background:var(--mint)}
+  .points b{display:block;font-size:18px;font-weight:600}
+  .points span{color:var(--muted);font-size:16px}
+
+  .gallery{display:grid;grid-template-columns:2fr 1fr;grid-template-rows:1fr 1fr;gap:12px}
+  .gallery img{width:100%;height:100%;object-fit:cover;border-radius:14px;border:1px solid var(--line)}
+  .gallery img:first-child{grid-row:span 2}
+  @media (max-width:640px){.gallery{grid-template-columns:1fr;grid-template-rows:none}.gallery img:first-child{grid-row:auto}}
+
+  .end{text-align:center;padding:72px 0 56px}
+  .end h2{margin-bottom:8px}
+  .end .cta{justify-content:center}
+  footer{border-top:1px solid var(--line);padding:22px 0 36px;font-size:14px;color:var(--muted)}
+  footer .wrap{display:flex;flex-wrap:wrap;gap:10px 18px;justify-content:space-between;align-items:center}
+  footer nav{display:flex;flex-wrap:wrap;gap:8px 16px}
+</style>
 </head>
 <body>
-<div id="game"></div>
-<div id="vignette"></div>
-<div class="hud" id="hud">
-  <div id="clock" class="chip"><canvas id="sunIcon" width="9" height="9"></canvas><span id="clockTxt">Day 1 · 08:00</span><span id="fps" hidden></span><button id="sndBtn" title="Sound (M)" aria-label="Mute or unmute sound">♪</button><button id="fsBtn" title="Full screen (F)" aria-label="Full screen" hidden><svg viewBox="0 0 10 10" width="12" height="12" aria-hidden="true"><path d="M1 4V1h3M6 1h3v3M9 6v3H6M4 9H1V6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button></div>
-  <div id="border" class="chip"><span id="borderTxt">Position</span><div id="compass" aria-hidden="true"><div class="strip"></div><i class="mid"></i></div></div>
-  <button id="quest" class="chip"></button>
-  <div id="attack" class="chip" hidden></div>
-  <div id="claimBar" class="chip" hidden><span id="claimTxt"></span><button id="claimOk" class="b primary">Claim it</button><button id="claimNo" class="b">Cancel</button></div>
-  <div id="online" class="chip" hidden><i></i><span id="onlineTxt"></span></div>
-  <div id="modeTag" class="chip" hidden>Ledger view · your placed blocks are highlighted</div>
-  <div id="hp" hidden></div>
-  <div id="armor" class="chip" hidden></div>
-  <div id="buffs" class="chip" hidden></div>
-  <div id="gwei" class="chip" hidden></div>
-  <div id="feed"></div>
-  <div id="cross"></div>
-  <div id="crit" hidden>Critical!</div>
-  <div id="target" class="chip" hidden></div>
-  <div id="place"></div>
-  <div id="dialogue" class="chip" hidden></div>
-  <div id="selname"></div>
-  <div id="chat"><button id="chatBtnDesk" class="tbtn" aria-label="Type in chat (Enter)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12v8H7l-3 3v-3H2z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 7h1v1H5zm2.5 0h1v1h-1zM10 7h1v1h-1z" fill="currentColor"/></svg></button><div id="chatLog"></div><form id="chatForm" hidden><input id="chatIn" maxlength="140" autocomplete="off" placeholder="Message, or / for commands"></form></div>
-  <div id="bar" class="chip"></div>
-  <div class="touch">
-    <div class="stick" id="stick"><i id="knob"></i></div>
-    <div id="topBtns">
-      <button id="invBtn" class="tbtn" aria-label="Chest and crafting"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h12v8H2zM3 2h10v4H3z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 7h2v3H7z" fill="currentColor"/></svg></button>
-      <button id="chatBtn" class="tbtn" aria-label="Chat"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12v8H7l-3 3v-3H2z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 7h1v1H5zm2.5 0h1v1h-1zM10 7h1v1h-1z" fill="currentColor"/></svg></button>
-      <button id="vueBtn" class="tbtn" aria-label="Change view: see yourself from behind or in front"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4.2" r="2.4" fill="currentColor"/><path d="M3.5 14c0-3 2-5 4.5-5s4.5 2 4.5 5z" fill="currentColor"/></svg></button>
-      <button id="menuBtn" class="tbtn" aria-label="Menu"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h10" stroke="currentColor" stroke-width="1.8"/></svg></button>
-    </div>
-    <div id="actBtns">
-      <button id="tJump" class="abtn" aria-label="Jump"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2 3 7h3v4h4V7h3z M4 13h8v1.5H4z" fill="currentColor"/></svg></button>
-      <button id="tSprint" class="abtn" aria-label="Run"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3l5 5-5 5V3zm6 0l5 5-5 5V3z" fill="currentColor"/></svg></button>
-      <button id="tGuard" class="abtn" aria-label="Guard with the blade: hold it, raise it just before a blow to parry" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5 2.5 3.5v4c0 3.4 2.4 5.9 5.5 7 3.1-1.1 5.5-3.6 5.5-7v-4z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 4v8M5.5 6.5h5" stroke="currentColor" stroke-width="1.6"/></svg></button>
-      <button id="tRide" class="abtn" aria-label="Get on or off the hovercraft" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 10.5h12l-1.5 2h-9z" fill="currentColor"/><path d="M5 9.5 8 4l3 5.5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M3 14h1.5M7.3 14h1.4M11.5 14H13" stroke="currentColor" stroke-width="1.2"/></svg></button>
- <button id="tDash" class="abtn" aria-label="Dodge (the Front-Runner Boots)" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 9h6l-1.5 3.5L14 7H8l1.5-3.5z" fill="currentColor"/></svg></button>
-      <button id="tSneak" class="abtn" aria-label="Crouch, go down into water"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14l5-5h-3V5H6v4H3z M4 2h8v1.5H4z" fill="currentColor"/></svg></button>
-    </div>
-    <div id="press" hidden></div>
-  </div>
-</div>
 
-<div class="panel" id="panel" hidden>
-  <div class="win">
-    <header>
-      <button class="tab" data-tab="inv" aria-selected="true">Chest</button>
-      <button class="tab" data-tab="craft" aria-selected="false">Crafting</button>
-      <button class="tab" data-tab="quest" aria-selected="false">Objectives</button>
-      <button class="tab" data-tab="validators" aria-selected="false">Validators</button>
-      <button class="tab" data-tab="shop" aria-selected="false">Shop</button>
-      <button class="tab" data-tab="trade" aria-selected="false">Trade</button>
-      <button class="tab" data-tab="settings" aria-selected="false">Settings</button>
-      <button class="tab" data-tab="log" aria-selected="false">Ledger</button>
-      <button class="x" id="closeP">Close · E</button>
-    </header>
-    <div class="body" id="pbody"></div>
+<header class="hero">
+  <div class="top">
+    <a class="brand" href="./"><img src="icons/icon-192.png" alt="" width="36" height="36">Ether Mines</a>
+    <nav><a class="opt" href="#together">Multiplayer</a><a class="opt" href="#anywhere">Cross-play</a><a href="wiki.html">Wiki</a><a href="play.html">Play</a></nav>
   </div>
-</div>
-
-<div class="title" id="title">
-  <div class="box">
-    <h1>Ether<br>Mines</h1>
-    <p>A block world in Ethereum's colors, built with friends. Every block remembers who placed it: the world keeps a ledger of everything you build.</p>
-    <div class="fields">
-      <label>Your nickname<input id="pseudo" maxlength="16" autocomplete="username" placeholder="Pierre" spellcheck="false" autocapitalize="off"></label>
-      <label id="passLbl" hidden>Password<input id="pass" type="password" maxlength="72" autocomplete="current-password" placeholder="6 characters or more"></label>
-      <label id="mondeLbl">World<input id="monde" maxlength="32" autocomplete="off" placeholder="principal"></label>
+  <div class="wrap">
+    <p class="kicker">FREE · MULTIPLAYER · CROSS-PLAY</p>
+    <h1><span class="a">Build together.</span><br><span class="b">Play anywhere.</span></h1>
+    <p class="lede">Ether Mines is a free block-building game in Ethereum's colors: mine, craft and build one shared world with your friends, on the web, on your phone or on your computer.</p>
+    <div class="cta">
+      <a class="btn" href="play.html"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>Play now, in your browser</a>
+      <a class="ghost" id="trailer" target="_blank" rel="noopener" hidden>▶ Watch the trailer</a>
     </div>
-    <p id="passHint" class="hint" hidden>New here? Pick a nickname and a password: they're your account. Coming back on another device? The same nickname and password bring your game.</p>
-    <div id="mustChg" class="mustchg" hidden>
-      <p>This password was given to you: choose your own to keep your game safe.</p>
-      <div class="arow"><input id="newPw" type="password" maxlength="72" autocomplete="new-password" placeholder="Your new password"><button class="b" id="newPwBtn">Save my password</button></div>
+    <p class="free">No download, no ad. One nickname and a password, and your game follows you everywhere.</p>
+    <!-- each platform links to its store once its address is in src/config.js; until then, "coming soon" -->
+    <div class="plats" id="plats">
+      <a class="plat" href="play.html"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span><b>Web browser</b><small>Play now</small></span></a>
+      <a class="plat" data-url="APP_STORE_URL"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2" width="11" height="20" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 18.5h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span><b>iPhone &amp; iPad</b><small>App Store</small></span></a>
+      <a class="plat" data-url="PLAY_STORE_URL"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5v17c0 .5.5.8.9.5l14-8.2c.4-.2.4-.8 0-1L6.9 3c-.4-.3-.9 0-.9.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span><b>Android</b><small>Google Play</small></span></a>
+      <a class="plat" data-url="STEAM_URL"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="4" width="19" height="12.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 20.5h8M12 16.5v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span><b>Mac &amp; PC</b><small>Steam</small></span></a>
     </div>
-    <p id="netStatus" class="status"></p>
-    <p id="hintIos" class="hint" hidden>Fullscreen on iPhone: Safari's Share button, then "Add to Home Screen," and launch the game from the icon.</p>
-    <div class="prog"><i id="progBar"></i></div>
-    <div class="go"><button id="play">Enter the world</button></div>
-    <p class="terms">By entering, you accept the <a href="legal.html#conditions" target="_blank" rel="noopener">terms of use</a>: be kind, no cheating, and in-game items have no real-world value.</p>
-    <dl class="keys k-desk">
-      <dt>WASD · Shift</dt><dd>Walk · run · Space to jump</dd>
-      <dt>Left click</dt><dd>Hold to mine</dd>
-      <dt>Right click</dt><dd>Place the selected block · with a blade, hold to guard, just before a blow to parry</dd>
-      <dt>1 – 9 · E · Enter</dt><dd>Choose from the bar · chest and crafting · chat</dd>
-    </dl>
-    <dl class="keys k-touch">
-      <dt>Stick on the left</dt><dd>Walk</dd><dt>Drag</dt><dd>Look around</dd><dt>Long press</dt><dd>Mine</dd><dt>Short tap</dt><dd>Place, open, activate</dd><dt>Buttons on the right</dt><dd>Jump · run · crouch · guard with a blade (hold, just before a blow to parry)</dd>
-    </dl>
-    <details class="morekeys">
-      <summary>All controls</summary>
-      <dl class="keys k-desk">
-        <dt>1 – 9 · scroll</dt><dd>Choose from the bar</dd>
-        <dt>E · T · I · Enter</dt><dd>Chest and crafting · ledger view · block explorer · chat</dd>
-        <dt>V · F</dt><dd>View from behind or from the front · full screen</dd>
-        <dt>Chat: /join · /sanctuary</dt><dd>Teleport to an online friend · back to the sanctuary</dd>
-        <dt>Chat: /claim · /unclaim</dt><dd>Protect the chunk you're in (500 Gwei, twice as much for each next one, 9 at most) · release it</dd>
-        <dt>Chat: /invite · /kick · /claims</dt><dd>Allow or disallow a player on your plots · list them</dd>
-        <dt>Chat: /trade nickname</dt><dd>Open the Trade tab with that player</dd>
-        <dt>Chat: /ignore · /listen · /report</dt><dd>Hide, unhide, or report a player</dd>
-      </dl>
-      <dl class="keys k-touch">
-        <dt>Top · "…"</dt><dd>Chest, chat, menu</dd><dt>Chat: /join · /sanctuary</dt><dd>Teleport to a friend · back to the sanctuary</dd><dt>Chat: /claim · /unclaim</dt><dd>Protect the chunk you're in · release it</dd><dt>Chat: /invite · /kick · /claims</dt><dd>Manage who can build on your plots</dd><dt>Chat: /trade</dt><dd>Open the Trade tab</dd><dt>Chat: /ignore · /listen · /report</dt><dd>Hide, unhide, or report a player</dd>
-      </dl>
-    </details>
-    <details class="morekeys news" id="news">
-      <summary>What's new<b class="dot" id="newsDot" hidden></b></summary>
-      <div id="newsList"></div>
-    </details>
-    <details class="acct" id="acct" hidden>
-      <summary>Account · <span id="acctTxt">connecting…</span></summary>
-      <p>On another device, enter with the same nickname and password to find your game there.</p>
-      <div class="arow"><input id="chgPass" type="password" placeholder="New password" maxlength="72" autocomplete="new-password"><button class="b" id="saveChg">Change my password</button></div>
-      <div class="arow"><button class="b" id="logOut">Not you? Log out</button></div>
-      <p class="hint">Forgot your password? Write to <a href="mailto:contact@ethermines.org">contact@ethermines.org</a> with your nickname and what you own in the game.</p>
-      <p id="acctMsg" class="status"></p>
-    </details>
-    <div class="share" id="shareRow" hidden><span>Invite your friends:</span><code id="shareUrl"></code><button class="b" id="copyUrl">Copy the link</button></div>
-    <!-- the apps, the trailer, the community: each link shows once its address is in src/config.js -->
-    <div class="getapp" id="getApp" hidden>
-      <span>Also on your phone</span>
-      <a class="b store" id="appStore" target="_blank" rel="noopener" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 8.4c0-1.6 1.3-2.3 1.4-2.4-.8-1.1-1.9-1.3-2.3-1.3-1-.1-1.9.6-2.4.6s-1.3-.6-2.1-.6C4.5 4.7 3 5.8 3 8.2c0 1.5.6 3 1.3 4 .6.9 1.1 1.6 1.9 1.6.7 0 1-.5 2-.5s1.2.5 2 .5 1.3-.8 1.8-1.5c.6-.8.8-1.6.8-1.7 0 0-1.6-.6-1.8-2.2zM9.5 3.6c.4-.5.7-1.2.6-1.9-.6 0-1.3.4-1.8.9-.4.4-.7 1.1-.6 1.8.7.1 1.4-.3 1.8-.8z" fill="currentColor"/></svg>App Store</a>
-      <a class="b store" id="playStore" target="_blank" rel="noopener" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.8v12.4c0 .3.3.5.6.3l10.6-6.2c.3-.2.3-.5 0-.7L3.6 1.5c-.3-.2-.6 0-.6.3z" fill="currentColor"/></svg>Google Play</a>
-    </div>
-    <nav class="homelinks">
-      <a id="trailerLink" target="_blank" rel="noopener" hidden>▶ Trailer</a>
-      <a href="wiki.html" target="_blank" rel="noopener">📖 Wiki</a>
-      <a id="discordLink" target="_blank" rel="noopener" hidden>💬 Discord</a>
-      <a href="presskit.html" target="_blank" rel="noopener">📰 Press kit</a>
-      <a href="legal.html" target="_blank" rel="noopener">Terms &amp; privacy</a>
-    </nav>
   </div>
-</div>
+</header>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="src/vendor/three-bloom.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<main>
+  <section id="together">
+    <div class="wrap">
+      <h2>Better <em>together</em></h2>
+      <p class="sub">Every world is shared, live. Invite your friends with a link and build side by side, or join the main world and meet everyone else.</p>
+      <div class="cards">
+        <div class="card"><div class="ic">🧱</div><h3>Build side by side</h3><p>See your friends move, mine and build in real time. Every block remembers who placed it.</p></div>
+        <div class="card"><div class="ic">🏡</div><h3>Your plots, your rules</h3><p>Claim a piece of land, invite who you want: only they can build or open your chests there.</p></div>
+        <div class="card"><div class="ic">⚔️</div><h3>Fight as one</h3><p>Guarded towers, twin bosses that must fall together, and an attack on the Atrium every hour that calls everyone.</p></div>
+        <div class="card"><div class="ic">💎</div><h3>A goal for the whole server</h3><p>Relight the network's old validators together, and watch the great diamond wake up in everyone's sky.</p></div>
+        <div class="card"><div class="ic">🤝</div><h3>Trade with others</h3><p>Swap resources, rare pickaxes and plots: nothing moves until both of you agree.</p></div>
+        <div class="card"><div class="ic">💬</div><h3>Chat and find your friends</h3><p>Talk in the world's chat, and jump straight to a friend with <code>/join</code>.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="anywhere">
+    <div class="wrap cross">
+      <div class="orbit" aria-hidden="true">
+        <div class="ring"></div>
+        <div class="world"></div>
+        <div class="dev d1"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Web</div>
+        <div class="dev d2"><svg viewBox="0 0 24 24"><rect x="6.5" y="2" width="11" height="20" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 18.5h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>iPhone</div>
+        <div class="dev d3"><svg viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="12.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 20.5h8M12 16.5v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Mac &amp; PC</div>
+        <div class="dev d4"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9.5 5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Android</div>
+      </div>
+      <div>
+        <h2>One world, <em>every screen</em></h2>
+        <p class="sub">Full cross-play: whatever your friends play on, you're in the same world, at the same time.</p>
+        <ul class="points">
+          <li><span class="n">1</span><div><b>The same world for everyone</b><span>A friend on a phone, another on a laptop, you in a browser: you all play together, live.</span></div></li>
+          <li><span class="n">2</span><div><b>One account everywhere</b><span>Your nickname and password bring your game to any device: start on the computer, carry on from the sofa.</span></div></li>
+          <li><span class="n">3</span><div><b>What's yours comes with you</b><span>Your progress, your outfits and everything you earn follow you from one screen to the next.</span></div></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>A soft world <em>to share</em></h2>
+      <p class="sub">Rounded clay blocks, pastel skies and night auroras, in the palette of ethereum.org's illustrations.</p>
+      <div class="gallery">
+        <img src="press/city.jpg" alt="The City under the great diamond" loading="lazy">
+        <img src="press/tower.jpg" alt="A guarded tower at sunset" loading="lazy">
+        <img src="press/night.jpg" alt="The world at night under an aurora" loading="lazy">
+      </div>
+    </div>
+  </section>
+
+  <section class="end">
+    <div class="wrap">
+      <h2>Your friends are <em>already building</em></h2>
+      <p class="sub" style="margin:0 auto 6px">Free, in your browser, right now.</p>
+      <div class="cta"><a class="btn" href="play.html"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>Play Ether Mines</a></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© Ether Mines · an independent game by Pierre Untas · not affiliated with the Ethereum Foundation</span>
+    <nav><a href="wiki.html">Wiki</a><a id="discord" target="_blank" rel="noopener" hidden>Discord</a><a href="presskit.html">Press kit</a><a href="legal.html">Terms &amp; privacy</a><a href="mailto:contact@ethermines.org">Contact</a></nav>
+  </div>
+</footer>
+
 <script src="src/config.js"></script>
-<script src="src/news.js"></script>
-<script src="src/net.js"></script>
-<script src="src/errors.js"></script>
-<script src="supabase/functions/_shared/world.js"></script>
-<script src="supabase/functions/_shared/rules.js"></script>
-<script src="src/mobs-core.js"></script>
-<script src="src/audio.js"></script>
-<script src="src/mesh.js"></script>
-<script src="src/game/00-base.js"></script>
-<script src="src/game/01-textures.js"></script>
-<script src="src/game/02-blocks.js"></script>
-<script src="src/game/03-state.js"></script>
-<script src="src/game/04-render.js"></script>
-<script src="src/game/05-player.js"></script>
-<script src="src/game/06-actions.js"></script>
-<script src="src/game/07-interface.js"></script>
-<script src="src/game/08-sky.js"></script>
-<script src="src/game/09-animals.js"></script>
-<script src="src/game/10-loop.js"></script>
-<script src="src/game/11-multiplayer.js"></script>
-<script src="src/game/12-circuits.js"></script>
-<script src="src/game/13-chunks.js"></script>
-<script src="src/game/14-startup.js"></script>
-<script src="src/game/16-mobs.js"></script>
-<script src="src/game/17-looks.js"></script>
-<script src="src/game/18-potions.js"></script>
-<script src="src/game/19-signs.js"></script>
-<script src="src/game/20-hover.js"></script>
-<script defer src="/_vercel/insights/script.js"></script>
+<script>
+  // the stores, the trailer and the Discord, from src/config.js: a link once there's an address, "coming soon" until then
+  (function () {
+    var C = window.CONFIG || {};
+    document.querySelectorAll('[data-url]').forEach(function (a) {
+      var url = C[a.getAttribute('data-url')];
+      if (url) {
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+      } else {
+        a.classList.add('soon');
+        a.removeAttribute('href');
+        a.setAttribute('aria-disabled', 'true');
+        a.querySelector('small').textContent = 'Coming soon';
+      }
+    });
+    [['trailer', C.TRAILER_URL], ['discord', C.DISCORD_URL]].forEach(function (p) {
+      var a = document.getElementById(p[0]);
+      if (a && p[1]) {
+        a.href = p[1];
+        a.hidden = false;
+      }
+    });
+  })();
+</script>
 </body>
 </html>

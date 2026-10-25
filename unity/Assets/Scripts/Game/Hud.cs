@@ -1,4 +1,4 @@
-// Ether Mines · what's drawn over the world (index.html #hud, 07-interface.js ui/logEv): the crosshair,
+// Ether Mines · what's drawn over the world (play.html #hud, 07-interface.js ui/logEv): the crosshair,
 // the 9-slot bar with the web version's own icons (exported to Art/icons), how far the mining has gone,
 // and the feed of what you mint and burn; drawn as the web's clay look (style.css #bar, .slot, .ev, #selname).
 using System;

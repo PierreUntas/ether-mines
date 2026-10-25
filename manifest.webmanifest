@@ -2,7 +2,7 @@
   "name": "Ether Mines",
   "short_name": "Ether Mines",
   "description": "A block world in Ethereum's colors, built with friends.",
-  "start_url": "./",
+  "start_url": "play.html",
   "scope": "./",
   "display": "fullscreen",
   "display_override": ["fullscreen", "standalone"],

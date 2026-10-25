@@ -1795,7 +1795,7 @@ async function boot(world) {
   ui();
 }
 requestAnimationFrame(frame);
-// Test tools: opening index.html#debug exposes window.mines in the console.
+// Test tools: opening play.html#debug exposes window.mines in the console.
 if (location.hash === '#debug')
   window.mines = {
     get meshWorker() {

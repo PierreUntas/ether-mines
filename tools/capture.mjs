@@ -90,7 +90,7 @@ const types = {
 const server = createServer(async (req, res) => {
   try {
     const p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-    const body = await readFile(join(root, p === '/' ? 'index.html' : p));
+    const body = await readFile(join(root, p === '/' ? 'play.html' : p));
     res.writeHead(200, { 'Content-Type': types[extname(p)] || 'application/octet-stream' });
     res.end(body);
   } catch {
@@ -115,7 +115,7 @@ await page.route('**/src/config.js', r => r.fulfill({ body: 'window.CONFIG={}', 
 await page.route(/_vercel/, r => r.abort());
 if (args.offline) await page.route(/^https:\/\/fonts\./, r => r.abort());
 
-await page.goto(`http://127.0.0.1:${server.address().port}/index.html${args.query ? '?' + args.query : ''}#debug`);
+await page.goto(`http://127.0.0.1:${server.address().port}/play.html${args.query ? '?' + args.query : ''}#debug`);
 await page.waitForTimeout(800);
 // the first-entry intro cinematic (playIntro) would cover every shot: don't play it
 await page.evaluate(() => (window.playIntro = () => {}));

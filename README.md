@@ -81,7 +81,7 @@ A chunk's original terrain is generated **server-side** by the `freeze` Edge Fun
 The game shows the result right away and the server confirms: on refusal, the block reverts and the chest is reread from the server.
 
 ```
-index.html              page structure
+play.html              page structure
 src/style.css           interface
 src/config.js           Supabase URL and public key (empty = solo mode)
 src/net.js              network layer (Supabase)
@@ -211,7 +211,7 @@ Tests run automatically on GitLab on every push (*Build → Pipelines*, `.gitlab
 - **Formatting**: `npx prettier@3 --write "src/game/*.js" "src/*.js" "supabase/functions/_shared/*.js"` (checked by the tests).
 - **Browser playthrough** (solo mode, Chromium): `npm i --no-save playwright@1.56.0 three@0.128.0 && npx playwright install chromium && node tests/navigateur.mjs`.
 - **Screenshots from any viewpoint** (solo mode, same setup as the browser playthrough): `node tools/capture.mjs --x 8 --y 40 --z 20 --look-at 8,32,8 --time sunset --out captures/atrium.png`; see the top of `tools/capture.mjs` for every option (several angles around a point, several shots from a JSON file, interface on or off).
-- **By hand**: opening `index.html#debug` exposes `window.mines` in the console (including `serverAct(name, args)`, `syncInventory()`, `get(x, y, z)`, `P` the player, `S.day` the time).
+- **By hand**: opening `play.html#debug` exposes `window.mines` in the console (including `serverAct(name, args)`, `syncInventory()`, `get(x, y, z)`, `P` the player, `S.day` the time).
 
 ## Validators and Gwei
 

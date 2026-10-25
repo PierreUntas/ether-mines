@@ -1,4 +1,4 @@
-// Ether Mines · exports the web version's interface icons (the SVGs of index.html's buttons: chest, chat,
+// Ether Mines · exports the web version's interface icons (the SVGs of play.html's buttons: chest, chat,
 // view, menu, jump, run, crouch, guard, ride, dodge, full screen) to unity/Assets/Resources/Art/ui-icons.bytes
 // (a PNG: one 96 x 96 white icon per cell, in a row) and ui-icons-index.json (their names, in order), read by the
 // Unity client (Ui.cs Glyph) so its buttons show the same pictures. Drawn by a headless browser.
@@ -11,7 +11,7 @@ import { join } from 'node:path';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const out = join(root, 'unity/Assets/Resources/Art');
-// the button's id in index.html → the icon's name in Unity
+// the button's id in play.html → the icon's name in Unity
 const NAMES = {
   invBtn: 'chest',
   chatBtn: 'chat',
@@ -25,11 +25,11 @@ const NAMES = {
   tDash: 'dodge',
   fsBtn: 'fullscreen',
 };
-const html = await readFile(join(root, 'index.html'), 'utf8');
+const html = await readFile(join(root, 'play.html'), 'utf8');
 const icons = [];
 for (const [id, name] of Object.entries(NAMES)) {
   const m = html.match(new RegExp(`<button id="${id}"[^>]*>(<svg[\\s\\S]*?</svg>)`));
-  if (!m) throw new Error(`no icon for #${id} in index.html`);
+  if (!m) throw new Error(`no icon for #${id} in play.html`);
   icons.push({ name, svg: m[1] });
 }
 const S = 96;

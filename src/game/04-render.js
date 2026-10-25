@@ -1249,7 +1249,7 @@ function take(it, n) {
   }
   dirty = true;
 }
-// Debug-only convenience (index.html#debug, window.mines.giveAll()): a stack of every block and
+// Debug-only convenience (play.html#debug, window.mines.giveAll()): a stack of every block and
 // fungible item, one of each unique item, and the handful of quest flags that track an action
 // rather than a possession (killed a mob, slept, traded...) — so late-game building, combat, and
 // crafting can be tested without grinding every early objective for materials first. Unique items

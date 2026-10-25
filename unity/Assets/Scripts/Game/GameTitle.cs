@@ -1,4 +1,4 @@
-// Ether Mines · the title screen and the menu (index.html #title, 14-startup.js showLogin, showNews, pause,
+// Ether Mines · the title screen and the menu (play.html #title, 14-startup.js showLogin, showNews, pause,
 // bootSay): your nickname and password (or "logged in as" when this device knows you), the world, the
 // steps and the bar while the game starts, then the same screen as a menu (Esc, or Menu on a touch screen):
 // Resume, What's new (a dot until its newest entry is read), your account (change your password, log out),

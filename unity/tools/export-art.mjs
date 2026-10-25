@@ -16,7 +16,7 @@ const types = { '.html': 'text/html', '.js': 'application/javascript', '.css': '
 const server = createServer(async (req, res) => {
   try {
     const p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-    const b = await readFile(join(root, p === '/' ? 'index.html' : p));
+    const b = await readFile(join(root, p === '/' ? 'play.html' : p));
     res.writeHead(200, { 'Content-Type': types[extname(p)] || 'application/octet-stream' });
     res.end(b);
   } catch {
@@ -31,7 +31,7 @@ await page.route('**/three.min.js', r => r.fulfill({ path: three, contentType: '
 await page.route('**/supabase.js', r => r.fulfill({ body: '', contentType: 'application/javascript' }));
 await page.route('**/src/config.js', r => r.fulfill({ body: 'window.CONFIG={}', contentType: 'application/javascript' }));
 await page.route(/^https:\/\/fonts\./, r => r.abort());
-await page.goto(`http://127.0.0.1:${server.address().port}/index.html`);
+await page.goto(`http://127.0.0.1:${server.address().port}/play.html`);
 await page.waitForFunction(() => typeof atlasTex !== 'undefined' && atlasTex.image && atlasTex.image.width === 1024, null, { timeout: 60000 });
 const png = await page.evaluate(() => ({
   'atlas-clay.png': atlasTex.image.toDataURL('image/png'),

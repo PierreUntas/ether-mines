@@ -59,10 +59,10 @@ test('supabase/rules.sql is up to date with rules.js', () => {
   assert.equal(gen.trim(), file.trim(), 're-run: node tools/rules.mjs > supabase/rules.sql');
 });
 
-test('index.html loads every game file, in order', async () => {
+test('play.html loads every game file, in order', async () => {
   const { readdirSync } = await import('node:fs');
   const files = readdirSync(new URL('../src/game/', import.meta.url)).filter((f) => f.endsWith('.js')).sort();
-  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../play.html', import.meta.url), 'utf8');
   const loaded = [...html.matchAll(/src="src\/game\/([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(loaded, files);
 });
