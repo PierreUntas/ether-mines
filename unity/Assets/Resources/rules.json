@@ -396,7 +396,17 @@
     "103": {"n":"Wraith Frost Trail","category":"combat","price":0,"slot":"trail","style":"frost"},
     "104": {"n":"Wraith Shadow Trail","category":"combat","price":0,"slot":"trail","style":"shadow"},
     "105": {"n":"Magma Plating Trim","category":"combat","price":0,"slot":"plating","color":"#ff7a2e"},
-    "106": {"n":"Moss Plating Trim","category":"combat","price":0,"slot":"plating","color":"#7fe08a"}
+    "106": {"n":"Moss Plating Trim","category":"combat","price":0,"slot":"plating","color":"#7fe08a"},
+    "107": {"n":"Forge Rig","category":"premium","price":0,"eur":499,"slot":"outfit","set":"pow","color":"#3a2a2a","pants":"#1c1414","detail":"107A"},
+    "108": {"n":"Hashrate Helm","category":"premium","price":0,"eur":299,"slot":"head","set":"pow","style":"hashhelm"},
+    "109": {"n":"Ember Wings","category":"premium","price":0,"eur":499,"slot":"back","set":"pow","style":"emberwings"},
+    "110": {"n":"Forge Sparks","category":"premium","price":0,"eur":199,"slot":"trail","set":"pow","style":"forge"},
+    "111": {"n":"Forge Blade Trim","category":"premium","price":0,"eur":299,"slot":"tool","set":"pow","style":"forge"},
+    "112": {"n":"Validator Robe","category":"premium","price":0,"eur":499,"slot":"outfit","set":"pos","color":"#f4f1ff","pants":"#6a50d8","detail":"112A"},
+    "113": {"n":"Staking Halo","category":"premium","price":0,"eur":299,"slot":"head","set":"pos","style":"stakehalo"},
+    "114": {"n":"Beacon Wings","category":"premium","price":0,"eur":499,"slot":"back","set":"pos","style":"beaconwings"},
+    "115": {"n":"Stake Light","category":"premium","price":0,"eur":199,"slot":"trail","set":"pos","style":"stake"},
+    "116": {"n":"Stake Blade Trim","category":"premium","price":0,"eur":299,"slot":"tool","set":"pos","style":"stake"}
   },
   "SETS": {
     "frontier": ["Frontier","July 2015: the first release, a network for the brave"],
@@ -404,7 +414,9 @@
     "staker": ["Staker","The Beacon Chain: validators keep the network honest"],
     "merge": ["The Merge","September 2022: proof of work hands over to proof of stake"],
     "dencun": ["Dencun","March 2024: blobs arrive. Limited: one piece a week in the shop"],
-    "ether": ["Ether","The rarest pieces, for the most patient"]
+    "ether": ["Ether","The rarest pieces, for the most patient"],
+    "pow": ["Proof-of-Work","The miners' forge: iron, embers and fire. Premium"],
+    "pos": ["Proof-of-Stake","The validators' crystal: white, violet and light. Premium"]
   },
   "PASTELS": [["pink","#ffb8d9"],["lavender","#c9b8ff"],["mint","#aeeccb"],["sky","#b3dcff"],["peach","#ffcfae"],["lemon","#fff0a0"],["coral","#ff9f9a"],["white","#f4f2fa"]],
   "STAINED": [["pink","#ffb8d9"],["sky","#b3dcff"],["mint","#aeeccb"],["lavender","#c9b8ff"]],

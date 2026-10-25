@@ -1863,6 +1863,12 @@ async function buyCosmetic(c, btn) {
 const SLOT_TINT = { head: '#ffd166', back: '#7fe8ff', companion: '#ff9ab8', trail: '#b6a4ff', tool: '#c9a6ff', plating: '#b48cff' };
 // a small painted hint of each piece, by its style (17-looks.js draws the real thing)
 const SWATCH = {
+  hashhelm: 'linear-gradient(135deg, #3a3440 55%, #ff8a3d 55%)',
+  stakehalo: 'radial-gradient(circle, #f4f1ff 30%, #b48cff 31%, #b48cff 50%, #9fe8ff 51%)',
+  emberwings: 'linear-gradient(90deg, #ff6b3d, #ffb347, #ff6b3d)',
+  beaconwings: 'linear-gradient(90deg, #b48cff, #f4f1ff, #9fe8ff)',
+  forge: 'linear-gradient(135deg, #ff6b3d, #ffd166)',
+  stake: 'linear-gradient(135deg, #b48cff, #9fe8ff)',
   prospector: 'linear-gradient(#7a4f2a 62%, #3b2a1a 62%, #3b2a1a 72%, #6b4423 72%)',
   straw: 'linear-gradient(#f0d27a 60%, #c0392b 60%, #c0392b 70%, #e8c66a 70%)',
   miner: 'radial-gradient(circle at 50% 62%, #fff6c0 14%, #ffcc33 15%)',
@@ -1901,6 +1907,10 @@ function tryOn(id) {
   p.tryColor = !same && c.slot === 'outfit' ? c.color : same ? null : p.tryColor;
   renderPanel();
 }
+// a price in euros, from cents: €4.99
+const eurText = cents => '€' + (cents / 100).toFixed(2);
+// a collection sold for euros
+const premiumSet = set => Object.values(COSMETICS).some(c => c.set === set && c.category === 'premium');
 function shopCountdown() {
   const left = (shopWeek() + 1) * 604800 + 345600 - Date.now() / 1000,
     d = Math.floor(left / 86400),
@@ -1918,6 +1928,7 @@ function shopRow(id, ctx) {
     price = shopPrice(id, week),
     limitedAway = c.limited && f.limited !== +id,
     trying = PREVIEW && PREVIEW.tryLook && c.slot && PREVIEW.tryLook[c.slot] === +id;
+  const premium = c.category === 'premium';
   const d = document.createElement('div');
   d.className = 'rec shoprow' + (worn ? ' worn' : '');
   if (c.grantItem) d.appendChild(cloneIcon(c.grantItem));
@@ -1930,6 +1941,7 @@ function shopRow(id, ctx) {
   let sub;
   if (c.grantItem) sub = `grants ${c.grantQty} × ${nameOf(c.grantItem)} · buy as often as you like`;
   else if (owned) sub = `${SLOT_LABEL[c.slot] || 'Owned'} · ${worn ? 'worn' : 'owned'}`;
+  else if (premium) sub = `${SLOT_LABEL[c.slot]} · premium`;
   else if (!sellable && c.retired) sub = 'No longer sold';
   else if (!sellable) sub = c.category === 'title' ? 'Chapter reward' : c.category === 'event' ? 'Network attack reward' : 'Drop only';
   else if (limitedAway) {
@@ -1941,8 +1953,15 @@ function shopRow(id, ctx) {
       wait = (((lim.indexOf(+id) - (week % n)) % n) + n) % n;
     sub = `${SLOT_LABEL[c.slot]} · limited · back in the shop in ${wait} week${wait > 1 ? 's' : ''}`;
   } else sub = `${SLOT_LABEL[c.slot] || c.category}`;
-  const priceTxt =
-    !sellable || (owned && !c.grantItem) ? '' : onSale ? `<s>${c.price}</s> <b class="sale">${price} Gwei</b>` : `${price} Gwei`;
+  const priceTxt = premium
+    ? owned
+      ? ''
+      : `<b class="eur">${eurText(c.eur)}</b>`
+    : !sellable || (owned && !c.grantItem)
+      ? ''
+      : onSale
+        ? `<s>${c.price}</s> <b class="sale">${price} Gwei</b>`
+        : `${price} Gwei`;
   d.insertAdjacentHTML('beforeend', `<div><strong>${c.n}</strong><span>${sub}${priceTxt ? ' · ' + priceTxt : ''}</span></div>`);
   const btns = document.createElement('div');
   btns.className = 'btns';
@@ -1961,6 +1980,10 @@ function shopRow(id, ctx) {
       setLookSlot(c.slot, worn ? null : +id);
       ui();
     });
+  } else if (premium) {
+    // sold for euros: try it on now; the purchase comes with the payments
+    add(trying ? 'Stop trying' : 'Try', '', () => tryOn(id));
+    add(`${eurText(c.eur)} · soon`, '', null, true).title = 'Premium pieces will be sold for euros soon';
   } else if (!sellable) add('Not for sale', '', null, true);
   else {
     if (c.slot && !c.grantItem) add(trying ? 'Stop trying' : 'Try', '', () => tryOn(id));
@@ -2007,6 +2030,22 @@ function renderShop(body) {
     list.insertAdjacentHTML('beforeend', `<h3 class="cat">${title}</h3>`);
     if (note) list.insertAdjacentHTML('beforeend', `<p class="note">${note}</p>`);
   };
+  // Premium: the pieces sold for euros (never for Gwei), by collection, with their animations and light
+  const prem = document.createElement('div');
+  prem.className = 'weekly premium';
+  prem.insertAdjacentHTML(
+    'beforeend',
+    '<h3 class="cat">Premium</h3><p class="note">The most striking pieces, sold for euros: light, embers and moving parts. Try them on now; they go on sale soon.</p>',
+  );
+  for (const [set, [name, line]] of Object.entries(SETS)) {
+    if (!premiumSet(set)) continue;
+    prem.insertAdjacentHTML('beforeend', `<h3 class="cat">${name}</h3><p class="note">${line.replace(/\. Premium$/, '')}</p>`);
+    for (const id of Object.keys(COSMETICS)
+      .map(Number)
+      .filter(k => COSMETICS[k].set === set))
+      prem.appendChild(shopRow(id, ctx));
+  }
+  list.appendChild(prem);
   // this week: three pieces 25% off and one limited piece, until Monday
   const box = document.createElement('div');
   box.className = 'weekly';
@@ -2021,6 +2060,7 @@ function renderShop(body) {
     .map(Number)
     .sort((a, b) => a - b);
   for (const [set, [name, line]] of Object.entries(SETS)) {
+    if (premiumSet(set)) continue; // shown in the Premium section, at the top
     const mine = ids.filter(id => COSMETICS[id].set === set && (!COSMETICS[id].retired || ownsCosmetic(id))),
       have = mine.filter(id => ownsCosmetic(id)).length;
     section(`${name} collection · ${have}/${mine.length}`, line);
@@ -2038,7 +2078,9 @@ function renderShop(body) {
     section('Block packs', 'Decorative blocks straight into your chest. Buy them as often as you like.');
     for (const id of packs) list.appendChild(shopRow(id, ctx));
   }
-  const trophies = ids.filter(id => !forSale(COSMETICS[id]) && !COSMETICS[id].retired && COSMETICS[id].category !== 'title');
+  const trophies = ids.filter(
+    id => !forSale(COSMETICS[id]) && !COSMETICS[id].retired && COSMETICS[id].category !== 'title' && COSMETICS[id].category !== 'premium',
+  );
   section(
     `Trophies · ${trophies.filter(id => S.cosmetics.includes(id)).length}/${trophies.length}`,
     'Never sold: dropped by tough mobs, rarely, or earned by fighting off the network attack. Worn like the rest once you have them.',

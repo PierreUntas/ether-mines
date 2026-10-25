@@ -69,6 +69,8 @@ namespace EtherMines.Core
         public int Id;
         public string N, Category, Slot, Style, Set, Color, Pants, Accent, Detail;
         public int Price;
+        public int Eur;           // premium: sold for euros, in cents (never for Gwei)
+        public bool Premium => Category == "premium";
         public bool Limited, Retired, Prime;
         public bool HasGrant;
         public int GrantItem, GrantQty;
@@ -351,6 +353,7 @@ namespace EtherMines.Core
                 Accent = Str(d, "accent"),
                 Detail = Str(d, "detail"),
                 Price = MiniJson.ToInt(Get(d, "price")),
+                Eur = MiniJson.ToInt(Get(d, "eur")),
                 Limited = MiniJson.Truthy(Get(d, "limited")),
                 Retired = MiniJson.Truthy(Get(d, "retired")),
                 Prime = MiniJson.Truthy(Get(d, "prime")),

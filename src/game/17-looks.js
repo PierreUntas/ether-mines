@@ -200,6 +200,55 @@ function buildHead(c, anim) {
       g.add(gem);
       break;
     }
+    // ---------- Premium: Proof-of-Work and Proof-of-Stake ----------
+    case 'hashhelm': {
+      // the Hashrate Helm: a miner's iron helm, a glowing slit, a little chimney with its ember, two fans spinning
+      bx(g, 0.56, 0.2, 0.58, 0x3a3440, 0, 0.32, 0);
+      bx(g, 0.6, 0.06, 0.6, 0x2a2430, 0, 0.23, 0);
+      bx(g, 0.44, 0.06, 0.04, 0xff8a3d, 0, 0.3, -0.3, 1.2);
+      bx(g, 0.1, 0.16, 0.1, 0x2a2430, 0.12, 0.48, 0.1);
+      bx(g, 0.07, 0.05, 0.07, 0xffb347, 0.12, 0.58, 0.1, 1.2);
+      for (const side of [-1, 1]) {
+        bx(g, 0.04, 0.24, 0.24, 0x2a2430, side * 0.3, 0.3, 0.02);
+        const fan = new THREE.Group();
+        fan.position.set(side * 0.33, 0.3, 0.02);
+        bx(fan, 0.02, 0.22, 0.05, 0xc9c3ea, 0, 0, 0);
+        bx(fan, 0.02, 0.05, 0.22, 0xc9c3ea, 0, 0, 0);
+        bx(fan, 0.03, 0.06, 0.06, 0xff8a3d, 0, 0, 0, 1);
+        g.add(fan);
+        anim.push(t => (fan.rotation.x = t * 9 * side));
+      }
+      break;
+    }
+    case 'stakehalo': {
+      // the Staking Halo: a white circlet with a violet gem, a ring of crystals turning above, a diamond floating on top
+      bx(g, 0.54, 0.06, 0.54, 0xf4f1ff, 0, 0.27, 0, 0.2);
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.07), lookMat(0xb48cff, 0.9));
+      gem.position.set(0, 0.27, -0.29);
+      gem.scale.y = 1.4;
+      g.add(gem);
+      const ring = new THREE.Group();
+      ring.position.y = 0.52;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2,
+          d = new THREE.Mesh(new THREE.OctahedronGeometry(0.045), lookMat(i % 2 ? 0x9fe8ff : 0xc9b8ff, 1));
+        d.position.set(Math.cos(a) * 0.34, 0, Math.sin(a) * 0.34);
+        d.scale.y = 1.5;
+        ring.add(d);
+      }
+      g.add(ring);
+      anim.push(t => (ring.rotation.y = -t * 0.9));
+      const top = new THREE.Group(),
+        big = new THREE.Mesh(new THREE.OctahedronGeometry(0.09), lookMat(0xf4f1ff, 0.8));
+      big.scale.y = 1.5;
+      top.add(big);
+      g.add(top);
+      anim.push(t => {
+        top.position.y = 0.68 + Math.sin(t * 2) * 0.04;
+        top.rotation.y = t * 1.5;
+      });
+      break;
+    }
   }
   return g;
 }
@@ -344,6 +393,60 @@ function buildBack(c, anim) {
         });
         g.add(w);
         anim.push(t => (w.rotation.y = side * (0.35 + Math.sin(t * 2.2) * 0.15)));
+      }
+      break;
+    }
+    // ---------- Premium: Proof-of-Work and Proof-of-Stake ----------
+    case 'emberwings': {
+      // the Ember Wings: a little furnace on the back, iron struts holding panels of glowing embers, beating
+      bx(g, 0.24, 0.3, 0.1, 0x2a2430, 0, 1.02, 0.2);
+      bx(g, 0.12, 0.08, 0.02, 0xff8a3d, 0, 1.0, 0.26, 1.2);
+      for (const side of [-1, 1]) {
+        const w = new THREE.Group();
+        w.position.set(side * 0.12, 1.05, 0.24);
+        [
+          [0.7, 0.18, 0.42],
+          [0.58, 0.04, 0.2],
+          [0.46, -0.1, 0.0],
+        ].forEach(([len, y, tilt], i) => {
+          const f = new THREE.Group();
+          f.position.set(0, y, 0);
+          f.rotation.z = side * tilt;
+          bx(f, len, 0.04, 0.05, 0x3a3440, side * (len / 2), 0.06, 0);
+          bx(f, len * 0.92, 0.11, 0.025, i % 2 ? 0xffb347 : 0xff6b3d, side * (len / 2), -0.02, 0, 0.9);
+          w.add(f);
+        });
+        g.add(w);
+        anim.push(t => (w.rotation.y = side * (0.3 + Math.sin(t * 3) * 0.2)));
+      }
+      break;
+    }
+    case 'beaconwings': {
+      // the Beacon Wings: white feathers edged in violet and cyan light, gliding slowly, a diamond turning between them
+      const core = new THREE.Group(),
+        d = new THREE.Mesh(new THREE.OctahedronGeometry(0.1), lookMat(0xf4f1ff, 0.9));
+      d.scale.y = 1.4;
+      core.add(d);
+      core.position.set(0, 1.05, 0.32);
+      g.add(core);
+      anim.push(t => (core.rotation.y = t * 1.2));
+      for (const side of [-1, 1]) {
+        const w = new THREE.Group();
+        w.position.set(side * 0.1, 1.02, 0.26);
+        [
+          [0.8, 0.2, 0.5],
+          [0.68, 0.04, 0.25],
+          [0.54, -0.12, 0.02],
+        ].forEach(([len, y, tilt], i) => {
+          const f = new THREE.Group();
+          f.position.set(0, y, 0);
+          f.rotation.z = side * tilt;
+          bx(f, len, 0.14, 0.03, 0xf4f1ff, side * (len / 2), 0, 0, 0.25);
+          bx(f, len, 0.035, 0.035, i % 2 ? 0x9fe8ff : 0xb48cff, side * (len / 2), 0.085, 0, 1.1);
+          w.add(f);
+        });
+        g.add(w);
+        anim.push(t => (w.rotation.y = side * (0.4 + Math.sin(t * 1.6) * 0.1)));
       }
       break;
     }
@@ -714,6 +817,41 @@ function buildOutfit(av, key) {
     box(b, W, 0.025, 0.02, 0x6a58c0, 0, -H * 0.08, FZ - 0.004);
     av.arms.forEach(a => [0.3, 0.6].forEach(f => armRing(a, 0.025, 0xffffff, -AL * f)));
   };
+  // ---------- Premium: Proof-of-Work and Proof-of-Stake ----------
+  // the Forge Rig: an iron chest plate with a glowing mining chip, ember seams down the sides and round the hem,
+  // iron bracers and knee plates with burning rings, two vents glowing on the back
+  OUTFIT_DETAIL['107A'] = av => {
+    const b = av.body;
+    front(b, W * 0.72, H * 0.6, 0x2a2430, 0, H * 0.12);
+    front(b, 0.16, 0.16, 0x1a1418, 0, H * 0.14);
+    box(b, 0.11, 0.11, 0.02, 0xff8a3d, 0, H * 0.14, FZ - 0.012, 1.2);
+    for (const x of [-0.03, 0.03]) box(b, 0.012, 0.16, 0.02, 0x1a1418, x, H * 0.14, FZ - 0.02);
+    for (const x of [-W / 2 - 0.006, W / 2 + 0.006]) box(b, 0.02, H * 0.9, D * 0.6, 0xff6b3d, x, 0, 0, 0.9);
+    box(b, W + 0.03, 0.03, D + 0.03, 0xff6b3d, 0, bot + 0.04, 0, 0.9);
+    for (const x of [-0.1, 0.1]) back(b, 0.12, 0.05, 0xffb347, x, H * 0.2, 1);
+    av.arms.forEach(a => {
+      armRing(a, 0.12, 0x2a2430, -AL * 0.72);
+      armRing(a, 0.025, 0xff8a3d, -AL * 0.62, 1);
+    });
+    av.legs.forEach(l => {
+      box(l, 0.26, 0.1, 0.03, 0x2a2430, 0, -LL * 0.45, -0.14);
+      legRing(l, 0.025, 0xff6b3d, -LL * 0.85, 0.9);
+    });
+  };
+  // the Validator Robe: a white robe, a violet sash across, the Ethereum diamond glowing on the chest, cyan
+  // light lines down the front, violet cuffs and glowing hems
+  OUTFIT_DETAIL['112A'] = av => {
+    const b = av.body;
+    for (let i = 0; i < 6; i++) box(b, 0.1, 0.06, 0.02, 0x6a50d8, -W * 0.3 + i * (W * 0.12), top - 0.06 - i * (H * 0.13), FZ - 0.004);
+    diamond(b, 0.14, 0xb48cff, -0.1, H * 0.16, FZ - 0.012, 1);
+    for (const x of [0.06, 0.16]) box(b, 0.015, H * 0.6, 0.02, 0x9fe8ff, x, -H * 0.12, FZ - 0.006, 1);
+    box(b, W + 0.03, 0.035, D + 0.03, 0xb48cff, 0, bot + 0.04, 0, 0.9);
+    av.arms.forEach(a => {
+      armRing(a, 0.08, 0x6a50d8, -AL * 0.85);
+      armRing(a, 0.02, 0x9fe8ff, -AL * 0.76, 1);
+    });
+    av.legs.forEach(l => legRing(l, 0.025, 0x9fe8ff, -LL * 0.86, 1));
+  };
   if (OUTFIT_DETAIL[key]) OUTFIT_DETAIL[key](av);
   return parts;
 }
@@ -770,6 +908,8 @@ const TRAIL_COLORS = {
   bubbles: [0x3fd2c7],
   pinkbubbles: [0xff9ec7, 0xffd6e7],
   deepbubbles: [0x2a6fd8, 0x7fd0ff, 0x1d5c63],
+  forge: [0xff6b3d, 0xffb347, 0xffd166, 0x3a3440],
+  stake: [0xf4f1ff, 0xb48cff, 0x9fe8ff],
 };
 const BUBBLES = new Set(['bubbles', 'pinkbubbles', 'deepbubbles']);
 function trailColor(style, t) {
@@ -866,8 +1006,17 @@ function dropFollower(ownerKey) {
 // the held item's glow (first person and your own avatar): a trim tints it. The pixel look's items share one
 // material; the clay look's are models of their own, tinted mesh by mesh (their materials copied first, so
 // another player's pickaxe keeps its colors)
-const TRIM_GLOW = { gold: 0xffb000, rose: 0xff7a8a, obsidian: 0x6a3cff, frost: 0x7fe0ff, emerald: 0x2ad07a };
-const trimTmp = new THREE.Color();
+const TRIM_GLOW = {
+  gold: 0xffb000,
+  rose: 0xff7a8a,
+  obsidian: 0x6a3cff,
+  frost: 0x7fe0ff,
+  emerald: 0x2ad07a,
+  forge: 0xff6b3d,
+  stake: 0xb48cff,
+};
+const trimTmp = new THREE.Color(),
+  TRIM_FLARE = new THREE.Color();
 function tintModel(g, col) {
   if (!g || !g.isGroup) return;
   g.traverse(m => {
@@ -888,11 +1037,16 @@ function tintModel(g, col) {
 function toolTrim(look, t) {
   if (typeof heldVoxelMat === 'undefined' || !heldVoxelMat) return;
   const c = look.tool && COSMETICS[look.tool];
+  // the premium trims breathe: the forge's embers flare and fade, the stake's light shifts violet to cyan
   const col = !c
     ? null
     : c.style === 'prism'
       ? trimTmp.setHSL((t * 0.25) % 1, 0.9, 0.45)
-      : trimTmp.setHex(TRIM_GLOW[c.style] ?? TRIM_GLOW.gold);
+      : c.style === 'forge'
+        ? trimTmp.setHex(0xff6b3d).lerp(TRIM_FLARE.setHex(0xffd166), 0.5 + 0.5 * Math.sin(t * 5))
+        : c.style === 'stake'
+          ? trimTmp.setHex(0xb48cff).lerp(TRIM_FLARE.setHex(0x9fe8ff), 0.5 + 0.5 * Math.sin(t * 2))
+          : trimTmp.setHex(TRIM_GLOW[c.style] ?? TRIM_GLOW.gold);
   if (col) heldVoxelMat.emissive.copy(col).multiplyScalar(0.6);
   else heldVoxelMat.emissive.setHex(0);
   if (CLAY) {

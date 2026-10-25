@@ -130,6 +130,7 @@ const CAT = {
   combat: 'combat trophies',
   event: 'event trophies',
   validator: 'validator skins',
+  premium: 'premium pieces (sold for euros, coming soon)',
 };
 const cats = {};
 for (const c of cosm) cats[c.category] = (cats[c.category] || 0) + 1;

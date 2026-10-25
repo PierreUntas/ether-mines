@@ -90,6 +90,9 @@ namespace EtherMines.Game
         {
             if (look == null || !look.TryGetValue("tool", out var id) || !Rules.Cosmetics.TryGetValue(id, out var c)) return null;
             if (c.Style == "prism") return Hsl(t * 0.25f % 1, 0.9f, 0.45f);
+            // the premium trims breathe: the forge's embers flare and fade, the stake's light shifts violet to cyan
+            if (c.Style == "forge") return Color.Lerp(new Color(1f, 0.42f, 0.24f), new Color(1f, 0.82f, 0.4f), 0.5f + 0.5f * Mathf.Sin(t * 5));
+            if (c.Style == "stake") return Color.Lerp(new Color(0.71f, 0.55f, 1f), new Color(0.62f, 0.91f, 1f), 0.5f + 0.5f * Mathf.Sin(t * 2));
             int h = TrimGlow.TryGetValue(c.Style ?? "", out var v) ? v : TrimGlow["gold"];
             return new Color(((h >> 16) & 255) / 255f, ((h >> 8) & 255) / 255f, (h & 255) / 255f);
         }
@@ -112,6 +115,7 @@ namespace EtherMines.Game
             ["gwei"] = new[] { "#ffd95e", "#ffd95e", "#fff3c0" }, ["silver"] = new[] { "#e8eef6", "#b8c4d6", "#ffffff" }, ["coins"] = new[] { "#ffd166", "#c89a2e" },
             ["neon"] = new[] { "#ff2bd6", "#00eaff", "#b6ff00" }, ["bubbles"] = new[] { "#3fd2c7" }, ["pinkbubbles"] = new[] { "#ff9ec7", "#ffd6e7" },
             ["deepbubbles"] = new[] { "#2a6fd8", "#7fd0ff", "#1d5c63" },
+            ["forge"] = new[] { "#ff6b3d", "#ffb347", "#ffd166", "#3a3440" }, ["stake"] = new[] { "#f4f1ff", "#b48cff", "#9fe8ff" },
         };
         public static bool Bubbles(string style) => style == "bubbles" || style == "pinkbubbles" || style == "deepbubbles";
         public static Color TrailColor(string style, float t)

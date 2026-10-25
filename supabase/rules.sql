@@ -525,5 +525,15 @@ insert into public.rule_cosmetics (id, name, price, category, grant_item, grant_
 (103,'Wraith Frost Trail',0,'combat',null,null,false),
 (104,'Wraith Shadow Trail',0,'combat',null,null,false),
 (105,'Magma Plating Trim',0,'combat',null,null,false),
-(106,'Moss Plating Trim',0,'combat',null,null,false);
+(106,'Moss Plating Trim',0,'combat',null,null,false),
+(107,'Forge Rig',0,'premium',null,null,false),
+(108,'Hashrate Helm',0,'premium',null,null,false),
+(109,'Ember Wings',0,'premium',null,null,false),
+(110,'Forge Sparks',0,'premium',null,null,false),
+(111,'Forge Blade Trim',0,'premium',null,null,false),
+(112,'Validator Robe',0,'premium',null,null,false),
+(113,'Staking Halo',0,'premium',null,null,false),
+(114,'Beacon Wings',0,'premium',null,null,false),
+(115,'Stake Light',0,'premium',null,null,false),
+(116,'Stake Blade Trim',0,'premium',null,null,false);
 commit;

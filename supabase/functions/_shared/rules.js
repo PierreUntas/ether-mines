@@ -765,6 +765,39 @@
     104: { n: 'Wraith Shadow Trail', category: 'combat', price: 0, slot: 'trail', style: 'shadow' },
     105: { n: 'Magma Plating Trim', category: 'combat', price: 0, slot: 'plating', color: '#ff7a2e' },
     106: { n: 'Moss Plating Trim', category: 'combat', price: 0, slot: 'plating', color: '#7fe08a' },
+    // Premium: the pieces sold for euros (eur, in cents), never for Gwei (price 0: act_buy_cosmetic refuses
+    // them). Each sold in one currency only. The first collection answers the Merge twins: Proof-of-Work, the
+    // miners' forge (iron, embers, fire), and Proof-of-Stake, the validators' crystal (white, violet, light)
+    107: {
+      n: 'Forge Rig',
+      category: 'premium',
+      price: 0,
+      eur: 499,
+      slot: 'outfit',
+      set: 'pow',
+      color: '#3a2a2a',
+      pants: '#1c1414',
+      detail: '107A',
+    },
+    108: { n: 'Hashrate Helm', category: 'premium', price: 0, eur: 299, slot: 'head', set: 'pow', style: 'hashhelm' },
+    109: { n: 'Ember Wings', category: 'premium', price: 0, eur: 499, slot: 'back', set: 'pow', style: 'emberwings' },
+    110: { n: 'Forge Sparks', category: 'premium', price: 0, eur: 199, slot: 'trail', set: 'pow', style: 'forge' },
+    111: { n: 'Forge Blade Trim', category: 'premium', price: 0, eur: 299, slot: 'tool', set: 'pow', style: 'forge' },
+    112: {
+      n: 'Validator Robe',
+      category: 'premium',
+      price: 0,
+      eur: 499,
+      slot: 'outfit',
+      set: 'pos',
+      color: '#f4f1ff',
+      pants: '#6a50d8',
+      detail: '112A',
+    },
+    113: { n: 'Staking Halo', category: 'premium', price: 0, eur: 299, slot: 'head', set: 'pos', style: 'stakehalo' },
+    114: { n: 'Beacon Wings', category: 'premium', price: 0, eur: 499, slot: 'back', set: 'pos', style: 'beaconwings' },
+    115: { n: 'Stake Light', category: 'premium', price: 0, eur: 199, slot: 'trail', set: 'pos', style: 'stake' },
+    116: { n: 'Stake Blade Trim', category: 'premium', price: 0, eur: 299, slot: 'tool', set: 'pos', style: 'stake' },
   };
   // the collections, in shop order: name and a line of history
   const SETS = {
@@ -774,6 +807,8 @@
     merge: ['The Merge', 'September 2022: proof of work hands over to proof of stake'],
     dencun: ['Dencun', 'March 2024: blobs arrive. Limited: one piece a week in the shop'],
     ether: ['Ether', 'The rarest pieces, for the most patient'],
+    pow: ['Proof-of-Work', "The miners' forge: iron, embers and fire. Premium"],
+    pos: ['Proof-of-Stake', "The validators' crystal: white, violet and light. Premium"],
   };
   // The shop's week: Monday 00:00 UTC to the next. Each week, 3 regular wearables are 25% off and one
   // limited piece is for sale. 032_shop.sql computes exactly the same picks: change both together.

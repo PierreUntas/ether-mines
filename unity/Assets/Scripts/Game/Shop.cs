@@ -1,5 +1,5 @@
 // Ether Mines · the shop (07-interface.js renderShop, shopRow): cosmetics bought with Gwei, purely
-// decorative. This week's three pieces 25% off and its limited piece, the collections, everything else by
+// decorative, and the Premium pieces sold for euros (tried on now, sold with the payments). This week's three pieces 25% off and its limited piece, the collections, everything else by
 // slot, the block packs, then the trophies and titles nobody can buy. What you own you can wear (an
 // outfit also sets your color); you see it on your figure (V) and the others see it on theirs.
 // Bought through act_buy_cosmetic: the server checks your Gwei and the week's prices.
@@ -72,10 +72,22 @@ namespace EtherMines.Game
             var wait = TimeSpan.FromSeconds((week + 1) * Rules.ShopWeekSeconds + Rules.ShopEpoch - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
             string Head(string h) => h;
             bool firstW = true;
+            // Premium: the pieces sold for euros (never for Gwei), by collection; tried on now, sold with the payments
+            bool firstP = true;
+            foreach (var set in Rules.Sets)
+            {
+                var mine = ids.Where(i => Rules.Cosmetics[i].Set == set[0] && Rules.Cosmetics[i].Premium).ToList();
+                bool first = true;
+                foreach (var i in mine)
+                {
+                    rows.Add((first ? (firstP ? "Premium · " : "") + set[1] : null, first ? (firstP ? "The most striking pieces, sold for euros: light, embers and moving parts. Try them on now; they go on sale soon." : set[2].Replace(". Premium", "")) : null, i));
+                    first = false; firstP = false;
+                }
+            }
             foreach (var i in weekly) { rows.Add((firstW ? "This week" : null, firstW ? $"New offers in {(int)wait.TotalDays} d {wait.Hours} h: three pieces 25% off, and one limited piece you can only buy this week." : null, i)); firstW = false; }
             foreach (var set in Rules.Sets)
             {
-                var mine = ids.Where(i => Rules.Cosmetics[i].Set == set[0] && (!Rules.Cosmetics[i].Retired || Owns(i))).ToList();
+                var mine = ids.Where(i => Rules.Cosmetics[i].Set == set[0] && !Rules.Cosmetics[i].Premium && (!Rules.Cosmetics[i].Retired || Owns(i))).ToList();
                 bool first = true;
                 foreach (var i in mine) { rows.Add((first ? $"{set[1]} collection · {mine.Count(Owns)}/{mine.Count}" : null, first ? set[2] : null, i)); first = false; }
             }
@@ -88,7 +100,7 @@ namespace EtherMines.Game
             }
             var packs = loose.Where(i => Rules.Cosmetics[i].HasGrant).ToList();
             for (int k = 0; k < packs.Count; k++) rows.Add((k == 0 ? "Block packs" : null, k == 0 ? "Decorative blocks straight into your bag. Buy them as often as you like." : null, packs[k]));
-            var trophies = ids.Where(i => !Rules.ForSale(Rules.Cosmetics[i]) && !Rules.Cosmetics[i].Retired && Rules.Cosmetics[i].Category != "title").ToList();
+            var trophies = ids.Where(i => !Rules.ForSale(Rules.Cosmetics[i]) && !Rules.Cosmetics[i].Retired && Rules.Cosmetics[i].Category != "title" && !Rules.Cosmetics[i].Premium).ToList();
             for (int k = 0; k < trophies.Count; k++) rows.Add((k == 0 ? $"Trophies · {trophies.Count(Owns)}/{trophies.Count}" : null, k == 0 ? "Never sold: dropped by tough mobs, rarely, or earned by fighting off the network attack." : null, trophies[k]));
             var titles = ids.Where(i => Rules.Cosmetics[i].Category == "title").ToList();
             for (int k = 0; k < titles.Count; k++) rows.Add((k == 0 ? $"Titles · {titles.Count(Owns)}/{titles.Count}" : null, k == 0 ? "Never sold: each one is earned by finishing a story chapter; the furthest shows under your name." : null, titles[k]));
@@ -132,20 +144,23 @@ namespace EtherMines.Game
             Ui.Fill(r, new Color(1, 1, 1, worn ? 0.12f : 0.05f));
             var sw = new Rect(r.x + 8, r.y + 8, 36, 36);
             if (c.HasGrant) Ui.Icon(sw, c.GrantItem);
+            else if (c.Premium) Ui.Fill(sw, Avatars.Hex(c.Set == "pow" ? "#ff8a3d" : "#b48cff", Ui.Violet));
             else Ui.Fill(sw, Avatars.Hex(!string.IsNullOrEmpty(c.Color) ? c.Color : c.Slot != null && SlotTint.TryGetValue(c.Slot, out var t) ? t : sellable ? "#8a7bef" : "#ffd95e", Ui.Violet));
             string slot = c.Slot != null && Looks.SlotLabel.TryGetValue(c.Slot, out var sl) ? sl : c.Category;
-            string sub = c.HasGrant ? $"grants {c.GrantQty} × {Ui.NameOf(c.GrantItem)} · buy as often as you like"
+            string eur = "€" + (c.Eur / 100.0).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+            string sub = c.Premium ? (owned ? $"{(c.Slot != null && Looks.SlotLabel.TryGetValue(c.Slot, out var ps) ? ps : c.Category)} · premium · {(worn ? "worn" : "owned")}" : $"{(c.Slot != null && Looks.SlotLabel.TryGetValue(c.Slot, out var ps2) ? ps2 : c.Category)} · premium · <b><color=#ffd95e>{eur}</color></b>")
+                : c.HasGrant ? $"grants {c.GrantQty} × {Ui.NameOf(c.GrantItem)} · buy as often as you like"
                 : owned ? $"{slot} · {(worn ? "worn" : "owned")}"
                 : !sellable && c.Retired ? "No longer sold"
                 : !sellable ? (c.Category == "title" ? "Chapter reward" : c.Category == "event" ? "Network attack reward" : "Drop only")
                 : limitedAway ? $"{slot} · limited · back another week"
                 : slot;
-            string priceTxt = !sellable || (owned && !c.HasGrant) ? "" : onSale ? $" · <color=#9a92c8>{c.Price}</color> <b><color=#ffd95e>{price} Gwei</color></b>" : $" · {price} Gwei";
+            string priceTxt = c.Premium || !sellable || (owned && !c.HasGrant) ? "" : onSale ? $" · <color=#9a92c8>{c.Price}</color> <b><color=#ffd95e>{price} Gwei</color></b>" : $" · {price} Gwei";
             GUI.Label(new Rect(r.x + 54, r.y + 4, r.width - 370, 24), "<b>" + c.N + "</b>", Ui.Label);
             GUI.Label(new Rect(r.x + 54, r.y + 26, r.width - 370, 22), sub + priceTxt, Ui.Small);
             var b = new Rect(r.xMax - 190, r.y + 10, 180, 32);
             // try it on first (tryOn): on your character, beside the list
-            if (Avatars != null && c.Slot != null && !c.HasGrant && !owned && sellable)
+            if (Avatars != null && c.Slot != null && !c.HasGrant && !owned && (sellable || c.Premium))
             {
                 bool trying = Avatars.TryLook != null && Avatars.TryLook.TryGetValue(c.Slot, out var tid) && tid == c.Id;
                 if (GUI.Button(new Rect(b.x - 110, b.y, 100, 32), trying ? "Stop" : "Try", Ui.Button))
@@ -157,6 +172,7 @@ namespace EtherMines.Game
             }
             GUI.enabled = !busy;
             if (c.Slot != null && owned) { if (GUI.Button(b, worn ? "Remove" : "Wear", worn ? Ui.Button : Ui.Primary)) Wear(c, !worn); }
+            else if (c.Premium) { GUI.enabled = false; GUI.Button(b, eur + " · soon", Ui.Button); }
             else if (!sellable) { GUI.enabled = false; GUI.Button(b, "Not for sale", Ui.Button); }
             else if (limitedAway) { GUI.enabled = false; GUI.Button(b, "Not this week", Ui.Button); }
             else if (Session.Gwei < price) { GUI.enabled = false; GUI.Button(b, price + " Gwei", Ui.Button); }
