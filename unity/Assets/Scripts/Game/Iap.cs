@@ -11,6 +11,7 @@ using EtherMines.Core;
 using UnityEngine;
 using UnityEngine.Purchasing;
 using UnityEngine.Purchasing.Extension;
+using MiniJson = EtherMines.Core.MiniJson; // Unity IAP has a MiniJson of its own
 
 namespace EtherMines.Game
 {

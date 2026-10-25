@@ -4,6 +4,7 @@ using System;
 namespace UnityEngine.Purchasing
 {
     public enum ProductType { Consumable, NonConsumable, Subscription }
+    public static class MiniJson { } // the package has one too: a script using both must say which (Iap.cs)
     public enum InitializationFailureReason { PurchasingUnavailable, NoProductsAvailable, AppNotKnown }
     public enum PurchaseProcessingResult { Complete, Pending }
     public enum PurchaseFailureReason { PurchasingUnavailable, ExistingPurchasePending, ProductUnavailable, SignatureInvalid, UserCancelled, PaymentDeclined, DuplicateTransaction, Unknown }
