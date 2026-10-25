@@ -10,6 +10,15 @@ plan, with a calendar, lives outside the repo.)
 - [x] Stripe on the web (050, 051): Checkout, signed webhook, refunds, test mode tried end to end
 - [x] Guard and parry poses from Pierre's sketches
 
+## 0. Test launch, now (docs/test-launch.md)
+- [x] Who comes back, counted: `053_play_days.sql` (act_seen from the web and the apps), read with `select * from public.retention_summary;`
+- [x] The store texts, the testers' message, the build steps for every platform
+- [ ] Web: push, run installation.sql; post the testers' message
+- [ ] itch.io: the Mac and Windows downloads beside the browser link
+- [ ] Google Play account, internal then closed testing (12 testers, 14 days, before any public release)
+- [ ] Apple Developer account, TestFlight public link
+- [ ] After a week: read the retention, fix the three biggest problems, decide
+
 ## 1. Finish the game
 - [ ] Premium skins redrawn from Pierre's sketches (the 10 Proof-of-Work / Proof-of-Stake pieces are placeholders): at least two full sets for launch
 - [ ] The pistol redesigned (proposals A, B, C, or a sketch)

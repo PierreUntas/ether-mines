@@ -320,6 +320,8 @@ namespace EtherMines.Game
                 story.Progress = () => GetComponent<Progress>();
                 player.enabled = true;
                 started = true;
+                // a day you played, for the launch's count of who comes back (053_play_days.sql)
+                if (online) SeenToday();
                 Step(online ? "Joining the world and the other players…" : "Generating the world…", 14);
                 loading = true; // the title stays up until the ground under you has come in (GameTitle.cs)
                 Ui.Paused = true; // and the keys wait for it
@@ -366,6 +368,16 @@ namespace EtherMines.Game
             saveT += Time.deltaTime;
             var p = player.GamePos;
             if ((saveT > 20 && (p - lastSaved).magnitude > 1) || (session.Dirty && saveT > 2)) { saveT = 0; lastSaved = p; session.Dirty = false; SaveNow(); }
+        }
+
+        async void SeenToday()
+        {
+            var p = Application.platform;
+            string where = Application.isEditor ? "editor" : p == RuntimePlatform.IPhonePlayer ? "ios" : p == RuntimePlatform.Android ? "android"
+                : p == RuntimePlatform.OSXPlayer ? "mac" : p == RuntimePlatform.WindowsPlayer ? "pc" : "other";
+            // straight to the server, quietly: a refusal (an older database) is nobody's business on screen
+            try { await session.Net.Act(session.World, "seen", new System.Collections.Generic.Dictionary<string, object> { ["platform"] = where }); }
+            catch (Exception e) { Debug.LogWarning(e); }
         }
 
         // the save (savePlayer): a refusal is said in the log (once a while), and tried again soon

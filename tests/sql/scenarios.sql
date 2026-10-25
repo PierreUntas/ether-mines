@@ -1235,3 +1235,17 @@ set role authenticated;
 select pg_temp.ok('store: gone once refunded', act_premium_owned('principal') = '{112,113,114,115,116}'::smallint[]);
 reset role;
 \echo Premium purchase scenarios pass.
+-- 053: a day played, counted once, keyed by nickname; the retention views only for whoever reads them by hand
+reset role;
+delete from rate_limits;
+select set_config('request.jwt.claim.sub', 'a5000000-0000-0000-0000-000000000001', false) \g /dev/null
+set role authenticated;
+select pg_temp.ok('seen: a day played', (act_seen('w', 'ios') ->> 'ok')::boolean);
+select pg_temp.ok('seen: twice the same day, once', (act_seen('w', 'web') ->> 'ok')::boolean);
+select pg_temp.refused('seen: the retention is not for the players', $q$select * from retention_summary$q$);
+reset role;
+select pg_temp.ok('seen: one row, the first platform of the day', (select count(*) = 1 and min(platform) = 'ios' from play_days where world = 'w'));
+insert into play_days values ('w', 'apptwo', current_date - 8, 'android'), ('w', 'apptwo', current_date - 7, 'android'), ('w', 'apptwo', current_date - 1, 'android');
+select pg_temp.ok('seen: came back the next day and a week later', (select came_back_d1 = 1 and came_back_d7 = 1 from retention where world = 'w' and platform = 'android'));
+select pg_temp.ok('seen: the summary in percent', (select d1_percent = 100 and d7_percent = 100 from retention_summary where world = 'w' and platform = 'android'));
+\echo Retention scenarios pass.

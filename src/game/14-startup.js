@@ -1651,6 +1651,8 @@ $('play').onclick = async () => {
     booted = true;
     loadSoloSigns(); // solo: the signs' text kept in the save (19-signs.js)
     cloudSave(true);
+    // a day you played, for the launch's count of who comes back (053_play_days.sql)
+    if (Net.online) Net.act('seen', { platform: touch ? 'web-mobile' : 'web' }).catch(() => {});
     $('play').disabled = false;
     $('shareRow').hidden = !Net.online;
     $('shareUrl').textContent = location.href;
