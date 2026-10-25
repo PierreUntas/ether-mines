@@ -71,7 +71,7 @@ namespace EtherMines.Game
             var inv = Inv;
             if (slot >= 0) inv.Sel = slot;
             if (wheel != 0) inv.Sel = ((inv.Sel + (wheel > 0 ? -1 : 1)) % 9 + 9) % 9;
-            Swing = Mathf.Max(0, Swing - Time.deltaTime * 3);
+            Swing = Mathf.Max(0, Swing - Time.deltaTime * 3 * (CombatFx.HitStop > 0 ? 0.08f : 1)); // a blow that lands holds the hand a moment
 
             // what you aim at, from your eyes along your look; on a touch screen, through the finger
             var b = Player.Body;

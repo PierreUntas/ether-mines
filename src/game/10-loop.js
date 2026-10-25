@@ -238,7 +238,11 @@ function frame(now) {
     // aim direction instead, whatever's in its path, not gated by the short melee pick range
     const heldRanged = ITEM[itemId(S.bar[S.sel])]?.ranged;
     tickWeapons(dt);
-    tickGestures(dt);
+    // 22-gestures.js and 23-combat-fx.js load after this file: a first frame can come before them
+    if (typeof tickCombatFx === 'function') {
+      tickGestures(dt);
+      tickCombatFx(dt);
+    }
     if (!mining) pvpStruck = false; // the button was released: the next click can strike a player again
     // a click kept for a moment (queueStrike) counts as holding the button, for fighting only
     const fight = mining || STRIKE.buf > 0,
@@ -351,6 +355,7 @@ function frame(now) {
   const lift = (RIDE || BOARD) && typeof rideLift === 'function' ? rideLift() : 0; // on board: seated higher
   camera.position.set(P.x, P.y + EYE + lift - stepUp - crouch + (lift ? 0 : Math.sin(bob) * 0.04), P.z);
   camera.updateMatrixWorld();
+  if (typeof viewFx === 'function') viewFx(dt); // a blow's shake, a hit's knock (23-combat-fx.js)
   sky.position.copy(camera.position);
   stars.position.copy(camera.position);
   aurora.position.set(camera.position.x, 0, camera.position.z);
@@ -472,7 +477,8 @@ function frame(now) {
       Sound.tick(dt, nt, P.y + 1 < heightAt(cx, cz) - 3, !!P.inWater);
     }
   }
-  swing = Math.max(0, swing - dt * 3);
+  // a blow that lands holds the hand still a moment (HITSTOP, 23-combat-fx.js)
+  swing = Math.max(0, swing - dt * 3 * (typeof HITSTOP !== 'undefined' && HITSTOP > 0 ? 0.08 : 1));
   if (typeof updateGuard === 'function') updateGuard(dt);
   if (typeof updateRide === 'function') updateRide(dt);
   hand.visible = !RIDE && !BOARD; // on board, both hands on the craft
@@ -493,10 +499,20 @@ function frame(now) {
       const g = typeof guardAmt === 'number' ? guardAmt : 0,
         blade = g > 0.001 || parryFpAt ? heldBlade() : false,
         p = blade ? parryFp() : 0;
+      // a blade's combo (23-combat-fx.js): the slash sweeps right to left, the backhand left to right, the
+      // chop comes down from above (u: how far through the swing)
+      const v = typeof comboV === 'function' && (blade || heldBlade()) ? comboV() : 0,
+        u = Math.min(1, Math.max(0, 1 - swing / 0.6)),
+        f = Math.min(1, s * 4),
+        sweep = (0.5 - u) * 0.24 * f;
       hand.rotation.set(0, 0, -0.08 * p);
-      hand.position.set(bx - s * 0.17 + p * 0.05, by + s * 0.13, -s * 0.3);
+      if (v === 1) hand.position.set(bx + s * 0.1 - sweep, by + s * 0.1, -s * 0.3);
+      else if (v === 2) hand.position.set(bx - s * 0.04, by + s * 0.06 + sweep, -s * 0.34);
+      else hand.position.set(bx - s * 0.17 + p * 0.05 + (blade || heldBlade() ? sweep : 0), by + s * 0.13, -s * 0.3);
       if (rest) {
-        handMesh.rotation.set(rest.r.x - s * 0.75, rest.r.y + s * 0.25, rest.r.z + s * 0.35);
+        if (v === 1) handMesh.rotation.set(rest.r.x - s * 0.6, rest.r.y - s * 0.3, rest.r.z - s * 0.5);
+        else if (v === 2) handMesh.rotation.set(rest.r.x - s * 1.15, rest.r.y, rest.r.z + s * 0.1);
+        else handMesh.rotation.set(rest.r.x - s * 0.75, rest.r.y + s * 0.25, rest.r.z + s * 0.35);
         handMesh.position.copy(rest.p);
         if (blade) {
           handMesh.quaternion.slerp(FP_GUARD_LOW.q, g * (1 - s));

@@ -159,7 +159,7 @@ namespace EtherMines.Game
             float lift = Lift();
             var eye = new Vector3((float)Body.X, (float)(Body.Y + PlayerPhysics.EYE - Math.Min(eyeLag, 0.6)) + lift - crouch + (lift > 0 ? 0 : Mathf.Sin(Bob) * 0.04f), -(float)Body.Z);
             var rot = Quaternion.Euler((float)(-Pitch * Mathf.Rad2Deg), (float)(-Yaw * Mathf.Rad2Deg), 0);
-            if (View == 0) Cam.transform.SetPositionAndRotation(eye, rot);
+            if (View == 0) Cam.transform.SetPositionAndRotation(eye, rot * CombatFx.View()); // a blow's shake, a hit's knock
             else
             {
                 // from outside (viewFromOutside): back along the view until a block is in the way (4 at most,

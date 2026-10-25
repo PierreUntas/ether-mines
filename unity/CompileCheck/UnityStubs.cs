@@ -98,7 +98,7 @@ namespace UnityEngine
     public enum FontStyle { Normal, Bold }
     public class GUIStyle { public GUIStyle(GUIStyle s) { } public GUIStyle() { } public bool richText; public int fontSize; public TextAnchor alignment; public FontStyle fontStyle; public RectOffset padding, border, margin; public bool wordWrap; public TextClipping clipping; public Font font; public float fixedWidth, fixedHeight; public GUIStyleState normal = new GUIStyleState(), hover = new GUIStyleState(), active = new GUIStyleState(), focused = new GUIStyleState(), onNormal = new GUIStyleState(), onHover = new GUIStyleState(), onActive = new GUIStyleState(), onFocused = new GUIStyleState(); public static GUIStyle none; public Vector2 CalcSize(GUIContent c) => default; public float CalcHeight(GUIContent c, float w) => 0; }
     public class GUISkin : Object { public Font font; public GUISettings settings; public GUIStyle box, label, button, textField, textArea, window, toggle, verticalScrollbar, verticalScrollbarThumb, horizontalScrollbar, horizontalScrollbarThumb; }
-    public static class GUIUtility { public static string systemCopyBuffer; public static int hotControl; }
+    public static class GUIUtility { public static string systemCopyBuffer; public static int hotControl; public static void RotateAroundPivot(float angle, Vector2 pivot) { } }
     public static class GUI
     {
         public static Matrix4x4 matrix; public static string tooltip;
@@ -133,7 +133,7 @@ namespace UnityEngine
     public static class Random { public static int Range(int a, int b) => a; public static float Range(float a, float b) => a; public static float value; }
     public static class Mathf
     {
-        public static float Tan(float a) => a; public static float Pow(float a, float b) => a; public static float PerlinNoise(float x, float y) => x;
+        public static float Tan(float a) => a; public static float Pow(float a, float b) => a; public static float Exp(float a) => a; public static float PerlinNoise(float x, float y) => x;
         public const float PI = 3.14159265f, Rad2Deg = 57.29578f, Deg2Rad = 0.0174533f;
         public static float Min(float a, float b) => a; public static float Max(float a, float b) => a;
         public static float Lerp(float a, float b, float t) => a; public static float Clamp(float v, float a, float b) => v;

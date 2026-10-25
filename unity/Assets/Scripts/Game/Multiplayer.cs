@@ -104,6 +104,7 @@ namespace EtherMines.Game
             emotes.Owns = id => progress != null && progress.Cosmetics.Contains(id);
             emotes.Panel = GetComponent<Panel>();
             // the everyday gestures (22-gestures.js): doors, levers, lids, blocks, beds, chairs
+            gameObject.AddComponent<CombatFx>().Player = Player; // the combo, the shakes, the numbers
             var gest = gameObject.AddComponent<Gestures>();
             gest.World = World; gest.Player = Player; gest.Panel = GetComponent<Panel>(); gest.Emotes = emotes;
             avatars.MyEmote = () => emotes.Mine;

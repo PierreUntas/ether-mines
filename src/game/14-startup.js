@@ -482,10 +482,12 @@ function poseArms(o, g, s, a, idle, pitch) {
     tw = -0.15;
   }
   if (s > 0 && !o.heldRanged) {
-    // the thrust, on top of the walk or the guard: the arm reaches out level with the eyes
-    rx += (1.55 + up - rx) * s;
-    rz += (-0.28 - rz) * s;
-    tw += (-0.3 - tw) * s;
+    // the thrust, on top of the walk or the guard: the arm reaches out level with the eyes; with a blade,
+    // the combo's slash, backhand or chop (23-combat-fx.js COMBO_ARM)
+    const [cx, cz, ct] = typeof COMBO_ARM !== 'undefined' ? COMBO_ARM[o.comboV || 0] : [1.55, -0.28, -0.3];
+    rx += (cx + up - rx) * s;
+    rz += (cz - rz) * s;
+    tw += (ct - tw) * s;
   }
   o.arms[1].rotation.x = rx;
   o.arms[1].rotation.z = rz;
@@ -681,6 +683,7 @@ function viewFromOutside(dt) {
   o.legs[1].rotation.x = -a;
   // on guard (16-mobs.js) or striking: poseArms
   const th = thrustOf(swing);
+  o.comboV = typeof comboV === 'function' ? comboV() : 0;
   poseArms(o, guardAmt, th, a, 0, pitch);
   o.body.scale.set(1 + br * 0.02, 1 + br * 0.012, 1 + br * 0.035);
   o.body.position.y = 0.94 + hop;
@@ -1059,6 +1062,8 @@ function updateOthers(dt) {
     o.gdAmt = (o.gdAmt || 0) + ((o.t.gd ? 1 : 0) - (o.gdAmt || 0)) * Math.min(1, dt * 14);
     const sw = o.t.m ? Math.max(0, 0.6 - ((performance.now() / 450) % 1) * 1.35) : 0;
     const th = thrustOf(sw);
+    // their blade's combo, blow after blow (they swing every 0.45 s while they strike)
+    o.comboV = o.held && !o.heldRanged && o.t.m ? Math.floor(performance.now() / 450) % 3 : 0;
     poseArms(o, o.gdAmt, th, a, br * 0.03 * (1 - mv), o.t.pitch);
     o.arms[0].position.y = o.arms[1].position.y = 1.26 + hop;
     movePose(o, dt, sp, o.gdAmt > 0.02 || th > 0, !!(o.t.rd || o.t.on));

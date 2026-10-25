@@ -39,6 +39,7 @@ namespace EtherMines.Game
             public float Vy, LastY = float.NaN, AirK, SwimK, ClimbK, Land, FallV, Stroke, Climb, GuardK, GlideT, GlideK, GlidePh;
             public float ParryAt = -99; public int Fq = -1; // their last parry (Time.time), from the `fx`/`fq` their moves carry
             public bool WasAir;
+            public int ComboV; // the swing of their blade's combo (CombatFx.ComboArm)
             public string Emote; public float EmoteAt; public int Eq = -1; // the gesture they're making (21-emotes.js), since when, its number
             public bool HeldRanged;   // a gun in hand: the arm held out to aim
             public int Held, ShownHeld = -1; // the tool or weapon in their right hand (`h`), and the one drawn
@@ -229,6 +230,8 @@ namespace EtherMines.Game
                 if (!on) { f.Seen = false; continue; }
                 Dress(f, f.Look);
                 Passenger(f);
+                // their blade's combo, blow after blow (they swing every 0.45 s while they strike)
+                f.ComboV = f.Mining && Combat.IsBlade(f.Held) ? (int)(Time.time / 0.45f) % 3 : 0;
                 Animate(f, dt, Mathf.Min(1, dt * 7));
                 Follow(f, f.Pos, f.Yaw, dt);
             }
@@ -251,6 +254,7 @@ namespace EtherMines.Game
                     me.Guard = MyGuard();
                     me.ParryAt = MyParryAt();
                     var mye = MyEmote(); me.Emote = mye.k; me.EmoteAt = mye.at;
+                    me.ComboV = CombatFx.ComboV(Act != null && Combat.IsBlade(Act.Inv.HeldId));
                     int h = Act != null && Act.Inv.Held != null ? Act.Inv.HeldId : 0;
                     me.Held = h > 0 && EtherMines.Core.Rules.Block(h) == null ? h : 0;
                     if (!me.Seen) { me.Seen = true; me.Pos = me.Target; me.Yaw = me.TYaw; }
@@ -634,7 +638,7 @@ namespace EtherMines.Game
             float sw = f.Mining ? Mathf.Max(0, 0.6f - (Time.time / 0.45f % 1) * 1.35f) : 0;
             float s = sw > 0 ? Mathf.Min(1, Mathf.Sin((1 - sw) * Mathf.PI) * sw / 0.57f) : 0;
             if (f.HeldRanged && g <= 0.02f) { rx = 1.5f + up; rz = -0.04f; tw = -0.15f; } // a gun: the arm out toward where they look (poseArms)
-            else { rx += (1.55f + up - rx) * s; rz += (-0.28f - rz) * s; tw += (-0.3f - tw) * s; }
+            else { var ca = CombatFx.ComboArm[f.ComboV]; rx += (ca[0] + up - rx) * s; rz += (ca[1] - rz) * s; tw += (ca[2] - tw) * s; } // the combo's slash, backhand or chop
             float legL = a, legR = -a;
             // how they move (movePose): in the air, landing, swimming, on a ladder, leaning into a run
             if (dt > 0 && !float.IsNaN(f.LastY)) f.Vy += ((f.Pos.y - f.LastY) / dt - f.Vy) * Mathf.Min(1, dt * 12);

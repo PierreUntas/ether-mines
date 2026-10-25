@@ -22,6 +22,7 @@ namespace EtherMines.Game
             public GameObject Root;
             public Vector3 Pos, Target;  // game coordinates
             public float Yaw, TYaw, SeenAt, Walk, Ph, StunT, WindK, LungeT, DyingT = -1, FlashT, ChargeK;
+            public float HitK, FallSide; // struck: a squash (CombatFx); falling: the side it tips over to
             public bool Aggro, Frenzy, Wind, WasWind, Down;
             public bool Round;
             public float BarT, BarLag = -1, BarWait; // the life bar over its head, for a few seconds after a blow               // boxes with rounded edges (the villagers, like the web's roundModel)
@@ -213,7 +214,7 @@ namespace EtherMines.Game
         // a blow landed on it (yours or another player's, as the server settled it)
         public void Struck(Mob a, float dmg, double hpLeft, bool dead, bool down)
         {
-            if (dmg > 0) { a.FlashT = 0.12f; a.BarT = 4; }
+            if (dmg > 0) { a.FlashT = 0.12f; a.BarT = 4; a.HitK = 1; }
             a.Hp = hpLeft;
             if (down) { a.Down = true; a.Hp = 0; }
             else if (dead || hpLeft <= 0) Die(a);
@@ -251,7 +252,11 @@ namespace EtherMines.Game
                 if (a.DyingT >= 0)
                 {
                     a.DyingT -= dt;
-                    a.Root.transform.localScale = Vector3.one * a.Scale * Mathf.Max(0, a.DyingT / 0.4f);
+                    // it tips over to one side, then shrinks into its burst (dyingPose)
+                    if (a.FallSide == 0) a.FallSide = UnityEngine.Random.value < 0.5f ? -1 : 1;
+                    float dk = Mathf.Max(0, a.DyingT / 0.4f);
+                    a.Root.transform.localScale = Vector3.one * a.Scale * Mathf.Min(1, dk * 1.7f);
+                    a.Root.transform.SetPositionAndRotation(View(a.Pos), Mirror(new Vector3(0, a.Yaw, (1 - dk) * 1.2f * a.FallSide), true));
                     if (a.DyingT <= 0) gone.Add(a.Id);
                     continue;
                 }
@@ -266,6 +271,13 @@ namespace EtherMines.Game
                     continue;
                 }
                 t.localScale = Vector3.one * a.Scale;
+                if (a.HitK > 0)
+                {
+                    // struck: wider and lower for a moment (mobStruck)
+                    a.HitK = Mathf.Max(0, a.HitK - dt / 0.16f);
+                    float hq = Mathf.Sin(a.HitK * Mathf.PI);
+                    t.localScale = new Vector3(1 + 0.14f * hq, 1 - 0.12f * hq, 1 + 0.14f * hq) * a.Scale;
+                }
                 float f = Mathf.Min(1, dt * (a.Aggro ? 12 : 3));
                 var old = a.Pos;
                 if ((a.Target - a.Pos).magnitude > 4) a.Pos = a.Target; // a blink: straight there

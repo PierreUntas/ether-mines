@@ -883,6 +883,7 @@ function damageMob(a, dmg, fromX, fromZ, item = itemId(S.bar[S.sel])) {
     }, MOB_WAIT_MS);
   }
   applyMobDamage(a, dmg, served ? Math.max(hpLeft, 0.01) : hpLeft, fromX, fromZ);
+  dmgNumber(a, dmg, dmgCrit); // your blow's damage rises from it (23-combat-fx.js)
   if (typeof Net !== 'undefined' && Net.sendMob)
     Net.sendMob({
       id: mobId(a),
@@ -937,6 +938,7 @@ function applyMobDamage(a, dmg, hpLeft, fromX, fromZ, paid, end) {
   if (dmg > 0) {
     Sound.hit('pierre');
     flashModel(a.g, 'hit', 0.12); // a white flash: the blow landed
+    mobStruck(a); // and a squash (23-combat-fx.js)
     showMobBar(a);
     const K = MK[a.type],
       dx = a.g.position.x - fromX,
@@ -1007,13 +1009,18 @@ function attackMob(a) {
   swing = Math.max(swing, 0.6);
   if (playerAtkT > 0) return false;
   playerAtkT = 0.45;
+  comboStep(); // the next swing of the combo (23-combat-fx.js)
   // a critical blow: always when you strike coming down from a jump, otherwise one in ten (×1.5, and with a
   // riposte on top; the game server allows up to both, server.js RIPOSTE)
   const crit = (!P.on && P.vy < -1) || Math.random() < CRIT_CHANCE;
+  dmgCrit = crit;
   damageMob(a, heldDmg() * (crit ? CRIT : 1), P.x, P.z);
+  dmgCrit = false;
+  blowLanded(crit);
   if (crit) critShown(a);
   return true;
 }
+let dmgCrit = false; // the blow being dealt is a critical one (its number shows gold)
 const CRIT = 1.5,
   CRIT_CHANCE = 0.1,
   critMat = new THREE.MeshBasicMaterial({ color: '#ffc23d', transparent: true, opacity: 0.95, depthWrite: false }); // not additive: gold stays gold against a bright sky
@@ -1345,6 +1352,8 @@ function attackPlayer(target) {
   if (playerAtkT > 0 || pvpStruck) return false;
   pvpStruck = true;
   playerAtkT = 0.45;
+  comboStep();
+  blowLanded(false);
   Sound.hit('pierre');
   Net.sendHit({ from: ME.id, to: target.id, x: +P.x.toFixed(2), y: +P.y.toFixed(2), z: +P.z.toFixed(2), item: itemId(S.bar[S.sel]) });
   return true;
@@ -1484,6 +1493,7 @@ function hurtShown(hp, mx, mz, blocked) {
   if (!blocked) P.vy = Math.max(P.vy, 4);
   if (!blocked) selfFx('hurt'); // your avatar flashes red: in a view from outside, and for the others
   Sound.hurt();
+  knockView(mx, mz, blocked); // your head knocked aside, away from the blow (23-combat-fx.js)
   $('vignette').classList.add('hurt');
   setTimeout(() => $('vignette').classList.remove('hurt'), 220);
   dirty = true;
@@ -1761,7 +1771,7 @@ function drawServerMobs(dt) {
       if (a.hp <= 0) {
         mobBurst(a);
         a.dying = (a.dying ?? 0.4) - dt;
-        a.g.scale.setScalar(Math.max(0, a.dying / 0.4));
+        dyingPose(a); // it tips over as it shrinks (23-combat-fx.js)
         if (a.dying <= 0) {
           scene.remove(a.g);
           list.splice(i, 1);
@@ -1937,7 +1947,7 @@ function updateMobs(dt) {
       if (a.hp <= 0) {
         mobBurst(a);
         a.dying -= dt;
-        a.g.scale.setScalar(Math.max(0, a.dying / 0.4));
+        dyingPose(a); // it tips over as it shrinks (23-combat-fx.js)
         if (a.dying <= 0) {
           scene.remove(a.g);
           list.splice(i, 1);

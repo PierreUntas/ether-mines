@@ -136,9 +136,17 @@ namespace EtherMines.Game
                 bool blade = Act != null && Combat.IsBlade(Act.Inv.HeldId);
                 float p = blade && Combat != null ? Avatars.ParryK(Combat.ParryAt) : 0;
                 if (!blade) g = 0;
+                // a blade's combo (CombatFx): the slash sweeps right to left, the backhand left to right, the chop
+                // comes down from above (u: how far through the swing); the web's (x, y, z) with z mirrored
+                int v = CombatFx.ComboV(blade);
+                float u = Mathf.Clamp01(1 - swing / 0.6f), f = Mathf.Min(1, s * 4), sweep = (0.5f - u) * 0.24f * f;
                 pivot.localRotation = HeldModels.Mirror(0, 0, -0.08f * p);
-                pivot.localPosition = new Vector3(bx - s * 0.17f + p * 0.05f, by + s * 0.13f, -(-s * 0.3f));
-                var q = HeldModels.Mirror(restR.x - s * 0.75f, restR.y + s * 0.25f, restR.z + s * 0.35f);
+                if (v == 1) pivot.localPosition = new Vector3(bx + s * 0.1f - sweep, by + s * 0.1f, s * 0.3f);
+                else if (v == 2) pivot.localPosition = new Vector3(bx - s * 0.04f, by + s * 0.06f + sweep, s * 0.34f);
+                else pivot.localPosition = new Vector3(bx - s * 0.17f + p * 0.05f + (blade ? sweep : 0), by + s * 0.13f, -(-s * 0.3f));
+                var q = v == 1 ? HeldModels.Mirror(restR.x - s * 0.6f, restR.y - s * 0.3f, restR.z - s * 0.5f)
+                    : v == 2 ? HeldModels.Mirror(restR.x - s * 1.15f, restR.y, restR.z + s * 0.1f)
+                    : HeldModels.Mirror(restR.x - s * 0.75f, restR.y + s * 0.25f, restR.z + s * 0.35f);
                 var at = new Vector3(restP.x, restP.y, -restP.z);
                 if (g > 0) { q = Quaternion.Slerp(q, FpLowQ, g * (1 - s)); at = Vector3.Lerp(at, new Vector3(0.1f, -0.06f, 0.56f), g * (1 - s)); }
                 if (p > 0) { q = Quaternion.Slerp(q, FpHighQ, p); at = Vector3.Lerp(at, new Vector3(0.3f, 0.2f, 0.62f), p); }

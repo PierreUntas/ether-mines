@@ -103,7 +103,11 @@ namespace EtherMines.Game
                 {
                     // a critical blow (attackMob): always coming down from a jump, otherwise one in ten, ×1.5
                     bool crit = (!Player.Body.On && Player.Body.Vy < -1) || UnityEngine.Random.value < CritChance;
+                    CombatFx.ComboStep(IsBlade(Held)); // the next swing of the combo (CombatFx)
+                    critNow = crit;
                     Strike(mob, HeldDmg * (crit ? Crit : 1), Player.Body.X, Player.Body.Z, HeldWeapon);
+                    critNow = false;
+                    CombatFx.BlowLanded(crit);
                     strikeBuf = 0;
                     if (crit)
                     {
@@ -128,6 +132,8 @@ namespace EtherMines.Game
                         pvpStruck = true;
                         strikeBuf = 0;
                         atkT = 0.45f;
+                        CombatFx.ComboStep(IsBlade(Held));
+                        CombatFx.BlowLanded(false);
                         Act.Swing = Mathf.Max(Act.Swing, 0.6f);
                         Link.Send(new Dictionary<string, object> { ["t"] = "hit", ["to"] = who, ["item"] = HeldWeapon });
                     }
@@ -143,6 +149,8 @@ namespace EtherMines.Game
                     atkT = 0.45f;
                     strikeBuf = 0;
                     Act.Swing = Mathf.Max(Act.Swing, 0.6f);
+                    CombatFx.ComboStep(IsBlade(Held));
+                    CombatFx.BlowLanded(false);
                     Animals.Strike(an, HeldDmg);
                 }
                 return true;
@@ -152,6 +160,7 @@ namespace EtherMines.Game
 
         // a blow on a mob (damageMob): shown here at once, settled by the server, told to everyone near
         const double Crit = 1.5, CritChance = 0.1;
+        bool critNow; // the blow being dealt is a critical one (its number shows gold)
 
         void Strike(Mobs.Mob a, double dmg, double fromX, double fromZ, int item)
         {
@@ -171,6 +180,8 @@ namespace EtherMines.Game
             }
             a.HitAt = Time.time;
             a.FlashT = 0.12f;
+            a.HitK = 1; // a squash (Mobs)
+            CombatFx.Damage(new Vector3(a.Pos.x, a.Pos.y + a.Kind.Hit[1] * a.Scale + 0.2f, a.Pos.z), dmg, critNow); // its damage rises from it
             double left = a.Hp - dmg;
             a.Hp = Math.Max(0.01, left); // the killing blow waits for the server's word
             Link.Send(new Dictionary<string, object>
@@ -360,6 +371,7 @@ namespace EtherMines.Game
             }
             Hp = Mathf.Clamp(MiniJson.ToInt(m["hp"]), 0, 10);
             bool blocked = res == "block";
+            CombatFx.Knock(Player.Body.X, Player.Body.Z, Player.Yaw, F(m, "x"), F(m, "z"), blocked); // your head knocked aside
             fx = blocked ? "block" : "hurt"; fq = (fq + 1) & 0xffff;
             hurtFlash = 0.22f;
             // knocked back, away from the blow

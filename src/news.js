@@ -6,6 +6,15 @@
   root.NEWS = [
     {
       date: '2026-10-25',
+      title: 'Fights that hit harder',
+      items: [
+        'Chain your blows with a blade: a slash, a backhand, then an overhead chop, each with its arc of light.',
+        'A blow that lands holds a split second and shakes the view; its damage rises from the mob, in gold for a critical one.',
+        'Struck mobs flinch, fallen ones topple over, and a hit you take knocks your head aside.',
+      ],
+    },
+    {
+      date: '2026-10-25',
       title: 'A world that moves',
       items: [
         'Doors swing open on their hinges, levers tip over, and a chest lifts its lid while you look inside.',
