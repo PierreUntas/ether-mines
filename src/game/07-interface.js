@@ -1984,6 +1984,7 @@ function shopRow(id, ctx) {
   }
   let sub;
   if (c.grantItem) sub = `grants ${c.grantQty} × ${nameOf(c.grantItem)} · buy as often as you like`;
+  else if (c.emote) sub = owned ? 'Emote · yours' : 'Emote';
   else if (owned) sub = `${SLOT_LABEL[c.slot] || 'Owned'} · ${worn ? 'worn' : 'owned'}`;
   else if (premium) sub = `${SLOT_LABEL[c.slot]} · premium`;
   else if (!sellable && c.retired) sub = 'No longer sold';
@@ -2018,6 +2019,19 @@ function shopRow(id, ctx) {
     btns.appendChild(b);
     return b;
   };
+  if (c.emote) {
+    // a gesture (21-emotes.js): try it on your character, buy it, then make it (G, or /name in the chat)
+    const trying = PREVIEW && PREVIEW.tryEmote && PREVIEW.tryEmote.k === c.emote;
+    add(trying ? 'Stop' : 'Try', '', () => {
+      if (PREVIEW) PREVIEW.tryEmote = trying ? null : { k: c.emote, t0: performance.now() };
+      renderPanel();
+    });
+    if (owned) add('Do it', 'primary', () => playEmote(c.emote));
+    else if ((S.gwei || 0) < price) add(`${price} Gwei`, '', null, true).title = 'Not enough Gwei yet';
+    else add('Buy', 'primary', b => buyCosmetic({ id, ...c }, b));
+    d.appendChild(btns);
+    return d;
+  }
   if (c.slot && owned) {
     add(worn ? 'Remove' : 'Wear', worn ? '' : 'primary', () => {
       if (PREVIEW) PREVIEW.tryLook = PREVIEW.tryColor = null;
@@ -2166,7 +2180,16 @@ function shopWorkshop(list, ctx) {
     section(`${name} collection · ${have}/${mine.length}`, line);
     for (const id of mine) list.appendChild(shopRow(id, ctx));
   }
-  const loose = ids.filter(id => !COSMETICS[id].set && forSale(COSMETICS[id]));
+  const loose = ids.filter(id => !COSMETICS[id].set && forSale(COSMETICS[id]) && !COSMETICS[id].emote);
+  // gestures (21-emotes.js): besides the free ones, these come from the Workshop
+  const gestures = ids.filter(id => COSMETICS[id].emote);
+  if (gestures.length) {
+    section(
+      'Emotes',
+      `Gestures everyone around you sees. Wave, Point, Cheer, Clap and Sit are free: ${touch ? 'the smiley button' : 'G'}, or /wave in the chat.`,
+    );
+    for (const id of gestures) list.appendChild(shopRow(id, ctx));
+  }
   for (const slot of [...LOOK_SLOTS, null]) {
     const mine = loose.filter(id => (COSMETICS[id].slot || null) === slot && !COSMETICS[id].grantItem);
     if (!mine.length) continue;
@@ -2292,16 +2315,17 @@ function renderShop(body) {
   side.className = 'side shopside';
   side.appendChild(previewBox());
   const p = PREVIEW;
-  if (p && p.tryLook) {
-    const tried = Object.entries(p.tryLook)
+  if (p && (p.tryLook || p.tryEmote)) {
+    const tried = Object.entries(p.tryLook || {})
       .filter(([s, id]) => myLook()[s] !== id)
-      .map(([, id]) => COSMETICS[id].n);
+      .map(([, id]) => COSMETICS[id].n)
+      .concat(p.tryEmote ? [EMOTES[p.tryEmote.k].n] : []);
     side.insertAdjacentHTML('beforeend', `<p class="note">Trying on: ${tried.join(', ') || 'nothing new'}</p>`);
     const stop = document.createElement('button');
     stop.className = 'b';
     stop.textContent = 'Back to my look';
     stop.onclick = () => {
-      p.tryLook = p.tryColor = null;
+      p.tryLook = p.tryColor = p.tryEmote = null;
       renderPanel();
     };
     side.appendChild(stop);
@@ -2384,7 +2408,7 @@ function renderPanel() {
   const pb = $('pbody'),
     keep = lastPanelTab === tab ? pb.scrollTop : 0;
   lastPanelTab = tab;
-  if (tab !== 'shop' && PREVIEW) PREVIEW.tryLook = PREVIEW.tryColor = null; // try-ons stay in the shop
+  if (tab !== 'shop' && PREVIEW) PREVIEW.tryLook = PREVIEW.tryColor = PREVIEW.tryEmote = null; // try-ons stay in the shop
   renderPanelBody();
   pb.scrollTop = keep;
 }

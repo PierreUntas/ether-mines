@@ -130,7 +130,8 @@ const CAT = {
   combat: 'combat trophies',
   event: 'event trophies',
   validator: 'validator skins',
-  premium: 'premium pieces (sold for euros, coming soon)',
+  premium: 'premium pieces (sold for euros)',
+  emote: 'emotes',
 };
 const cats = {};
 for (const c of cosm) cats[c.category] = (cats[c.category] || 0) + 1;
@@ -268,6 +269,10 @@ ${crafting}
 
 <h2 id="shop">Shop and cosmetics</h2>
 <p>${cosm.length} cosmetics: ${cosmList}. Prices go from ${fmt(Math.min(...prices))} to ${fmt(Math.max(...prices))} Gwei, and a few picks are on sale each week. Press Try on any piece to see it on your character before you buy it. Trophies can't be bought: they're won in combat and during events.</p>
+<h3>Emotes</h3>
+<p>Gestures everyone around you sees: press G (or the smiley button on a phone), then pick one, or type its name in the chat. ${Object.entries(globalThis.Rules.EMOTES)
+  .map(([k, e]) => `<code>/${k}</code> ${esc(e.n)}${e.cosmetic ? ' (Workshop)' : ''}`)
+  .join(' · ')}. Sitting lasts until you move.</p>
 
 <h2 id="account">Your account</h2>
 <ul>

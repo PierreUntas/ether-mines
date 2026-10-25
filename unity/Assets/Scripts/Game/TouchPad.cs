@@ -25,7 +25,7 @@ namespace EtherMines.Game
         public static bool Jump, Sneak, Guard, Sprint;
         public static bool Mining;                // a long press, held
         public static bool Tap;                   // a short tap ended this frame (at Aim)
-        public static bool Dash, Ride, Bag, Chat, View, Goals, Menu; // a button pressed this frame
+        public static bool Dash, Ride, Bag, Chat, Emote, View, Goals, Menu; // a button pressed this frame
         public static int Slot = -1;              // a slot of the bar tapped this frame
         public static Vector2? Aim;               // where the finger aims (null: the crosshair)
 
@@ -65,7 +65,7 @@ namespace EtherMines.Game
             if (polled == Time.frameCount) return;
             polled = Time.frameCount;
             Look = Vector2.zero;
-            Tap = Dash = Ride = Bag = Chat = View = Menu = false;
+            Tap = Dash = Ride = Bag = Chat = Emote = View = Menu = false;
             Goals = GoalsTapped; GoalsTapped = false;
             Slot = -1;
             reservedNow.Clear(); reservedNow.AddRange(Reserved); Reserved.Clear();
@@ -132,8 +132,8 @@ namespace EtherMines.Game
         static Rect SprintR => Btn(0, 70);
         static Rect GuardR => Btn(0, 140); // the ride button takes the same place (never both)
         static Rect DashR => Btn(0, 0);
-        // the four on top (#topBtns: 44 x 44, 6 apart), their icons
-        static readonly string[] tops = { "chest", "chat", "view", "menu" };
+        // the five on top (#topBtns: 44 x 44, 6 apart), their icons
+        static readonly string[] tops = { "chest", "chat", "emote", "view", "menu" };
         static Rect Top(int i) { float w = tops.Length * 44 + (tops.Length - 1) * 6; return new Rect((Ui.W - w) / 2 + i * 50, Ui.Safe.y + 8, 44, 44); }
 
         // what takes its own taps (the aimed block's label, the claim bar's buttons): drawn last frame, read here once
@@ -147,7 +147,7 @@ namespace EtherMines.Game
             for (int i = 0; i < tops.Length; i++)
                 if (Top(i).Contains(p))
                 {
-                    if (i == 0) Bag = true; else if (i == 1) Chat = true; else if (i == 2) View = true; else Menu = true;
+                    if (i == 0) Bag = true; else if (i == 1) Chat = true; else if (i == 2) Emote = true; else if (i == 3) View = true; else Menu = true;
                     return;
                 }
             if (JumpR.Contains(p)) { owners[id] = Own.Jump; return; }

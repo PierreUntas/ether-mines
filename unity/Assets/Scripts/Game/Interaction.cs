@@ -353,7 +353,9 @@ namespace EtherMines.Game
             if (k != null)
             {
                 var digits = new[] { k.digit1Key, k.digit2Key, k.digit3Key, k.digit4Key, k.digit5Key, k.digit6Key, k.digit7Key, k.digit8Key, k.digit9Key };
-                for (int i = 0; i < 9; i++) if (digits[i].wasPressedThisFrame) slot = i;
+                // while the row of gestures is open, the digits pick a gesture instead (Emotes)
+                if (!Emotes.RowOpen && Emotes.DigitFrame != Time.frameCount)
+                    for (int i = 0; i < 9; i++) if (digits[i].wasPressedThisFrame) slot = i;
             }
             var g = Gamepad.current;
             if (g != null) { mining |= g.rightTrigger.isPressed; use |= g.leftTrigger.wasPressedThisFrame; useHeld |= g.leftTrigger.isPressed; }

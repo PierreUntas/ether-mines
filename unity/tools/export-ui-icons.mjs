@@ -24,6 +24,7 @@ const NAMES = {
   tRide: 'ride',
   tDash: 'dodge',
   fsBtn: 'fullscreen',
+  emoteBtn: 'emote',
 };
 const html = await readFile(join(root, 'play.html'), 'utf8');
 const icons = [];

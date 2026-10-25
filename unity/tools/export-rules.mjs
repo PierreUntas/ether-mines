@@ -70,6 +70,7 @@ const parts = [
   ['RECIPES', arr(R.RECIPES)],
   ['COSMETICS', obj(R.COSMETICS)],
   ['SETS', obj(R.SETS)],
+  ['EMOTES', val(R.EMOTES)],
   ['SET_EUR', val(R.SET_EUR)],
   ['STORE_PREFIX', val(R.STORE_PREFIX)],
   ['PASTELS', val(R.PASTELS)],

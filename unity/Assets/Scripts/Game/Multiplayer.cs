@@ -30,6 +30,7 @@ namespace EtherMines.Game
         Signs signs;
         Claims claims;
         Hover hover;
+        Emotes emotes;
         readonly List<string> names = new List<string>();
         List<GameLink.Peer> lastPeers = new List<GameLink.Peer>();
         bool restoring;
@@ -97,6 +98,12 @@ namespace EtherMines.Game
             avatars.MyParryAt = () => combat.ParryAt;
             avatars.World = World;
             avatars.MyCape = () => Session.Inv.Uniques.Exists(u => u.Id == 205);
+            // the gestures (21-emotes.js): the row, G, /wave...; yours drawn on your figure, sent with your position
+            emotes = gameObject.AddComponent<Emotes>();
+            emotes.Player = Player; emotes.Act = Act; emotes.Combat = combat; emotes.Hover = hover; emotes.Chat = chat;
+            emotes.Owns = id => progress != null && progress.Cosmetics.Contains(id);
+            emotes.Panel = GetComponent<Panel>();
+            avatars.MyEmote = () => emotes.Mine;
             var hand = GetComponent<Hand>();
             if (hand != null) hand.Combat = combat;
             var panel = GetComponent<Panel>();
@@ -122,8 +129,8 @@ namespace EtherMines.Game
                 names.Clear();
                 foreach (var p in list) if (p.Id != net.UserId) names.Add(p.Name);
             };
-            presence.Pos += m => { if (!link.Ready && m.Id != net.UserId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride, m.On, m.Guard, m.Fx, m.Fq); };
-            link.Pos += m => { if (m.Id != link.SelfId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride, m.On, m.Guard, m.Fx, m.Fq); };
+            presence.Pos += m => { if (!link.Ready && m.Id != net.UserId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride, m.On, m.Guard, m.Fx, m.Fq, m.Em, m.Eq); };
+            link.Pos += m => { if (m.Id != link.SelfId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride, m.On, m.Guard, m.Fx, m.Fq, m.Em, m.Eq); };
 
             signs = gameObject.AddComponent<Signs>();
             signs.Session = Session;
@@ -167,6 +174,7 @@ namespace EtherMines.Game
         {
             var parts = line.Substring(1).Split(new[] { ' ' }, 2);
             string c = parts[0].ToLowerInvariant(), rest = parts.Length > 1 ? parts[1].Trim() : "", arg = rest.ToLowerInvariant();
+            if (Rules.Emote(c) != null) { emotes.Play(c); return; } // /wave, /dance...
             void Say(string t) => chat.Add("World", "#7fe8ff", t);
             var b = Player.Body;
             switch (c)
@@ -203,7 +211,7 @@ namespace EtherMines.Game
                     Report(arg);
                     return;
             }
-            Say("Commands: /join nickname · /sanctuary · /claim · /unclaim · /invite nickname · /kick nickname · /claims · /trade nickname · /ignore nickname · /listen nickname · /report nickname");
+            Say("Commands: /join nickname · /sanctuary · /claim · /unclaim · /invite nickname · /kick nickname · /claims · /trade nickname · /ignore nickname · /listen nickname · /report nickname · /wave, /cheer… (G: gestures)");
         }
 
         async void Report(string who)
@@ -261,7 +269,7 @@ namespace EtherMines.Game
             {
                 // the game server's part runs on this device (MobSim): the mobs, your hearts, their loot
                 link.Owned(Act.Inv);
-                link.SendPos(b.X, b.Y, b.Z, Player.Yaw, Player.Pitch, Act.Swing > 0, Act.Inv.HeldId > 0 && Rules.Block(Act.Inv.HeldId) == null ? Act.Inv.HeldId : 0, Time.time, combat.Guarding, combat.Armor, combat.Boots, combat.Fx, combat.Fq, items != null && items.Warded, hover != null ? hover.Riding : 0, hover?.Boarded);
+                link.SendPos(b.X, b.Y, b.Z, Player.Yaw, Player.Pitch, Act.Swing > 0, Act.Inv.HeldId > 0 && Rules.Block(Act.Inv.HeldId) == null ? Act.Inv.HeldId : 0, Time.time, combat.Guarding, combat.Armor, combat.Boots, combat.Fx, combat.Fq, items != null && items.Warded, hover != null ? hover.Riding : 0, hover?.Boarded, emotes.Out.K, emotes.Out.Q);
                 return;
             }
             feed.Tick(dt);
@@ -275,7 +283,7 @@ namespace EtherMines.Game
             link.SetLook(avatars.MyTitle(), Looks.Code(avatars.MyLook()));
             int held = Act.Inv.HeldId;
             if (held <= 0 || Rules.Block(held) != null) held = 0; // what's drawn in their hand: a tool or a weapon
-            link.SendPos(b.X, b.Y, b.Z, Player.Yaw, Player.Pitch, Act.Swing > 0, held, Time.time, combat.Guarding, combat.Armor, combat.Boots, combat.Fx, combat.Fq, items != null && items.Warded, hover != null ? hover.Riding : 0, hover?.Boarded);
+            link.SendPos(b.X, b.Y, b.Z, Player.Yaw, Player.Pitch, Act.Swing > 0, held, Time.time, combat.Guarding, combat.Armor, combat.Boots, combat.Fx, combat.Fq, items != null && items.Warded, hover != null ? hover.Riding : 0, hover?.Boarded, emotes.Out.K, emotes.Out.Q);
             if (!link.Ready)
                 presence.SendPos(new Dictionary<string, object>
                 {
@@ -283,7 +291,7 @@ namespace EtherMines.Game
                     ["x"] = Math.Round(b.X, 2), ["y"] = Math.Round(b.Y, 2), ["z"] = Math.Round(b.Z, 2), ["yaw"] = Math.Round(Player.Yaw, 2), ["pitch"] = Math.Round(Player.Pitch, 2),
                     ["m"] = Act.Swing > 0, ["h"] = held, ["gd"] = combat.Guarding ? 1 : 0, ["rd"] = hover != null ? hover.Riding : 0, ["on"] = hover?.Boarded ?? (object)0,
                     ["wd"] = items != null && items.Warded ? 1 : 0, ["ld"] = 0, ["ar"] = combat.Armor, ["bt"] = combat.Boots ? 1 : 0, ["nm"] = link.NoMobs ? 1 : 0,
-                    ["fx"] = combat.Fx ?? (object)0, ["fq"] = combat.Fq,
+                    ["fx"] = combat.Fx ?? (object)0, ["fq"] = combat.Fq, ["em"] = emotes.Out.K ?? (object)0, ["eq"] = emotes.Out.Q,
                 }, Time.time);
         }
 

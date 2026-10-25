@@ -45,11 +45,18 @@ namespace EtherMines.Game
             }
         }
 
+        // the shop, at one of its aisles (store, workshop, wardrobe)
+        public void ShowShop(string aisle)
+        {
+            Show("shop");
+            if (Progress != null) (shop ??= new Shop { Session = Session, Progress = Progress, Avatars = Avatars }).Aisle = aisle;
+        }
+
         public void Hide()
         {
             Ui.PanelOpen = false;
             Open = null;
-            if (Avatars != null) { Avatars.TryLook = null; Avatars.TryColor = null; }
+            if (Avatars != null) { Avatars.TryLook = null; Avatars.TryColor = null; Avatars.TryEmote = null; }
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }

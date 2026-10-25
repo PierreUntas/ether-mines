@@ -20,7 +20,7 @@
 // srv_* functions, 041_game_server.sql), and tells Supabase it's up so the browsers can't claim loot.
 import { createServer } from 'node:http';
 import { WebSocketServer } from 'ws';
-import { MobsCore } from './shared.js';
+import { MobsCore, Rules } from './shared.js';
 import { createTerrain, supabaseArea } from './terrain.js';
 import { createMobSim, TICK_MS } from './mobs.js';
 import { createHealth, BLADES, ARMOR } from './health.js';
@@ -63,6 +63,7 @@ const MOB_SLACK = 0.8; // the pace of blows on a mob, with room for the network'
 const RIPOSTE = 2.25; // the most a blow can be raised: a critical blow (×1.5) on a riposte after a parry (×1.5)
 // the Merge twins come as a pair, side by side in their chunk (16-mobs.js: slots 160 and 161)
 const FX = new Set(['hurt', 'parry', 'block']); // what a position may say happened to a player
+const EMOTE = new Set(Object.keys(Rules.EMOTES)); // the gestures a position may carry (rules.js EMOTES)
 const twinOf = (k, i, type) => (type === 'pow_twin' ? `${k}|${i + 1}|pos_twin` : type === 'pos_twin' ? `${k}|${i - 1}|pow_twin` : null);
 
 const num = (v, lim = 1e6) => (Number.isFinite(v) && Math.abs(v) <= lim ? v : null);
@@ -597,6 +598,8 @@ export function createGameServer(opts = {}) {
           ar: Number.isInteger(m.ar) ? m.ar : 0, // the plating they wear (only drawn: its protection is settled here)
           fx: FX.has(m.fx) ? m.fx : 0, // the last blow they took or parried, drawn on their avatar
           fq: Number.isInteger(m.fq) ? m.fq & 0xffff : 0, // ...and its number: each is drawn once
+          em: EMOTE.has(m.em) ? m.em : 0, // the last gesture they made (21-emotes.js), and its number
+          eq: Number.isInteger(m.eq) ? m.eq & 0xffff : 0,
         });
       } else if (m.t === 'hit') {
         // only to its target, and only if the target really stands within reach of you here

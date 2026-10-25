@@ -798,6 +798,21 @@
     114: { n: 'Beacon Wings', category: 'premium', price: 0, eur: 499, slot: 'back', set: 'pos', style: 'beaconwings' },
     115: { n: 'Stake Light', category: 'premium', price: 0, eur: 199, slot: 'trail', set: 'pos', style: 'stake' },
     116: { n: 'Stake Blade Trim', category: 'premium', price: 0, eur: 299, slot: 'tool', set: 'pos', style: 'stake' },
+    // emotes sold in the Workshop (EMOTES below): a gesture, not a piece to wear
+    117: { n: 'Dance', category: 'emote', price: 800, emote: 'dance' },
+    118: { n: 'Bow', category: 'emote', price: 600, emote: 'bow' },
+  };
+  // emotes: gestures a character makes for everyone around to see (21-emotes.js draws them, the game
+  // server relays them with your position). Free ones for everyone; the others with their cosmetic (COSMETICS
+  // 117, 118, in the Workshop). sec: how long it lasts (0: until you move)
+  const EMOTES = {
+    wave: { n: 'Wave', sec: 2.2 },
+    point: { n: 'Point', sec: 1.8 },
+    cheer: { n: 'Cheer', sec: 2.2 },
+    clap: { n: 'Clap', sec: 2 },
+    sit: { n: 'Sit', sec: 0 },
+    dance: { n: 'Dance', sec: 4.8, cosmetic: 117 },
+    bow: { n: 'Bow', sec: 1.8, cosmetic: 118 },
   };
   // the collections, in shop order: name and a line of history
   const SETS = {
@@ -881,6 +896,7 @@
     placeIds,
     COSMETICS,
     SETS,
+    EMOTES,
     SET_EUR,
     STORE_PREFIX,
     setPieces,

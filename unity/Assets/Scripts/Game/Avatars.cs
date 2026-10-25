@@ -23,6 +23,7 @@ namespace EtherMines.Game
         public Func<bool> MyBoots = () => false, MyCape = () => false; // the Front-Runner Boots on, the Titan's cape owned
         public Func<int> MyRide = () => 0;       // the craft you ride (Hover draws it)
         public Func<string> MyOn = () => null;   // the driver whose back seat you're in
+        public Func<(string k, float at)> MyEmote = () => (null, 0); // the gesture you're making (Emotes.Mine)
         public Hover Hover;                      // your craft, its back seat (null offline)
         public string MyId;
 
@@ -38,6 +39,7 @@ namespace EtherMines.Game
             public float Vy, LastY = float.NaN, AirK, SwimK, ClimbK, Land, FallV, Stroke, Climb, GuardK, GlideT, GlideK, GlidePh;
             public float ParryAt = -99; public int Fq = -1; // their last parry (Time.time), from the `fx`/`fq` their moves carry
             public bool WasAir;
+            public string Emote; public float EmoteAt; public int Eq = -1; // the gesture they're making (21-emotes.js), since when, its number
             public bool HeldRanged;   // a gun in hand: the arm held out to aim
             public int Held, ShownHeld = -1; // the tool or weapon in their right hand (`h`), and the one drawn
             public GameObject HeldObj;
@@ -164,7 +166,7 @@ namespace EtherMines.Game
             foreach (var k in gone) { Drop(figs[k]); figs.Remove(k); }
         }
 
-        public void Heard(string id, string name, string color, double x, double y, double z, double yaw, double pitch, bool mining, bool live = true, int held = 0, int armor = 0, bool boots = false, int ride = 0, string on = null, bool guard = false, string fx = null, int fq = 0)
+        public void Heard(string id, string name, string color, double x, double y, double z, double yaw, double pitch, bool mining, bool live = true, int held = 0, int armor = 0, bool boots = false, int ride = 0, string on = null, bool guard = false, string fx = null, int fq = 0, string em = null, int eq = 0)
         {
             if (!figs.TryGetValue(id, out var f) || f.Color != color || f.Name != name)
             {
@@ -183,6 +185,12 @@ namespace EtherMines.Game
                 Effects.Burst(sx - 0.5f, (float)y + 0.75f, sz - 0.5f, Hex("#bdf6ff", Color.white));
             }
             if (live) f.Fq = fq;
+            // a gesture they just made (emoteHeard): each number once, not the one they had when you met them
+            if (live && eq != f.Eq)
+            {
+                if (f.Eq >= 0 && em != null && EtherMines.Core.Rules.Emote(em) != null) { f.Emote = em; f.EmoteAt = Time.time; }
+                f.Eq = eq;
+            }
             if (!f.Seen) { f.Seen = true; f.Pos = f.Target; f.Yaw = f.TYaw; f.HeardAt = Time.time; }
         }
 
@@ -242,6 +250,7 @@ namespace EtherMines.Game
                     me.Mining = Act != null && Act.Swing > 0;
                     me.Guard = MyGuard();
                     me.ParryAt = MyParryAt();
+                    var mye = MyEmote(); me.Emote = mye.k; me.EmoteAt = mye.at;
                     int h = Act != null && Act.Inv.Held != null ? Act.Inv.HeldId : 0;
                     me.Held = h > 0 && EtherMines.Core.Rules.Block(h) == null ? h : 0;
                     if (!me.Seen) { me.Seen = true; me.Pos = me.Target; me.Yaw = me.TYaw; }
@@ -405,6 +414,7 @@ namespace EtherMines.Game
         float pspin = 0.5f, pwantedAt = -1;
         public Dictionary<string, int> TryLook; // pieces tried on in the shop, by slot
         public string TryColor;                // an outfit tried on comes in its own color
+        public string TryEmote;                // a gesture tried in the shop, played again and again
 
         // asked every frame the window shows it; the camera only runs meanwhile
         public Texture Preview()
@@ -463,6 +473,8 @@ namespace EtherMines.Game
             preview.Pos = preview.Target = new Vector3(0, -1000, 0);
             preview.Yaw = preview.TYaw = pspin; // facing the camera at 0, turning
             preview.Mining = false;
+            if (TryEmote == null) preview.Emote = null;
+            else if (preview.Emote != TryEmote) { preview.Emote = TryEmote; preview.EmoteAt = Time.time; }
             Animate(preview, Time.unscaledDeltaTime, 1);
             Trims(preview, look);
             Layer(preview.Root.transform, PreviewLayer);
@@ -671,7 +683,12 @@ namespace EtherMines.Game
                     if (!busy) { rx = rx * (1 - ck) + (2.7f + 0.35f * cl) * ck; lx = lx * (1 - ck) + (2.7f - 0.35f * cl) * ck; rz = rz * (1 - ck) - 0.1f * ck; lz = lz * (1 - ck) + 0.1f * ck; }
                 }
             }
+            // a gesture (emotePose): over the walk and the guard, it takes the arms, legs and lean it needs
+            float headZ = 0, edy = 0, erx = 0, erz = 0;
+            if (!riding && f.Emote != null && !EmotePose(f, ref rx, ref rz, ref lx, ref lz, ref legL, ref legR, ref tw, ref headZ, ref edy, ref erx, ref erz)) f.Emote = null;
             f.Root.transform.rotation = Quaternion.Euler(0, (float)(-f.Yaw * Mathf.Rad2Deg), 0) * Quaternion.Euler(riding ? 0 : -R(lean), 0, 0);
+            if (erx != 0 || erz != 0) f.Root.transform.rotation *= Quaternion.Euler(-R(erx), 0, R(erz));
+            if (edy != 0) f.Root.transform.position += Vector3.up * edy;
             // the parry's step aside: the legs wide, the body leaning into it (web z turns, mirrored like the arms')
             if (p > 0 && !riding) f.Root.transform.rotation *= Quaternion.Euler(0, 0, R(-0.16f * p));
             f.LegL.localRotation = Quaternion.Euler(-R(legL), 0, R(-0.42f * p));
@@ -695,7 +712,7 @@ namespace EtherMines.Game
             f.Body.localScale = new Vector3(1 + br * 0.02f, 1 + br * 0.012f, 1 + br * 0.035f);
             f.Body.localRotation = Quaternion.Euler(0, -R(tw), 0);
             f.Head.localPosition = new Vector3(0, 1.32f + hop + br * 0.012f - dip, 0);
-            f.Head.localRotation = Quaternion.Euler((float)(-f.Pitch * 0.6 * Mathf.Rad2Deg), 0, Mathf.Sin(f.Walk) * 0.06f * mv * Mathf.Rad2Deg);
+            f.Head.localRotation = Quaternion.Euler((float)(-f.Pitch * 0.6 * Mathf.Rad2Deg), 0, (Mathf.Sin(f.Walk) * 0.06f * mv + headZ) * Mathf.Rad2Deg);
             if (riding)
             {
                 // seated (sitAvatar): knees forward, both hands forward on the controls, still
@@ -705,6 +722,61 @@ namespace EtherMines.Game
                 f.Body.localPosition = new Vector3(0, 0.74f, 0);
             }
         }
+
+        // the gestures (21-emotes.js emotePose), in the web's radians: eased in over 0.18 s and out over the last
+        // 0.25 s; false once it's over. erx/erz turn the whole figure from the feet, edy lifts it.
+        static bool EmotePose(Fig f, ref float rx, ref float rz, ref float lx, ref float lz, ref float legL, ref float legR, ref float tw, ref float headZ, ref float edy, ref float erx, ref float erz)
+        {
+            var e = EtherMines.Core.Rules.Emote(f.Emote);
+            if (e == null) return false;
+            float t = Time.time - f.EmoteAt;
+            if (e.Sec > 0 && t > e.Sec) return false;
+            float k = Mathf.Min(1, t / 0.18f) * (e.Sec > 0 ? Mathf.Min(1, (e.Sec - t) / 0.25f) : 1);
+            float To(float v, float to) => v + (to - v) * k;
+            switch (f.Emote)
+            {
+                case "wave": // the right hand up, waving
+                    rx = To(rx, 2.9f); rz = To(rz, 0.45f + Mathf.Sin(t * 9) * 0.35f); headZ = To(headZ, 0.12f);
+                    break;
+                case "point": // the right arm straight out, ahead
+                    rx = To(rx, 1.62f); rz = To(rz, 0.02f); tw = To(tw, -0.22f);
+                    break;
+                case "cheer": // both arms up, hopping
+                    rx = To(rx, 2.95f); lx = To(lx, 2.95f);
+                    rz = To(rz, 0.5f + Mathf.Sin(t * 8) * 0.15f); lz = To(lz, -0.5f - Mathf.Sin(t * 8) * 0.15f);
+                    edy += Mathf.Abs(Mathf.Sin(t * 6)) * 0.22f * k;
+                    break;
+                case "clap": // both hands in front, meeting again and again
+                {
+                    float c = Mathf.Max(0, Mathf.Sin(t * 14));
+                    rx = To(rx, 1.25f); lx = To(lx, 1.25f); rz = To(rz, -0.42f - c * 0.28f); lz = To(lz, 0.42f + c * 0.28f);
+                    break;
+                }
+                case "sit": // on the ground, legs out in front, hands on the knees
+                    legL = To(legL, 1.45f); legR = To(legR, 1.45f);
+                    rx = To(rx, 0.75f); lx = To(lx, 0.75f); rz = To(rz, 0.05f); lz = To(lz, -0.05f);
+                    edy -= 0.4f * k;
+                    break;
+                case "dance": // arms up in turn, hips swaying, little steps, a hop on the beat
+                {
+                    float b = t * 6, sb = Mathf.Sin(b);
+                    rx = To(rx, 1.4f + sb * 1.3f); lx = To(lx, 1.4f - sb * 1.3f); rz = To(rz, 0.35f); lz = To(lz, -0.35f);
+                    tw = To(tw, Mathf.Sin(b / 2) * 0.45f);
+                    legL = To(legL, sb * 0.45f); legR = To(legR, -sb * 0.45f);
+                    erz += sb * 0.08f * k; edy += Mathf.Abs(sb) * 0.1f * k;
+                    break;
+                }
+                case "bow": // a bow from the waist, one hand on the chest, the other behind the back, then back up
+                {
+                    float d = Mathf.Sin(Mathf.Min(1, t / e.Sec) * Mathf.PI);
+                    erx += BowLean * d * k;
+                    rx = To(rx, 0.9f); rz = To(rz, -0.75f); lx = To(lx, -0.55f); lz = To(lz, 0.1f);
+                    break;
+                }
+            }
+            return true;
+        }
+        const float BowLean = -0.55f; // forward (the web's rotation.x: negative leans toward where they face)
 
         // the name over each head (nameTag): a dark rounded label with a dot of their color
         void OnGUI()

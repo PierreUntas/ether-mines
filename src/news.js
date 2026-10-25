@@ -6,6 +6,15 @@
   root.NEWS = [
     {
       date: '2026-10-25',
+      title: 'Emotes',
+      items: [
+        'Press G (or the smiley button) for a row of gestures everyone around you sees: Wave, Point, Cheer, Clap and Sit.',
+        'Typing /wave, /cheer, /sit... in the chat does the same.',
+        'Two new gestures in the Workshop aisle of the shop, Dance and Bow: try them on your character before buying.',
+      ],
+    },
+    {
+      date: '2026-10-25',
       title: 'A new guard',
       items: [
         'On guard, you now hold your blade upright, tip down, in front of you, both hands on the grip.',

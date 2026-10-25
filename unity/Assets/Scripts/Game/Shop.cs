@@ -63,6 +63,7 @@ namespace EtherMines.Game
         }
 
         string tab = "store";
+        public string Aisle { get => tab; set { tab = value; scroll = Vector2.zero; } }
         static readonly string[][] Tabs = { new[] { "store", "Store · €" }, new[] { "workshop", "Workshop · Gwei" }, new[] { "wardrobe", "Wardrobe" } };
         const int OutfitSlots = 4; // saved outfits, in your save (State["outfits"], as on the web)
 
@@ -174,7 +175,9 @@ namespace EtherMines.Game
                     Note(set[2]);
                     foreach (var i in mine) Piece(i);
                 }
-                var loose = ids.Where(i => Rules.Cosmetics[i].Set == null && Rules.ForSale(Rules.Cosmetics[i])).ToList();
+                var emotes = ids.Where(i => Rules.Cosmetics[i].Emote != null).ToList();
+                if (emotes.Count > 0) { Head("Emotes"); Note("Gestures everyone around you sees: G, or the smiley button, then pick one. Wave, Point, Cheer, Clap and Sit are free."); foreach (var i in emotes) Piece(i); }
+                var loose = ids.Where(i => Rules.Cosmetics[i].Set == null && Rules.Cosmetics[i].Emote == null && Rules.ForSale(Rules.Cosmetics[i])).ToList();
                 foreach (var slot in Looks.Slots.Concat(new string[] { null }))
                 {
                     var mine = loose.Where(i => Rules.Cosmetics[i].Slot == slot && !Rules.Cosmetics[i].HasGrant).ToList();
@@ -217,12 +220,13 @@ namespace EtherMines.Game
                 Ui.Fill(pr, new Color(1, 1, 1, 0.06f));
                 Panel.DrawPreview(Avatars, new Rect(pr.x, pr.y + 6, pr.width, Mathf.Min(360, pr.height - 90)));
                 float ty = pr.y + Mathf.Min(360, pr.height - 90) + 12;
-                if (Avatars.TryLook != null && Avatars.TryLook.Count > 0)
+                if ((Avatars.TryLook != null && Avatars.TryLook.Count > 0) || Avatars.TryEmote != null)
                 {
                     var mine = Looks.Mine(Session, Progress.Cosmetics);
-                    var tried = Avatars.TryLook.Where(kv => !mine.TryGetValue(kv.Key, out var m) || m != kv.Value).Select(kv => Rules.Cosmetics[kv.Value].N).ToList();
+                    var tried = (Avatars.TryLook ?? new Dictionary<string, int>()).Where(kv => !mine.TryGetValue(kv.Key, out var m) || m != kv.Value).Select(kv => Rules.Cosmetics[kv.Value].N).ToList();
+                    if (Avatars.TryEmote != null) tried.Add(Rules.Emote(Avatars.TryEmote)?.N ?? Avatars.TryEmote);
                     GUI.Label(new Rect(pr.x + 12, ty, pr.width - 24, 40), "Trying on: " + (tried.Count > 0 ? string.Join(", ", tried) : "nothing new"), Ui.Small);
-                    if (GUI.Button(new Rect(pr.x + 12, ty + 40, pr.width - 24, 30), "Back to my look", Ui.Button)) { Avatars.TryLook = null; Avatars.TryColor = null; }
+                    if (GUI.Button(new Rect(pr.x + 12, ty + 40, pr.width - 24, 30), "Back to my look", Ui.Button)) { Avatars.TryLook = null; Avatars.TryColor = null; Avatars.TryEmote = null; }
                 }
                 else GUI.Label(new Rect(pr.x + 12, ty, pr.width - 24, 40), "Press Try on any piece to see it on your character first.", Ui.Small);
             }
@@ -306,6 +310,24 @@ namespace EtherMines.Game
             }
         }
 
+        // an emote (shopRow's emote branch): try it on your character, do it once it's yours, or buy it with Gwei
+        void EmoteRow(Rect r, Cosmetic c, bool owned, int price)
+        {
+            GUI.Label(new Rect(r.x + 54, r.y + 4, r.width - 370, 24), "<b>" + c.N + "</b>", Ui.Label);
+            GUI.Label(new Rect(r.x + 54, r.y + 26, r.width - 370, 22), owned ? "Emote · yours" : $"Emote · {price} Gwei", Ui.Small);
+            var b = new Rect(r.xMax - 190, r.y + 10, 180, 32);
+            if (Avatars != null)
+            {
+                bool trying = Avatars.TryEmote == c.Emote;
+                if (GUI.Button(new Rect(b.x - 110, b.y, 100, 32), trying ? "Stop" : "Try", Ui.Button)) Avatars.TryEmote = trying ? null : c.Emote;
+            }
+            GUI.enabled = !busy;
+            if (owned) { if (GUI.Button(b, "Do it", Ui.Primary) && Emotes.I != null) { Avatars.TryEmote = null; Emotes.I.Play(c.Emote); } }
+            else if (Session.Gwei < price) { GUI.enabled = false; GUI.Button(b, price + " Gwei", Ui.Button); }
+            else if (GUI.Button(b, "Buy · " + price + " Gwei", Ui.Primary)) Buy(c);
+            GUI.enabled = true;
+        }
+
         void Row(Rect r, Cosmetic c, ShopPicks f, double week)
         {
             bool owned = Owns(c.Id), worn = Worn(c), sellable = Rules.ForSale(c), onSale = f.Sale.Contains(c.Id);
@@ -318,6 +340,7 @@ namespace EtherMines.Game
             else Ui.Fill(sw, Avatars.Hex(!string.IsNullOrEmpty(c.Color) ? c.Color : c.Slot != null && SlotTint.TryGetValue(c.Slot, out var t) ? t : sellable ? "#8a7bef" : "#ffd95e", Ui.Violet));
             string slot = c.Slot != null && Looks.SlotLabel.TryGetValue(c.Slot, out var sl) ? sl : c.Category;
             string eur = "€" + (c.Eur / 100.0).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+            if (c.Emote != null) { EmoteRow(r, c, owned, price); return; }
             string sub = c.Premium ? (owned ? $"{(c.Slot != null && Looks.SlotLabel.TryGetValue(c.Slot, out var ps) ? ps : c.Category)} · premium · {(worn ? "worn" : "owned")}" : $"{(c.Slot != null && Looks.SlotLabel.TryGetValue(c.Slot, out var ps2) ? ps2 : c.Category)} · premium · <b><color=#ffd95e>{eur}</color></b>")
                 : c.HasGrant ? $"grants {c.GrantQty} × {Ui.NameOf(c.GrantItem)} · buy as often as you like"
                 : owned ? $"{slot} · {(worn ? "worn" : "owned")}"

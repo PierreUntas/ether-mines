@@ -81,6 +81,13 @@ test('moves reach the players nearby only, with the sender named by the server',
   a.send({ t: 'pos', x: 12, y: 30, z: 11, fx: '<b>', fq: 8 });
   await wait(50);
   assert.equal(b.of('pos').at(-1).fx, 0);
+  // a gesture (rules.js EMOTES) is passed on with its number, anything else is not
+  a.send({ t: 'pos', x: 12, y: 30, z: 11, em: 'wave', eq: 3 });
+  await wait(50);
+  assert.deepEqual([b.of('pos').at(-1).em, b.of('pos').at(-1).eq], ['wave', 3]);
+  a.send({ t: 'pos', x: 12, y: 30, z: 11, em: 'moonwalk', eq: 4 });
+  await wait(50);
+  assert.equal(b.of('pos').at(-1).em, 0);
   [a, b, c].forEach(p => p.close());
 });
 

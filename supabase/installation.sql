@@ -5436,7 +5436,9 @@ insert into public.rule_cosmetics (id, name, price, category, grant_item, grant_
 (113,'Staking Halo',0,'premium',null,null,false,299,'pos'),
 (114,'Beacon Wings',0,'premium',null,null,false,499,'pos'),
 (115,'Stake Light',0,'premium',null,null,false,199,'pos'),
-(116,'Stake Blade Trim',0,'premium',null,null,false,299,'pos');
+(116,'Stake Blade Trim',0,'premium',null,null,false,299,'pos'),
+(117,'Dance',800,'emote',null,null,false,null,null),
+(118,'Bow',600,'emote',null,null,false,null,null);
 insert into public.rule_sets (id, eur) values
 ('pow',1299),
 ('pos',1299);

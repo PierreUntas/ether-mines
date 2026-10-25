@@ -406,7 +406,9 @@
     "113": {"n":"Staking Halo","category":"premium","price":0,"eur":299,"slot":"head","set":"pos","style":"stakehalo"},
     "114": {"n":"Beacon Wings","category":"premium","price":0,"eur":499,"slot":"back","set":"pos","style":"beaconwings"},
     "115": {"n":"Stake Light","category":"premium","price":0,"eur":199,"slot":"trail","set":"pos","style":"stake"},
-    "116": {"n":"Stake Blade Trim","category":"premium","price":0,"eur":299,"slot":"tool","set":"pos","style":"stake"}
+    "116": {"n":"Stake Blade Trim","category":"premium","price":0,"eur":299,"slot":"tool","set":"pos","style":"stake"},
+    "117": {"n":"Dance","category":"emote","price":800,"emote":"dance"},
+    "118": {"n":"Bow","category":"emote","price":600,"emote":"bow"}
   },
   "SETS": {
     "frontier": ["Frontier","July 2015: the first release, a network for the brave"],
@@ -418,6 +420,7 @@
     "pow": ["Proof-of-Work","The miners' forge: iron, embers and fire. Premium"],
     "pos": ["Proof-of-Stake","The validators' crystal: white, violet and light. Premium"]
   },
+  "EMOTES": {"wave":{"n":"Wave","sec":2.2},"point":{"n":"Point","sec":1.8},"cheer":{"n":"Cheer","sec":2.2},"clap":{"n":"Clap","sec":2},"sit":{"n":"Sit","sec":0},"dance":{"n":"Dance","sec":4.8,"cosmetic":117},"bow":{"n":"Bow","sec":1.8,"cosmetic":118}},
   "SET_EUR": {"pow":1299,"pos":1299},
   "STORE_PREFIX": "org.ethermines.game.",
   "PASTELS": [["pink","#ffb8d9"],["lavender","#c9b8ff"],["mint","#aeeccb"],["sky","#b3dcff"],["peach","#ffcfae"],["lemon","#fff0a0"],["coral","#ff9f9a"],["white","#f4f2fa"]],

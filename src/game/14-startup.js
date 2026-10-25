@@ -688,6 +688,7 @@ function viewFromOutside(dt) {
   o.arms[0].position.y = o.arms[1].position.y = 1.26 + hop;
   movePose(o, dt, sp, guardAmt > 0.02 || th > 0, !!(RIDE || BOARD));
   joltPose(o, dt);
+  if (typeof emoteSelf === 'function') emoteSelf(o); // a gesture you're making (21-emotes.js)
   if (typeof rideSelf === 'function') rideSelf(o); // on board: seated on the craft
   viewFrom.copy(camera.position);
   viewDir.set(0, 0, VIEW === 1 ? 1 : -1).applyQuaternion(camera.quaternion);
@@ -809,6 +810,13 @@ function previewBox() {
       p.av.arms[0].rotation.x = Math.sin(t * 1.6) * 0.12;
       p.av.arms[1].rotation.x = -Math.sin(t * 1.6) * 0.12;
       p.av.head.rotation.y = Math.sin(t * 0.8) * 0.25;
+      // the shop's "Try" on an emote: the character makes it, again and again (21-emotes.js)
+      if (p.tryEmote && typeof emotePose === 'function') {
+        p.av.g.position.y = 0;
+        p.av.g.rotation.x = p.av.g.rotation.z = 0;
+        for (const l of p.av.legs) l.rotation.x = 0;
+        if (!emotePose(p.av, p.tryEmote)) p.tryEmote = { k: p.tryEmote.k, t0: performance.now() };
+      }
       tickLookAnims(p.av, t);
       p.r.render(p.sc, p.cam);
       requestAnimationFrame(spin);
@@ -949,6 +957,7 @@ Net.on('pos', p => {
     if (o.fq !== undefined && AVATAR_FX.has(p.fx)) avatarFx(o, p.fx);
     o.fq = p.fq;
   }
+  if (typeof emoteHeard === 'function') emoteHeard(o, p); // a gesture they made (21-emotes.js)
 });
 Net.on('block', b => applyBlock(b));
 // the world was put back the way it was generated, outside the claims (042_world_restore.sql): read it again
@@ -1054,6 +1063,7 @@ function updateOthers(dt) {
     o.arms[0].position.y = o.arms[1].position.y = 1.26 + hop;
     movePose(o, dt, sp, o.gdAmt > 0.02 || th > 0, !!(o.t.rd || o.t.on));
     joltPose(o, dt);
+    if (typeof emoteOther === 'function') emoteOther(o); // a gesture they're making (21-emotes.js)
     o.tag.position.y = 2.1 + hop;
     if (typeof rideOther === 'function') rideOther(o); // on board a hovercraft, or in someone's back seat
   }
@@ -1096,6 +1106,8 @@ setInterval(() => {
       nm: mobsHere() ? 0 : 1, // hostile mobs turned off in this world: the game server's mobs leave you be
       fx: FX_OUT.k, // the last blow you took or parried (avatarFx), and its number
       fq: FX_OUT.q,
+      em: typeof EMOTE_OUT !== 'undefined' ? EMOTE_OUT.k : 0, // your last gesture (21-emotes.js), and its number
+      eq: typeof EMOTE_OUT !== 'undefined' ? EMOTE_OUT.q : 0,
     };
   const L = lastPos,
     moved =
@@ -1113,7 +1125,8 @@ setInterval(() => {
       p.ar !== L.ar ||
       p.bt !== L.bt ||
       p.nm !== L.nm ||
-      p.fq !== L.fq;
+      p.fq !== L.fq ||
+      p.eq !== L.eq;
   if (!moved && now - lastPosT < 4000) return;
   lastPos = p;
   lastPosT = now;
@@ -1166,6 +1179,7 @@ function closeChat() {
 function command(v) {
   const [c, ...rest] = v.slice(1).split(' ');
   const arg = rest.join(' ').trim().toLowerCase();
+  if (typeof emoteCommand === 'function' && emoteCommand(c.toLowerCase())) return; // /wave, /dance... (21-emotes.js)
   if (c === 'sanctuary') {
     P.x = SPAWN.x + 0.5;
     P.y = SPAWN.y + 0.1;

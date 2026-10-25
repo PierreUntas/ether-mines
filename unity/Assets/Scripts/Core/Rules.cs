@@ -68,6 +68,7 @@ namespace EtherMines.Core
     {
         public int Id;
         public string N, Category, Slot, Style, Set, Color, Pants, Accent, Detail;
+        public string Emote;      // an emote's gesture (EMOTES), sold in the Workshop
         public int Price;
         public int Eur;           // premium: sold for euros, in cents (never for Gwei)
         public bool Premium => Category == "premium";
@@ -91,6 +92,11 @@ namespace EtherMines.Core
         public static readonly Dictionary<int, Cosmetic> Cosmetics = new Dictionary<int, Cosmetic>();
         public static int[] CosmeticIds = new int[0]; // ascending
         public static readonly List<string[]> Sets = new List<string[]>(); // [key, name, line], shop order
+        // the gestures (EMOTES), in the order of the row: key, name, how long (0: until you move), the cosmetic
+        // that unlocks it (0: free)
+        public sealed class EmoteDef { public string K, N; public float Sec; public int Cosmetic; }
+        public static readonly List<EmoteDef> Emotes = new List<EmoteDef>();
+        public static EmoteDef Emote(string k) { foreach (var e in Emotes) if (e.K == k) return e; return null; }
         public static readonly Dictionary<string, int> SetEur = new Dictionary<string, int>(); // a whole premium set, euro cents (SET_EUR)
         public static string StorePrefix = "org.ethermines.game."; // the App Store / Google Play product ids (STORE_PREFIX)
         public static readonly List<string[]> Pastels = new List<string[]>(), Stained = new List<string[]>();
@@ -167,6 +173,13 @@ namespace EtherMines.Core
                 var a = (List<object>)kv.Value;
                 Sets.Add(new[] { kv.Key, (string)a[0], (string)a[1] });
             }
+            Emotes.Clear();
+            if (root.TryGetValue("EMOTES", out var em) && em is Dictionary<string, object> emd)
+                foreach (var kv in emd)
+                {
+                    var d = (Dictionary<string, object>)kv.Value;
+                    Emotes.Add(new EmoteDef { K = kv.Key, N = Str(d, "n"), Sec = (float)MiniJson.ToDouble(Get(d, "sec"), 0), Cosmetic = MiniJson.ToInt(Get(d, "cosmetic")) });
+                }
             if (root.TryGetValue("STORE_PREFIX", out var sp) && sp is string sps) StorePrefix = sps;
             if (root.TryGetValue("SET_EUR", out var se) && se is Dictionary<string, object> sed)
                 foreach (var kv in sed) SetEur[kv.Key] = MiniJson.ToInt(kv.Value);
@@ -375,6 +388,7 @@ namespace EtherMines.Core
                 Pants = Str(d, "pants"),
                 Accent = Str(d, "accent"),
                 Detail = Str(d, "detail"),
+                Emote = Str(d, "emote"),
                 Price = MiniJson.ToInt(Get(d, "price")),
                 Eur = MiniJson.ToInt(Get(d, "eur")),
                 Limited = MiniJson.Truthy(Get(d, "limited")),

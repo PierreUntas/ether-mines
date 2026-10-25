@@ -60,6 +60,7 @@ const {
   reqTier,
   COSMETICS,
   SETS,
+  EMOTES,
   SET_EUR,
   setPieces,
   setPrice,
