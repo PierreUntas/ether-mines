@@ -36,6 +36,7 @@ const REFUSAL = {
   'validators are relit, not built': () => 'validators are relit in the ruins, not built',
   'chapter not finished': () => chapterMissing(CHAPTER_CLAIM.asking),
   'empty inventory': () => 'none of that item left',
+  'three validators at most': () => 'three validators at most: you already run three',
   'needs support': () => 'you need something solid underneath',
   'space occupied': () => 'that spot is occupied',
   'item not placeable': () => "the server doesn't know this block yet (rules need updating: supabase/rules.sql)",
@@ -718,6 +719,12 @@ function toastInfo(t) {
   logEv('nft', t, '');
 }
 function relight(t) {
+  // three validators at most (054_three_validators.sql): a seal per validator you run
+  if (S.nfts.filter(n => n.id === 203).length >= 3) {
+    logEv('burn', 'Dark validator', 'three validators at most: you already run three');
+    Sound.hit('stone');
+    return;
+  }
   // the ruin's fourth broken column (its +x, +z corner) must be rebuilt before the validator can wake up
   if (![0, 1, 2].every(i => isSolid(get(t.x + 2, t.y + i, t.z + 2)))) {
     logEv('burn', 'Dark validator', 'rebuild the fourth column first');

@@ -68,6 +68,8 @@ namespace EtherMines.Game
         async void Relight(Hit t)
         {
             if (Session == null || busy) return;
+            // three validators at most (054_three_validators.sql): a seal per validator you run
+            if (Act.Inv.Uniques.FindAll(u => u.Id == 203).Count >= 3) { Hud.Feed("burn", "Dark validator", "three validators at most: you already run three"); Sounds.Hit("stone"); return; }
             busy = true;
             Act.Swing = 1;
             try

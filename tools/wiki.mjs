@@ -250,7 +250,7 @@ ${crafting}
 <h2 id="validators">Validators and Gwei</h2>
 <ul>
   <li><b>Gwei</b> is the game's currency, kept by the server. You earn it from chapters, mobs, the defense of the Atrium and, above all, your validators.</li>
-  <li>Dark validators sleep in the ruins (the compass points to the nearest). Craft a validator heart and relight one: it becomes yours and produces Gwei every 5 minutes, even when you're offline.</li>
+  <li>Dark validators sleep in the ruins (the compass points to the nearest). Craft a validator heart and relight one: it becomes yours and produces Gwei every 5 minutes, even when you're offline. Three validators at most per player: the other ruins are for the others.</li>
   <li>A common validator earns about 120 Gwei an hour; rare, epic and legendary ones earn 2 to 8 times more. Upgrading adds 15% per level, up to level 10 (Validators tab).</li>
   <li><b>Attest</b> your validators at least once every 8 days (Validators tab): past that, they turn corrupted and stop producing until you attest again.</li>
   <li>Every hour, for its first 10 minutes, corrupted nodes attack the Atrium: destroy them for Gwei, and a bonus when the network holds.</li>

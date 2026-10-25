@@ -6,6 +6,14 @@
   root.NEWS = [
     {
       date: '2026-10-25',
+      title: 'Three validators each',
+      items: [
+        'Each player can now run three validators at most: the other ruins are left for the newcomers.',
+        'Those who ran more keep their three rarest; the others went back to dark ruins, ready to be relit.',
+      ],
+    },
+    {
+      date: '2026-10-25',
       title: 'Helms, gauntlets and amulets',
       items: [
         'Three new pieces to craft, in Volt, Pure Ether and Genesis: a helm takes less damage, gauntlets hit harder with a blade and mine faster, an amulet brings your hearts back sooner.',
