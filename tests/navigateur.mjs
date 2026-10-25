@@ -1392,14 +1392,29 @@ if (sea) {
     window.__sea = s;
     s.render = renderer.render;
     renderer.render = () => {}; // no drawing: the frames come fast enough to fall and swim
-    window.__tr = [];
-    const iv = setInterval(() => window.__tr.push([+P.y.toFixed(2)]), 100);
-    setTimeout(() => clearInterval(iv), 2400);
   }, sea);
-  await new Promise(r => setTimeout(r, 2500));
+  // 2.4 s of game time, however long the machine takes to play them (late in the suite a slow machine can
+  // stall for seconds), within 5 real minutes; the height every tenth of a game second or so
+  const tr = await page.evaluate(async () => {
+    const P = mines.P,
+      S = mines.S,
+      game = () => (S.dayN + S.day) * 480,
+      g0 = game(),
+      t0 = performance.now(),
+      out = [];
+    let next = 0;
+    while (game() - g0 < 2.4 && performance.now() - t0 < 300000) {
+      if (game() - g0 >= next) {
+        out.push([+P.y.toFixed(2)]);
+        next += 0.1;
+      }
+      await new Promise(r => setTimeout(r, 20));
+    }
+    return out;
+  });
   const swam = await page.evaluate(s => {
     const P = mines.P,
-      r = { y: P.y, surface: s.y, inWater: P.inWater, tr: window.__tr };
+      r = { y: P.y, surface: s.y, inWater: P.inWater };
     keys.delete('Space');
     $('panel').hidden = window.__sea.panel;
     renderer.render = window.__sea.render;
@@ -1408,6 +1423,7 @@ if (sea) {
     playing = s.was;
     return r;
   }, sea);
+  swam.tr = tr;
   // in the end afloat, half in the water: the feet about a block under the surface, steady
   const end = swam.tr.slice(-8).map(([y]) => y);
   if (end.length < 5 || Math.max(...end) > swam.surface - 0.6 || Math.min(...end) < swam.surface - 1.6)
