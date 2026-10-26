@@ -655,6 +655,25 @@ select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001
 select pg_temp.ok('crossing a network tier mints a Validator Star', act_relight('w', 900, 30, 910, 900.5, 30, 912.5) -> 'star' ->> 'id' = '204');
 select pg_temp.ok('the network now counts 3 relit validators', (select count(*) from blocks where world = 'w' and id = 74) = 3);
 reset role;
+-- 055: shutting a validator down puts the ruin back for anyone, takes its seal, and the milestone isn't crossed twice
+select id as rvid from validators where world = 'w' and x = 900 and y = 30 and z = 910 \gset
+select set_config('request.jwt.claim.sub', 'cccccccc-0000-0000-0000-000000000003', false) \g /dev/null
+set role authenticated;
+select pg_temp.ok('release: not someone else''s validator', act_release_validator('w', :rvid) ->> 'err' = 'not your validator');
+reset role;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-0000-0000-000000000001', false) \g /dev/null
+set role authenticated;
+select pg_temp.ok('release: your own goes', (act_release_validator('w', :rvid) -> 'changes' -> 0 ->> 'id') = '73');
+reset role;
+select pg_temp.ok('release: a dark validator again, nobody''s', (select id = 73 and placed_by is null from blocks where world = 'w' and x = 900 and y = 30 and z = 910));
+select pg_temp.ok('release: out of the Validators tab', not exists (select 1 from validators where id = :rvid));
+select pg_temp.ok('release: its seal gone', not exists (select 1 from uniques where validator_id = :rvid));
+insert into inventory values ('aaaaaaaa-0000-0000-0000-000000000001', 'w', 105, 1) on conflict (user_id, world, item) do update set n = 1;
+delete from rate_limits where kind = 'relight';
+set role authenticated;
+select pg_temp.ok('release: relit again, without a second milestone star', (select r ->> 'ok' = 'true' and r -> 'star' = 'null'::jsonb from (select act_relight('w', 900, 30, 910, 900.5, 30, 912.5) as r) q));
+reset role;
+\echo Release scenarios pass.
 \echo All SQL scenarios pass.
 
 -- ---------- trading between players (008_trades.sql) ----------

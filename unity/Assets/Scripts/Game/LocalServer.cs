@@ -194,6 +194,7 @@ namespace EtherMines.Game
                 case "rewards": return Rewards(w);
                 case "maintain_validator": return Maintain(w, a);
                 case "upgrade_validator": return Upgrade(w, a);
+                case "release_validator": return Release(w, a);
                 case "claim_chapter": return ClaimChapter(w, a);
                 case "buy_cosmetic": return Buy(w, a);
                 case "network": return Network(w);
@@ -427,6 +428,7 @@ namespace EtherMines.Game
             if (!Reach(a, px, py, pz)) return No("too far", CellOf(id));
             if (id != 73) return No("not a dark validator", CellOf(id));
             for (int i = 0; i < 3; i++) if (!Solid(Cell(w, px + 2, py + i, pz + 2))) return No("rebuild the fourth column first");
+            if (Validators(w).Count >= 3) return No("three validators at most"); // 054
             if (Count(w, 105) < 1) return No("needs a validator heart");
             var inv = new Dictionary<string, object>();
             Give(w, inv, 105, -1);
@@ -449,7 +451,9 @@ namespace EtherMines.Game
             var res = new Dictionary<string, object> { ["ok"] = true, ["changes"] = changes, ["inv"] = inv, ["serial"] = (double)serial, ["validator"] = vid };
             res["unique"] = Mint(w, 203, $"{px}, {py}, {pz}", vid);
             int n = Relit(w);
-            if (new[] { 3, 10, 25, 50, 100 }.Contains(n)) res["star"] = Mint(w, 204, $"crossed the {n}-relit threshold");
+            // each milestone once (055): a validator shut down and relit doesn't cross it again
+            if (new[] { 3, 10, 25, 50, 100 }.Contains(n) && !Uniques(w).Any(u => MiniJson.ToInt(u["item"]) == 204 && S(u, "place") == $"crossed the {n}-relit threshold"))
+                res["star"] = Mint(w, 204, $"crossed the {n}-relit threshold");
             bool shard = n >= 100 && R() < 0.15;
             if (shard) Give(w, inv, 110, 1);
             res["shard"] = shard;
@@ -519,6 +523,24 @@ namespace EtherMines.Game
             Stats(v);
             w.Dirty = true;
             return new Dictionary<string, object> { ["ok"] = true, ["validator"] = v, ["gwei"] = w.Num("gwei"), ["cost"] = (double)cost };
+        }
+
+        // shut down (055_release_validator.sql): what it earned is paid, the ruin goes dark, its seal and its row go
+        Dictionary<string, object> Release(W w, Dictionary<string, object> a)
+        {
+            var v = Validators(w).FirstOrDefault(o => D(o, "id") == D(a, "validator_id"));
+            if (v == null) return No("unknown validator");
+            TickValidator(w, v);
+            int x = I(v, "x"), y = I(v, "y"), z = I(v, "z");
+            var seals = new List<object>();
+            foreach (var u in Uniques(w))
+                if (MiniJson.ToInt(u["item"]) == 203 && u.TryGetValue("validator_id", out var uv) && uv != null && MiniJson.ToDouble(uv) == D(v, "id")) { seals.Add(u["serial"]); w.List("uniques").Remove(u); }
+            var changes = new List<object>();
+            int cur = Cell(w, x, y, z);
+            if (cur == 13 || cur == 74) changes.Add(Set(w, x, y, z, 73, null, null, 0));
+            w.List("validators").Remove(v);
+            w.Dirty = true;
+            return new Dictionary<string, object> { ["ok"] = true, ["changes"] = changes, ["seals"] = seals, ["gwei"] = w.Num("gwei") };
         }
 
         // ---------- the chapters' rewards, the shop (030_merge_twins.sql, 032_shop.sql) ----------

@@ -199,7 +199,7 @@ namespace EtherMines.Game
         }
 
         // changes from the server ({x, y, z, id, by, name, serial}): the truth, written over our guess
-        void Apply(Dictionary<string, object> r)
+        public void Apply(Dictionary<string, object> r)
         {
             if (r == null || !r.TryGetValue("changes", out var ch) || !(ch is List<object> list)) return;
             foreach (var o in list)

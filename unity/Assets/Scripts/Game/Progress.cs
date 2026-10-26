@@ -401,7 +401,7 @@ namespace EtherMines.Game
         Vector2 vscroll;
         public void DrawValidators(Rect body)
         {
-            GUI.Label(new Rect(body.x, body.y, body.width, 44), "Each validator earns Gwei every cycle (5 minutes), whether you’re watching or not: attest it anytime, from anywhere, to collect it. It also needs a check-in at least every 8 days, or it’s corrupted (a Validator Heart repairs it).", Ui.Small);
+            GUI.Label(new Rect(body.x, body.y, body.width, 44), "Each validator earns Gwei every cycle (5 minutes), whether you’re watching or not: attest it anytime, from anywhere, to collect it. It also needs a check-in at least every 8 days, or it’s corrupted (a Validator Heart repairs it). Three at most each: shut one down to make room for a rarer one.", Ui.Small);
             var r = new Rect(body.x, body.y + 50, body.width, body.height - 50);
             if (!validatorsLoaded) { GUI.Label(r, "Loading your validators…", Ui.Label); return; }
             if (Validators.Count == 0) { GUI.Label(r, "No validator yet. Relight a dark one in the ruins.", Ui.Label); return; }
@@ -429,23 +429,39 @@ namespace EtherMines.Game
                 GUI.enabled = !busy;
                 if (GUI.Button(new Rect(14, y + 58, 260, 30), state == "corrupted" ? "Repair and attest (1 validator heart)" : "Attest", Ui.Primary)) Validator(v, "maintain_validator");
                 if (state != "corrupted" && level < 10 && GUI.Button(new Rect(282, y + 58, 200, 30), $"Upgrade ({50 * level} Gwei)", Ui.Button)) Validator(v, "upgrade_validator");
+                // shut it down (releaseValidator): asked twice, the first press only says what will happen
+                double vid = MiniJson.ToDouble(v["id"]);
+                bool asked = releaseAsk == vid && Time.time < releaseUntil;
+                if (GUI.Button(new Rect(490, y + 58, asked ? 300 : 120, 30), asked ? "Press again: it goes back to the ruins" : "Shut down", asked ? Ui.Primary : Ui.Button))
+                {
+                    if (asked) { releaseAsk = -1; Validator(v, "release_validator"); }
+                    else { releaseAsk = vid; releaseUntil = Time.time + 6; }
+                }
                 GUI.enabled = true;
                 y += 104;
             }
             GUI.EndScrollView();
         }
 
+        double releaseAsk = -1; float releaseUntil;
         async void Validator(Dictionary<string, object> v, string act)
         {
             busy = true;
             try
             {
-                var r = await Session.Act(act, new Dictionary<string, object> { ["validator_id"] = (long)MiniJson.ToDouble(v["id"]) }, 0, 0, 0, act == "maintain_validator" ? "validator attested" : "validator upgraded");
+                var r = await Session.Act(act, new Dictionary<string, object> { ["validator_id"] = (long)MiniJson.ToDouble(v["id"]) }, 0, 0, 0, act == "maintain_validator" ? "validator attested" : act == "release_validator" ? "validator shut down" : "validator upgraded");
                 if (r != null && !r.ContainsKey("refused"))
                 {
                     if (r.TryGetValue("gwei", out var g)) Session.Gwei = MiniJson.ToDouble(g);
                     var nv = r.TryGetValue("validator", out var vv) ? vv as Dictionary<string, object> : null;
-                    if (act == "maintain_validator")
+                    if (act == "release_validator")
+                    {
+                        // back to the ruins for anyone; its seal is gone from your bag
+                        GetComponent<Interaction>()?.Apply(r); // the ruin dark again, at once
+                        Hud.Feed("burn", "Validator shut down", $"the ruin at {MiniJson.ToInt(v["x"])}, {MiniJson.ToInt(v["y"])}, {MiniJson.ToInt(v["z"])} is dark again");
+                        await Session.LoadInventory();
+                    }
+                    else if (act == "maintain_validator")
                     {
                         SetFlag("attested");
                         Hud.Feed("mint", "Validator attested", nv != null && (nv["state"] as string) == "active" ? "Gwei collected, upkeep paid" : "");

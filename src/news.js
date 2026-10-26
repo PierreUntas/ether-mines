@@ -6,6 +6,15 @@
   root.NEWS = [
     {
       date: '2026-10-26',
+      title: 'Shut down a validator',
+      items: [
+        'In the Validators tab, Shut down sends one of yours back to the ruins, dark again, for anyone to relight.',
+        'Make room under your three, then relight another ruin to try for a rarer one: three epics, why not?',
+        'What it earned until then is paid first; its seal goes with it.',
+      ],
+    },
+    {
+      date: '2026-10-26',
       title: 'New faces, and your inventory',
       items: [
         'In the Workshop: five pairs of eyes and two mouths to change your face, a Full Beard and Spiky Hair.',

@@ -1794,6 +1794,33 @@ async function upgradeValidator(v, btn) {
   updateValidators();
   ui();
 }
+// shut it down (055_release_validator.sql): back to a dark validator for anyone to relight, its seal gone,
+// to make room for a rarer one. Asked twice: the first press only says what will happen
+const RELEASE_ASK = { id: null, until: 0 };
+async function releaseValidator(v, btn) {
+  if (RELEASE_ASK.id !== v.id || performance.now() > RELEASE_ASK.until) {
+    RELEASE_ASK.id = v.id;
+    RELEASE_ASK.until = performance.now() + 6000;
+    btn.textContent = 'Press again: it goes back to the ruins';
+    btn.classList.add('danger');
+    return;
+  }
+  RELEASE_ASK.id = null;
+  freezeBtn(btn, 'Shutting down…');
+  const r = await serverAct('release_validator', { validator_id: v.id }, null, 'validator shut down');
+  if (r) {
+    if (r.gwei !== undefined) S.gwei = r.gwei;
+    S.nfts = S.nfts.filter(n => !(n.id === 203 && (n.validatorId === v.id || (r.seals || []).includes(n.serial))));
+    toastInfo(
+      `Validator shut down: the ruin at ${v.x}, ${v.y}, ${v.z} is dark again, for anyone to relight. Relight another to find a rarer one.`,
+    );
+    Sound.hit('stone');
+    syncInventory();
+    updateNetwork();
+  }
+  updateValidators();
+  ui();
+}
 function renderValidators(body) {
   if (!SERVER()) {
     body.innerHTML = '<p class="qintro">Validators need an online game: their production and upkeep live on the server.</p>';
@@ -1801,7 +1828,7 @@ function renderValidators(body) {
   }
   body.insertAdjacentHTML(
     'beforeend',
-    '<p class="qintro">Each validator earns Gwei every cycle (5 minutes), whether you’re watching or not — attest anytime (from anywhere — no need to stand next to it) to collect it. But it also needs a check-in at least every 8 days: go longer without attesting and it’s corrupted (a Validator Heart repairs it).</p>',
+    '<p class="qintro">Each validator earns Gwei every cycle (5 minutes), whether you’re watching or not — attest anytime (from anywhere — no need to stand next to it) to collect it. But it also needs a check-in at least every 8 days: go longer without attesting and it’s corrupted (a Validator Heart repairs it). Three at most each: shut one down to make room, and relight another ruin to try for a rarer one.</p>',
   );
   if (!VALIDATORS.loaded) {
     body.insertAdjacentHTML('beforeend', '<p class="qintro">Loading your validators…</p>');
@@ -1838,6 +1865,14 @@ function renderValidators(body) {
       up.onclick = () => upgradeValidator(v, up);
       br.appendChild(up);
     }
+    const off = document.createElement('button');
+    const asked = RELEASE_ASK.id === v.id && performance.now() < RELEASE_ASK.until;
+    off.className = 'b' + (asked ? ' danger' : '');
+    off.textContent = asked ? 'Press again: it goes back to the ruins' : 'Shut down';
+    off.title =
+      'It goes back to a dark validator, for anyone to relight; its seal goes with it. Three at most each: make room for a rarer one.';
+    off.onclick = () => releaseValidator(v, off);
+    br.appendChild(off);
     box.appendChild(br);
     body.appendChild(box);
   }
