@@ -7,7 +7,7 @@
 // Setup once: npm i --no-save playwright@1.56.0 three@0.128.0
 // Run after changing a look or adding a cosmetic:  node unity/tools/export-looks.mjs   (--check: fail if stale)
 //
-// Format: head.<id>, back.<id>, companion.<id>: [mesh]; outfit.<id>: { color, pants, on: { body | arm0 |
+// Format: head.<id>, face.<id> (a beard: on the head too), back.<id>, companion.<id>: [mesh]; outfit.<id>: { color, pants, on: { body | arm0 |
 // arm1 | leg0 | leg1 | head: [mesh] } }; trail.<id>: style; anim."<slot>.<id>": [{ pp, pq, ps: the moving
 // part's parent frame in the piece (position, quaternion x y z w, scale), ch: 9 channels (position x y z,
 // rotation x y z in Three's XYZ order, scale x y z), each [a, l, s, c, w]: a + l t + s sin(w t) + c cos(w t)
@@ -191,11 +191,12 @@ const looks = await page.evaluate(() => {
     for (const m of hidden) m.visible = true;
     return still;
   }
-  const out = { head: {}, back: {}, companion: {}, outfit: {}, trail: {}, anim: anims };
+  const out = { head: {}, face: {}, back: {}, companion: {}, outfit: {}, trail: {}, anim: anims };
   const ids = Object.keys(COSMETICS).map(Number).sort((a, b) => a - b);
   for (const id of ids) {
     const c = COSMETICS[id];
     if (c.slot === 'head') out.head[id] = piece('head.' + id, a => buildHead(c, a));
+    else if (c.slot === 'face') out.face[id] = piece('face.' + id, a => buildHead(c, a));
     else if (c.slot === 'back') out.back[id] = piece('back.' + id, a => buildBack(c, a));
     else if (c.slot === 'companion') out.companion[id] = piece('companion.' + id, a => buildCompanion(c, a));
     else if (c.slot === 'trail') out.trail[id] = c.style;

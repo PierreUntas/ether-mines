@@ -49,6 +49,7 @@ namespace EtherMines.Game
             public Vector3 Pos; // game coordinates, eased
             public Renderer[] Legs;      // their trousers take the outfit's color
             public string LookKey = "", Title = "";
+            public Color Hair;           // the head's own color, the hair's edge on the face
             public int Armor; public bool Boots, Cape; // a plating, the boots, the cape (yours only, as on the web)
             public int Helm, Gloves, Leggings, Amulet;       // the gear worn (24-gear.js)
             public int Ride, CraftId; public GameObject Craft; public float Lift; public bool OwnCraft; // on board a Diamond Glider
@@ -142,16 +143,16 @@ namespace EtherMines.Game
             f.Head = new GameObject("head").transform;
             f.Head.SetParent(r, false);
             f.Head.localPosition = new Vector3(0, 1.32f, 0);
-            // the head's rounds stay small enough for the face, a plate here (a texture on the web), to sit flat
+            // the head's rounds stay small enough for the face, a plate here (a texture on the web), to sit flat:
+            // the skin below the hair's two rows; its eyes, mouth and blush are drawn on it with the look (Dress)
             Box(f.Head, new Vector3(0.66f, 0.66f, 0.66f), Vector3.zero, Mat(dark), 0.07f);
-            Box(f.Head, new Vector3(0.52f, 0.44f, 0.02f), new Vector3(0, -0.06f, 0.33f), Mat(new Color(0.96f, 0.83f, 0.72f)));
-            var eye = Mat(new Color(0.16f, 0.12f, 0.3f));
-            Box(f.Head, new Vector3(0.08f, 0.11f, 0.02f), new Vector3(-0.13f, -0.02f, 0.345f), eye);
-            Box(f.Head, new Vector3(0.08f, 0.11f, 0.02f), new Vector3(0.13f, -0.02f, 0.345f), eye);
+            Box(f.Head, new Vector3(8 * FacePx, 6 * FacePx, 0.02f), new Vector3(0, -FacePx, 0.33f), Mat(Looks.Skin));
+            f.Hair = dark;
             return f;
         }
 
         static Vector3 View(Vector3 game) => new Vector3(game.x, game.y, -game.z);
+        const float FacePx = 0.08f; // a pixel of the face: 8 across the head's front
 
         // the list of who is in the world: the ones gone are taken away, the new ones appear where they stand
         public void SetPeers(List<GameLink.Peer> list, string selfId)
@@ -309,10 +310,20 @@ namespace EtherMines.Game
                 }
             }
             foreach (var r in f.Legs) r.sharedMaterial = Mat(pants);
-            if (look.TryGetValue("head", out var hid))
+            foreach (var hs in new[] { "head", "face" })
+                if (look.TryGetValue(hs, out var hid))
+                {
+                    var g = Looks.Piece(hs, hid);
+                    if (g != null) { g.transform.SetParent(f.Head, false); g.transform.localScale = Vector3.one * 1.32f; f.LookParts.Add(g); }
+                }
+            // the face's pixels (drawFace): the eyes and the mouth worn, or the usual ones, the blush, the hair's edge
             {
-                var g = Looks.Piece("head", hid);
-                if (g != null) { g.transform.SetParent(f.Head, false); g.transform.localScale = Vector3.one * 1.32f; f.LookParts.Add(g); }
+                var face = new GameObject("face").transform;
+                face.SetParent(f.Head, false);
+                foreach (var (px, py, pc) in Looks.FacePixels(look.TryGetValue("eyes", out var eid) ? eid : 0, look.TryGetValue("mouth", out var mid) ? mid : 0))
+                    // the web's column 0 is on the face's +x side, as seen from the front: on your left
+                    Box(face, new Vector3(FacePx, FacePx, 0.02f), new Vector3((3.5f - px) * FacePx, (3.5f - py) * FacePx, 0.345f), Mat(pc ?? f.Hair));
+                f.LookParts.Add(face.gameObject);
             }
             if (look.TryGetValue("back", out var bid))
             {

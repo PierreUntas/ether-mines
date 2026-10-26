@@ -1,7 +1,7 @@
 // Ether Mines · what the shop's cosmetics look like on a character (17-looks.js), from the game's own
 // models (Resources/looks.json, exported by tools/export-looks.mjs): headwear, back pieces, companions,
 // outfits (the trousers' color and the details on the body, arms and legs), trails. A look is one
-// cosmetic per slot; the shared slots travel to the other players as a code ("outfit.head.back.companion.trail").
+// cosmetic per slot; the shared slots travel to the other players as a code ("outfit.head.back.companion.trail.face.eyes.mouth").
 using System.Collections.Generic;
 using EtherMines.Core;
 using UnityEngine;
@@ -10,12 +10,42 @@ namespace EtherMines.Game
 {
     public static class Looks
     {
-        public static readonly string[] Slots = { "outfit", "head", "back", "companion", "trail", "tool", "plating" };
-        public static readonly string[] Shared = { "outfit", "head", "back", "companion", "trail" };
+        public static readonly string[] Slots = { "outfit", "head", "face", "eyes", "mouth", "back", "companion", "trail", "tool", "plating" };
+        // the face (a beard), the eyes and the mouth come last: an older game reads the code as before
+        public static readonly string[] Shared = { "outfit", "head", "back", "companion", "trail", "face", "eyes", "mouth" };
         public static readonly Dictionary<string, string> SlotLabel = new Dictionary<string, string>
         {
-            ["outfit"] = "Outfit", ["head"] = "Headwear", ["back"] = "Back", ["companion"] = "Companion", ["trail"] = "Trail", ["tool"] = "Tool trim", ["plating"] = "Plating trim",
+            ["outfit"] = "Outfit", ["head"] = "Headwear", ["face"] = "Face", ["eyes"] = "Eyes", ["mouth"] = "Mouth", ["back"] = "Back", ["companion"] = "Companion", ["trail"] = "Trail", ["tool"] = "Tool trim", ["plating"] = "Plating trim",
         };
+
+        // ---------- the face (14-startup.js drawFace): 8×8 pixels, row 0 at the top ----------
+        // The skin, the hair's edge, the blush, the eyes and the mouth: the usual ones, or the ones worn (their
+        // px rows: e an eye's dark, w its white, m the mouth). Returns each pixel that isn't skin, hair = null
+        // for the hair's color.
+        public static readonly Color Skin = new Color(0xf6 / 255f, 0xd3 / 255f, 0xb8 / 255f);
+        static readonly Color Ink = new Color(0x1c / 255f, 0x16 / 255f, 0x3a / 255f), White = Color.white,
+            MouthInk = new Color(0x7a / 255f, 0x3b / 255f, 0x4a / 255f), Blush = new Color(1f, 0xb3 / 255f, 0xcf / 255f), Lip = new Color(0xc9 / 255f, 0x8a / 255f, 0x74 / 255f);
+        public static List<(int x, int y, Color? c)> FacePixels(int eyes, int mouth)
+        {
+            var px = new Dictionary<int, (int, int, Color?)>();
+            void Put(int x, int y, Color? c) => px[y * 8 + x] = (x, y, c);
+            foreach (var y in new[] { 2, 3 }) { Put(0, y, null); Put(7, y, null); }
+            Put(1, 5, Blush); Put(6, 5, Blush);
+            bool Worn(int id)
+            {
+                if (id <= 0 || !Rules.Cosmetics.TryGetValue(id, out var c) || !(c.Raw != null && c.Raw.TryGetValue("px", out var o) && o is List<object> rows)) return false;
+                for (int y = 0; y < rows.Count && y < 8; y++)
+                {
+                    var row = rows[y] as string ?? "";
+                    for (int x = 0; x < row.Length && x < 8; x++)
+                        if (row[x] == 'e') Put(x, y, Ink); else if (row[x] == 'w') Put(x, y, White); else if (row[x] == 'm') Put(x, y, MouthInk);
+                }
+                return true;
+            }
+            if (!Worn(eyes)) { Put(2, 4, Ink); Put(5, 4, Ink); }
+            if (!Worn(mouth)) { Put(3, 6, Lip); Put(4, 6, Lip); }
+            return new List<(int, int, Color?)>(px.Values);
+        }
         public static readonly Color DefaultPants = new Color(0x6a / 255f, 0x58 / 255f, 0xe0 / 255f);
 
         static Dictionary<string, object> data;
@@ -126,7 +156,7 @@ namespace EtherMines.Game
             return Avatars.Hex(l[Random.Range(0, l.Length)], Color.white);
         }
 
-        // "outfit.head.back.companion.trail" (lookCode, parseLook)
+        // "outfit.head.back.companion.trail.face.eyes.mouth" (lookCode, parseLook)
         public static string Code(Dictionary<string, int> look)
         {
             var p = new string[Shared.Length];

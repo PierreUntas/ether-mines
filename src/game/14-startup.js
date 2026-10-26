@@ -10,24 +10,40 @@ function updatePosHud() {
   drawClaimPick(); // choosing a plot to claim (06-actions.js): it follows you
 }
 const others = new Map();
-function faceTex(hair) {
+// the face, 8×8 pixels: the skin, the hair's edge, the blush, and the eyes and mouth, the usual ones or the
+// ones worn (eyes, mouth: their COSMETICS, whose px rows say where each pixel goes). Unity: Avatars.FacePixels
+const FACE_INK = { e: '#1c163a', w: '#ffffff', m: '#7a3b4a' };
+function drawFace(x, hair, eyes, mouth, s = 1) {
+  const px = (cx, cy, col) => {
+    x.fillStyle = col;
+    x.fillRect(cx * s, cy * s, s, s);
+  };
+  x.fillStyle = '#f6d3b8';
+  x.fillRect(0, 0, 8 * s, 8 * s);
+  x.fillStyle = hair;
+  x.fillRect(0, 0, 8 * s, 2 * s);
+  for (const cy of [2, 3]) {
+    px(0, cy, hair);
+    px(7, cy, hair);
+  }
+  px(1, 5, '#ffb3cf');
+  px(6, 5, '#ffb3cf');
+  const worn = c => (c?.px || []).forEach((row, cy) => [...row].forEach((ch, cx) => FACE_INK[ch] && px(cx, cy, FACE_INK[ch])));
+  if (eyes && eyes.px) worn(eyes);
+  else {
+    px(2, 4, '#1c163a');
+    px(5, 4, '#1c163a');
+  }
+  if (mouth && mouth.px) worn(mouth);
+  else {
+    px(3, 6, '#c98a74');
+    px(4, 6, '#c98a74');
+  }
+}
+function faceTex(hair, eyes, mouth) {
   const c = document.createElement('canvas');
   c.width = c.height = 8;
-  const x = c.getContext('2d');
-  x.fillStyle = '#f6d3b8';
-  x.fillRect(0, 0, 8, 8);
-  x.fillStyle = hair;
-  x.fillRect(0, 0, 8, 2);
-  x.fillRect(0, 2, 1, 2);
-  x.fillRect(7, 2, 1, 2);
-  x.fillStyle = '#1c163a';
-  x.fillRect(2, 4, 1, 1);
-  x.fillRect(5, 4, 1, 1);
-  x.fillStyle = '#ffb3cf';
-  x.fillRect(1, 5, 1, 1);
-  x.fillRect(6, 5, 1, 1);
-  x.fillStyle = '#c98a74';
-  x.fillRect(3, 6, 2, 1);
+  drawFace(c.getContext('2d'), hair, eyes, mouth);
   const t = new THREE.CanvasTexture(c);
   t.magFilter = t.minFilter = THREE.NearestFilter;
   t.generateMipmaps = false;
@@ -216,6 +232,8 @@ function makeAvatar(name, color, horsScene) {
     held: null,
     name,
     color,
+    hair: '#' + dark.getHexString(),
+    face,
     walk: 0,
     t: null,
     seen: false,

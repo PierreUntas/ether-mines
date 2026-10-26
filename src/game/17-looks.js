@@ -1,13 +1,17 @@
 // ---------- wearables: what the shop's cosmetics look like on a character (rules.js COSMETICS) ----------
-// A look is one cosmetic id per slot (S.look, saved with the game). Outfit, head, back, companion and
-// trail are seen by the other players too (presence carries lookCode()); the tool and plating trims are
+// A look is one cosmetic id per slot (S.look, saved with the game). Outfit, head, back, companion, trail,
+// face (a beard), eyes and mouth are seen by the other players too (presence carries lookCode(); the last
+// three come after the others, so an older game reads the code as before); the tool and plating trims are
 // only on your own held item and armor, like the armor itself. Purely decorative, as the shop says.
-const LOOK_SLOTS = ['outfit', 'head', 'back', 'companion', 'trail', 'tool', 'plating'];
-const SHARED_SLOTS = ['outfit', 'head', 'back', 'companion', 'trail'];
+const LOOK_SLOTS = ['outfit', 'head', 'face', 'eyes', 'mouth', 'back', 'companion', 'trail', 'tool', 'plating'];
+const SHARED_SLOTS = ['outfit', 'head', 'back', 'companion', 'trail', 'face', 'eyes', 'mouth'];
 const DEFAULT_PANTS = 0x6a58e0;
 const SLOT_LABEL = {
   outfit: 'Outfit',
   head: 'Headwear',
+  face: 'Face',
+  eyes: 'Eyes',
+  mouth: 'Mouth',
   back: 'Back',
   companion: 'Companion',
   trail: 'Trail',
@@ -198,6 +202,42 @@ function buildHead(c, anim) {
       const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.08), lookMat(silver ? 0x00eaff : 0x8a7bef, 0.8));
       gem.position.set(0, 0.31, -0.29);
       g.add(gem);
+      break;
+    }
+    case 'spiky': {
+      // the Spiky Hair: a thick mop over the top, a fringe over the forehead, the sides down to the ears and
+      // tufts all over, leaning out
+      const hair = new THREE.Color(c.color).getHex(),
+        tip = new THREE.Color(c.color).offsetHSL(0, 0, 0.12).getHex();
+      bx(g, 0.56, 0.1, 0.56, hair, 0, 0.28, 0);
+      bx(g, 0.56, 0.13, 0.05, hair, 0, 0.19, -0.265);
+      bx(g, 0.56, 0.34, 0.05, hair, 0, 0.1, 0.265);
+      for (const side of [-1, 1]) {
+        bx(g, 0.05, 0.22, 0.54, hair, side * 0.265, 0.15, 0);
+        bx(g, 0.05, 0.1, 0.12, hair, side * 0.265, 0, -0.2); // the sideburn
+        bx(g, 0.07, 0.13, 0.04, hair, side * 0.22, 0.0625, -0.265); // over the face's own edge of hair
+      }
+      // each tuft a tapering stack of three boxes, so the top's edge is jagged as on a drawing
+      const H = [0.2, 0.26, 0.22, 0.28, 0.21, 0.25, 0.19];
+      let k = 0;
+      for (const z of [-0.2, -0.04, 0.12, 0.24])
+        for (const x of z === -0.2 ? [-0.24, -0.12, 0, 0.12, 0.24] : [-0.18, -0.06, 0.06, 0.18]) {
+          const h = H[k++ % H.length],
+            tuft = new THREE.Group();
+          tuft.position.set(x, 0.31, z);
+          tuft.rotation.z = -x * 1.6;
+          tuft.rotation.x = z === -0.2 ? -0.55 : z * 1.4;
+          [0.13, 0.09, 0.05].forEach((w, j) => bx(tuft, w, h / 3 + 0.01, w, j === 2 ? tip : hair, 0, (h / 3) * (j + 0.5), 0));
+          g.add(tuft);
+        }
+      break;
+    }
+    case 'beard': {
+      // the Full Beard: over the jaw and the chin, from one ear to the other, rounded under the chin
+      const b = new THREE.Color(c.color).getHex();
+      bx(g, 0.52, 0.19, 0.06, b, 0, -0.155, -0.265);
+      bx(g, 0.42, 0.07, 0.1, b, 0, -0.265, -0.235);
+      for (const side of [-1, 1]) bx(g, 0.05, 0.22, 0.24, b, side * 0.265, -0.14, -0.14);
       break;
     }
     // ---------- Premium: Proof-of-Work and Proof-of-Stake ----------
@@ -871,10 +911,20 @@ function applyLook(av, look, preview) {
   const o = look.outfit && COSMETICS[look.outfit];
   av.legs[0].children[0].material.color.set(o && o.color === av.color ? o.pants : DEFAULT_PANTS);
   if (o && o.detail && o.color === av.color) av.lookParts.push(...buildOutfit(av, o.detail));
-  if (look.head) {
-    const h = buildHead(COSMETICS[look.head], av.anim);
-    av.head.add(h);
-    av.lookParts.push(h);
+  for (const s of ['head', 'face'])
+    if (look[s]) {
+      const h = buildHead(COSMETICS[look[s]], av.anim);
+      av.head.add(h);
+      av.lookParts.push(h);
+    }
+  // the eyes and the mouth, painted on the face
+  const fk = (look.eyes || 0) + '.' + (look.mouth || 0);
+  if (av.face && av.faceKey !== fk) {
+    av.faceKey = fk;
+    const old = av.face.map;
+    av.face.map = faceTex(av.hair, COSMETICS[look.eyes], COSMETICS[look.mouth]);
+    av.face.needsUpdate = true;
+    if (old) old.dispose();
   }
   if (look.back) {
     const b = buildBack(COSMETICS[look.back], av.anim);

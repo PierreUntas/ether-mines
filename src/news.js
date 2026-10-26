@@ -5,6 +5,15 @@
 (function (root) {
   root.NEWS = [
     {
+      date: '2026-10-26',
+      title: 'New faces, and your inventory',
+      items: [
+        'In the Workshop: five pairs of eyes and two mouths to change your face, a Full Beard and Spiky Hair.',
+        'A new Inventory aisle in the shop: everything you own, by kind (head, mouth, eyes, body, back, trail, tool, companion, outfit, title, emote), to wear or take off in a tap.',
+        'Press K for a small menu of your gestures, and make one at once.',
+      ],
+    },
+    {
       date: '2026-10-25',
       title: 'Three validators each',
       items: [

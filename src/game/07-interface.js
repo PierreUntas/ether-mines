@@ -1905,7 +1905,15 @@ async function premiumReturn(state) {
   toastInfo("Payment received: your piece will appear in the shop in a moment (reload if it doesn't).");
 }
 // what a shop row shows when there's no item icon: the piece's own color, or one per slot
-const SLOT_TINT = { head: '#ffd166', back: '#7fe8ff', companion: '#ff9ab8', trail: '#b6a4ff', tool: '#c9a6ff', plating: '#b48cff' };
+const SLOT_TINT = {
+  head: '#ffd166',
+  face: '#ffd166',
+  back: '#7fe8ff',
+  companion: '#ff9ab8',
+  trail: '#b6a4ff',
+  tool: '#c9a6ff',
+  plating: '#b48cff',
+};
 // a small painted hint of each piece, by its style (17-looks.js draws the real thing)
 const SWATCH = {
   hashhelm: 'linear-gradient(135deg, #3a3440 55%, #ff8a3d 55%)',
@@ -1935,7 +1943,17 @@ const SWATCH = {
   prism: 'linear-gradient(135deg, #ff9ab8, #c9a6ff, #7fe8ff)',
   gold: 'linear-gradient(135deg, #fff3c0, #ffd166, #b08a2e)',
 };
+// the eyes and the mouths: the face wearing them (drawFace, 14-startup.js), drawn once
+const faceSwatches = {};
+function faceSwatch(c) {
+  if (faceSwatches[c.n]) return faceSwatches[c.n];
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 48;
+  drawFace(cv.getContext('2d'), '#5d52a6', c.slot === 'eyes' ? c : null, c.slot === 'mouth' ? c : null, 6);
+  return (faceSwatches[c.n] = `url(${cv.toDataURL()}) center / cover`);
+}
 const swatchOf = c =>
+  (c.px ? faceSwatch(c) : null) ||
   SWATCH[c.style] ||
   (c.style === 'wings' || c.style === 'banner'
     ? `linear-gradient(${c.accent} 18%, ${c.color} 18%)`
@@ -1986,6 +2004,7 @@ function shopRow(id, ctx) {
   let sub;
   if (c.grantItem) sub = `grants ${c.grantQty} × ${nameOf(c.grantItem)} · buy as often as you like`;
   else if (c.emote) sub = owned ? 'Emote · yours' : 'Emote';
+  else if (owned && c.category === 'title') sub = bestTitle() === c.n ? 'Title · under your name' : 'Title · earned';
   else if (owned) sub = `${SLOT_LABEL[c.slot] || 'Owned'} · ${worn ? 'worn' : 'owned'}`;
   else if (premium) sub = `${SLOT_LABEL[c.slot]} · premium`;
   else if (!sellable && c.retired) sub = 'No longer sold';
@@ -2054,13 +2073,15 @@ function shopRow(id, ctx) {
   d.appendChild(btns);
   return d;
 }
-// The shop, in three aisles: the Store (premium pieces and sets, for euros, with this week's showcase), the
-// Workshop (everything bought with Gwei) and the Wardrobe (what you own, and your saved outfits)
+// The shop, in four aisles: the Store (premium pieces and sets, for euros, with this week's showcase), the
+// Workshop (everything bought with Gwei), the Wardrobe (your saved outfits, the trophies and titles to
+// earn) and the Inventory (everything you own, by kind)
 let SHOP_TAB = 'store';
 const SHOP_TABS = [
   ['store', 'Store · €'],
   ['workshop', 'Workshop · Gwei'],
   ['wardrobe', 'Wardrobe'],
+  ['inventory', 'Inventory'],
 ];
 const OUTFIT_SLOTS = 4; // saved outfits, kept in your save (S.outfits)
 const premiumSets = () => Object.keys(SETS).filter(premiumSet);
@@ -2280,14 +2301,7 @@ function shopWardrobe(list, ctx) {
   const ids = Object.keys(COSMETICS)
     .map(Number)
     .sort((a, b) => a - b);
-  const owned = ids.filter(id => ownsCosmetic(id) && COSMETICS[id].slot && !COSMETICS[id].grantItem);
-  if (!owned.length) section('My pieces', 'Nothing yet: try pieces on in the Store or the Workshop.');
-  for (const slot of LOOK_SLOTS) {
-    const mine = owned.filter(id => COSMETICS[id].slot === slot);
-    if (!mine.length) continue;
-    section(SLOT_LABEL[slot]);
-    for (const id of mine) list.appendChild(shopRow(id, ctx));
-  }
+  section('My pieces', 'Everything you own is in the Inventory aisle, by kind: wear it or take it off there.');
   const trophies = ids.filter(
     id => !forSale(COSMETICS[id]) && !COSMETICS[id].retired && COSMETICS[id].category !== 'title' && COSMETICS[id].category !== 'premium',
   );
@@ -2302,6 +2316,81 @@ function shopWardrobe(list, ctx) {
     'Never sold: each one is earned by finishing a story chapter (Objectives tab), and the furthest shows under your name.',
   );
   for (const id of titles) list.appendChild(shopRow(id, ctx));
+}
+// ---------- the Inventory: everything you own, by kind ----------
+const INV_KINDS = [
+  ['head', 'Head', c => c.slot === 'head' || c.slot === 'face'],
+  ['mouth', 'Mouth', c => c.slot === 'mouth'],
+  ['eyes', 'Eyes', c => c.slot === 'eyes'],
+  ['body', 'Body', c => c.slot === 'plating'],
+  ['back', 'Back', c => c.slot === 'back'],
+  ['trail', 'Trail', c => c.slot === 'trail'],
+  ['tool', 'Tool', c => c.slot === 'tool'],
+  ['companion', 'Companion', c => c.slot === 'companion'],
+  ['outfit', 'Outfit', c => c.slot === 'outfit'],
+  ['title', 'Title', c => c.category === 'title'],
+  ['emote', 'Emote', null],
+];
+const INV_EMPTY = {
+  head: 'No hat, hair or beard yet: the Workshop has them.',
+  mouth: 'No mouth of your own yet: the Workshop has them.',
+  eyes: 'No eyes of your own yet: the Workshop has them.',
+  body: 'No plating trim yet: tough mobs drop them, rarely.',
+  title: 'No title yet: finish a story chapter (Objectives tab).',
+};
+let INV_KIND = 'head';
+function shopInventory(list, ctx) {
+  const ids = Object.keys(COSMETICS)
+    .map(Number)
+    .sort((a, b) => a - b);
+  const count = ([k, , has]) =>
+    k === 'emote' ? ROW_EMOTES().filter(([e]) => emoteOwned(e)).length : ids.filter(id => ownsCosmetic(id) && has(COSMETICS[id])).length;
+  const kinds = document.createElement('div');
+  kinds.className = 'invkinds';
+  for (const kind of INV_KINDS) {
+    const b = document.createElement('button');
+    b.className = 'b' + (INV_KIND === kind[0] ? ' primary' : '');
+    b.innerHTML = `${kind[1]} <i>${count(kind)}</i>`;
+    b.onclick = () => {
+      INV_KIND = kind[0];
+      renderPanel();
+    };
+    kinds.appendChild(b);
+  }
+  list.appendChild(kinds);
+  const [k, label, has] = INV_KINDS.find(x => x[0] === INV_KIND);
+  if (k === 'emote') {
+    // the gestures you can make: the free ones and the ones bought (K, or G, or /name in the chat)
+    list.insertAdjacentHTML(
+      'beforeend',
+      `<p class="note">Your gestures: ${touch ? 'the smiley button' : 'K or G'}, then pick one, or /wave in the chat.</p>`,
+    );
+    for (const [e, def] of ROW_EMOTES().filter(([e]) => emoteOwned(e))) {
+      const d = document.createElement('div');
+      d.className = 'rec shoprow';
+      d.insertAdjacentHTML(
+        'beforeend',
+        `<span class="swatch emoji">${EMOTE_ICON[e] || '•'}</span><div><strong>${def.n}</strong><span>${def.cosmetic ? 'Emote · bought' : 'Emote · free'} · /${e}</span></div>`,
+      );
+      const btns = document.createElement('div');
+      btns.className = 'btns';
+      const b = document.createElement('button');
+      b.className = 'b primary';
+      b.textContent = 'Do it';
+      b.onclick = () => playEmote(e);
+      btns.appendChild(b);
+      d.appendChild(btns);
+      list.appendChild(d);
+    }
+    return;
+  }
+  const mine = ids.filter(id => ownsCosmetic(id) && has(COSMETICS[id]));
+  if (!mine.length)
+    list.insertAdjacentHTML(
+      'beforeend',
+      `<p class="note">${INV_EMPTY[k] || `No ${label.toLowerCase()} piece yet: find one in the Workshop or the Store.`}</p>`,
+    );
+  for (const id of mine) list.appendChild(shopRow(id, ctx));
 }
 function renderShop(body) {
   if (!SERVER()) {
@@ -2331,7 +2420,7 @@ function renderShop(body) {
     };
     side.appendChild(stop);
   } else side.insertAdjacentHTML('beforeend', '<p class="note">Press Try on any piece to see it on your character first.</p>');
-  // the three aisles
+  // the four aisles
   const tabs = document.createElement('div');
   tabs.className = 'shoptabs';
   for (const [k, label] of SHOP_TABS) {
@@ -2347,6 +2436,7 @@ function renderShop(body) {
   list.appendChild(tabs);
   if (SHOP_TAB === 'workshop') shopWorkshop(list, ctx);
   else if (SHOP_TAB === 'wardrobe') shopWardrobe(list, ctx);
+  else if (SHOP_TAB === 'inventory') shopInventory(list, ctx);
   else shopStore(list, ctx);
   wrap.appendChild(list);
   wrap.appendChild(side);

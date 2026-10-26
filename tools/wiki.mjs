@@ -130,7 +130,8 @@ const cosm = Object.values(COSMETICS).filter(c => !c.retired);
 const prices = cosm.map(c => c.price).filter(p => p > 0);
 const CAT = {
   character: 'outfits',
-  head: 'hats and helmets',
+  head: 'hats, helmets and hair',
+  face: 'eyes, mouths and beards',
   back: 'capes, wings and packs',
   companion: 'companions',
   effect: 'trails',
@@ -281,7 +282,7 @@ ${crafting}
 <h2 id="shop">Shop and cosmetics</h2>
 <p>${cosm.length} cosmetics: ${cosmList}. Prices go from ${fmt(Math.min(...prices))} to ${fmt(Math.max(...prices))} Gwei, and a few picks are on sale each week. Press Try on any piece to see it on your character before you buy it. Trophies can't be bought: they're won in combat and during events.</p>
 <h3>Emotes</h3>
-<p>Gestures everyone around you sees: press G (or the smiley button on a phone), then pick one, or type its name in the chat. ${Object.entries(
+<p>Gestures everyone around you sees: press G (or the smiley button on a phone), then pick one, or K for a menu of only yours, or type its name in the chat. ${Object.entries(
   globalThis.Rules.EMOTES,
 )
   .map(([k, e]) => `<code>/${k}</code> ${esc(e.n)}${e.cosmetic ? ' (Workshop)' : ''}`)

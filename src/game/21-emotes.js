@@ -1,5 +1,6 @@
 // Emotes (rules.js EMOTES): gestures a character makes for everyone around to see. G (or the smiley
-// button) opens the row of gestures; /wave, /dance... in the chat do the same. Most are free; a few come
+// button) opens the row of gestures; K a small menu of the ones you have, to make one at once; /wave,
+// /dance... in the chat do the same. Most are free; a few come
 // with their cosmetic from the Workshop (Dance, Bow). Your last gesture goes out with your position
 // (`em`, numbered by `eq` so each is played once, like `fx`: 14-startup.js sendPos, the game server relays
 // it), and every screen draws it on your avatar (emotePose, after the walk and the guard). A gesture that
@@ -12,6 +13,7 @@ function playEmote(k) {
   const e = EMOTES[k];
   if (!e) return false;
   closeEmotes();
+  closeEmoteMenu();
   if (!emoteOwned(k)) {
     logEv('burn', e.n, 'in the shop, Workshop aisle');
     return true;
@@ -176,6 +178,7 @@ function toggleEmotes() {
   const box = $('emotes');
   if (!box) return;
   if (!box.hidden) return closeEmotes();
+  closeEmoteMenu();
   box.innerHTML = '';
   for (const [k, e] of ROW_EMOTES()) {
     const b = document.createElement('button'),
@@ -199,17 +202,84 @@ function toggleEmotes() {
 // the row: the gestures you pick (not the ones the world makes, hidden)
 const ROW_EMOTES = () => Object.entries(EMOTES).filter(([, e]) => !e.hidden);
 const EMOTE_ICON = { wave: '👋', point: '👉', cheer: '🙌', clap: '👏', sit: '🪑', dance: '💃', bow: '🙇' };
-// G opens the row; while it's open, 1 to 7 pick a gesture instead of a slot of the bar (caught first, in
-// the capture phase), Escape or G again closes it
+// ---------- K: the menu of your gestures ----------
+// In the middle of the screen, only the gestures you have, numbered. The mouse is freed to pick one (and
+// taken back after, within the click or the key that picked it: no pause menu in between)
+const EMOTE_MENU = { open: false };
+const myEmotes = () => ROW_EMOTES().filter(([k]) => emoteOwned(k));
+function closeEmoteMenu(relock) {
+  const box = $('emoteMenu');
+  if (!EMOTE_MENU.open) return;
+  EMOTE_MENU.open = false;
+  if (box) box.hidden = true;
+  if (relock && playing && $('panel').hidden) tryLock();
+}
+function pickFromMenu(k) {
+  closeEmoteMenu(true);
+  playEmote(k);
+}
+function openEmoteMenu() {
+  let box = $('emoteMenu');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'emoteMenu';
+    box.className = 'chip';
+    box.hidden = true;
+    box.onclick = e => e.stopPropagation();
+    document.body.appendChild(box);
+  }
+  closeEmotes();
+  const list = myEmotes();
+  box.innerHTML = `<h3>Emotes</h3><p>Yours: press its number or click it · K to close</p>`;
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+  list.forEach(([k, e], i) => {
+    const b = document.createElement('button');
+    b.className = 'emote';
+    b.innerHTML = `<kbd>${i + 1}</kbd><i>${EMOTE_ICON[k] || '•'}</i><span>${e.n}</span>`;
+    b.title = `${e.n} · /${k} in the chat`;
+    b.onclick = () => pickFromMenu(k);
+    grid.appendChild(b);
+  });
+  box.appendChild(grid);
+  const more = document.createElement('button');
+  more.className = 'b more';
+  more.textContent = 'More in the shop';
+  more.onclick = () => {
+    closeEmoteMenu();
+    SHOP_TAB = 'workshop';
+    openTab('shop');
+  };
+  box.appendChild(more);
+  EMOTE_MENU.open = true;
+  box.hidden = false;
+  mining = false;
+  if (document.pointerLockElement) document.exitPointerLock();
+}
+const toggleEmoteMenu = () => (EMOTE_MENU.open ? closeEmoteMenu(true) : openEmoteMenu());
+// G opens the row, K the menu; while one is open, 1 to 9 pick a gesture instead of a slot of the bar
+// (caught first, in the capture phase), Escape or the same key again closes it
 addEventListener(
   'keydown',
   e => {
     const box = $('emotes'),
       open = box && !box.hidden;
-    if (e.code === 'Escape') return closeEmotes();
+    if (e.code === 'Escape') {
+      closeEmoteMenu();
+      return closeEmotes();
+    }
     if (!playing || chatOpen || (document.activeElement && document.activeElement.tagName === 'INPUT')) return;
     if (e.code === 'KeyG') return toggleEmotes();
-    const n = open && /^Digit[1-9]$/.test(e.code) ? +e.code.slice(5) : 0,
+    if (e.code === 'KeyK') return toggleEmoteMenu();
+    const d = /^Digit[1-9]$/.test(e.code) ? +e.code.slice(5) : 0;
+    if (EMOTE_MENU.open && d) {
+      const pick = myEmotes()[d - 1];
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (pick) pickFromMenu(pick[0]);
+      return;
+    }
+    const n = open ? d : 0,
       k = n && ROW_EMOTES()[n - 1]?.[0];
     if (!k) return;
     e.preventDefault();

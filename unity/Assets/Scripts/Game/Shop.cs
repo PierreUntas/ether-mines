@@ -1,8 +1,9 @@
-// Ether Mines · the shop (07-interface.js renderShop), in three aisles like the web: the Store (the premium
+// Ether Mines · the shop (07-interface.js renderShop), in four aisles like the web: the Store (the premium
 // pieces and sets, for euros, with this week's showcase set), the Workshop (everything bought with Gwei: this
 // week's three pieces 25% off and its limited piece, the collections, everything else by slot, the block
-// packs) and the Wardrobe (your saved outfits, what you own, the trophies and titles nobody can buy). What
-// you own you can wear (an outfit also sets your color); you see it on your figure (V) and the others on theirs.
+// packs), the Wardrobe (your saved outfits, the trophies and titles nobody can buy) and the Inventory
+// (everything you own, by kind: head, mouth, eyes, body, back, trail, tool, companion, outfit, title,
+// emote). What you own you can wear (an outfit also sets your color); you see it on your figure (V) and the others on theirs.
 // Bought through act_buy_cosmetic: the server checks your Gwei and the week's prices. The premium pieces are
 // bought with the App Store or Google Play (Iap.cs), checked by the server before they're yours.
 using System;
@@ -23,7 +24,7 @@ namespace EtherMines.Game
 
         static readonly Dictionary<string, string> SlotTint = new Dictionary<string, string>
         {
-            ["head"] = "#ffd166", ["back"] = "#7fe8ff", ["companion"] = "#ff9ab8", ["trail"] = "#b6a4ff", ["tool"] = "#c9a6ff", ["plating"] = "#b48cff",
+            ["head"] = "#ffd166", ["face"] = "#ffd166", ["back"] = "#7fe8ff", ["companion"] = "#ff9ab8", ["trail"] = "#b6a4ff", ["tool"] = "#c9a6ff", ["plating"] = "#b48cff",
         };
 
         bool Owns(int id) => Progress.Cosmetics.Contains(id);
@@ -64,7 +65,23 @@ namespace EtherMines.Game
 
         string tab = "store";
         public string Aisle { get => tab; set { tab = value; scroll = Vector2.zero; } }
-        static readonly string[][] Tabs = { new[] { "store", "Store · €" }, new[] { "workshop", "Workshop · Gwei" }, new[] { "wardrobe", "Wardrobe" } };
+        static readonly string[][] Tabs = { new[] { "store", "Store · €" }, new[] { "workshop", "Workshop · Gwei" }, new[] { "wardrobe", "Wardrobe" }, new[] { "inventory", "Inventory" } };
+        // the Inventory's kinds (INV_KINDS): what each shows
+        static readonly (string k, string n, Func<Cosmetic, bool> has)[] Kinds =
+        {
+            ("head", "Head", c => c.Slot == "head" || c.Slot == "face"), ("mouth", "Mouth", c => c.Slot == "mouth"), ("eyes", "Eyes", c => c.Slot == "eyes"),
+            ("body", "Body", c => c.Slot == "plating"), ("back", "Back", c => c.Slot == "back"), ("trail", "Trail", c => c.Slot == "trail"),
+            ("tool", "Tool", c => c.Slot == "tool"), ("companion", "Companion", c => c.Slot == "companion"), ("outfit", "Outfit", c => c.Slot == "outfit"),
+            ("title", "Title", c => c.Category == "title"), ("emote", "Emote", null),
+        };
+        static readonly Dictionary<string, string> KindEmpty = new Dictionary<string, string>
+        {
+            ["head"] = "No hat, hair or beard yet: the Workshop has them.", ["mouth"] = "No mouth of your own yet: the Workshop has them.",
+            ["eyes"] = "No eyes of your own yet: the Workshop has them.", ["body"] = "No plating trim yet: tough mobs drop them, rarely.",
+            ["title"] = "No title yet: finish a story chapter (Objectives tab).",
+        };
+        string kind = "head";
+        bool EmoteOwned(Rules.EmoteDef e) => e.Cosmetic == 0 || Owns(e.Cosmetic);
         const int OutfitSlots = 4; // saved outfits, in your save (State["outfits"], as on the web)
 
         static string Eur(int cents) => "€" + (cents / 100.0).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
@@ -188,20 +205,56 @@ namespace EtherMines.Game
                 var packs = loose.Where(i => Rules.Cosmetics[i].HasGrant).ToList();
                 if (packs.Count > 0) { Head("Block packs"); Note("Decorative blocks straight into your bag. Buy them as often as you like."); foreach (var i in packs) Piece(i); }
             }
+            else if (tab == "inventory")
+            {
+                int Count((string k, string n, Func<Cosmetic, bool> has) kd) => kd.has == null ? Rules.RowEmotes().Count(EmoteOwned) : ids.Count(i => Owns(i) && kd.has(Rules.Cosmetics[i]));
+                // the kinds, as a row of pills that wraps (as wide as the list will be, beside your character)
+                float listW = body.width - (Avatars != null ? 302 : 0) - 20, rowX = 0;
+                int rows = 1;
+                foreach (var kd in Kinds) { float w = Ui.Pill(false).CalcSize(new GUIContent(kd.n + " 00")).x + 18; if (rowX + w > listW) { rows++; rowX = 0; } rowX += w + 6; }
+                items.Add(new Item { H = rows * 38 + 8, Draw = r =>
+                {
+                    float x = r.x, y = r.y + 2;
+                    foreach (var kd in Kinds)
+                    {
+                        var label = $"{kd.n} <color=#9a92c8>{Count(kd)}</color>";
+                        float w = Ui.Pill(false).CalcSize(new GUIContent(kd.n + " 00")).x + 18;
+                        if (x + w > r.xMax) { x = r.x; y += 38; }
+                        if (GUI.Button(new Rect(x, y, w, 32), label, kind == kd.k ? Ui.Primary : Ui.Button)) { kind = kd.k; scroll = Vector2.zero; }
+                        x += w + 6;
+                    }
+                } });
+                var cur = Kinds.First(kd => kd.k == kind);
+                if (cur.has == null)
+                {
+                    Note("Your gestures: " + (TouchPad.Active ? "the smiley button" : "K or G") + ", then pick one, or /wave in the chat.");
+                    foreach (var e in Rules.RowEmotes().Where(EmoteOwned))
+                    {
+                        var em = e;
+                        items.Add(new Item { H = 58, Draw = r =>
+                        {
+                            var rr = new Rect(r.x, r.y, r.width, 52);
+                            Ui.Fill(rr, new Color(1, 1, 1, 0.05f));
+                            GUI.Label(new Rect(rr.x + 54, rr.y + 4, rr.width - 260, 24), "<b>" + em.N + "</b>", Ui.Label);
+                            GUI.Label(new Rect(rr.x + 54, rr.y + 26, rr.width - 260, 22), (em.Cosmetic != 0 ? "Emote · bought" : "Emote · free") + " · /" + em.K, Ui.Small);
+                            if (GUI.Button(new Rect(rr.xMax - 190, rr.y + 10, 180, 32), "Do it", Ui.Primary) && Emotes.I != null) { if (Avatars != null) Avatars.TryEmote = null; Emotes.I.Play(em.K); }
+                        } });
+                    }
+                }
+                else
+                {
+                    var mine = ids.Where(i => Owns(i) && cur.has(Rules.Cosmetics[i])).ToList();
+                    if (mine.Count == 0) Note(KindEmpty.TryGetValue(kind, out var em) ? em : $"No {cur.n.ToLowerInvariant()} piece yet: find one in the Workshop or the Store.");
+                    foreach (var i in mine) Piece(i);
+                }
+            }
             else
             {
                 Head("My outfits");
                 Note("Save what you wear now in a slot, and put it all back on in one tap.");
                 items.Add(new Item { H = 2 * 96 + 8, Draw = OutfitGrid });
-                var owned = ids.Where(i => Owns(i) && Rules.Cosmetics[i].Slot != null && !Rules.Cosmetics[i].HasGrant).ToList();
-                if (owned.Count == 0) { Head("My pieces"); Note("Nothing yet: try pieces on in the Store or the Workshop."); }
-                foreach (var slot in Looks.Slots)
-                {
-                    var mine = owned.Where(i => Rules.Cosmetics[i].Slot == slot).ToList();
-                    if (mine.Count == 0) continue;
-                    Head(Looks.SlotLabel[slot]);
-                    foreach (var i in mine) Piece(i);
-                }
+                Head("My pieces");
+                Note("Everything you own is in the Inventory aisle, by kind: wear it or take it off there.");
                 var trophies = ids.Where(i => !Rules.ForSale(Rules.Cosmetics[i]) && !Rules.Cosmetics[i].Retired && Rules.Cosmetics[i].Category != "title" && !Rules.Cosmetics[i].Premium).ToList();
                 Head($"Trophies · {trophies.Count(Owns)}/{trophies.Count}");
                 Note("Never sold: dropped by tough mobs, rarely, or earned by fighting off the network attack.");
@@ -231,7 +284,7 @@ namespace EtherMines.Game
                 else GUI.Label(new Rect(pr.x + 12, ty, pr.width - 24, 40), "Press Try on any piece to see it on your character first.", Ui.Small);
             }
             var lb = new Rect(body.x, body.y, body.width - side - (side > 0 ? 12 : 0), body.height);
-            // the three aisles
+            // the four aisles
             float tx = lb.x;
             foreach (var t in Tabs)
             {
@@ -328,6 +381,16 @@ namespace EtherMines.Game
             GUI.enabled = true;
         }
 
+        // the eyes and the mouths: the face wearing them (faceSwatch)
+        static void FaceSwatch(Rect r, Cosmetic c)
+        {
+            float p = r.width / 8;
+            Ui.Fill(r, Looks.Skin);
+            Ui.Fill(new Rect(r.x, r.y, r.width, 2 * p), Avatars.Hex("#5d52a6", Ui.Violet));
+            foreach (var (x, y, col) in Looks.FacePixels(c.Slot == "eyes" ? c.Id : 0, c.Slot == "mouth" ? c.Id : 0))
+                Ui.Fill(new Rect(r.x + x * p, r.y + y * p, p, p), col ?? Avatars.Hex("#5d52a6", Ui.Violet));
+        }
+
         void Row(Rect r, Cosmetic c, ShopPicks f, double week)
         {
             bool owned = Owns(c.Id), worn = Worn(c), sellable = Rules.ForSale(c), onSale = f.Sale.Contains(c.Id);
@@ -337,12 +400,14 @@ namespace EtherMines.Game
             var sw = new Rect(r.x + 8, r.y + 8, 36, 36);
             if (c.HasGrant) Ui.Icon(sw, c.GrantItem);
             else if (c.Premium) Ui.Fill(sw, Avatars.Hex(c.Set == "pow" ? "#ff8a3d" : "#b48cff", Ui.Violet));
+            else if (c.Slot == "eyes" || c.Slot == "mouth") FaceSwatch(sw, c);
             else Ui.Fill(sw, Avatars.Hex(!string.IsNullOrEmpty(c.Color) ? c.Color : c.Slot != null && SlotTint.TryGetValue(c.Slot, out var t) ? t : sellable ? "#8a7bef" : "#ffd95e", Ui.Violet));
             string slot = c.Slot != null && Looks.SlotLabel.TryGetValue(c.Slot, out var sl) ? sl : c.Category;
             string eur = "€" + (c.Eur / 100.0).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
             if (c.Emote != null) { EmoteRow(r, c, owned, price); return; }
             string sub = c.Premium ? (owned ? $"{(c.Slot != null && Looks.SlotLabel.TryGetValue(c.Slot, out var ps) ? ps : c.Category)} · premium · {(worn ? "worn" : "owned")}" : $"{(c.Slot != null && Looks.SlotLabel.TryGetValue(c.Slot, out var ps2) ? ps2 : c.Category)} · premium · <b><color=#ffd95e>{eur}</color></b>")
                 : c.HasGrant ? $"grants {c.GrantQty} × {Ui.NameOf(c.GrantItem)} · buy as often as you like"
+                : owned && c.Category == "title" ? (Looks.BestTitle(Progress.Cosmetics) == c.N ? "Title · under your name" : "Title · earned")
                 : owned ? $"{slot} · {(worn ? "worn" : "owned")}"
                 : !sellable && c.Retired ? "No longer sold"
                 : !sellable ? (c.Category == "title" ? "Chapter reward" : c.Category == "event" ? "Network attack reward" : "Drop only")

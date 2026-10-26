@@ -862,6 +862,49 @@
     // emotes sold in the Workshop (EMOTES below): a gesture, not a piece to wear
     117: { n: 'Dance', category: 'emote', price: 800, emote: 'dance' },
     118: { n: 'Bow', category: 'emote', price: 600, emote: 'bow' },
+    // the face (14-startup.js faceTex): eyes and a mouth drawn on the head's 8×8 face in place of the usual
+    // ones. px: the face's rows, top first, a character per pixel: e an eye's dark, w its white, m the mouth,
+    // . the face as it is (the skin, the blush, the hair's edge)
+    119: { n: 'Wild Eyes', category: 'face', price: 400, slot: 'eyes', px: ['........', '........', '.....we.', '.ww..ww.', '.ew.....'] },
+    120: {
+      n: 'Happy Eyes',
+      category: 'face',
+      price: 400,
+      slot: 'eyes',
+      px: ['........', '........', '........', '........', '.e....e.', 'e.e..e.e'],
+    },
+    121: {
+      n: 'Wide Eyes',
+      category: 'face',
+      price: 400,
+      slot: 'eyes',
+      px: ['........', '........', '........', '........', '........', '.e....e.'],
+    },
+    122: {
+      n: 'Odd Eyes',
+      category: 'face',
+      price: 400,
+      slot: 'eyes',
+      px: ['........', '........', '.....e..', '.....e..', '..e..e..', '.....e..'],
+    },
+    123: { n: 'Tall Eyes', category: 'face', price: 400, slot: 'eyes', px: ['........', '........', '........', '..e..e..', '..e..e..'] },
+    124: {
+      n: 'Smirk',
+      category: 'face',
+      price: 300,
+      slot: 'mouth',
+      px: ['........', '........', '........', '........', '........', '.....m..', '...mm...'],
+    },
+    125: {
+      n: 'Wide Mouth',
+      category: 'face',
+      price: 300,
+      slot: 'mouth',
+      px: ['........', '........', '........', '........', '........', '........', '..mmmm..'],
+    },
+    // worn on the face (17-looks.js buildHead), with a hat or without
+    126: { n: 'Full Beard', category: 'face', price: 1500, slot: 'face', style: 'beard', color: '#3a2a2c' },
+    127: { n: 'Spiky Hair', category: 'head', price: 1500, slot: 'head', style: 'spiky', color: '#382a48' },
   };
   // emotes: gestures a character makes for everyone around to see (21-emotes.js draws them, the game
   // server relays them with your position). Free ones for everyone; the others with their cosmetic (COSMETICS

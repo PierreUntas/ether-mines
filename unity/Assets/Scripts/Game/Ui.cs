@@ -13,7 +13,7 @@ namespace EtherMines.Game
         public static bool PanelOpen;   // the inventory, crafting, chest... window
         public static bool Paused;      // the menu (Esc, or the touch screen's Menu button): the game goes on, your hands rest
         public static bool Cine;        // a cinematic has the camera (Story.cs): no HUD, no hands
-        public static bool Blocking => PanelOpen || Paused || Cine || Story.ScreenUp || Ledger.Open || Chat.Typing || Signs.Open;
+        public static bool Blocking => PanelOpen || Paused || Cine || Story.ScreenUp || Ledger.Open || Chat.Typing || Signs.Open || Emotes.MenuOpen;
         // aiming at the world: the mouse captured (a computer), or no window open (a touch screen)
         public static bool Aiming => TouchPad.Active ? !Blocking : Cursor.lockState == CursorLockMode.Locked;
 

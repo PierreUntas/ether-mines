@@ -5567,7 +5567,16 @@ insert into public.rule_cosmetics (id, name, price, category, grant_item, grant_
 (115,'Stake Light',0,'premium',null,null,false,199,'pos'),
 (116,'Stake Blade Trim',0,'premium',null,null,false,299,'pos'),
 (117,'Dance',800,'emote',null,null,false,null,null),
-(118,'Bow',600,'emote',null,null,false,null,null);
+(118,'Bow',600,'emote',null,null,false,null,null),
+(119,'Wild Eyes',400,'face',null,null,false,null,null),
+(120,'Happy Eyes',400,'face',null,null,false,null,null),
+(121,'Wide Eyes',400,'face',null,null,false,null,null),
+(122,'Odd Eyes',400,'face',null,null,false,null,null),
+(123,'Tall Eyes',400,'face',null,null,false,null,null),
+(124,'Smirk',300,'face',null,null,false,null,null),
+(125,'Wide Mouth',300,'face',null,null,false,null,null),
+(126,'Full Beard',1500,'face',null,null,false,null,null),
+(127,'Spiky Hair',1500,'head',null,null,false,null,null);
 insert into public.rule_sets (id, eur) values
 ('pow',1299),
 ('pos',1299);

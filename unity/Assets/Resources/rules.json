@@ -432,7 +432,16 @@
     "115": {"n":"Stake Light","category":"premium","price":0,"eur":199,"slot":"trail","set":"pos","style":"stake"},
     "116": {"n":"Stake Blade Trim","category":"premium","price":0,"eur":299,"slot":"tool","set":"pos","style":"stake"},
     "117": {"n":"Dance","category":"emote","price":800,"emote":"dance"},
-    "118": {"n":"Bow","category":"emote","price":600,"emote":"bow"}
+    "118": {"n":"Bow","category":"emote","price":600,"emote":"bow"},
+    "119": {"n":"Wild Eyes","category":"face","price":400,"slot":"eyes","px":["........","........",".....we.",".ww..ww.",".ew....."]},
+    "120": {"n":"Happy Eyes","category":"face","price":400,"slot":"eyes","px":["........","........","........","........",".e....e.","e.e..e.e"]},
+    "121": {"n":"Wide Eyes","category":"face","price":400,"slot":"eyes","px":["........","........","........","........","........",".e....e."]},
+    "122": {"n":"Odd Eyes","category":"face","price":400,"slot":"eyes","px":["........","........",".....e..",".....e..","..e..e..",".....e.."]},
+    "123": {"n":"Tall Eyes","category":"face","price":400,"slot":"eyes","px":["........","........","........","..e..e..","..e..e.."]},
+    "124": {"n":"Smirk","category":"face","price":300,"slot":"mouth","px":["........","........","........","........","........",".....m..","...mm..."]},
+    "125": {"n":"Wide Mouth","category":"face","price":300,"slot":"mouth","px":["........","........","........","........","........","........","..mmmm.."]},
+    "126": {"n":"Full Beard","category":"face","price":1500,"slot":"face","style":"beard","color":"#3a2a2c"},
+    "127": {"n":"Spiky Hair","category":"head","price":1500,"slot":"head","style":"spiky","color":"#382a48"}
   },
   "SETS": {
     "frontier": ["Frontier","July 2015: the first release, a network for the brave"],

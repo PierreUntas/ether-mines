@@ -216,7 +216,7 @@ namespace EtherMines.Game
                     Report(arg);
                     return;
             }
-            Say("Commands: /join nickname · /sanctuary · /claim · /unclaim · /invite nickname · /kick nickname · /claims · /trade nickname · /ignore nickname · /listen nickname · /report nickname · /wave, /cheer… (G: gestures)");
+            Say("Commands: /join nickname · /sanctuary · /claim · /unclaim · /invite nickname · /kick nickname · /claims · /trade nickname · /ignore nickname · /listen nickname · /report nickname · /wave, /cheer… (G: gestures, K: your gestures' menu)");
         }
 
         async void Report(string who)

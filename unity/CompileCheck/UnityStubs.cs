@@ -281,7 +281,7 @@ namespace UnityEngine.InputSystem
     public class Keyboard
     {
         public static Keyboard current;
-        public ButtonControl digit2Key, digit3Key, digit4Key, digit5Key, digit6Key, digit7Key, digit8Key, digit9Key, wKey, aKey, sKey, dKey, zKey, qKey, cKey, vKey, fKey, gKey, eKey, tKey, iKey, spaceKey, leftShiftKey, rightShiftKey, leftCtrlKey, escapeKey, enterKey, numpadEnterKey, oKey, xKey, mKey, upArrowKey, downArrowKey, leftArrowKey, rightArrowKey, digit1Key;
+        public ButtonControl kKey, digit2Key, digit3Key, digit4Key, digit5Key, digit6Key, digit7Key, digit8Key, digit9Key, wKey, aKey, sKey, dKey, zKey, qKey, cKey, vKey, fKey, gKey, eKey, tKey, iKey, spaceKey, leftShiftKey, rightShiftKey, leftCtrlKey, escapeKey, enterKey, numpadEnterKey, oKey, xKey, mKey, upArrowKey, downArrowKey, leftArrowKey, rightArrowKey, digit1Key;
     }
     public class Mouse { public static Mouse current; public Vector2Control delta, scroll, position; public ButtonControl leftButton, rightButton, middleButton; }
     public class IntegerControl { public int ReadValue() => 0; }

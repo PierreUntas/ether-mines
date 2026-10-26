@@ -212,8 +212,20 @@ document.addEventListener('fullscreenchange', () => {
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === cv;
   if (locked) lockFails = 0;
+  if (locked && typeof EMOTE_MENU !== 'undefined' && EMOTE_MENU.open) closeEmoteMenu(); // the mouse taken back: the menu goes
   // the finale's cinematic frees the mouse on purpose (for its Skip button): no pause menu over it
-  if (!locked && playing && !noLock && $('panel').hidden && !chatOpen && !SIGN_EDIT.open && !CINE.on && performance.now() > fsSwitch)
+  // nor the menu of gestures (K, 21-emotes.js), which frees it to pick one
+  if (
+    !locked &&
+    playing &&
+    !noLock &&
+    $('panel').hidden &&
+    !chatOpen &&
+    !SIGN_EDIT.open &&
+    !CINE.on &&
+    !(typeof EMOTE_MENU !== 'undefined' && EMOTE_MENU.open) &&
+    performance.now() > fsSwitch
+  )
     pause();
 });
 cv.addEventListener('contextmenu', e => e.preventDefault());
