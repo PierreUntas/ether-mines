@@ -929,7 +929,8 @@ const looks = await page.evaluate(() => {
   Object.defineProperty(Net, 'userId', { get: () => 'test', configurable: true });
   S.gwei = 5000;
   tab = 'shop';
-  // the three aisles: the Store (premium, its sets), the Workshop (this week's offer), the Wardrobe (what you wear)
+  // the four aisles: the Store (premium, its sets), the Workshop (this week's offer), the Wardrobe (the
+  // outfits), the Inventory (what you own and wear, kind by kind)
   const aisle = k => {
     SHOP_TAB = k;
     renderPanelBody();
@@ -946,8 +947,16 @@ const looks = await page.evaluate(() => {
     sale = b.querySelectorAll('.weekly b.sale').length;
   b = aisle('wardrobe');
   seen(b);
-  const worn = b.querySelectorAll('.shoprow.worn').length,
-    outfits = b.querySelectorAll('.outfit').length,
+  const outfits = b.querySelectorAll('.outfit').length;
+  let worn = 0;
+  for (const [k] of INV_KINDS) {
+    INV_KIND = k;
+    b = aisle('inventory');
+    seen(b);
+    worn += b.querySelectorAll('.shoprow.worn').length;
+  }
+  INV_KIND = 'head';
+  const
     // every piece still sold or earned shows in one aisle or another
     missing = Object.values(COSMETICS).filter(c => !c.retired && !names.has(c.n)).map(c => c.n),
     rows = names.size;
@@ -959,7 +968,7 @@ const looks = await page.evaluate(() => {
   Object.assign(S, { cosmetics: keep.c, look: keep.l, gwei: keep.g });
   return { trailDropped: !mine.trail, code, parts, after, rows, weekly, sale, worn, sets, outfits, missing };
 });
-if (!looks.trailDropped || looks.code !== '0.22.29.34.0' || looks.parts !== 3 || looks.after !== 0)
+if (!looks.trailDropped || looks.code !== '0.22.29.34.0.0.0.0' || looks.parts !== 3 || looks.after !== 0)
   await fail('wearables: ' + JSON.stringify(looks));
 if (looks.weekly !== 4 || looks.sale < 1 || looks.worn !== 3 || looks.sets < 2 || looks.outfits !== 4 || looks.missing.length) await fail('shop: ' + JSON.stringify(looks));
 // consumables (18-potions.js), in solo: each is spent once and does its thing; the ward fools an ordinary
