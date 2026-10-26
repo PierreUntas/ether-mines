@@ -398,14 +398,23 @@
   ITEM[305] = { n: 'Owl Draught', icon: 144, use: 'vision' };
   ITEM[306] = { n: 'Ward Incense', icon: 145, use: 'ward' };
   ITEM[307] = { n: 'Home Beacon', icon: 146, use: 'home' };
-  // v24: a helmet, gauntlets and an amulet, worn from the Character tab (S.helm, S.gloves, S.amulet), each
-  // in the platings' three tiers. helm: less damage taken, on top of the plating's (multiplied); power: more
-  // damage with a blade and faster mining; regen: hearts come back faster (the game server checks you own
-  // what you wear, health.js)
+  // v24: a helmet, gauntlets, leggings and an amulet, worn from the Character tab (S.helm, S.gloves, S.legs,
+  // S.amulet), each in three tiers, each tier its own kind of help (they add up, piece by piece):
+  //   Volt: practical, mine: faster mining, speed: faster on your feet;
+  //   Pure Ether: power, more damage with a blade;
+  //   Genesis: regen, the hearts come back sooner (70% at most, all pieces together).
+  // wear: the slot. The game server checks you own what you wear (health.js, server.js).
+  const GEAR_STATS = {
+    helm: [{ mine: 0.1 }, { power: 0.05 }, { regen: 0.15 }],
+    gloves: [{ mine: 0.2 }, { power: 0.1 }, { regen: 0.1 }],
+    legs: [{ speed: 0.08 }, { power: 0.05 }, { regen: 0.15 }],
+    amulet: [{ speed: 0.05 }, { power: 0.08 }, { regen: 0.25 }],
+  };
   ['Volt', 'Pure Ether', 'Genesis'].forEach((m, k) => {
-    ITEM[308 + k] = { n: `${m} Helm`, icon: 165 + k, helm: [0.08, 0.12, 0.16][k], tier: k + 1 };
-    ITEM[311 + k] = { n: `${m} Gauntlets`, icon: 168 + k, power: [0.1, 0.15, 0.2][k], tier: k + 1 };
-    ITEM[314 + k] = { n: `${m} Amulet`, icon: 171 + k, regen: [0.25, 0.4, 0.55][k], tier: k + 1 };
+    ITEM[308 + k] = { n: `${m} Helm`, icon: 165 + k, wear: 'helm', tier: k + 1, ...GEAR_STATS.helm[k] };
+    ITEM[311 + k] = { n: `${m} Gauntlets`, icon: 168 + k, wear: 'gloves', tier: k + 1, ...GEAR_STATS.gloves[k] };
+    ITEM[314 + k] = { n: `${m} Amulet`, icon: 171 + k, wear: 'amulet', tier: k + 1, ...GEAR_STATS.amulet[k] };
+    ITEM[317 + k] = { n: `${m} Leggings`, icon: 174 + k, wear: 'legs', tier: k + 1, ...GEAR_STATS.legs[k] };
   });
   RECIPES.push(
     { out: 303, n: 2, need: { 75: 2, 101: 1 }, d: 'Drink it: restores 5 hearts', cat: 'Potions' },
@@ -436,26 +445,38 @@
       cat: 'Combat',
     },
   );
+  // the gear's recipes: the platings' materials, tier by tier (Genesis: a boss trophy you keep)
   RECIPES.push(
+    { out: 308, n: 1, need: { 9: 2, 101: 2 }, d: 'Wear it from the Character tab · mining +10%', cat: 'Combat' },
+    { out: 311, n: 1, need: { 9: 2, 101: 2 }, d: 'Wear them from the Character tab · mining +20%', cat: 'Combat' },
+    { out: 317, n: 1, need: { 9: 3, 101: 2 }, d: 'Wear them from the Character tab · you move 8% faster', cat: 'Combat' },
+    { out: 314, n: 1, need: { 101: 3, 15: 1 }, d: 'Wear it from the Character tab · you move 5% faster', cat: 'Combat' },
+    { out: 309, n: 1, need: { 9: 2, 101: 3, 103: 2 }, d: 'Pure ether: blade damage +5%', cat: 'Combat' },
+    { out: 312, n: 1, need: { 9: 1, 101: 2, 103: 3 }, d: 'Pure ether: blade damage +10%', cat: 'Combat' },
+    { out: 318, n: 1, need: { 9: 2, 101: 2, 103: 3 }, d: 'Pure ether: blade damage +5%', cat: 'Combat' },
+    { out: 315, n: 1, need: { 101: 2, 103: 4 }, d: 'Pure ether: blade damage +8%', cat: 'Combat' },
     {
-      out: 308,
+      out: 310,
       n: 1,
-      need: { 9: 2, 101: 2 },
-      d: 'Wear it from the Character tab · 8% less damage taken, on top of the plating',
+      need: { 104: 2, 110: 2, 103: 2 },
+      req: 205,
+      d: 'Genesis, with the Titan’s fang: hearts back 15% sooner',
       cat: 'Combat',
     },
-    { out: 311, n: 1, need: { 9: 2, 101: 2 }, d: 'Wear them from the Character tab · blade damage and mining +10%', cat: 'Combat' },
-    { out: 314, n: 1, need: { 101: 3, 15: 1 }, d: 'Wear it from the Character tab · hearts come back 25% faster', cat: 'Combat' },
-    { out: 309, n: 1, need: { 9: 2, 101: 3, 103: 2 }, d: '12% less damage taken, from pure ether', cat: 'Combat' },
-    { out: 312, n: 1, need: { 9: 1, 101: 2, 103: 3 }, d: 'Blade damage and mining +15%, from pure ether', cat: 'Combat' },
-    { out: 315, n: 1, need: { 101: 2, 103: 4 }, d: 'Hearts come back 40% faster, from pure ether', cat: 'Combat' },
-    { out: 310, n: 1, need: { 104: 2, 110: 2, 103: 2 }, req: 205, d: 'Forged with the Titan’s fang: 16% less damage taken', cat: 'Combat' },
     {
       out: 313,
       n: 1,
       need: { 104: 2, 110: 2, 9: 1 },
       req: 205,
-      d: 'Forged with the Titan’s fang: blade damage and mining +20%',
+      d: 'Genesis, with the Titan’s fang: hearts back 10% sooner',
+      cat: 'Combat',
+    },
+    {
+      out: 319,
+      n: 1,
+      need: { 104: 3, 110: 2, 103: 2 },
+      req: 205,
+      d: 'Genesis, with the Titan’s fang: hearts back 15% sooner',
       cat: 'Combat',
     },
     {
@@ -463,7 +484,7 @@
       n: 1,
       need: { 104: 2, 110: 3, 103: 2 },
       req: 206,
-      d: 'Set around the Plasma Core: hearts come back 55% faster',
+      d: 'Genesis, with the Plasma Core: hearts back 25% sooner',
       cat: 'Combat',
     },
   );

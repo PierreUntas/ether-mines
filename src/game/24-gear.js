@@ -1,26 +1,35 @@
-// Gear: a helmet, gauntlets and an amulet, beside the plating and the boots (rules.js ITEM 308-316, in the
-// platings' three tiers), worn from the Character tab (S.helm, S.gloves, S.amulet: an item id, or null).
-// A helmet takes a share off the damage the plating lets through; gauntlets hit harder with a blade and mine
-// faster; an amulet brings the hearts back sooner. What you wear shows on your character, for everyone (hm,
-// gl, am in your position, 14-startup.js), and the game server settles it on its side (health.js), checking
-// that you own it. The Character tab: your character among its slots, and what it all adds up to.
+// Gear: a helmet, gauntlets, leggings and an amulet, beside the plating and the boots (rules.js ITEM
+// 308-319), worn from the Character tab (S.helm, S.gloves, S.legs, S.amulet: an item id, or null). Each
+// tier helps its own way, and the pieces add up: Volt mines faster and moves faster, Pure Ether hits harder
+// with a blade, Genesis brings the hearts back sooner (70% at most). What you wear shows on your character,
+// for everyone (hm, gl, lg, am in your position, 14-startup.js), and the game server settles it on its side
+// (health.js, server.js), checking that you own it. The Character tab: your character among its slots, and
+// what it all adds up to.
 const GEAR = [
-  { k: 'helm', n: 'Helm', stat: 'helm', net: 'hm' },
-  { k: 'gloves', n: 'Gauntlets', stat: 'power', net: 'gl' },
-  { k: 'amulet', n: 'Amulet', stat: 'regen', net: 'am' },
+  { k: 'helm', n: 'Helm', net: 'hm' },
+  { k: 'gloves', n: 'Gauntlets', net: 'gl' },
+  { k: 'legs', n: 'Leggings', net: 'lg' },
+  { k: 'amulet', n: 'Amulet', net: 'am' },
 ];
+const GEAR_STAT_KEYS = ['mine', 'speed', 'power', 'regen'],
+  REGEN_CAP = 0.7;
 // what you wear in a slot, if you still own it (0 otherwise)
 function gearOf(k) {
-  const g = GEAR.find(x => x.k === k),
-    id = S[k] ? +S[k] : 0;
-  return id && ITEM[id]?.[g.stat] && S.inv[id] > 0 ? id : 0;
+  const id = S[k] ? +S[k] : 0;
+  return id && ITEM[id]?.wear === k && S.inv[id] > 0 ? id : 0;
 }
-const gearStat = k => ITEM[gearOf(k)]?.[GEAR.find(x => x.k === k).stat] || 0;
-const gearHelm = () => gearStat('helm'),
-  gearPower = () => gearStat('gloves'),
-  gearRegen = () => gearStat('amulet');
-// what the plating and the helmet let through of a blow (the game server's health.js does the same)
-const armorLeft = () => (1 - (ITEM[S.armor]?.armor || 0)) * (1 - gearHelm());
+// a stat, all the pieces you wear together
+function gearSum(stat) {
+  let t = 0;
+  for (const g of GEAR) t += ITEM[gearOf(g.k)]?.[stat] || 0;
+  return stat === 'regen' ? Math.min(REGEN_CAP, t) : t;
+}
+const gearPower = () => gearSum('power'),
+  gearRegen = () => gearSum('regen'),
+  gearMine = () => gearSum('mine'),
+  gearSpeed = () => gearSum('speed');
+// what the plating lets through of a blow (the game server's health.js does the same)
+const armorLeft = () => 1 - (ITEM[S.armor]?.armor || 0);
 // a piece you no longer own (traded away, put in a chest): off you
 function dropGearNotOwned() {
   for (const g of GEAR) if (S[g.k] && !gearOf(g.k)) S[g.k] = null;
@@ -78,6 +87,15 @@ function buildGearLook(av, k, id) {
       box(g, 0.25, 0.07, 0.29, glow(), 0, -len + 0.16, 0);
       box(g, 0.18, 0.06, 0.04, dark, 0, -len + 0.06, -0.145);
     }
+  } else if (k === 'legs') {
+    // on each leg (its pivot at the hip): a plated thigh, a glowing knee guard, a band at the shin
+    const len = CLAY ? 0.62 * 0.76 : 0.62;
+    for (const l of av.legs) {
+      const g = group(l);
+      box(g, 0.27, len * 0.42, 0.29, plate, 0, -len * 0.25, 0);
+      box(g, 0.2, 0.08, 0.06, glow(), 0, -len * 0.52, -0.14);
+      box(g, 0.27, 0.05, 0.29, dark, 0, -len * 0.7, 0);
+    }
   } else {
     // on the chest, over any plating: a chain in a V, the Ethereum diamond for a pendant
     const H = CLAY ? 0.54 : 0.66,
@@ -89,10 +107,10 @@ function buildGearLook(av, k, id) {
   }
   return { parts };
 }
-// shows what a character wears in slot k (yours from S, another player's from hm, gl, am)
+// shows what a character wears in slot k (yours from S, another player's from hm, gl, lg, am)
 function updateGearVisual(av, k, id) {
   if (!av) return;
-  id = id && ITEM[id]?.[GEAR.find(x => x.k === k).stat] ? +id : 0;
+  id = id && ITEM[id]?.wear === k ? +id : 0;
   av.gearLooks ||= {};
   for (const [key, look] of Object.entries(av.gearLooks))
     if (key.startsWith(k + '.') && key !== k + '.' + id) for (const p of look.parts) p.visible = false;
@@ -109,11 +127,12 @@ function updateMyGear(av) {
 // what it all adds up to
 let charSlot = null; // the slot whose choices are open
 const CHAR_SLOTS = [
-  { k: 'helm', side: 0, n: 'Helm', has: id => ITEM[id]?.helm },
-  { k: 'amulet', side: 0, n: 'Amulet', has: id => ITEM[id]?.regen },
+  { k: 'helm', side: 0, n: 'Helm', has: id => ITEM[id]?.wear === 'helm' },
+  { k: 'amulet', side: 0, n: 'Amulet', has: id => ITEM[id]?.wear === 'amulet' },
   { k: 'armor', side: 0, n: 'Plating', has: id => ITEM[id]?.armor },
   { k: 'hand', side: 1, n: 'In hand' },
-  { k: 'gloves', side: 1, n: 'Gauntlets', has: id => ITEM[id]?.power },
+  { k: 'gloves', side: 1, n: 'Gauntlets', has: id => ITEM[id]?.wear === 'gloves' },
+  { k: 'legs', side: 1, n: 'Leggings', has: id => ITEM[id]?.wear === 'legs' },
   { k: 'boots', side: 1, n: 'Boots', has: id => ITEM[id]?.boots },
 ];
 // what is in a slot now, and what could go in it (the items you own that fit)
@@ -143,9 +162,10 @@ function gearLine(id) {
   const it = ITEM[id];
   if (!it) return '';
   if (it.armor) return `−${Math.round(it.armor * 100)}% damage taken`;
-  if (it.helm) return `−${Math.round(it.helm * 100)}% damage taken, on top`;
-  if (it.power) return `+${Math.round(it.power * 100)}% blade damage and mining`;
-  if (it.regen) return `hearts back ${Math.round(it.regen * 100)}% faster`;
+  if (it.mine) return `mining +${Math.round(it.mine * 100)}%`;
+  if (it.speed) return `you move ${Math.round(it.speed * 100)}% faster`;
+  if (it.power) return `blade damage +${Math.round(it.power * 100)}%`;
+  if (it.regen) return `hearts back ${Math.round(it.regen * 100)}% sooner`;
   if (it.boots) return `+${Math.round(it.boots * 100)}% speed · a dodge`;
   if (it.dmg) return `${it.dmg} damage${it.ranged ? ' · ranged' : ''}`;
   if (it.tool) return `mines ×${it.tool}`;
@@ -230,8 +250,9 @@ function renderCharacter(body) {
   stat('❤', 'Hearts', `${S.hp} / 10`, `one back every ${+regen.toFixed(1)} s`);
   stat('⚔', 'Damage', `${+dmg.toFixed(1)}`, held ? nameOf(held) : 'bare hands');
   stat('🛡', 'Protection', `−${Math.round(taken * 100)}%`, 'damage taken');
-  stat('⛏', 'Mining', `×${+(heldTool() * (1 + gearPower())).toFixed(2)}`, held && ITEM[held]?.tool ? nameOf(held) : 'with what you hold');
-  stat('👢', 'Speed', bootsOn() ? `+${Math.round(ITEM[211].boots * 100)}%` : 'normal', bootsOn() ? 'Front-Runner Boots' : '');
+  stat('⛏', 'Mining', `×${+(heldTool() * (1 + gearMine())).toFixed(2)}`, held && ITEM[held]?.tool ? nameOf(held) : 'with what you hold');
+  const speed = (bootsOn() ? 1 + ITEM[211].boots : 1) * (1 + gearSpeed()) - 1;
+  stat('👢', 'Speed', speed > 0.001 ? `+${Math.round(speed * 100)}%` : 'normal', 'on your feet');
   const title = typeof bestTitle === 'function' ? bestTitle() : '';
   if (title) stat('✦', 'Title', title, '');
   body.appendChild(st);

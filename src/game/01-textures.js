@@ -1409,7 +1409,7 @@ tile(164, P => {
       P(x, y, sx === 3 || sy === 3 ? '#62668f' : sy === 0 ? '#d8daef' : hash(x, y, 169) < 0.1 ? '#a3a8cf' : base);
     }
 });
-// the helmets, gauntlets and amulets (ITEM 308-316), in the platings' colors: Volt, Pure Ether, Genesis
+// the helmets, gauntlets, amulets and leggings (ITEM 308-319), in the platings' colors: Volt, Pure Ether, Genesis
 const GEAR_GLOW = ['#00eaff', '#c9a6ff', '#ffb347'];
 function helmIcon(P, E, glow) {
   // a rounded helmet seen from the front: a dome, cheek guards, a glowing visor band and a crest
@@ -1477,10 +1477,32 @@ function amuletIcon(P, E, glow) {
     }
   }
 }
+function legsIcon(P, E, glow) {
+  // a pair of plated leggings: the belt, two legs apart, a glowing knee guard on each
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) P(x, y, null);
+  const dark = '#1c1029',
+    mid = '#2a1838',
+    lit = '#3d2a55';
+  for (let x = 3; x <= 12; x++) for (let y = 1; y <= 3; y++) P(x, y, y === 1 ? dark : x === 3 || x === 12 ? dark : lit);
+  for (const ox of [3, 9])
+    for (let y = 4; y <= 14; y++)
+      for (let x = ox; x <= ox + 3; x++) P(x, y, x === ox || x === ox + 3 || y === 14 ? dark : x === ox + 1 ? lit : mid);
+  for (const ox of [3, 9])
+    for (let x = ox + 1; x <= ox + 2; x++)
+      for (let y = 8; y <= 9; y++) {
+        P(x, y, glow);
+        E(x, y, glow);
+      }
+  P(7, 2, glow);
+  P(8, 2, glow);
+  E(7, 2, glow);
+  E(8, 2, glow);
+}
 GEAR_GLOW.forEach((g, k) => {
   tile(165 + k, (P, E) => helmIcon(P, E, g));
   tile(168 + k, (P, E) => glovesIcon(P, E, g));
   tile(171 + k, (P, E) => amuletIcon(P, E, g));
+  tile(174 + k, (P, E) => legsIcon(P, E, g));
 });
 tile(138, (P, E) => {
   // Flashbots Bundle: three transactions stacked and strapped together by a glowing band

@@ -208,7 +208,7 @@ namespace EtherMines.Game
             if (b == null) return;
             bool boots = BootsOn;
             var bootsDef = Rules.Item(211);
-            b.SpeedMul = (Buff > 0 ? 1.3 : 1) * (boots && bootsDef != null && bootsDef.HasBoots ? 1 + bootsDef.Boots : 1) * (Combat != null && Combat.Guarding ? 0.55 : 1) * (Hover != null && Hover.Riding != 0 ? 2 : 1);
+            b.SpeedMul = (Buff > 0 ? 1.3 : 1) * (boots && bootsDef != null && bootsDef.HasBoots ? 1 + bootsDef.Boots : 1) * (Combat != null && Combat.Guarding ? 0.55 : 1) * (Hover != null && Hover.Riding != 0 ? 2 : 1) * (1 + (Combat != null ? Combat.GearSum("speed") : 0)); // Volt gear: faster on your feet
             // the dodge: a short dash the way you're pushing (forward when you stand still)
 #if ENABLE_INPUT_SYSTEM
             var k = Keyboard.current;

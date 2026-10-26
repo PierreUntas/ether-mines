@@ -182,21 +182,20 @@ test('a dodge with the Front-Runner Boots puts you out of reach for a moment, if
   o.p.boots = 211;
   assert.equal(o.h.dodge(o.p, 1000), false, "boots it doesn't own");
 });
-// the helmet takes its share of what the plating lets through; an amulet brings hearts back sooner (24-gear.js)
-test('a helmet and an amulet you own count; ones you do not, nothing', () => {
-  const o = setup([108, 310, 316]);
-  o.p.armor = 108; // -25%
-  o.p.helm = 310; // then -16%: 10 x 0.75 x 0.84 = 6.3, 6 hearts taken
-  o.h.hurt(o.p, 10, 0, 2, 'melee', 1000);
-  assert.equal(o.p.hp, 4);
-  o.p.amulet = 316; // 55% sooner: a heart every 1.8 s instead of 4
+// Genesis gear brings hearts back sooner, all pieces together, 70% at most; gear you don't own, nothing (24-gear.js)
+test('Genesis gear you own speeds the hearts up; gear you do not, nothing', () => {
+  const o = setup([310, 313, 319, 316]);
+  o.h.hurt(o.p, 6, 0, 2, 'melee', 1000);
+  assert.equal(o.p.hp, 4, 'no helmet protection any more: the plating alone protects');
+  Object.assign(o.p, { helm: 310, gloves: 313, legs: 319, amulet: 316 }); // 15 + 10 + 15 + 25 = 65%
   o.h.regen(o.p, 7100);
   assert.equal(o.p.hp, 5);
-  o.h.regen(o.p, 9000);
-  assert.equal(o.p.hp, 6, 'the next one 1.8 s later');
-  const n = setup([108]);
-  n.p.armor = 108;
-  n.p.helm = 310; // not owned
-  n.h.hurt(n.p, 10, 0, 2, 'melee', 1000);
-  assert.equal(n.p.hp, 2, 'the plating alone: 10 x 0.75 = 7.5, 8 taken');
+  o.h.regen(o.p, 8500);
+  assert.equal(o.p.hp, 6, 'the next one 1.4 s later (4 s x 0.35)');
+  const n = setup([]);
+  n.h.hurt(n.p, 6, 0, 2, 'melee', 1000);
+  Object.assign(n.p, { amulet: 316 }); // not owned
+  n.h.regen(n.p, 7100);
+  n.h.regen(n.p, 8500);
+  assert.equal(n.p.hp, 5, 'not owned: every 4 s as before');
 });

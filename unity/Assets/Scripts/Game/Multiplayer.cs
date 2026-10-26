@@ -98,7 +98,7 @@ namespace EtherMines.Game
             avatars.MyParryAt = () => combat.ParryAt;
             avatars.World = World;
             avatars.MyCape = () => Session.Inv.Uniques.Exists(u => u.Id == 205);
-            avatars.MyGear = () => new[] { combat.Gear("helm"), combat.Gear("gloves"), combat.Gear("amulet") }; // 24-gear.js
+            avatars.MyGear = () => new[] { combat.Gear("helm"), combat.Gear("gloves"), combat.Gear("legs"), combat.Gear("amulet") }; // 24-gear.js
             // the gestures (21-emotes.js): the row, G, /wave...; yours drawn on your figure, sent with your position
             emotes = gameObject.AddComponent<Emotes>();
             emotes.Player = Player; emotes.Act = Act; emotes.Combat = combat; emotes.Hover = hover; emotes.Chat = chat;
@@ -116,7 +116,7 @@ namespace EtherMines.Game
             items = GetComponent<Items>();
             if (items != null) { items.Link = link; items.Combat = combat; }
             // your hearts as this screen knows them, your plating and boots: the server keeps them from then on
-            link.HelloExtra = () => new Dictionary<string, object> { ["hp"] = combat.Hp, ["ar"] = combat.Armor, ["bt"] = combat.Boots ? 1 : 0, ["hm"] = combat.Gear("helm"), ["gl"] = combat.Gear("gloves"), ["am"] = combat.Gear("amulet") };
+            link.HelloExtra = () => new Dictionary<string, object> { ["hp"] = combat.Hp, ["ar"] = combat.Armor, ["bt"] = combat.Boots ? 1 : 0, ["hm"] = combat.Gear("helm"), ["gl"] = combat.Gear("gloves"), ["lg"] = combat.Gear("legs"), ["am"] = combat.Gear("amulet") };
             link.Peers += list =>
             {
                 lastPeers = list;
@@ -134,8 +134,8 @@ namespace EtherMines.Game
                 names.Clear();
                 foreach (var p in list) if (p.Id != net.UserId) names.Add(p.Name);
             };
-            presence.Pos += m => { if (!link.Ready && m.Id != net.UserId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride, m.On, m.Guard, m.Fx, m.Fq, m.Em, m.Eq, m.Hm, m.Gl, m.Am); };
-            link.Pos += m => { if (m.Id != link.SelfId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride, m.On, m.Guard, m.Fx, m.Fq, m.Em, m.Eq, m.Hm, m.Gl, m.Am); };
+            presence.Pos += m => { if (!link.Ready && m.Id != net.UserId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride, m.On, m.Guard, m.Fx, m.Fq, m.Em, m.Eq, m.Hm, m.Gl, m.Lg, m.Am); };
+            link.Pos += m => { if (m.Id != link.SelfId) avatars.Heard(m.Id, m.Name, m.Color, m.X, m.Y, m.Z, m.Yaw, m.Pitch, m.Mining, true, m.Held, m.Armor, m.Boots, m.Ride, m.On, m.Guard, m.Fx, m.Fq, m.Em, m.Eq, m.Hm, m.Gl, m.Lg, m.Am); };
 
             signs = gameObject.AddComponent<Signs>();
             signs.Session = Session;
@@ -276,7 +276,7 @@ namespace EtherMines.Game
         {
             float dt = Time.deltaTime;
             link.NoMobs = !Reg.MobsOn;
-            link.Hm = combat.Gear("helm"); link.Gl = combat.Gear("gloves"); link.Am = combat.Gear("amulet"); // what you wear, told with your position // Settings → Hostile mobs (always on in the main world)
+            link.Hm = combat.Gear("helm"); link.Gl = combat.Gear("gloves"); link.Lg = combat.Gear("legs"); link.Am = combat.Gear("amulet"); // what you wear, told with your position // Settings → Hostile mobs (always on in the main world)
             var b = Player.Body;
             link.Tick(dt);
             if (b == null) return;
@@ -306,7 +306,7 @@ namespace EtherMines.Game
                     ["x"] = Math.Round(b.X, 2), ["y"] = Math.Round(b.Y, 2), ["z"] = Math.Round(b.Z, 2), ["yaw"] = Math.Round(Player.Yaw, 2), ["pitch"] = Math.Round(Player.Pitch, 2),
                     ["m"] = Act.Swing > 0, ["h"] = held, ["gd"] = combat.Guarding ? 1 : 0, ["rd"] = hover != null ? hover.Riding : 0, ["on"] = hover?.Boarded ?? (object)0,
                     ["wd"] = items != null && items.Warded ? 1 : 0, ["ld"] = 0, ["ar"] = combat.Armor, ["bt"] = combat.Boots ? 1 : 0, ["nm"] = link.NoMobs ? 1 : 0,
-                    ["hm"] = link.Hm, ["gl"] = link.Gl, ["am"] = link.Am,
+                    ["hm"] = link.Hm, ["gl"] = link.Gl, ["lg"] = link.Lg, ["am"] = link.Am,
                     ["fx"] = combat.Fx ?? (object)0, ["fq"] = combat.Fq, ["em"] = emotes.Out.K ?? (object)0, ["eq"] = emotes.Out.Q,
                 }, Time.time);
         }

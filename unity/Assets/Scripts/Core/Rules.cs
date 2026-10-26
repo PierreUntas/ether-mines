@@ -45,7 +45,8 @@ namespace EtherMines.Core
         public int Icon;
         public bool HasTool, HasTier, HasDmg, HasArmor, HasBoots;
         public double Tool, Dmg, Armor, Boots;
-        public double Helm, Power, Regen; // a helmet, gauntlets, an amulet (24-gear.js): 0 when it isn't one
+        public string Wear;               // gear (24-gear.js): helm, gloves, legs, amulet; null otherwise
+        public double Mine, Speed, Power, Regen; // what a piece of gear helps with (0: not that)
         public int Tier;
         public bool Nft, Ranged;
         public string Use;            // consumables: heal, speed, vision, ward, home
@@ -348,7 +349,9 @@ namespace EtherMines.Core
             if (Has(d, "dmg")) { it.HasDmg = true; it.Dmg = MiniJson.ToDouble(d["dmg"]); }
             if (Has(d, "armor")) { it.HasArmor = true; it.Armor = MiniJson.ToDouble(d["armor"]); }
             if (Has(d, "boots")) { it.HasBoots = true; it.Boots = MiniJson.ToDouble(d["boots"]); }
-            if (Has(d, "helm")) it.Helm = MiniJson.ToDouble(d["helm"]);
+            if (Has(d, "wear")) it.Wear = d["wear"] as string;
+            if (Has(d, "mine")) it.Mine = MiniJson.ToDouble(d["mine"]);
+            if (Has(d, "speed")) it.Speed = MiniJson.ToDouble(d["speed"]);
             if (Has(d, "power")) it.Power = MiniJson.ToDouble(d["power"]);
             if (Has(d, "regen")) it.Regen = MiniJson.ToDouble(d["regen"]);
             it.Nft = MiniJson.Truthy(Get(d, "nft"));

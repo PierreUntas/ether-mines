@@ -154,7 +154,7 @@ namespace EtherMines.Game
                 {
                     var k = Target.X + "," + Target.Y + "," + Target.Z;
                     if (k != mineKey) { mineKey = k; mineT = 0; }
-                    mineT += dt * inv.HeldTool * (1 + (Combat != null ? Combat.GearStat("gloves") : 0)); // gauntlets: faster
+                    mineT += dt * inv.HeldTool * (1 + (Combat != null ? Combat.GearSum("mine") : 0)); // Volt gear: faster
                     if ((knockT -= dt) <= 0) { knockT = 0.25; Sounds.Hit(Sounds.MatOf(Target.Id)); }
                     MineProgress = (float)Math.Min(1, mineT / bd.H);
                     if (MineProgress >= 1) { Break(Target); mineKey = null; mineT = 0; MineProgress = 0; }

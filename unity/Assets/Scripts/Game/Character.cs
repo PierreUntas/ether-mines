@@ -1,5 +1,5 @@
 // Ether Mines · the Character tab (24-gear.js renderCharacter): your character in the middle, its slots on
-// both sides (the helmet, the amulet, the plating; what you hold, the gauntlets, the boots), click one to
+// both sides (the helmet, the amulet, the plating; what you hold, the gauntlets, the leggings, the boots), click one to
 // choose what goes in it among what you own, and below what it all adds up to: hearts and how fast they come
 // back, damage, protection, mining, speed, your title.
 using System;
@@ -21,11 +21,12 @@ namespace EtherMines.Game
         sealed class Slot { public string K, N; public bool Right; public Func<ItemDef, bool> Has; }
         static readonly Slot[] Slots =
         {
-            new Slot { K = "helm", N = "Helm", Has = it => it.Helm > 0 },
-            new Slot { K = "amulet", N = "Amulet", Has = it => it.Regen > 0 },
+            new Slot { K = "helm", N = "Helm", Has = it => it.Wear == "helm" },
+            new Slot { K = "amulet", N = "Amulet", Has = it => it.Wear == "amulet" },
             new Slot { K = "armor", N = "Plating", Has = it => it.HasArmor },
             new Slot { K = "hand", N = "In hand", Right = true },
-            new Slot { K = "gloves", N = "Gauntlets", Right = true, Has = it => it.Power > 0 },
+            new Slot { K = "gloves", N = "Gauntlets", Right = true, Has = it => it.Wear == "gloves" },
+            new Slot { K = "legs", N = "Leggings", Right = true, Has = it => it.Wear == "legs" },
             new Slot { K = "boots", N = "Boots", Right = true, Has = it => it.HasBoots },
         };
         static readonly Color[] TierColor = { Avatars.Hex("#00eaff", Color.white), Avatars.Hex("#c9a6ff", Color.white), Avatars.Hex("#ffb347", Color.white) };
@@ -61,9 +62,10 @@ namespace EtherMines.Game
             if (it == null) return "";
             string P(double v) => Math.Round(v * 100).ToString(System.Globalization.CultureInfo.InvariantCulture);
             if (it.HasArmor) return $"−{P(it.Armor)}% damage taken";
-            if (it.Helm > 0) return $"−{P(it.Helm)}% damage taken, on top";
-            if (it.Power > 0) return $"+{P(it.Power)}% blade damage and mining";
-            if (it.Regen > 0) return $"hearts back {P(it.Regen)}% faster";
+            if (it.Mine > 0) return $"mining +{P(it.Mine)}%";
+            if (it.Speed > 0) return $"you move {P(it.Speed)}% faster";
+            if (it.Power > 0) return $"blade damage +{P(it.Power)}%";
+            if (it.Regen > 0) return $"hearts back {P(it.Regen)}% sooner";
             if (it.HasBoots) return $"+{P(it.Boots)}% speed · a dodge";
             if (it.HasDmg) return $"{it.Dmg} damage" + (it.Ranged ? " · ranged" : "");
             if (it.HasTool) return $"mines ×{it.Tool}";
@@ -73,17 +75,17 @@ namespace EtherMines.Game
         public void Draw(Rect body)
         {
             if (Session == null || Combat == null) { GUI.Label(body, "Your character needs the game's server (online, or offline on this device).", Ui.Small); return; }
-            float colW = Mathf.Min(300, (body.width - 24) * 0.36f), midW = body.width - 2 * colW - 24, slotH = 66, gap = 8;
-            float topH = Mathf.Max(3 * slotH + 2 * gap, 230);
+            float colW = Mathf.Min(300, (body.width - 24) * 0.36f), midW = body.width - 2 * colW - 24, slotH = 60, gap = 6;
+            float topH = Mathf.Max(4 * slotH + 3 * gap, 230);
             var left = new Rect(body.x, body.y, colW, topH);
             var mid = new Rect(body.x + colW + 12, body.y, midW, topH);
             var right = new Rect(mid.xMax + 12, body.y, colW, topH);
-            float sy = body.y + (topH - (3 * slotH + 2 * gap)) / 2;
-            int li = 0, ri = 0;
+            int li = 0, ri = 0, nl = Slots.Count(x => !x.Right), nr = Slots.Length - nl;
             foreach (var s in Slots)
             {
                 var col = s.Right ? right : left;
-                int row = s.Right ? ri++ : li++;
+                int row = s.Right ? ri++ : li++, cnt = s.Right ? nr : nl;
+                float sy = body.y + (topH - (cnt * slotH + (cnt - 1) * gap)) / 2;
                 DrawSlot(s, new Rect(col.x, sy + row * (slotH + gap), col.width, slotH));
             }
             // your character, turning
@@ -121,17 +123,18 @@ namespace EtherMines.Game
             int held = Now("hand");
             var hi = Rules.Item(held);
             bool blade = Combat.IsBlade(held);
-            double dmg = (Rules.Block(held) == null && hi != null && hi.HasDmg ? hi.Dmg : 1) * (blade ? 1 + Combat.GearStat("gloves") : 1);
-            double regen = 4 * (1 - Combat.GearStat("amulet")), taken = 1 - Combat.ArmorLeft;
+            double dmg = (Rules.Block(held) == null && hi != null && hi.HasDmg ? hi.Dmg : 1) * (blade ? 1 + Combat.GearSum("power") : 1);
+            double regen = 4 * (1 - Combat.GearSum("regen")), taken = 1 - Combat.ArmorLeft;
             double tool = Rules.Block(held) == null && hi != null && hi.HasTool ? hi.Tool : 1;
             var bt = Rules.Item(211);
+            double speed = (Combat.Boots && bt != null && bt.HasBoots ? 1 + bt.Boots : 1) * (1 + Combat.GearSum("speed")) - 1;
             var stats = new List<(string k, string v, string hint)>
             {
                 ("Hearts", $"{Combat.Hp} / 10", $"one back every {Math.Round(regen, 1)} s"),
                 ("Damage", $"{Math.Round(dmg, 1)}", held > 0 ? Ui.NameOf(held) : "bare hands"),
                 ("Protection", $"−{Math.Round(taken * 100)}%", "damage taken"),
-                ("Mining", $"×{Math.Round(tool * (1 + Combat.GearStat("gloves")), 2)}", hi != null && hi.HasTool ? Ui.NameOf(held) : "with what you hold"),
-                ("Speed", Combat.Boots && bt != null ? $"+{Math.Round(bt.Boots * 100)}%" : "normal", Combat.Boots ? "Front-Runner Boots" : ""),
+                ("Mining", $"×{Math.Round(tool * (1 + Combat.GearSum("mine")), 2)}", hi != null && hi.HasTool ? Ui.NameOf(held) : "with what you hold"),
+                ("Speed", speed > 0.001 ? $"+{Math.Round(speed * 100)}%" : "normal", "on your feet"),
             };
             var title = Title();
             if (!string.IsNullOrEmpty(title)) stats.Add(("Title", title, ""));

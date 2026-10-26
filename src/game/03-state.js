@@ -74,8 +74,9 @@ const S0 = () => ({
   hp: 10,
   armor: null,
   boots: null, // the boots worn (the Front-Runner Boots, 211): their own slot, beside the plating
-  helm: null, // the helmet, the gauntlets and the amulet worn (24-gear.js): an item id, or null
+  helm: null, // the helmet, the gauntlets, the leggings and the amulet worn (24-gear.js): an item id, or null
   gloves: null,
+  legs: null,
   amulet: null,
   gwei: 0, // the game's own fictional currency, server-authoritative (see 019_gwei_currency.sql)
   cosmetics: [], // owned cosmetic ids (022_cosmetics.sql), server-authoritative

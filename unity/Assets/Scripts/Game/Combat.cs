@@ -49,21 +49,29 @@ namespace EtherMines.Game
         int Held => Act.Inv.HeldId;
         public static bool IsBlade(int id) { var it = Rules.Item(id); return Rules.Block(id) == null && it != null && it.HasDmg && !it.Ranged; }
         public static bool IsRanged(int id) { var it = Rules.Item(id); return Rules.Block(id) == null && it != null && it.Ranged; }
-        // gauntlets hit harder with a blade (24-gear.js heldDmg; the server allows for them)
-        double HeldDmg { get { var it = Rules.Item(Held); double d = Rules.Block(Held) == null && it != null && it.HasDmg ? it.Dmg : 1; return IsBlade(Held) ? d * (1 + GearStat("gloves")) : d; } }
+        // Pure Ether gear hits harder with a blade (24-gear.js heldDmg; the server allows for it)
+        double HeldDmg { get { var it = Rules.Item(Held); double d = Rules.Block(Held) == null && it != null && it.HasDmg ? it.Dmg : 1; return IsBlade(Held) ? d * (1 + GearSum("power")) : d; } }
 
-        // the helmet, the gauntlets and the amulet you wear (your save: S.helm, S.gloves, S.amulet), if you
-        // still own them (24-gear.js gearOf); their stat (helm, power, regen), 0 without one
+        // the helmet, the gauntlets, the leggings and the amulet you wear (your save: S.helm, S.gloves, S.legs,
+        // S.amulet), if you still own them (24-gear.js gearOf); a stat (mine, speed, power, regen), all the
+        // pieces together (gearSum: regen 70% at most)
+        public static readonly string[] GearSlots = { "helm", "gloves", "legs", "amulet" };
         public int Gear(string k)
         {
             if (Session == null || !Session.State.TryGetValue(k, out var v) || v == null) return 0;
             int id = v is string s ? (int.TryParse(s, out var i) ? i : 0) : MiniJson.ToInt(v);
-            return StatOf(k, Rules.Item(id)) > 0 && Act.Inv.Count(id) > 0 ? id : 0;
+            var it = Rules.Item(id);
+            return it != null && it.Wear == k && Act.Inv.Count(id) > 0 ? id : 0;
         }
-        public static double StatOf(string k, ItemDef it) => it == null ? 0 : k == "helm" ? it.Helm : k == "gloves" ? it.Power : k == "amulet" ? it.Regen : 0;
-        public double GearStat(string k) => StatOf(k, Rules.Item(Gear(k)));
-        // what the plating and the helmet let through of a blow (armorLeft)
-        public double ArmorLeft { get { var p = Rules.Item(Armor); return (1 - (p != null && p.HasArmor ? p.Armor : 0)) * (1 - GearStat("helm")); } }
+        public static double StatOf(string stat, ItemDef it) => it == null ? 0 : stat == "mine" ? it.Mine : stat == "speed" ? it.Speed : stat == "power" ? it.Power : stat == "regen" ? it.Regen : 0;
+        public double GearSum(string stat)
+        {
+            double t = 0;
+            foreach (var k in GearSlots) t += StatOf(stat, Rules.Item(Gear(k)));
+            return stat == "regen" ? Math.Min(0.7, t) : t;
+        }
+        // what the plating lets through of a blow (armorLeft)
+        public double ArmorLeft { get { var p = Rules.Item(Armor); return 1 - (p != null && p.HasArmor ? p.Armor : 0); } }
         int HeldWeapon => Rules.Block(Held) == null && Rules.Item(Held) != null ? Held : 0;
 
         // the plating you wear and the boots on your feet (your save: S.armor, S.boots), told to the server

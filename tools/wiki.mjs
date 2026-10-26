@@ -64,7 +64,7 @@ const crafting = Object.entries(byCat)
 
 // ---------- tools, weapons, platings ----------
 const gear = Object.entries(ITEM)
-  .filter(([, it]) => it.tool || it.dmg || it.armor || it.boots || it.helm || it.power || it.regen)
+  .filter(([, it]) => it.tool || it.dmg || it.armor || it.boots || it.wear)
   .map(([id, it]) => {
     const what = it.tool
       ? `Pickaxe · mines ×${it.tool}`
@@ -72,13 +72,17 @@ const gear = Object.entries(ITEM)
         ? `${it.ranged ? 'Ranged weapon' : 'Blade'} · ${it.dmg} damage`
         : it.armor
           ? `Plating · −${Math.round(it.armor * 100)}% damage taken`
-          : it.helm
-            ? `Helm · −${Math.round(it.helm * 100)}% of what the plating lets through`
-            : it.power
-              ? `Gauntlets · +${Math.round(it.power * 100)}% blade damage and mining speed`
-              : it.regen
-                ? `Amulet · hearts come back ${Math.round(it.regen * 100)}% faster`
-                : `Boots · +${Math.round(it.boots * 100)}% speed, a dodge`;
+          : it.wear
+            ? `${{ helm: 'Helm', gloves: 'Gauntlets', legs: 'Leggings', amulet: 'Amulet' }[it.wear]} · ${
+                it.mine
+                  ? `mining +${Math.round(it.mine * 100)}%`
+                  : it.speed
+                    ? `you move ${Math.round(it.speed * 100)}% faster`
+                    : it.power
+                      ? `blade damage +${Math.round(it.power * 100)}%`
+                      : `hearts back ${Math.round(it.regen * 100)}% sooner`
+              }`
+            : `Boots · +${Math.round(it.boots * 100)}% speed, a dodge`;
     return `<tr><td><b>${esc(it.n)}</b></td><td>${what}</td><td class="muted">${it.nft ? 'unique' : ''}</td></tr>`;
   })
   .join('');
@@ -240,7 +244,7 @@ ${crafting}
 
 <h2 id="gear">Tools, weapons and gear</h2>
 <p>A better pickaxe mines faster and opens harder rock: the crystal pickaxe opens the geodes below layer ${DEEP}, the pure ether pickaxe breaks the genesis rock at the bottom of the world. Unique items are numbered: each one is a single token with its own serial.</p>
-<p>What you wear goes in the <b>Character</b> tab (<kbd>E</kbd>): a plating, a helm, gauntlets, an amulet and boots, each in its own slot, with what they add up to. A helm takes its share of what the plating lets through: Genesis Plating and a Genesis Helm together take off 62% of a blow. Everyone sees what you wear.</p>
+<p>What you wear goes in the <b>Character</b> tab (<kbd>E</kbd>): a plating, a helm, gauntlets, leggings, an amulet and boots, each in its own slot, with what they add up to. Each kind of gear helps its own way, and the pieces add up: <b>Volt</b> is practical (faster mining, faster on your feet), <b>Pure Ether</b> hits harder with a blade, <b>Genesis</b> brings your hearts back sooner (70% sooner at most). Mix them as you like: everyone sees what you wear.</p>
 <div class="wrap"><table><tr><th>Item</th><th>What it does</th><th></th></tr>${gear}</table></div>
 
 <h2 id="mobs">Mobs</h2>
@@ -277,7 +281,9 @@ ${crafting}
 <h2 id="shop">Shop and cosmetics</h2>
 <p>${cosm.length} cosmetics: ${cosmList}. Prices go from ${fmt(Math.min(...prices))} to ${fmt(Math.max(...prices))} Gwei, and a few picks are on sale each week. Press Try on any piece to see it on your character before you buy it. Trophies can't be bought: they're won in combat and during events.</p>
 <h3>Emotes</h3>
-<p>Gestures everyone around you sees: press G (or the smiley button on a phone), then pick one, or type its name in the chat. ${Object.entries(globalThis.Rules.EMOTES)
+<p>Gestures everyone around you sees: press G (or the smiley button on a phone), then pick one, or type its name in the chat. ${Object.entries(
+  globalThis.Rules.EMOTES,
+)
   .map(([k, e]) => `<code>/${k}</code> ${esc(e.n)}${e.cosmetic ? ' (Workshop)' : ''}`)
   .join(' · ')}. Sitting lasts until you move.</p>
 

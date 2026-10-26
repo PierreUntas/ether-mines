@@ -17,7 +17,7 @@ namespace EtherMines.Game
         public Func<Dictionary<string, int>> MyLook = () => new Dictionary<string, int>();
         public Func<string> MyTitle = () => "";
         public Func<int> MyArmor = () => 0;      // the plating you wear
-        public Func<int[]> MyGear = () => new[] { 0, 0, 0 }; // the helmet, gauntlets and amulet you wear (24-gear.js)
+        public Func<int[]> MyGear = () => new[] { 0, 0, 0, 0 }; // the helmet, gauntlets, leggings and amulet you wear (24-gear.js)
         public Func<bool> MyGuard = () => false;
         public Func<float> MyParryAt = () => -99; // your last parry (Combat.ParryAt): the step aside, seen from outside
         public WorldView World; // the blocks around a figure (in water, on a ladder)
@@ -50,7 +50,7 @@ namespace EtherMines.Game
             public Renderer[] Legs;      // their trousers take the outfit's color
             public string LookKey = "", Title = "";
             public int Armor; public bool Boots, Cape; // a plating, the boots, the cape (yours only, as on the web)
-            public int Helm, Gloves, Amulet;             // a helmet, gauntlets, an amulet (24-gear.js)
+            public int Helm, Gloves, Leggings, Amulet;       // the gear worn (24-gear.js)
             public int Ride, CraftId; public GameObject Craft; public float Lift; public bool OwnCraft; // on board a Diamond Glider
             public float CraftBack = float.NaN;                   // its back seat, behind the driver (the Twin Diamond)
             public string On; public bool Behind; public float BehindLift; // in a driver's back seat
@@ -169,7 +169,7 @@ namespace EtherMines.Game
             foreach (var k in gone) { Drop(figs[k]); figs.Remove(k); }
         }
 
-        public void Heard(string id, string name, string color, double x, double y, double z, double yaw, double pitch, bool mining, bool live = true, int held = 0, int armor = 0, bool boots = false, int ride = 0, string on = null, bool guard = false, string fx = null, int fq = 0, string em = null, int eq = 0, int hm = 0, int gl = 0, int am = 0)
+        public void Heard(string id, string name, string color, double x, double y, double z, double yaw, double pitch, bool mining, bool live = true, int held = 0, int armor = 0, bool boots = false, int ride = 0, string on = null, bool guard = false, string fx = null, int fq = 0, string em = null, int eq = 0, int hm = 0, int gl = 0, int lg = 0, int am = 0)
         {
             if (!figs.TryGetValue(id, out var f) || f.Color != color || f.Name != name)
             {
@@ -179,7 +179,7 @@ namespace EtherMines.Game
                 if (keep != null) { f.Look = keep.Look; f.Title = keep.Title; }
             }
             f.Target = new Vector3((float)x, (float)y, (float)z);
-            if (live) { f.TYaw = yaw; f.Pitch = pitch; f.Mining = mining; f.Guard = guard; f.HeardAt = Time.time; f.Held = held; f.Armor = armor; f.Boots = boots; f.Ride = ride; f.On = on; f.Helm = hm; f.Gloves = gl; f.Amulet = am; }
+            if (live) { f.TYaw = yaw; f.Pitch = pitch; f.Mining = mining; f.Guard = guard; f.HeardAt = Time.time; f.Held = held; f.Armor = armor; f.Boots = boots; f.Ride = ride; f.On = on; f.Helm = hm; f.Gloves = gl; f.Leggings = lg; f.Amulet = am; }
             // a parry they just made (avatarFx): the step aside, and the sparks off their blade
             if (live && f.Fq >= 0 && fq != f.Fq && fx == "parry")
             {
@@ -244,7 +244,7 @@ namespace EtherMines.Game
             {
                 me.Title = MyTitle();
                 me.Armor = MyArmor(); me.Boots = MyBoots(); me.Cape = MyCape(); me.Ride = MyRide(); me.OwnCraft = true; me.On = MyOn();
-                var mg = MyGear(); me.Helm = mg[0]; me.Gloves = mg[1]; me.Amulet = mg[2];
+                var mg = MyGear(); me.Helm = mg[0]; me.Gloves = mg[1]; me.Leggings = mg[2]; me.Amulet = mg[3];
                 Dress(me, MyLook());
                 me.Root.SetActive(mine);
                 // your companion and trail follow you, whatever the view
@@ -282,7 +282,7 @@ namespace EtherMines.Game
         // ---------- the look (applyLook) ----------
         void Dress(Fig f, Dictionary<string, int> look)
         {
-            var key = Looks.Code(look) + "|" + f.Color + "|" + f.Armor + (f.Boots ? "b" : "") + (f.Cape ? "c" : "") + "|" + f.Helm + "," + f.Gloves + "," + f.Amulet;
+            var key = Looks.Code(look) + "|" + f.Color + "|" + f.Armor + (f.Boots ? "b" : "") + (f.Cape ? "c" : "") + "|" + f.Helm + "," + f.Gloves + "," + f.Leggings + "," + f.Amulet;
             if (key == f.LookKey) return;
             f.LookKey = key;
             foreach (var p in f.LookParts) if (p != null) Destroy(p);
@@ -325,6 +325,7 @@ namespace EtherMines.Game
             // the helmet, the gauntlets, the amulet (24-gear.js updateGearVisual)
             if (f.Helm > 0) Hang(f, Looks.Worn("helm", f.Helm), "helm");
             if (f.Gloves > 0) Hang(f, Looks.Worn("gloves", f.Gloves), "gloves");
+            if (f.Leggings > 0) Hang(f, Looks.Worn("legs", f.Leggings), "legs");
             if (f.Amulet > 0) Hang(f, Looks.Worn("amulet", f.Amulet), "amulet");
             if (f.Cape && !look.ContainsKey("back")) Hang(f, Looks.Worn("cape", 205), "cape");
             int cid = look.TryGetValue("companion", out var c) ? c : 0;
@@ -468,7 +469,7 @@ namespace EtherMines.Game
             }
             preview.Root.SetActive(true);
             preview.Armor = MyArmor(); preview.Boots = MyBoots(); preview.Cape = MyCape();
-            var pg = MyGear(); preview.Helm = pg[0]; preview.Gloves = pg[1]; preview.Amulet = pg[2];
+            var pg = MyGear(); preview.Helm = pg[0]; preview.Gloves = pg[1]; preview.Leggings = pg[2]; preview.Amulet = pg[3];
             var look = new Dictionary<string, int>(MyLook());
             if (TryLook != null) foreach (var kv in TryLook) look[kv.Key] = kv.Value;
             Dress(preview, look);

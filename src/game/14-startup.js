@@ -1113,8 +1113,9 @@ setInterval(() => {
       ld: playerOnLadder() ? 1 : 0, // on a ladder: the game server's tower mobs hold their blows
       ar: S.armor ? +S.armor : 0, // the plating you wear (the game server checks you own it)
       bt: bootsOn() ? 1 : 0, // the Front-Runner Boots on your feet: the others see them
-      hm: typeof gearOf === 'function' ? gearOf('helm') : 0, // the helmet, gauntlets and amulet you wear (24-gear.js)
+      hm: typeof gearOf === 'function' ? gearOf('helm') : 0, // the helmet, gauntlets, leggings and amulet you wear (24-gear.js)
       gl: typeof gearOf === 'function' ? gearOf('gloves') : 0,
+      lg: typeof gearOf === 'function' ? gearOf('legs') : 0,
       am: typeof gearOf === 'function' ? gearOf('amulet') : 0,
       nm: mobsHere() ? 0 : 1, // hostile mobs turned off in this world: the game server's mobs leave you be
       fx: FX_OUT.k, // the last blow you took or parried (avatarFx), and its number
@@ -1139,6 +1140,7 @@ setInterval(() => {
       p.bt !== L.bt ||
       p.hm !== L.hm ||
       p.gl !== L.gl ||
+      p.lg !== L.lg ||
       p.am !== L.am ||
       p.nm !== L.nm ||
       p.fq !== L.fq ||
@@ -1749,6 +1751,7 @@ async function boot(world) {
       bt: bootsOn() ? 1 : 0,
       hm: typeof gearOf === 'function' ? gearOf('helm') : 0, // 24-gear.js
       gl: typeof gearOf === 'function' ? gearOf('gloves') : 0,
+      lg: typeof gearOf === 'function' ? gearOf('legs') : 0,
       am: typeof gearOf === 'function' ? gearOf('amulet') : 0,
       nm: mobsHere() ? 0 : 1,
     }));

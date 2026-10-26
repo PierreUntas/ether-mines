@@ -828,7 +828,7 @@ function updateMobBars(dt) {
 function heldDmg() {
   const id = itemId(S.bar[S.sel]),
     d = ITEM[id]?.dmg || 1;
-  // gauntlets hit harder with a blade (24-gear.js; the game server allows for them, server.js)
+  // Pure Ether gear hits harder with a blade (24-gear.js; the game server allows for it, server.js)
   return heldBlade() && typeof gearPower === 'function' ? d * (1 + gearPower()) : d;
 }
 // shared by melee (attackMob) and the plasma pistol's bolts (hitBolt): hp, knockback away from
@@ -1471,7 +1471,7 @@ function hurtPlayer(dmg, mx, mz, kind = 'melee') {
     dmg *= 0.25;
     blocked = true;
   }
-  // the plating, then the helmet, each take their share (24-gear.js armorLeft; health.js does the same)
+  // the plating takes its share (24-gear.js armorLeft; health.js does the same)
   const left = typeof armorLeft === 'function' ? armorLeft() : 1 - (ITEM[S.armor]?.armor || 0);
   dmg = Math.max(blocked ? 0 : 1, Math.round(dmg * left));
   if (!dmg) {
@@ -1647,7 +1647,7 @@ function tickPlayerHealth(dt) {
   hurtT = Math.max(0, hurtT - dt);
   if (typeof Net !== 'undefined' && Net.hpServer) return; // the game server gives them back
   if (regenT <= 0 && S.hp < 10) {
-    regenT = 4 * (1 - (typeof gearRegen === 'function' ? gearRegen() : 0)); // an amulet: sooner (24-gear.js)
+    regenT = 4 * (1 - (typeof gearRegen === 'function' ? gearRegen() : 0)); // Genesis gear: sooner (24-gear.js)
     S.hp++;
     dirty = true;
     updateHpUI();

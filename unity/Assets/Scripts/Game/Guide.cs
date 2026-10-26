@@ -426,10 +426,6 @@ namespace EtherMines.Game
                 var it = Rules.Item(id);
                 if (it != null && it.HasArmor) a = $"Plating · {it.N} · -{Math.Round(it.Armor * 100)}% damage";
             }
-            // a helmet adds its share (24-gear.js): the total
-            var cb = Act != null ? Act.Combat : null;
-            if (cb != null && cb.Gear("helm") > 0)
-                a = (a != null ? a.Substring(0, a.LastIndexOf(" · ", StringComparison.Ordinal)) + " + helm" : "Helm · " + Rules.Item(cb.Gear("helm")).N) + $" · -{Math.Round((1 - cb.ArmorLeft) * 100)}% damage";
             if (Items != null && Items.BootsOn)
             {
                 var bt = Rules.Item(211);

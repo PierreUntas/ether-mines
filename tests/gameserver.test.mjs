@@ -320,18 +320,18 @@ test('a blow on a mob is settled by the server: health, pace, reach, death, loot
   assert.equal(b.of('mob').length, n, 'and nothing to tell the others');
   [a, b].forEach(p => p.close());
 });
-test('gauntlets you wear raise the cap on a blade blow (24-gear.js)', async () => {
+test('Pure Ether gear you wear raises the cap on a blade blow (24-gear.js)', async () => {
   const a = await player('ga', 'A', 'w8g');
-  a.send({ t: 'pos', x: 0, y: 30, z: 0, gl: 313 }); // Genesis Gauntlets: +20%
+  a.send({ t: 'pos', x: 0, y: 30, z: 0, hm: 309, gl: 312, lg: 318, am: 315 }); // +5 +10 +5 +8 = +28%
   await wait(30);
   a.send({ t: 'mob', id: '0,0|4|guardian', item: 107, dmg: 999, x: 1, y: 30, z: 0 });
   await wait(40);
-  assert.equal(a.of('mob').at(-1).hp, 5.5, '19 - 5 x 2.25 x 1.2');
-  a.send({ t: 'pos', x: 0, y: 30, z: 0, gl: 0 });
+  assert.equal(a.of('mob').at(-1).hp, 4.6, '19 - 5 x 2.25 x 1.28');
+  a.send({ t: 'pos', x: 0, y: 30, z: 0 });
   await wait(400); // the pace of blows
   a.send({ t: 'mob', id: '0,0|5|guardian', item: 107, dmg: 999, x: 1, y: 30, z: 0 });
   await wait(40);
-  assert.equal(a.of('mob').at(-1).hp, 7.75, 'without them: 19 - 5 x 2.25');
+  assert.equal(a.of('mob').at(-1).hp, 7.75, 'without it: 19 - 5 x 2.25');
   a.close();
 });
 test('the Merge twins only stay down together', async () => {

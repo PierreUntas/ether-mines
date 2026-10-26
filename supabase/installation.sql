@@ -5339,7 +5339,10 @@ insert into public.rule_items (id, name, tool, tier, uniq, consumable) values
 (313,'Genesis Gauntlets',1,3,false,false),
 (314,'Volt Amulet',1,1,false,false),
 (315,'Pure Ether Amulet',1,2,false,false),
-(316,'Genesis Amulet',1,3,false,false);
+(316,'Genesis Amulet',1,3,false,false),
+(317,'Volt Leggings',1,1,false,false),
+(318,'Pure Ether Leggings',1,2,false,false),
+(319,'Genesis Leggings',1,3,false,false);
 insert into public.rule_recipes (out_item, n, need, uniq, req_unique) values
 (9,4,'{"5":1}'::jsonb,false,null),
 (102,1,'{"9":3}'::jsonb,false,null),
@@ -5416,12 +5419,15 @@ insert into public.rule_recipes (out_item, n, need, uniq, req_unique) values
 (302,1,'{"103":4,"104":4,"110":4}'::jsonb,false,206),
 (308,1,'{"9":2,"101":2}'::jsonb,false,null),
 (311,1,'{"9":2,"101":2}'::jsonb,false,null),
+(317,1,'{"9":3,"101":2}'::jsonb,false,null),
 (314,1,'{"15":1,"101":3}'::jsonb,false,null),
 (309,1,'{"9":2,"101":3,"103":2}'::jsonb,false,null),
 (312,1,'{"9":1,"101":2,"103":3}'::jsonb,false,null),
+(318,1,'{"9":2,"101":2,"103":3}'::jsonb,false,null),
 (315,1,'{"101":2,"103":4}'::jsonb,false,null),
 (310,1,'{"103":2,"104":2,"110":2}'::jsonb,false,205),
 (313,1,'{"9":1,"104":2,"110":2}'::jsonb,false,205),
+(319,1,'{"103":2,"104":3,"110":2}'::jsonb,false,205),
 (316,1,'{"103":2,"104":2,"110":3}'::jsonb,false,206),
 (146,2,'{"9":3}'::jsonb,false,null),
 (150,1,'{"9":2,"71":3}'::jsonb,false,null),

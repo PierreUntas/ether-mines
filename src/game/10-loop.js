@@ -119,6 +119,7 @@ function frame(now) {
         (sneak && !inW ? 0.35 : 1) *
         (buffT > 0 ? 1.3 : 1) *
         (bootsOn() ? 1 + ITEM[211].boots : 1) * // the Front-Runner Boots, worn
+        (typeof gearSpeed === 'function' ? 1 + gearSpeed() : 1) * // Volt leggings and amulet (24-gear.js)
         (guarding() ? 0.55 : 1) *
         (RIDE ? 2 : 1), // on a hovercraft (20-hover.js): twice as fast
       sn = Math.sin(yaw),
@@ -294,7 +295,7 @@ function frame(now) {
         mineKey = k;
         mineT = 0;
       }
-      mineT += dt * heldTool() * (typeof gearPower === 'function' ? 1 + gearPower() : 1); // gauntlets: faster (24-gear.js)
+      mineT += dt * heldTool() * (typeof gearMine === 'function' ? 1 + gearMine() : 1); // Volt gear: faster (24-gear.js)
       hitT -= dt;
       if (hitT <= 0) {
         hitT = 0.25;

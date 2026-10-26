@@ -198,18 +198,14 @@ function ui() {
     }
   });
   setHand();
-  const armorEl = $('armor'),
-    helm = typeof gearOf === 'function' ? gearOf('helm') : 0; // a helmet adds its share (24-gear.js)
-  armorEl.hidden = !(S.armor && ITEM[S.armor]) && !helm;
-  if (!armorEl.hidden) {
-    const off = Math.round((helm ? 1 - armorLeft() : ITEM[S.armor].armor) * 100);
-    armorEl.textContent = `🛡 ${S.armor && ITEM[S.armor] ? ITEM[S.armor].n + (helm ? ' + helm' : '') : ITEM[helm].n} · -${off}% dmg`;
-  }
+  const armorEl = $('armor');
+  armorEl.hidden = !S.armor || !ITEM[S.armor];
+  if (!armorEl.hidden) armorEl.textContent = `🛡 ${ITEM[S.armor].n} · -${Math.round(ITEM[S.armor].armor * 100)}% dmg`;
   if (bootsOn()) {
     // the boots on a line of their own on a touch screen (the chip stays narrow), dodge by the button there
     armorEl.hidden = false;
     armorEl.textContent =
-      (armorEl.textContent && (S.armor || helm) ? armorEl.textContent + (touch ? '\n' : '  ·  ') : '') +
+      (armorEl.textContent && S.armor ? armorEl.textContent + (touch ? '\n' : '  ·  ') : '') +
       `👢 +${Math.round(ITEM[211].boots * 100)}% speed` +
       (touch ? '' : ' · Q: dodge');
   }
@@ -2495,9 +2491,9 @@ function renderPanelBody() {
         };
         br.appendChild(eq);
       }
-      const gs = typeof GEAR !== 'undefined' && GEAR.find(g => ITEM[id]?.[g.stat]);
+      const gs = typeof GEAR !== 'undefined' && GEAR.find(g => ITEM[id]?.wear === g.k);
       if (gs) {
-        // a helmet, gauntlets, an amulet: their own slots (24-gear.js), worn from here or the Character tab
+        // a helmet, gauntlets, leggings, an amulet: their own slots (24-gear.js), worn from here or the Character tab
         const eq = document.createElement('button');
         eq.className = 'b';
         eq.textContent = gearOf(gs.k) === id ? 'Take off' : 'Wear';

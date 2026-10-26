@@ -14,9 +14,9 @@
     },
     {
       date: '2026-10-25',
-      title: 'Helms, gauntlets and amulets',
+      title: 'Helms, gauntlets, leggings and amulets',
       items: [
-        'Three new pieces to craft, in Volt, Pure Ether and Genesis: a helm takes less damage, gauntlets hit harder with a blade and mine faster, an amulet brings your hearts back sooner.',
+        'Four new pieces to craft, each in three kinds that help their own way, and they add up: Volt mines and moves faster, Pure Ether hits harder with a blade, Genesis brings your hearts back sooner.',
         'A new Character tab: your character among its slots, click one to choose what to wear, and everything it adds up to below.',
         'What you wear shows on your character, for everyone around.',
       ],
