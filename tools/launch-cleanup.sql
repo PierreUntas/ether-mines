@@ -1,8 +1,7 @@
 -- The launch's clean-up in the players' world (principal), by hand in Supabase's SQL Editor, AFTER
 -- supabase/installation.sql (it needs 054_three_validators.sql). Never a migration.
--- Run it one step at a time: each step first LOOKS (a select, changes nothing), then CHANGES (between begin
--- and commit). Read what the look shows before running the change. If a change shows something wrong before
--- its commit, run rollback; instead and nothing is changed.
+-- Run it one step at a time (select the lines, then Run): each step first LOOKS (a select, changes nothing),
+-- then CHANGES (a single statement: all of it or nothing). Read what the look shows before running the change.
 -- A validator that goes is put back as it was found: its block back to a dark validator (73) for anyone to
 -- relight, its seal (item 203) taken out of its owner's chest, its row deleted.
 
@@ -23,23 +22,21 @@ from ranked
 where owner_name in (select owner_name from ranked group by owner_name having count(*) > 3)
 order by owner_name, n;
 
--- 1b. CHANGE
-begin;
-create temp table gone on commit drop as
+-- 1b. CHANGE (one statement: Supabase's SQL Editor runs each statement apart, a temp table wouldn't last)
+with gone as (
   select id, x, y, z from (
     select v.id, v.x, v.y, v.z,
       row_number() over (partition by v.owner
         order by case v.rarity when 'legendary' then 0 when 'epic' then 1 when 'rare' then 2 else 3 end, v.level desc, v.reanimated_at nulls last, v.id) as n
     from validators v where v.world = 'principal' and v.owner is not null
-  ) r where n > 3;
-delete from uniques u using gone g where u.world = 'principal' and u.item = 203 and u.validator_id = g.id;
-update blocks b set id = 73, placed_by = null, placed_name = null
-  from gone g where b.world = 'principal' and b.x = g.x and b.y = g.y and b.z = g.z and b.id = 74;
-delete from validators v using gone g where v.id = g.id;
-select count(*) as validators_gone from gone;
--- nobody left above three:
-select owner_name, count(*) from validators where world = 'principal' and owner is not null group by owner_name having count(*) > 3;
-commit;
+  ) r where n > 3
+),
+seals as (delete from uniques u using gone g where u.world = 'principal' and u.item = 203 and u.validator_id = g.id returning 1),
+ruins as (update blocks b set id = 73, placed_by = null, placed_name = null
+  from gone g where b.world = 'principal' and b.x = g.x and b.y = g.y and b.z = g.z and b.id = 74 returning 1),
+vals as (delete from validators v using gone g where v.id = g.id returning 1)
+select (select count(*) from vals) as validators_gone, (select count(*) from ruins) as ruins_dark_again, (select count(*) from seals) as seals_gone;
+-- then 1a again: it should show nothing
 
 -- ============================================================================================================
 -- 2. Your own game in principal, from zero: the account named Pierre (its login and password stay; the
@@ -56,24 +53,22 @@ select l.login, l.user_id, p.name, p.gwei, p.gwei_earned,
 from logins l left join players p on p.user_id = l.user_id and p.world = 'principal'
 where l.login_key = 'pierre';
 
--- 2b. CHANGE
-begin;
-create temp table me on commit drop as select user_id from logins where login_key = 'pierre';
-create temp table mine on commit drop as
-  select v.id, v.x, v.y, v.z from validators v where v.world = 'principal' and v.owner in (select user_id from me);
-delete from uniques u using mine g where u.world = 'principal' and u.item = 203 and u.validator_id = g.id;
-update blocks b set id = 73, placed_by = null, placed_name = null
-  from mine g where b.world = 'principal' and b.x = g.x and b.y = g.y and b.z = g.z and b.id = 74;
-delete from validators v using mine g where v.id = g.id;
-delete from inventory where world = 'principal' and user_id in (select user_id from me);
-delete from uniques where world = 'principal' and user_id in (select user_id from me);
-delete from cosmetics_owned where world = 'principal' and user_id in (select user_id from me);
-delete from claims where world = 'principal' and owner in (select user_id from me);
-delete from offers where world = 'principal' and (from_user in (select user_id from me) or to_user in (select user_id from me));
-delete from players where world = 'principal' and user_id in (select user_id from me);
-delete from play_days where world = 'principal' and who = 'pierre';
-select count(*) as your_validators_gone from mine;
-commit;
+-- 2b. CHANGE (one statement, as in 1b)
+with me as (select user_id as id from logins where login_key = 'pierre'),
+mine as (select v.id, v.x, v.y, v.z from validators v, me where v.world = 'principal' and v.owner = me.id),
+u as (delete from uniques x using me where x.world = 'principal'
+        and (x.user_id = me.id or (x.item = 203 and x.validator_id in (select id from mine))) returning 1),
+b as (update blocks bl set id = 73, placed_by = null, placed_name = null from mine g
+        where bl.world = 'principal' and bl.x = g.x and bl.y = g.y and bl.z = g.z and bl.id = 74 returning 1),
+v as (delete from validators vv using mine g where vv.id = g.id returning 1),
+i as (delete from inventory x using me where x.world = 'principal' and x.user_id = me.id returning 1),
+c as (delete from cosmetics_owned x using me where x.world = 'principal' and x.user_id = me.id returning 1),
+pl as (delete from claims x using me where x.world = 'principal' and x.owner = me.id returning 1),
+o as (delete from offers x using me where x.world = 'principal' and (x.from_user = me.id or x.to_user = me.id) returning 1),
+p as (delete from players x using me where x.world = 'principal' and x.user_id = me.id returning 1),
+d as (delete from play_days where world = 'principal' and who = 'pierre' returning 1)
+select (select count(*) from v) as validators, (select count(*) from u) as uniques, (select count(*) from pl) as plots,
+       (select count(*) from i) as inventory_rows, (select count(*) from p) as player_rows;
 -- Then on each of your devices: log in again with Pierre and your password; the game starts from zero.
 
 -- ============================================================================================================
