@@ -72,6 +72,17 @@ namespace EtherMines.Game
             Moved = null;
         }
 
+        // Delete my account (056_delete_account.sql): null once deleted (this device then takes a fresh guest
+        // session), otherwise what went wrong
+        public async Task<string> DeleteAccount(string confirm)
+        {
+            var r = D(await Net.Rpc("act_delete_account", MiniJson.Write(new Dictionary<string, object> { ["confirm"] = (confirm ?? "").Trim() })));
+            if (r == null || !MiniJson.Truthy(r.TryGetValue("ok", out var ok) ? ok : null))
+                return Str(r, "err") == "type your nickname to confirm" ? "That is not your nickname: type it exactly to confirm." : "Refused: " + (Str(r, "err") ?? "try again");
+            await LogOut();
+            return null;
+        }
+
         // your nickname and password (047_nickname_password.sql): null when in, otherwise what went wrong
         public async Task<string> Enter(string nick, string password)
         {

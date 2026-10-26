@@ -175,6 +175,12 @@ window.Net = (() => {
     return rpc('act_login', { login, password });
   }
   const claimRecovery = code => rpc('claim_recovery', { code });
+  // deleting the account, confirmed by its nickname (056_delete_account.sql); then a fresh guest session here
+  async function deleteAccount(confirm) {
+    const r = await rpc('act_delete_account', { confirm });
+    if (r && r.ok) await freshSession().catch(() => {});
+    return r;
+  }
   // how many nicknames this world has (035_player_count.sql)
   const playerCount = () => rpc('world_player_count', { w: world });
   // one block's story for the block explorer (038_block_history.sql)
@@ -642,6 +648,7 @@ window.Net = (() => {
     playerCount,
     blockInfo,
     claimRecovery,
+    deleteAccount,
     get userId() {
       return userId;
     },

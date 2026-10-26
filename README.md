@@ -62,6 +62,7 @@ Players can't write anything directly: no blocks, no terrain, no chest. Every ac
 | `act_maintain_validator` | ownership; settles missed cycles, repairs from "corrupted" (needs a validator heart), pays out net Gwei — no reach check, attests remotely like a real validator |
 | `act_upgrade_validator` | ownership, not corrupted, level below 10, enough Gwei (50 × current level) |
 | `act_release_validator` | ownership; pays what it earned, then the block goes back to a dark validator (73) for anyone, its seal (203) and its row deleted — makes room under the three-at-most to look for a rarer one |
+| `act_delete_account` | the nickname typed to confirm; validators back to dark ruins, blocks kept without the name, then the account and everything of it (by cascade) deleted; euro purchases kept for accounting |
 | `act_buy_cosmetic` | not already owned (block packs excepted), enough Gwei at this week's price, limited pieces only in their week; grants existing decorative blocks for "block"-category cosmetics |
 | `act_gift` | once a day per animal, 15 gifts a day at most |
 | `act_rewards` | ticks every validator the player owns (lazy, like `players.rewards_at` used to for Ether Crystal), 24 h caught up at most |

@@ -23,8 +23,8 @@ namespace EtherMines.Game
         const string NewsKey = "ether-mines:nouveautes"; // the web's key: the newest entry read
         struct News { public string Date, Title; public List<string> Items; }
         List<News> news;
-        bool openNews, openAccount, openKeys, logOutAsked;
-        string changePass = "", accountMsg = "";
+        bool openNews, openAccount, openKeys, logOutAsked, openDelete, deleteAsked;
+        string changePass = "", accountMsg = "", deleteConfirm = "";
         bool copied;
         Vector2 scroll;
         float contentH = 600;
@@ -103,7 +103,7 @@ namespace EtherMines.Game
         void Pause()
         {
             Ui.Paused = true;
-            openAccount = logOutAsked = copied = false;
+            openAccount = logOutAsked = copied = openDelete = deleteAsked = false;
             accountMsg = "";
             Lock(false);
             if (session != null && player.Body != null) SaveNow(); // as the web's pause: your game goes back now
@@ -145,6 +145,29 @@ namespace EtherMines.Game
             }
             catch (Exception e) { accountMsg = "Failed: " + e.Message; }
             finally { busy = false; logOutAsked = false; }
+        }
+
+        // Delete my account (056_delete_account.sql): the nickname typed confirms it, then a second press
+        async void DeleteMyAccount()
+        {
+            if (busy || session == null) return;
+            busy = true;
+            try
+            {
+                var err = await session.DeleteAccount(deleteConfirm);
+                if (err == null)
+                {
+                    known = false;
+                    nick = "";
+                    password = "";
+                    deleteConfirm = "";
+                    openAccount = openDelete = false;
+                    status = "Your account is deleted. Thanks for playing Ether Mines.";
+                }
+                else accountMsg = err;
+            }
+            catch (Exception e) { accountMsg = "Failed: " + e.Message; }
+            finally { busy = false; deleteAsked = false; }
         }
 
         async void ChangeMyPassword()
@@ -378,6 +401,22 @@ namespace EtherMines.Game
                     y += Text(x, y, w, "Forgot your password? Write to contact@ethermines.org with your nickname and what you own in the game.", sSmall);
                     if (Link(x, y, w, "Write to contact@ethermines.org")) Application.OpenURL("mailto:contact@ethermines.org");
                     y += 24;
+                    // deleting the account, from the title screen only
+                    if (!started)
+                    {
+                        if (Link(x, y, w, openDelete ? "▾ Delete my account" : "▸ Delete my account")) openDelete = !openDelete;
+                        y += 24;
+                        if (openDelete)
+                        {
+                            y += Text(x, y, w, "Your account and your game in every world are deleted for good: nickname and password, saves, bag, uniques, Gwei, cosmetics (premium too), plots, chat lines and signs. Your validators go back to dark ruins; your blocks stay in the world, without your name.", sSmall) + 6;
+                            deleteConfirm = GUI.TextField(new Rect(x, y, w - 190, 28), deleteConfirm, 32, sField);
+                            if (deleteConfirm.Length == 0) GUI.Label(new Rect(x + 8, y + 4, w - 200, 20), "<color=#9a92c8>Type your nickname to confirm</color>", sSmall);
+                            if (GUI.Button(new Rect(x + w - 180, y, 180, 28), deleteAsked ? "Sure? Press again" : "Delete my account") && deleteConfirm.Trim().Length > 0) { if (deleteAsked) DeleteMyAccount(); else deleteAsked = true; }
+                            y += 36;
+                            if (Link(x, y, w, "What is deleted, what is kept")) Application.OpenURL(Config.Site + "/delete-account.html");
+                            y += 24;
+                        }
+                    }
                     if (accountMsg.Length > 0) y += Text(x, y, w, accountMsg, sText) + 4;
                 }
             }

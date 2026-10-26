@@ -147,6 +147,10 @@
       <div class="arow"><button class="b" id="logOut">Not you? Log out</button></div>
       <p class="hint">Forgot your password? Write to <a href="mailto:contact@ethermines.org">contact@ethermines.org</a> with your nickname and what you own in the game.</p>
       <p id="acctMsg" class="status"></p>
+      <details class="delacct"><summary>Delete my account</summary>
+        <p class="hint">Your account and your game in every world are deleted for good: your nickname and password, saves, bag, uniques, Gwei, cosmetics, plots, chat lines and signs. Your validators go back to dark ruins; the blocks you placed stay in the world, without your name. Premium purchases are lost (only their receipt is kept, as the law asks). <a href="delete-account.html" target="_blank" rel="noopener">More</a></p>
+        <div class="arow"><input id="delConfirm" maxlength="32" autocomplete="off" placeholder="Type your nickname to confirm"><button class="b danger" id="delAcct">Delete my account</button></div>
+      </details>
     </details>
     <div class="share" id="shareRow" hidden><span>Invite your friends:</span><code id="shareUrl"></code><button class="b" id="copyUrl">Copy the link</button></div>
     <!-- the apps, the trailer, the community: each link shows once its address is in src/config.js -->

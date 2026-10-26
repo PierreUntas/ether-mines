@@ -1268,3 +1268,30 @@ insert into play_days values ('w', 'apptwo', current_date - 8, 'android'), ('w',
 select pg_temp.ok('seen: came back the next day and a week later', (select came_back_d1 = 1 and came_back_d7 = 1 from retention where world = 'w' and platform = 'android'));
 select pg_temp.ok('seen: the summary in percent', (select d1_percent = 100 and d7_percent = 100 from retention_summary where world = 'w' and platform = 'android'));
 \echo Retention scenarios pass.
+-- 056: deleting your account from the game: confirmed by the nickname, everything of yours goes but the world's blocks, nameless
+reset role;
+delete from rate_limits;
+insert into auth.users values ('a6000000-0000-0000-0000-000000000001');
+select set_config('request.jwt.claim.sub', 'a6000000-0000-0000-0000-000000000001', false) \g /dev/null
+set role authenticated;
+select pg_temp.ok('delete: an account to delete', (act_enter('Goner', 'pass123') ->> 'ok')::boolean);
+reset role;
+insert into players (user_id, world, name, gwei) values ('a6000000-0000-0000-0000-000000000001', 'w', 'Goner', 50) on conflict (user_id, world) do update set gwei = 50;
+select public._set('w', 950, 30, 950, 74, 'a6000000-0000-0000-0000-000000000001', 'Goner', 1);
+select public._set('w', 951, 30, 950, 3, 'a6000000-0000-0000-0000-000000000001', 'Goner', 2);
+insert into validators (world, x, y, z, owner, owner_name, state, rarity, level) values ('w', 950, 30, 950, 'a6000000-0000-0000-0000-000000000001', 'Goner', 'active', 'epic', 1);
+insert into uniques (user_id, world, serial, item, place, validator_id)
+  select 'a6000000-0000-0000-0000-000000000001', 'w', 1, 203, '950, 30, 950', id from validators where world = 'w' and x = 950 and z = 950;
+insert into inventory values ('a6000000-0000-0000-0000-000000000001', 'w', 9, 5);
+set role authenticated;
+select pg_temp.ok('delete: refused without the nickname', act_delete_account('yes') ->> 'err' = 'type your nickname to confirm');
+select pg_temp.ok('delete: the nickname, any case, deletes it', (act_delete_account('GONER') ->> 'validators')::int = 1);
+reset role;
+select pg_temp.ok('delete: the account is gone, and its nickname is free', not exists (select 1 from auth.users where id = 'a6000000-0000-0000-0000-000000000001')
+  and not exists (select 1 from logins where login_key = 'goner') and not exists (select 1 from players where name = 'Goner'));
+select pg_temp.ok('delete: the bag and the seal with it', not exists (select 1 from inventory where user_id = 'a6000000-0000-0000-0000-000000000001')
+  and not exists (select 1 from uniques where user_id = 'a6000000-0000-0000-0000-000000000001'));
+select pg_temp.ok('delete: its validator a dark ruin again, for anyone', (select id = 73 and placed_by is null from blocks where world = 'w' and x = 950 and y = 30 and z = 950)
+  and not exists (select 1 from validators where world = 'w' and x = 950 and z = 950));
+select pg_temp.ok('delete: its blocks stay, nameless', (select id = 3 and placed_by is null and placed_name is null from blocks where world = 'w' and x = 951 and y = 30 and z = 950));
+\echo Account deletion scenarios pass.

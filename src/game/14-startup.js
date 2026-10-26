@@ -1478,6 +1478,30 @@ $('logOut').onclick = async () => {
   clearLocalSaves();
   location.reload();
 };
+// Delete my account (056_delete_account.sql): typing the nickname confirms it, then a last yes
+$('delAcct').onclick = async () => {
+  const btn = $('delAcct'),
+    nick = $('delConfirm').value.trim();
+  if (!nick) return void ($('acctMsg').textContent = 'Type your nickname first to confirm.');
+  if (!confirm('Delete your account and your game for good? This cannot be undone.')) return;
+  btn.disabled = true;
+  try {
+    const r = await Net.deleteAccount(nick);
+    if (r && r.ok) {
+      clearLocalSaves();
+      alert('Your account is deleted. Thanks for playing Ether Mines.');
+      location.reload();
+      return;
+    }
+    $('acctMsg').textContent =
+      r && r.err === 'type your nickname to confirm'
+        ? 'That is not your nickname: type it exactly to confirm.'
+        : 'Refused: ' + ((r && r.err) || 'try again');
+  } catch (e) {
+    $('acctMsg').textContent = 'Failed: ' + e.message;
+  }
+  btn.disabled = false;
+};
 // What's new (src/news.js): the update log on the title screen, with a dot until its newest entry is read
 const NEWS_KEY = 'ether-mines:nouveautes';
 (function showNews() {

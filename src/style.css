@@ -502,3 +502,4 @@ html.clay .slot i{display:none}
 #emoteMenu .emote kbd{position:absolute;top:3px;left:6px;font-family:var(--mono);font-size:10px;color:var(--muted)}
 #emoteMenu .more{font-size:12px}
 .b.danger{border-color:var(--burn,#ff9ab8);color:var(--burn,#ff9ab8)}
+.acct .delacct{margin-top:10px}.acct .delacct summary{cursor:pointer;color:var(--burn);font-size:13px}
