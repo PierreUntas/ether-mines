@@ -267,7 +267,7 @@ const ladder = await page.evaluate(() => {
 if (!ladder.pushedOut || !ladder.held) await fail('ladder: ' + JSON.stringify(ladder));
 // walking mobs step up one block, like you: a closed hut keeps them out (no climbing the walls,
 // no biting through them), a gap lets them in, and a single step is still climbed. Built on a stone
-// slab in the air, away from the Atrium (where mobs never attack), so the terrain doesn't interfere.
+// slab in the air, away from the Atrium and its calm (where mobs never attack), so the terrain doesn't interfere.
 const hut = await page.evaluate(() => {
   const P = mines.P,
     P0 = [P.x, P.y, P.z],
@@ -276,13 +276,13 @@ const hut = await page.evaluate(() => {
     slab = [];
   let cx = null,
     cz = null;
-  for (let r = 8; r < 40 && cx === null; r += 2)
+  for (let r = 8; r < 72 && cx === null; r += 2)
     for (const [ox, oz] of [[r, 0], [-r, 0], [0, r], [0, -r]]) {
       const x = Math.floor(P.x) + ox,
         z = Math.floor(P.z) + oz;
       let ok = true;
       for (let dx = -4; dx <= 8 && ok; dx++)
-        for (let dz = -4; dz <= 4 && ok; dz++) ok = CHK.has(ckey(cOf(x + dx), cOf(z + dz))) && !mobSafe(x + dx + 0.5, z + dz + 0.5);
+        for (let dz = -4; dz <= 4 && ok; dz++) ok = CHK.has(ckey(cOf(x + dx), cOf(z + dz))) && !mobSafe(x + dx + 0.5, z + dz + 0.5) && !MobsCore.calm(x + dx + 0.5, z + dz + 0.5);
       if (ok) {
         cx = x;
         cz = z;
