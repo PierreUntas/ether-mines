@@ -271,7 +271,7 @@ if (!ladder.pushedOut || !ladder.held) await fail('ladder: ' + JSON.stringify(la
 const hut = await page.evaluate(() => {
   const P = mines.P,
     P0 = [P.x, P.y, P.z],
-    cy = 52,
+    cy = 58, // above the hills out past the calm (the hut stays under y 63)
     cells = [],
     slab = [];
   let cx = null,
