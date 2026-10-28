@@ -5,6 +5,14 @@
 (function (root) {
   root.NEWS = [
     {
+      date: '2026-10-28',
+      title: 'A calm around the Atrium',
+      items: [
+        'No more mobs around the Atrium, where every game starts: 40 blocks all around (and the caves under it) stay calm, so newcomers can gather wood and find their way first.',
+        'Mobs out there stop at its edge. The network attack still comes to the Atrium every hour: defend it!',
+      ],
+    },
+    {
       date: '2026-10-26',
       title: 'Shut down a validator',
       items: [

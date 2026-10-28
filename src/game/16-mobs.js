@@ -1962,7 +1962,7 @@ function updateMobs(dt) {
         p = a.g.position,
         tg = mobTarget(a), // you, or another player nearby: whoever is closest, the same on every screen
         d = tg ? tg.d : Infinity, // in 3D: a buried mob doesn't bite through rock
-        aggro = d < K.aggro && !mobSafe(p.x, p.z);
+        aggro = d < K.aggro && !MobsCore.huntSafe(a, p.x, p.z); // not in a safe zone, nor in the Atrium's calm
       // another player leads it (it's after them): this screen only follows where their screen puts it
       if (a.remote && performance.now() - a.remote.t < FOLLOW_MS) {
         a.lead = false;

@@ -196,6 +196,11 @@ namespace EtherMines.Core
             Hy(Math.Floor(x) - World.CITY.X, Math.Floor(z) - World.CITY.Z) <= World.CITY.R + 0.5;
         // mob danger only: also the validators' path between them, widened well past its pavement
         public static bool MobSafe(double x, double z) => Sanctuary(x, z) || World.OnPath(x, z, 6);
+        // the newcomers' calm: around the Atrium, no mob appears (nor in the caves under it) and none hunts,
+        // so a first-time player finds their bearings before meeting one; only the network attack's nodes come in
+        public const double CALM_R = 40;
+        public static bool Calm(double x, double z) => Hy(Math.Floor(x) - World.SPAWN.X, Math.Floor(z) - World.SPAWN.Z) <= CALM_R;
+        static bool HuntSafe(Mob a, double x, double z) => MobSafe(x, z) || (a.Type != "corrupted_node" && Calm(x, z));
 
         // ---------- the shared clock (08-sky.js): one sky, one night, for every player of a world ----------
         public const double DAY_S = 480;
@@ -523,6 +528,7 @@ namespace EtherMines.Core
                         list.Add(NewMob(type, k, 200, px + 0.5, py, pz + 0.5));
                 }
             }
+            list.RemoveAll(a => Calm(a.Hx, a.Hz)); // the newcomers' calm: nobody around the Atrium
             return list;
         }
         static void Ladder(Mob a, double x, double z) { a.HasLadder = true; a.LadderX = x; a.LadderZ = z; }
@@ -532,7 +538,7 @@ namespace EtherMines.Core
         {
             string k = World.CKey(cx, cz);
             int x0 = cx * World.CH, z0 = cz * World.CH;
-            if (MobSafe(x0 + 8, z0 + 8) || World.Hash(cx * 23 + 9, cz * 31 + 13, 310) > 0.3) return null;
+            if (MobSafe(x0 + 8, z0 + 8) || Calm(x0 + 8, z0 + 8) || World.Hash(cx * 23 + 9, cz * 31 + 13, 310) > 0.3) return null;
             int hx = x0 + 2 + Fl(World.Hash(cx, cz, 311) * 12), hz = z0 + 2 + Fl(World.Hash(cx, cz, 312) * 12);
             if (World.HeightAt(hx, hz) <= World.SEA + 1 || World.IslandTop(hx, hz) > 0) return null; // no prowlers over water or islands
             var gr = GroundAt(W, hx + 0.5, hz + 0.5, World.HeightAt(hx, hz), true, 2);
@@ -715,7 +721,7 @@ namespace EtherMines.Core
             }
             var K = MK[a.Type];
             double d = tg != null ? (tg.D ?? Hy(a.X - tg.X, a.Y - tg.Y, a.Z - tg.Z)) : double.PositiveInfinity; // in 3D: a buried mob doesn't bite through rock
-            bool aggro = d < K.Aggro && !MobSafe(a.X, a.Z);
+            bool aggro = d < K.Aggro && !HuntSafe(a, a.X, a.Z);
             double ty0 = tg != null ? tg.Y : a.Y;
             double now = ev.Now ?? NowMs();
             double tx, tz;
@@ -769,8 +775,8 @@ namespace EtherMines.Core
                 double dr = Wrap(face.Value - a.Ry);
                 a.Ry += dr * Math.Min(1, dt * 6);
             }
-            // a hunting mob stops at the edge of a protected zone and waits there facing its target
-            if (aggro && MobSafe(nx, nz))
+            // a hunting mob stops at the edge of a protected zone (the Atrium and its calm too) and waits there facing its target
+            if (aggro && HuntSafe(a, nx, nz))
             {
                 nx = a.X;
                 nz = a.Z;

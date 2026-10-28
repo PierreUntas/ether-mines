@@ -208,6 +208,12 @@
   // first-time player told to "follow the paved path north" mustn't be ambushed on the one route the game
   // points them down
   const mobSafe = (x, z) => sanctuary(x, z) || onPath(x, z, 6);
+  // the newcomers' calm: around the Atrium, where every game starts, no mob appears (nor in the caves
+  // under it) and none hunts, so a first-time player can gather wood and find their bearings before
+  // meeting one. Only the network attack's nodes come in (they're the Atrium's event: you go fight them)
+  const CALM_R = 40;
+  const calm = (x, z) => Math.hypot(Math.floor(x) - SPAWN.x, Math.floor(z) - SPAWN.z) <= CALM_R;
+  const huntSafe = (a, x, z) => mobSafe(x, z) || (a.type !== 'corrupted_node' && calm(x, z));
 
   // ---------- the shared clock (08-sky.js): one sky, one night, for every player of a world ----------
   const DAY_S = 480,
@@ -586,7 +592,7 @@
           list.push(mob(type, k, 200, pick.hx + 0.5, pick.y, pick.hz + 0.5, null));
       }
     }
-    return list;
+    return list.filter(a => !calm(a.hx, a.hz)); // the newcomers' calm: nobody around the Atrium
   }
 
   // the night prowler of a chunk, if it has one and it's dark (null otherwise)
@@ -594,7 +600,7 @@
     const k = ckey(cx, cz),
       x0 = cx * CH,
       z0 = cz * CH;
-    if (mobSafe(x0 + 8, z0 + 8) || hash(cx * 23 + 9, cz * 31 + 13, 310) > 0.3) return null;
+    if (mobSafe(x0 + 8, z0 + 8) || calm(x0 + 8, z0 + 8) || hash(cx * 23 + 9, cz * 31 + 13, 310) > 0.3) return null;
     const hx = x0 + 2 + Math.floor(hash(cx, cz, 311) * 12),
       hz = z0 + 2 + Math.floor(hash(cx, cz, 312) * 12);
     if (heightAt(hx, hz) <= SEA + 1 || islandTop(hx, hz) > 0) return null; // no prowlers over water or islands
@@ -768,7 +774,7 @@
     const K = MK[a.type],
       p = a.p,
       d = tg ? (tg.d ?? Math.hypot(p.x - tg.x, p.y - tg.y, p.z - tg.z)) : Infinity, // in 3D: a buried mob doesn't bite through rock
-      aggro = d < K.aggro && !mobSafe(p.x, p.z),
+      aggro = d < K.aggro && !huntSafe(a, p.x, p.z),
       ty0 = tg ? tg.y : p.y;
     let tx,
       tz,
@@ -818,10 +824,10 @@
       dr = Math.atan2(Math.sin(dr), Math.cos(dr));
       a.r.y += dr * Math.min(1, dt * 6);
     }
-    // a hunting mob stops at the edge of a protected zone (the Atrium, the City, the path) and waits there
+    // a hunting mob stops at the edge of a protected zone (the Atrium and its calm, the City, the path) and waits there
     // facing its target, instead of stepping in, losing interest, stepping back out: that flip, every frame,
     // made it tremble against the border
-    if (aggro && mobSafe(nx, nz)) {
+    if (aggro && huntSafe(a, nx, nz)) {
       nx = p.x;
       nz = p.z;
     }
@@ -941,6 +947,9 @@
     ATTACK_SLOTS,
     STUN_S,
     sanctuary,
+    calm,
+    CALM_R,
+    huntSafe,
     mobSafe,
     worldClock,
     nightOf,
