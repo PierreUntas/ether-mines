@@ -437,10 +437,11 @@ if (Object.values(served).some(v => !v)) await fail('mobs through the game serve
 const led = await page.evaluate(async () => {
   const P = mines.P,
     home = { x: P.x, y: P.y, z: P.z };
-  // out of the sanctuary (where no mob hunts), still among the loaded chunks
-  for (let r = 10; r < 60 && mobSafe(P.x, P.z); r += 2)
+  // out of the sanctuary and the Atrium's calm (where no mob hunts), still among the loaded chunks
+  const safe = (x, z) => mobSafe(x, z) || MobsCore.calm(x, z);
+  for (let r = 10; r < 72 && safe(P.x, P.z); r += 2)
     for (const [ox, oz] of [[r, 0], [-r, 0], [0, r], [0, -r]])
-      if (mobSafe(P.x, P.z) && !mobSafe(home.x + ox, home.z + oz) && MESH.has(ckey(cOf(home.x + ox), cOf(home.z + oz)))) {
+      if (safe(P.x, P.z) && !safe(home.x + ox, home.z + oz) && MESH.has(ckey(cOf(home.x + ox), cOf(home.z + oz)))) {
         P.x = home.x + ox;
         P.z = home.z + oz;
       }
